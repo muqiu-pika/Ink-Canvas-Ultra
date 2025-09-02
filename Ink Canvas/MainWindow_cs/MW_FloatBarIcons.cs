@@ -221,17 +221,17 @@ namespace Ink_Canvas
                     if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
                     {
                         await Task.Delay(50);
-                        ViewboxFloatingBarMarginAnimation(60);
+                        ViewboxFloatingBarMarginAnimation();
                     }
                     else if (Topmost == true) //非黑板
                     {
                         await Task.Delay(50);
-                        ViewboxFloatingBarMarginAnimation(100);
+                        ViewboxFloatingBarMarginAnimation();
                     }
                     else //黑板
                     {
                         await Task.Delay(50);
-                        ViewboxFloatingBarMarginAnimation(60);
+                        ViewboxFloatingBarMarginAnimation();
                     }
                 }
             }
@@ -266,7 +266,7 @@ namespace Ink_Canvas
                 if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
                 {
                     await Task.Delay(100);
-                    ViewboxFloatingBarMarginAnimation(60);
+                    ViewboxFloatingBarMarginAnimation();
                 }
             }
         }
@@ -339,7 +339,7 @@ namespace Ink_Canvas
                     Thread.Sleep(100);
                     Application.Current.Dispatcher.Invoke(() =>
                     {
-                        ViewboxFloatingBarMarginAnimation(60);
+                        ViewboxFloatingBarMarginAnimation();
                     });
                 })).Start();
 
@@ -386,7 +386,7 @@ namespace Ink_Canvas
                         Thread.Sleep(100);
                         Application.Current.Dispatcher.Invoke(() =>
                         {
-                            ViewboxFloatingBarMarginAnimation(100);
+                            ViewboxFloatingBarMarginAnimation();
                         });
                     })).Start();
                 }
@@ -397,7 +397,7 @@ namespace Ink_Canvas
                         Thread.Sleep(100);
                         Application.Current.Dispatcher.Invoke(() =>
                         {
-                            ViewboxFloatingBarMarginAnimation(60);
+                            ViewboxFloatingBarMarginAnimation();
                         });
                     })).Start();
                 }
@@ -571,12 +571,22 @@ namespace Ink_Canvas
 
         bool isViewboxFloatingBarMarginAnimationRunning = false;
 
-        private async void ViewboxFloatingBarMarginAnimation(double MarginFromEdge)
+        private async void ViewboxFloatingBarMarginAnimation()
         {
-            if (MarginFromEdge == 60)
+            double MarginFromEdge;
+            if (isFloatingBarFolded)
             {
-                MarginFromEdge = 55;
+                MarginFromEdge = -60;
             }
+            else if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible || Topmost == false)
+            {
+                MarginFromEdge = 60;
+            }
+            else
+            {
+                MarginFromEdge = Settings.Appearance.FloatingBarBottomMargin;
+            }
+            if (MarginFromEdge == 60) MarginFromEdge = 55;
             MarginFromEdge = MarginFromEdge * (Settings.Appearance.FloatingBarScale / 100);
             await Dispatcher.InvokeAsync(() =>
             {
@@ -718,11 +728,11 @@ namespace Ink_Canvas
 
                 if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
                 {
-                    ViewboxFloatingBarMarginAnimation(60);
+                    ViewboxFloatingBarMarginAnimation();
                 }
                 else
                 {
-                    ViewboxFloatingBarMarginAnimation(100);
+                    ViewboxFloatingBarMarginAnimation();
                 }
             }
         }
