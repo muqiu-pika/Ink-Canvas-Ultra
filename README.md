@@ -4,14 +4,13 @@
 [![LOGO](Images/Ink%20Canvas%20Artistry.png?raw=true "LOGO")](# "LOGO")
 -->
 
-<img src="./Images/Ink Canvas Artistry.png" style="width:96px;"/>
+<img src="./Images/Ink Canvas Ultra.png" style="width:96px;"/>
 
-# Ink Canvas Artistry
+# Ink Canvas Ultra
 [![UPSTREAM](https://img.shields.io/badge/UpStream-WXRIW%2FInk--Canvas-red.svg "LICENSE")](https://github.com/WXRIW/Ink-Canvas)
 [![LICENSE](https://img.shields.io/badge/License-GPL--3.0-red.svg "LICENSE")](./LICENSE)
-[![Latest release](https://img.shields.io/github/release/InkCanvas/Ink-Canvas-Artistry.svg?style=shield)](https://github.com/InkCanvas/Ink-Canvas-Artistry/releases/latest)
-[![GitHub issues](https://img.shields.io/github/issues/InkCanvas/Ink-Canvas-Artistry?logo=github)](https://github.com/InkCanvas/Ink-Canvas-Artistry/issues)
-[![交流群](https://img.shields.io/badge/-%E4%BA%A4%E6%B5%81%E7%BE%A4%20617707731-blue?style=flat&logo=TencentQQ)](https://qm.qq.com/q/AC777tzmEw)
+[![Latest release](https://img.shields.io/github/release/muqiu-pika/Ink-Canvas-Ultra.svg?style=shield)](https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/latest)
+[![GitHub issues](https://img.shields.io/github/issues/muqiu-pika/Ink-Canvas-Ultra?logo=github)](https://github.com/muqiu-pika/Ink-Canvas-Ultra/issues)
 
 ![Screenshot-1](./Images/Screenshot1.png)
 ![Screenshot-2](./Images/Screenshot2.png)
@@ -22,7 +21,7 @@
 ## 👀 前言
 使用和分发本软件（原名 Ink-Canvas-For-Annotation）前，请您应当且务必知晓相关开源协议，本软件基于 https://github.com/WXRIW/Ink-Canvas 修改而成。对于墨迹功能的相关 issue 提出，可以优先查阅 https://github.com/WXRIW/Ink-Canvas/issues 。
 
-[直接下载](https://github.com/InkCanvas/Ink-Canvas-Artistry/releases/latest "Latest Releases")
+[直接下载](https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/latest "Latest Releases")
 ——该安装包使用 Inno Setup Compiler 打包，默认的推荐设置适配希沃六代机的使用。
 
 ## 🔧 特性
@@ -54,10 +53,6 @@ Support Active Pen (支持压感)
 
 1. GitHub Issues
 
-    功能需求：https://github.com/InkCanvas/Ink-Canvas-Artistry/labels/enhancement/new 
+    功能需求：https://github.com/muqiu-pika/Ink-Canvas-Ultra/labels/enhancement/new 
 
-    错误报告：https://github.com/InkCanvas/Ink-Canvas-Artistry/labels/bug/new
-
-2. Tencent QQ
-
-    [![交流群](https://img.shields.io/badge/-%E4%BA%A4%E6%B5%81%E7%BE%A4%20617707731-blue?style=flat&logo=TencentQQ)](https://qm.qq.com/q/AC777tzmEw)
+    错误报告：https://github.com/muqiu-pika/Ink-Canvas-Ultra/labels/bug/new

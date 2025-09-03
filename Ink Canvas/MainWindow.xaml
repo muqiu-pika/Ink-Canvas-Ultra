@@ -9,7 +9,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Name="window"
-    Title="Ink Canvas Artistry 画板"
+    Title="Ink Canvas Ultra 画板"
     Width="1440"
     Height="5500"
     AllowsTransparency="True"
@@ -4743,7 +4743,7 @@
                                     FontSize="26"
                                     FontWeight="Bold"
                                     Foreground="{DynamicResource SettingsPageForeground}"
-                                    Text="关于 Ink Canvas Artistry" />
+                                    Text="关于 Ink Canvas Ultra" />
                             </GroupBox.Header>
                             <ikw:SimpleStackPanel Spacing="5">
                                 <ikw:SimpleStackPanel Orientation="Horizontal">
@@ -4795,7 +4795,7 @@
                                         <TextBlock
                                             Width="250"
                                             Margin="2,0"
-                                            Text="https://github.com/InkCanvas/Ink-Canvas-Artistry"
+                                            Text="https://github.com/muqiu-pika/Ink-Canvas-Ultra"
                                             TextWrapping="Wrap" />
                                     </Hyperlink>
                                 </TextBlock>

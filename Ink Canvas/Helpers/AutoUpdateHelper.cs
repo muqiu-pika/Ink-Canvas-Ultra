@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Net.Http;
@@ -19,7 +19,7 @@ namespace Ink_Canvas.Helpers
             {
                 string localVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString();
                 string remoteAddress = proxy;
-                remoteAddress += "https://raw.githubusercontent.com/InkCanvas/Ink-Canvas-Artistry/master/AutomaticUpdateVersionControl.txt";
+                remoteAddress += "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
                 string remoteVersion = await GetRemoteVersion(remoteAddress);
 
                 if (remoteVersion != null)
@@ -70,7 +70,7 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        private static string updatesFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ink Canvas Artistry", "AutoUpdate");
+        private static string updatesFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ink Canvas Ultra", "AutoUpdate");
         private static string statusFilePath = null;
 
         public static async Task<bool> DownloadSetupFileAndSaveStatus(string version, string proxy = "")
@@ -85,10 +85,10 @@ namespace Ink_Canvas.Helpers
                     return true;
                 }
 
-                string downloadUrl = $"{proxy}https://github.com/InkCanvas/Ink-Canvas-Artistry/releases/download/v{version}/Ink.Canvas.Artistry.V{version}.Setup.exe";
+                string downloadUrl = $"{proxy}https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/download/v{version}/Ink.Canvas.Ultra.V{version}.Setup.exe";
 
                 SaveDownloadStatus(false);
-                await DownloadFile(downloadUrl, $"{updatesFolderPath}\\Ink.Canvas.Artistry.V{version}.Setup.exe");
+                await DownloadFile(downloadUrl, $"{updatesFolderPath}\\Ink.Canvas.Ultra.V{version}.Setup.exe");
                 SaveDownloadStatus(true);
 
                 LogHelper.WriteLogToFile("AutoUpdate | Setup file successfully downloaded.");
@@ -155,7 +155,7 @@ namespace Ink_Canvas.Helpers
         {
             try
             {
-                string setupFilePath = Path.Combine(updatesFolderPath, $"Ink.Canvas.Artistry.V{version}.Setup.exe");
+                string setupFilePath = Path.Combine(updatesFolderPath, $"Ink.Canvas.Ultra.V{version}.Setup.exe");
 
                 if (!File.Exists(setupFilePath))
                 {

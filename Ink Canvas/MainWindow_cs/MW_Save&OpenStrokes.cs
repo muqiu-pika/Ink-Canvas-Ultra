@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using Microsoft.Win32;
 using System;
 using System.IO;
@@ -118,7 +118,7 @@ namespace Ink_Canvas
             {
                 InitialDirectory = Settings.Automation.AutoSavedStrokesLocation,
                 Title = "打开墨迹文件",
-                Filter = "Ink Canvas Files (*.icart;*.icstk)|*.icart;*.icstk|Ink Canvas Artistry Files (*.icart)|*.icart|Ink Canvas Stroke Files (*.icstk)|*.icstk"
+                Filter = "Ink Canvas Files (*.icart;*.icstk)|*.icart;*.icstk|Ink Canvas Ultra Files (*.icart)|*.icart|Ink Canvas Stroke Files (*.icstk)|*.icstk"
             };
 
             if (openFileDialog.ShowDialog() == true)

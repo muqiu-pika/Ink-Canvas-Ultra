@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using Newtonsoft.Json;
 using OSVersionExtension;
 using System;
@@ -44,10 +44,10 @@ namespace Ink_Canvas
                 if (File.Exists(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\Ink Canvas Annotation.lnk"))
                 {
                     StartAutomaticallyDel("Ink Canvas Annotation");
-                    StartAutomaticallyCreate("Ink Canvas Artistry");
+                    StartAutomaticallyCreate("Ink Canvas Ultra");
                     ToggleSwitchRunAtStartup.IsOn = true;
                 }
-                else if (File.Exists(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\Ink Canvas Artistry.lnk"))
+                else if (File.Exists(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\Ink Canvas Ultra.lnk"))
                 {
                     ToggleSwitchRunAtStartup.IsOn = true;
                 }

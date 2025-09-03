@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using Newtonsoft.Json;
 using OSVersionExtension;
 using System;
@@ -53,7 +53,7 @@ namespace Ink_Canvas
 
         private async void BtnCheckAutoUpdateProxyReturnedData_Click(object sender, RoutedEventArgs e)
         {
-            string ProxyReturnedData = await AutoUpdateHelper.GetRemoteVersion(Settings.Startup.AutoUpdateProxy + "https://raw.githubusercontent.com/InkCanvas/Ink-Canvas-Artistry/master/AutomaticUpdateVersionControl.txt");
+            string ProxyReturnedData = await AutoUpdateHelper.GetRemoteVersion(Settings.Startup.AutoUpdateProxy + "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt");
             ShowNotificationAsync(ProxyReturnedData);
         }
 
@@ -78,13 +78,13 @@ namespace Ink_Canvas
             {
                 StartAutomaticallyDel("InkCanvas");
                 StartAutomaticallyDel("Ink Canvas Annotation");
-                StartAutomaticallyCreate("Ink Canvas Artistry");
+                StartAutomaticallyCreate("Ink Canvas Ultra");
             }
             else
             {
                 StartAutomaticallyDel("InkCanvas");
                 StartAutomaticallyDel("Ink Canvas Annotation");
-                StartAutomaticallyDel("Ink Canvas Artistry");
+                StartAutomaticallyDel("Ink Canvas Ultra");
             }
         }
 
@@ -947,7 +947,7 @@ namespace Ink_Canvas
 
         private void HyperlinkSourceToPresentRepository_Click(object sender, RoutedEventArgs e)
         {
-            Process.Start("https://github.com/InkCanvas/Ink-Canvas-Artistry");
+            Process.Start("https://github.com/muqiu-pika/Ink-Canvas-Ultra");
             HideSubPanels();
         }
 
