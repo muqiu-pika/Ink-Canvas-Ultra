@@ -40,19 +40,20 @@ namespace Ink_Canvas
                             }
                             var strokeReco = new StrokeCollection();
                             var result = InkRecognizeHelper.RecognizeShape(newStrokes);
+                            // 修正：防止result为null或InkDrawingNode为null时抛出异常
                             for (int i = newStrokes.Count - 1; i >= 0; i--)
                             {
                                 strokeReco.Add(newStrokes[i]);
                                 var newResult = InkRecognizeHelper.RecognizeShape(strokeReco);
-                                if (newResult.InkDrawingNode.GetShapeName() == "Circle" || newResult.InkDrawingNode.GetShapeName() == "Ellipse")
+                                if (newResult != null && newResult.InkDrawingNode != null &&
+                                    (newResult.InkDrawingNode.GetShapeName() == "Circle" || newResult.InkDrawingNode.GetShapeName() == "Ellipse"))
                                 {
                                     result = newResult;
                                     break;
                                 }
-                                //Label.Visibility = Visibility.Visible;
-                                //Label.Content = circles.Count.ToString() + "\n" + newResult.InkDrawingNode.GetShapeName();
                             }
-                            if (result.InkDrawingNode.GetShapeName() == "Circle")
+                            // 修正：防止result为null或InkDrawingNode为null时抛出异常
+                            if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName() == "Circle")
                             {
                                 var shape = result.InkDrawingNode.GetShape();
                                 if (shape.Width > 75)
@@ -111,7 +112,7 @@ namespace Ink_Canvas
                                     newStrokes = new StrokeCollection();
                                 }
                             }
-                            else if (result.InkDrawingNode.GetShapeName().Contains("Ellipse"))
+                            else if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName().Contains("Ellipse"))
                             {
                                 var shape = result.InkDrawingNode.GetShape();
                                 //var shape1 = result.InkDrawingNode.GetShape();
@@ -251,7 +252,7 @@ namespace Ink_Canvas
                                     newStrokes = new StrokeCollection();
                                 }
                             }
-                            else if (result.InkDrawingNode.GetShapeName().Contains("Triangle"))
+                            else if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName().Contains("Triangle"))
                             {
                                 var shape = result.InkDrawingNode.GetShape();
                                 var p = result.InkDrawingNode.HotPoints;
@@ -285,10 +286,11 @@ namespace Ink_Canvas
                                     newStrokes = new StrokeCollection();
                                 }
                             }
-                            else if (result.InkDrawingNode.GetShapeName().Contains("Rectangle") ||
-                                       result.InkDrawingNode.GetShapeName().Contains("Diamond") ||
-                                       result.InkDrawingNode.GetShapeName().Contains("Parallelogram") ||
-                                       result.InkDrawingNode.GetShapeName().Contains("Square"))
+                            else if (result != null && result.InkDrawingNode != null &&
+                                (result.InkDrawingNode.GetShapeName().Contains("Rectangle") ||
+                                 result.InkDrawingNode.GetShapeName().Contains("Diamond") ||
+                                 result.InkDrawingNode.GetShapeName().Contains("Parallelogram") ||
+                                 result.InkDrawingNode.GetShapeName().Contains("Square")))
                             {
                                 var shape = result.InkDrawingNode.GetShape();
                                 var p = result.InkDrawingNode.HotPoints;

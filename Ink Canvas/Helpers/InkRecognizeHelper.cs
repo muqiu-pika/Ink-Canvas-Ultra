@@ -7,10 +7,28 @@ namespace Ink_Canvas.Helpers
 {
     public class InkRecognizeHelper
     {
+        // 判断所有笔迹颜色和粗细是否一致
+        private static bool AreStrokesUniform(StrokeCollection strokes)
+        {
+            if (strokes == null || strokes.Count == 0) return true;
+            var first = strokes[0].DrawingAttributes;
+            foreach (var stroke in strokes)
+            {
+                var attr = stroke.DrawingAttributes;
+                if (attr.Color != first.Color || attr.Width != first.Width || attr.Height != first.Height)
+                    return false;
+            }
+            return true;
+        }
+
         //识别形状
         public static ShapeRecognizeResult RecognizeShape(StrokeCollection strokes)
         {
             if (strokes == null || strokes.Count == 0)
+                return default;
+
+            // 新增：多段笔迹颜色或粗细不一致时不识别
+            if (!AreStrokesUniform(strokes))
                 return default;
 
             var analyzer = new InkAnalyzer();
