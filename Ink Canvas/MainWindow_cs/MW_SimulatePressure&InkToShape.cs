@@ -36,7 +36,14 @@ namespace Ink_Canvas
                             }
                             for (int i = 0; i < circles.Count; i++)
                             {
-                                if (!inkCanvas.Strokes.Contains(circles[i].Stroke)) circles.RemoveAt(i);
+                                if (!inkCanvas.Strokes.Contains(circles[i].Stroke)) {
+                                    // 自动修复：若该圆的Stroke点数过少（如小于3），则判定为异常直线，移除
+                                    if (circles[i].Stroke.StylusPoints.Count < 3) {
+                                        circles.RemoveAt(i);
+                                        continue;
+                                    }
+                                    circles.RemoveAt(i);
+                                }
                             }
                             var strokeReco = new StrokeCollection();
                             var result = InkRecognizeHelper.RecognizeShape(newStrokes);
