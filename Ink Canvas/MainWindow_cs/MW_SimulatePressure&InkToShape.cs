@@ -39,10 +39,14 @@ namespace Ink_Canvas
                                 if (!inkCanvas.Strokes.Contains(circles[i].Stroke)) {
                                     // 自动修复：若该圆的Stroke点数过少（如小于3），则判定为异常直线，移除
                                     if (circles[i].Stroke.StylusPoints.Count < 3) {
+                                        // 新增：从画布中彻底移除异常直线
+                                        inkCanvas.Strokes.Remove(circles[i].Stroke);
                                         circles.RemoveAt(i);
+                                        i--;
                                         continue;
                                     }
                                     circles.RemoveAt(i);
+                                    i--;
                                 }
                             }
                             var strokeReco = new StrokeCollection();
