@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Reflection;
 
@@ -20,6 +20,15 @@ namespace Ink_Canvas.Helpers
 
         public static void WriteLogToFile(string str, LogType logType = LogType.Info)
         {
+            // 统一受“记录日志”开关控制
+            try
+            {
+                var settings = global::Ink_Canvas.MainWindow.Settings;
+                if (settings != null && settings.Advanced != null && !settings.Advanced.IsLogEnabled)
+                    return;
+            }
+            catch { }
+
             string strLogType = "Info";
             switch (logType)
             {
@@ -49,6 +58,15 @@ namespace Ink_Canvas.Helpers
 
         public static void WriteObjectLogToFile(object obj, LogType logType = LogType.Info)
         {
+            // 统一受“记录日志”开关控制
+            try
+            {
+                var settings = global::Ink_Canvas.MainWindow.Settings;
+                if (settings != null && settings.Advanced != null && !settings.Advanced.IsLogEnabled)
+                    return;
+            }
+            catch { }
+
             string strLogType = "Info";
             switch (logType)
             {
