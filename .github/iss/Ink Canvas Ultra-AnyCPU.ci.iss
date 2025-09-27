@@ -29,10 +29,10 @@ DisableProgramGroupPage=yes
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=dist
+OutputDir=..\..\dist
 #define OutputBaseFilename "Ink.Canvas.Ultra.V" + MyAppVersion + ".AnyCPU.Setup"
 OutputBaseFilename={#OutputBaseFilename}
-SetupIconFile=Ink Canvas\Resources\Ink Canvas Ultra.ico
+SetupIconFile="..\..\Ink Canvas\Resources\Ink Canvas Ultra.ico"
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
