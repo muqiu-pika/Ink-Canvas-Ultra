@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using System;
 using System.Threading.Tasks;
 using System.Windows;
@@ -573,23 +573,24 @@ namespace Ink_Canvas
 
         private async void ViewboxFloatingBarMarginAnimation()
         {
-            double MarginFromEdge;
-            if (isFloatingBarFolded)
-            {
-                MarginFromEdge = -60;
-            }
-            else if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible || Topmost == false)
-            {
-                MarginFromEdge = 60;
-            }
-            else
-            {
-                MarginFromEdge = Settings.Appearance.FloatingBarBottomMargin;
-            }
-            if (MarginFromEdge == 60) MarginFromEdge = 55;
-            MarginFromEdge = MarginFromEdge * (Settings.Appearance.FloatingBarScale / 100);
             await Dispatcher.InvokeAsync(() =>
             {
+                double MarginFromEdge;
+                if (isFloatingBarFolded)
+                {
+                    MarginFromEdge = -60;
+                }
+                else if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible || Topmost == false)
+                {
+                    MarginFromEdge = 60;
+                }
+                else
+                {
+                    MarginFromEdge = Settings.Appearance.FloatingBarBottomMargin;
+                }
+                if (MarginFromEdge == 60) MarginFromEdge = 55;
+                MarginFromEdge = MarginFromEdge * (Settings.Appearance.FloatingBarScale / 100);
+
                 if (Topmost == false)
                 {
                     MarginFromEdge = -60;

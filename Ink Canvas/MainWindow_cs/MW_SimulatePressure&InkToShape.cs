@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Point = System.Windows.Point;
 
 namespace Ink_Canvas
@@ -15,6 +16,7 @@ namespace Ink_Canvas
     {
         StrokeCollection newStrokes = new StrokeCollection();
         List<Circle> circles = new List<Circle>();
+        private static readonly Random _random = new Random();
 
         //此函数中的所有代码版权所有 WXRIW，在其他项目中使用前必须提前联系（wxriw@outlook.com），谢谢！
         private void inkCanvas_StrokeCollected(object sender, InkCanvasStrokeCollectedEventArgs e)
@@ -24,11 +26,11 @@ namespace Ink_Canvas
                 inkCanvas.Opacity = 1;
                 if (Settings.InkToShape.IsInkToShapeEnabled && !Environment.Is64BitProcess)
                 {
-                    void InkToShapeProcess()
+                    void InkToShapeProcess(Stroke strokeParam)
                     {
                         try
                         {
-                            newStrokes.Add(e.Stroke);
+                            newStrokes.Add(strokeParam);
                             if (newStrokes.Count > 4) newStrokes.RemoveAt(0);
                             for (int i = 0; i < newStrokes.Count; i++)
                             {
@@ -49,20 +51,27 @@ namespace Ink_Canvas
                                     i--;
                                 }
                             }
-                            var strokeReco = new StrokeCollection();
-                            var result = InkRecognizeHelper.RecognizeShape(newStrokes);
-                            // 修正：防止result为null或InkDrawingNode为null时抛出异常
-                            for (int i = newStrokes.Count - 1; i >= 0; i--)
+
+                            // 识别前增加尺寸阈值早退，避免对微小笔迹触发识别
+                            double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+                            foreach (var s in newStrokes)
                             {
-                                strokeReco.Add(newStrokes[i]);
-                                var newResult = InkRecognizeHelper.RecognizeShape(strokeReco);
-                                if (newResult != null && newResult.InkDrawingNode != null &&
-                                    (newResult.InkDrawingNode.GetShapeName() == "Circle" || newResult.InkDrawingNode.GetShapeName() == "Ellipse"))
+                                foreach (var sp in s.StylusPoints)
                                 {
-                                    result = newResult;
-                                    break;
+                                    if (sp.X < minX) minX = sp.X;
+                                    if (sp.X > maxX) maxX = sp.X;
+                                    if (sp.Y < minY) minY = sp.Y;
+                                    if (sp.Y > maxY) maxY = sp.Y;
                                 }
                             }
+                            double width = maxX - minX;
+                            double height = maxY - minY;
+                            if (width < 75 && height < 75)
+                            {
+                                return;
+                            }
+
+                            var result = InkRecognizeHelper.RecognizeShape(newStrokes);
                             // 修正：防止result为null或InkDrawingNode为null时抛出异常
                             if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName() == "Circle")
                             {
@@ -126,9 +135,6 @@ namespace Ink_Canvas
                             else if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName().Contains("Ellipse"))
                             {
                                 var shape = result.InkDrawingNode.GetShape();
-                                //var shape1 = result.InkDrawingNode.GetShape();
-                                //shape1.Fill = Brushes.Gray;
-                                //Canvas.Children.Add(shape1);
                                 var p = result.InkDrawingNode.HotPoints;
                                 double a = GetDistance(p[0], p[2]) / 2; //长半轴
                                 double b = GetDistance(p[1], p[3]) / 2; //短半轴
@@ -247,7 +253,6 @@ namespace Ink_Canvas
                                     if (needRotation)
                                     {
                                         Matrix m = new Matrix();
-                                        FrameworkElement fe = e.Source as FrameworkElement;
                                         double tanTheta = (p[2].Y - p[0].Y) / (p[2].X - p[0].X);
                                         double theta = Math.Atan(tanTheta);
                                         m.RotateAt(theta * 180.0 / Math.PI, result.Centroid.X, result.Centroid.Y);
@@ -282,7 +287,6 @@ namespace Ink_Canvas
                                     p[2] = newPoints[1];
 
                                     var pointList = p.ToList();
-                                    //pointList.Add(p[0]);
                                     var point = new StylusPointCollection(pointList);
                                     var stroke = new Stroke(GenerateFakePressureTriangle(point))
                                     {
@@ -340,8 +344,8 @@ namespace Ink_Canvas
                             }
                         }
                         catch { }
+                        Dispatcher.BeginInvoke(DispatcherPriority.Background, new Action(() => InkToShapeProcess(e.Stroke.Clone())));
                     }
-                    InkToShapeProcess();
                 }
 
 
@@ -365,9 +369,10 @@ namespace Ink_Canvas
                 {
                     if (e.Stroke.StylusPoints.Count > 3)
                     {
-                        Random random = new Random();
-                        double _speed = GetPointSpeed(e.Stroke.StylusPoints[random.Next(0, e.Stroke.StylusPoints.Count - 1)].ToPoint(), e.Stroke.StylusPoints[random.Next(0, e.Stroke.StylusPoints.Count - 1)].ToPoint(), e.Stroke.StylusPoints[random.Next(0, e.Stroke.StylusPoints.Count - 1)].ToPoint());
-
+                        double _speed = GetPointSpeed(
+                            e.Stroke.StylusPoints[_random.Next(0, e.Stroke.StylusPoints.Count - 1)].ToPoint(),
+                            e.Stroke.StylusPoints[_random.Next(0, e.Stroke.StylusPoints.Count - 1)].ToPoint(),
+                            e.Stroke.StylusPoints[_random.Next(0, e.Stroke.StylusPoints.Count - 1)].ToPoint());
                         RandWindow.randSeed = (int)(_speed * 100000 * 1000);
                     }
                 }
