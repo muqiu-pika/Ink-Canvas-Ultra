@@ -57,19 +57,19 @@ jobs:
       shell: pwsh
 
     - name: Upload AnyCPU installer
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Ink Canvas Ultra (AnyCPU) Installer
         path: dist\Ink.Canvas.Ultra.V5.0.1.AnyCPU.Setup.exe
 
     - name: Upload x64 installer
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Ink Canvas Ultra (x64) Installer
         path: dist\Ink.Canvas.Ultra.V5.0.1.x64.Setup.exe
 
     - name: Upload ARM64 installer
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: Ink Canvas Ultra (ARM64) Installer
         path: dist\Ink.Canvas.Ultra.V5.0.1.ARM64.Setup.exe
