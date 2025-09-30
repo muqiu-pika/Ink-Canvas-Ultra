@@ -1,0 +1,80 @@
+name: Build Ultra Installers
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3.5.2
+      with:
+        fetch-depth: 0
+
+    - name: Setup .NET SDK
+      uses: actions/setup-dotnet@v3.0.3
+      with:
+        dotnet-version: '6.0.x'
+
+    - name: Setup NuGet
+      uses: NuGet/setup-nuget@v1.2.0
+      with:
+        nuget-version: '5.x'
+
+    - name: NuGet restore
+      run: nuget restore
+
+    - name: Add msbuild to PATH
+      uses: microsoft/setup-msbuild@v1.3.1
+
+    - name: Build Any CPU
+      run: |
+        msbuild "Ink Canvas/Ink Canvas.csproj" /p:Configuration=Release /p:Platform="Any CPU" /p:AllowUnsafeBlocks=true
+
+    - name: Build x64
+      run: |
+        msbuild "Ink Canvas/Ink Canvas.csproj" /p:Configuration=Release /p:Platform=x64 /p:AllowUnsafeBlocks=true
+
+    - name: Build ARM64
+      run: |
+        msbuild "Ink Canvas/Ink Canvas.csproj" /p:Configuration=Release /p:Platform=ARM64 /p:AllowUnsafeBlocks=true
+
+    - name: Install Inno Setup
+      run: |
+        choco install innosetup -y
+      shell: pwsh
+
+    - name: Prepare dist folder
+      run: |
+        New-Item -ItemType Directory -Force -Path dist
+      shell: pwsh
+
+    - name: Build installers
+      run: |
+        iscc ".github\iss\Ink Canvas Ultra-AnyCPU.ci.iss"
+        iscc ".github\iss\Ink Canvas Ultra-x64.ci.iss"
+        iscc ".github\iss\Ink Canvas Ultra-ARM64.ci.iss"
+      shell: pwsh
+
+    - name: Upload AnyCPU installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: Ink Canvas Ultra (AnyCPU) Installer
+        path: dist\Ink.Canvas.Ultra.V*.AnyCPU.Setup.exe
+
+    - name: Upload x64 installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: Ink Canvas Ultra (x64) Installer
+        path: dist\Ink.Canvas.Ultra.V*.x64.Setup.exe
+
+    - name: Upload ARM64 installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: Ink Canvas Ultra (ARM64) Installer
+        path: dist\Ink.Canvas.Ultra.V*.ARM64.Setup.exe
