@@ -573,6 +573,12 @@ namespace Ink_Canvas
 
         private async void ViewboxFloatingBarMarginAnimation()
         {
+            // Ensure all UI property accesses in this method run on the UI thread
+            if (!Dispatcher.CheckAccess())
+            {
+                await Dispatcher.InvokeAsync(() => ViewboxFloatingBarMarginAnimation());
+                return;
+            }
             double MarginFromEdge;
             if (isFloatingBarFolded)
             {

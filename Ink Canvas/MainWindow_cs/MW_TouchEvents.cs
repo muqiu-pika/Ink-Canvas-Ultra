@@ -9,6 +9,7 @@ using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Xml.Linq;
+using System.Windows.Threading;
 using Point = System.Windows.Point;
 
 namespace Ink_Canvas
@@ -110,7 +111,14 @@ namespace Ink_Canvas
                         inkCanvas.Children.Remove(GetVisualCanvas(e.StylusDevice.Id));
                         foreach (var s in visual.StrokeCollection)
                         {
-                            inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
+                            await Dispatcher.InvokeAsync(() =>
+                            {
+                                try
+                                {
+                                    inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
+                                }
+                                catch { }
+                            }, DispatcherPriority.Background);
                         }
                     }
                     catch(Exception ex) {
@@ -148,12 +156,12 @@ namespace Ink_Canvas
                 }
                 catch { }
                 var strokeVisual = GetStrokeVisual(e.StylusDevice.Id);
-                var stylusPointCollection = e.GetStylusPoints(this);
+                var stylusPointCollection = e.GetStylusPoints(inkCanvas);
                 foreach (var stylusPoint in stylusPointCollection)
                 {
                     strokeVisual.Add(new StylusPoint(stylusPoint.X, stylusPoint.Y, stylusPoint.PressureFactor));
                 }
-                strokeVisual.Redraw();
+                strokeVisual.RedrawThrottled();
             }
             catch { }
         }

@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace Ink_Canvas.Helpers
 {
@@ -19,6 +20,9 @@ namespace Ink_Canvas.Helpers
         {
             Visual = visual;
             AddVisualChild(visual);
+            // 预览画布不参与命中测试，避免阻挡 InkCanvas 的输入事件
+            IsHitTestVisible = false;
+            Focusable = false;
         }
 
         public DrawingVisual Visual { get; }
@@ -63,6 +67,7 @@ namespace Ink_Canvas.Helpers
         private int _lastTick = -1;
         private const double MaxGapDistance = 100.0; // 像素阈值：短时间内两点距离过大则断开
         private const int ShortTimeMs = 30; // 时间阈值：认为是“短时间”
+        private bool _redrawScheduled = false;
 
         public StrokeCollection StrokeCollection => _strokes;
 
@@ -128,6 +133,20 @@ namespace Ink_Canvas.Helpers
                 }
             }
             catch { }
+        }
+
+        /// <summary>
+        ///     节流重绘：在渲染优先级安排一次重绘，避免每次移动都立即重绘
+        /// </summary>
+        public void RedrawThrottled()
+        {
+            if (_redrawScheduled) return;
+            _redrawScheduled = true;
+            Dispatcher.BeginInvoke(DispatcherPriority.Render, new Action(() =>
+            {
+                _redrawScheduled = false;
+                Redraw();
+            }));
         }
 
         private readonly DrawingAttributes _drawingAttributes;
