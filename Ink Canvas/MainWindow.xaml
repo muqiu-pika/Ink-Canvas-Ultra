@@ -6111,6 +6111,43 @@
                                     </ikw:SimpleStackPanel>
                                 </Border>
                             </Grid>
+
+                            <Button
+                                Width="30"
+                                Height="32"
+                                Padding="0"
+                                BorderThickness="0"
+                                Click="CursorWithDelIcon_Click">
+                                <ikw:SimpleStackPanel
+                                    Margin="1.5,0,2.5,0"
+                                    HorizontalAlignment="Center"
+                                    Background="Transparent"
+                                    Orientation="Vertical">
+                                    <ui:FontIcon
+                                        Width="30"
+                                        Height="22"
+                                        Margin="-5,0,-2,0"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="16"
+                                        Foreground="{DynamicResource FloatBarForeground}"
+                                        Glyph="&#xe8b0;" />
+                                    <ui:FontIcon
+                                        Width="15"
+                                        Height="22"
+                                        Margin="10,-25,0,-10"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="12"
+                                        Foreground="{DynamicResource FloatBarForeground}"
+                                        Glyph="&#xe74d;" />
+                                    <TextBlock
+                                        Margin="1,-1,0,0"
+                                        FontSize="8"
+                                        Foreground="{DynamicResource FloatBarForeground}"
+                                        Text="清并鼠"
+                                        TextAlignment="Center"
+                                        Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
+                                </ikw:SimpleStackPanel>
+                            </Button>
                             <Button
                                 Width="30"
                                 Height="32"
@@ -6595,42 +6632,6 @@
                                         Foreground="{DynamicResource FloatBarForeground}"
                                         Opacity="{Binding ElementName=Icon_Redo, Path=Opacity}"
                                         Text="重做"
-                                        TextAlignment="Center"
-                                        Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
-                                </ikw:SimpleStackPanel>
-                            </Button>
-                            <Button
-                                Width="30"
-                                Height="32"
-                                Padding="0"
-                                BorderThickness="0"
-                                Click="CursorWithDelIcon_Click">
-                                <ikw:SimpleStackPanel
-                                    Margin="1.5,0,2.5,0"
-                                    HorizontalAlignment="Center"
-                                    Background="Transparent"
-                                    Orientation="Vertical">
-                                    <ui:FontIcon
-                                        Width="30"
-                                        Height="22"
-                                        Margin="-5,0,-2,0"
-                                        FontFamily="{StaticResource FluentIconFontFamily}"
-                                        FontSize="16"
-                                        Foreground="{DynamicResource FloatBarForeground}"
-                                        Glyph="&#xe8b0;" />
-                                    <ui:FontIcon
-                                        Width="15"
-                                        Height="22"
-                                        Margin="10,-25,0,-10"
-                                        FontFamily="{StaticResource FluentIconFontFamily}"
-                                        FontSize="12"
-                                        Foreground="{DynamicResource FloatBarForeground}"
-                                        Glyph="&#xe74d;" />
-                                    <TextBlock
-                                        Margin="1,-1,0,0"
-                                        FontSize="8"
-                                        Foreground="{DynamicResource FloatBarForeground}"
-                                        Text="清并鼠"
                                         TextAlignment="Center"
                                         Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
                                 </ikw:SimpleStackPanel>
