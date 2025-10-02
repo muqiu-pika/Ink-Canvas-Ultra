@@ -170,11 +170,10 @@ namespace Ink_Canvas
                                                 {
                                                     mediaElement.LoadedBehavior = MediaState.Manual;
                                                     mediaElement.UnloadedBehavior = MediaState.Manual;
-                                                    mediaElement.Loaded += async (_, args) =>
+                                                    mediaElement.Loaded += (_, args) =>
                                                     {
+                                                        // 所有模式导入后自动播放
                                                         mediaElement.Play();
-                                                        await Task.Delay(100);
-                                                        mediaElement.Pause();
                                                     };
                                                 }
                                                 inkCanvas.Children.Add(clonedChild);

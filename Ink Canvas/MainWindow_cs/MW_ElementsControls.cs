@@ -1,10 +1,11 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using System.Windows.Input;
 using Microsoft.Win32;
 
 namespace Ink_Canvas
@@ -113,11 +114,10 @@ namespace Ink_Canvas
 
                     mediaElement.LoadedBehavior = MediaState.Manual;
                     mediaElement.UnloadedBehavior = MediaState.Manual;
-                    mediaElement.Loaded += async (_, args) =>
+                    mediaElement.Loaded += (_, args) =>
                     {
+                        // 所有模式导入后自动播放
                         mediaElement.Play();
-                        await Task.Delay(100);
-                        mediaElement.Pause();
                     };
 
                     timeMachine.CommitElementInsertHistory(mediaElement);
@@ -140,6 +140,9 @@ namespace Ink_Canvas
                 mediaElement.Name = timestamp;
                 mediaElement.LoadedBehavior = MediaState.Manual;
                 mediaElement.UnloadedBehavior = MediaState.Manual;
+                mediaElement.ScrubbingEnabled = true;
+                mediaElement.IsHitTestVisible = true;
+                mediaElement.Focusable = true;
 
                 mediaElement.Width = 256;
                 mediaElement.Height = 256;
@@ -150,6 +153,38 @@ namespace Ink_Canvas
                 File.Copy(filePath, newFilePath, true);
 
                 mediaElement.Source = new Uri(newFilePath);
+
+                // Allow play/pause toggle in screen pen mode by tapping/clicking the media
+                mediaElement.Tag = false; // playing state
+                void TogglePlayback()
+                {
+                    bool isPlaying = mediaElement.Tag is bool b && b;
+                    if (isPlaying)
+                    {
+                        mediaElement.Pause();
+                        mediaElement.Tag = false;
+                    }
+                    else
+                    {
+                        mediaElement.Play();
+                        mediaElement.Tag = true;
+                    }
+                }
+                mediaElement.PreviewMouseLeftButtonDown += (s, e) =>
+                {
+                    e.Handled = true;
+                    TogglePlayback();
+                };
+                mediaElement.PreviewTouchDown += (s, e) =>
+                {
+                    e.Handled = true;
+                    TogglePlayback();
+                };
+                mediaElement.PreviewStylusDown += (s, e) =>
+                {
+                    e.Handled = true;
+                    TogglePlayback();
+                };
 
                 return mediaElement;
             });

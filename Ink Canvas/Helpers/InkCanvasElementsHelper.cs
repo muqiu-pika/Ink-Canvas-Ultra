@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Windows;
@@ -167,11 +167,10 @@ namespace Ink_Canvas.Helpers
                 IsMuted = originalMediaElement.IsMuted,
                 ScrubbingEnabled = originalMediaElement.ScrubbingEnabled
             };
-            clonedMediaElement.Loaded += async (sender, args) =>
+            clonedMediaElement.Loaded += (sender, args) =>
             {
+                // 所有模式导入后自动播放
                 clonedMediaElement.Play();
-                await Task.Delay(100);
-                clonedMediaElement.Pause();
             };
             return clonedMediaElement;
         }

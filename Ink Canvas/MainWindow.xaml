@@ -2262,7 +2262,7 @@
                             Height="55"
                             Padding="0"
                             BorderThickness="0"
-                            Click="BtnImageInsert_Click">
+                            Click="BtnMediaInsertUnified_Click">
                             <Border
                                 Width="60"
                                 Height="55"
@@ -2290,7 +2290,7 @@
                                         VerticalAlignment="Bottom"
                                         FontSize="12"
                                         Foreground="{DynamicResource BoardBarForeground}"
-                                        Text="插入图片" />
+                                        Text="插入媒体" />
                                 </Grid>
                             </Border>
                         </Button>
@@ -6520,12 +6520,13 @@
                                     </ikw:SimpleStackPanel>
                                 </Border>
                             </Grid>
+                            
                             <Button
                                 Width="30"
                                 Height="32"
                                 Padding="0"
                                 BorderThickness="0"
-                                Click="BtnImageInsert_Click">
+                                Click="BtnMediaInsertUnified_Click">
                                 <ikw:SimpleStackPanel
                                     HorizontalAlignment="Center"
                                     Background="Transparent"
@@ -6541,33 +6542,7 @@
                                         Margin="-0.75,-1,0,0"
                                         FontSize="8"
                                         Foreground="{DynamicResource FloatBarForeground}"
-                                        Text="插入图片"
-                                        TextAlignment="Center"
-                                        Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
-                                </ikw:SimpleStackPanel>
-                            </Button>
-                            <Button
-                                Width="30"
-                                Height="32"
-                                Padding="0"
-                                BorderThickness="0"
-                                Click="BtnMediaInsert_Click">
-                                <ikw:SimpleStackPanel
-                                    HorizontalAlignment="Center"
-                                    Background="Transparent"
-                                    Orientation="Vertical">
-                                    <ui:FontIcon
-                                        Width="30"
-                                        Height="22"
-                                        FontFamily="{StaticResource FluentIconFontFamily}"
-                                        FontSize="16"
-                                        Foreground="{DynamicResource FloatBarForeground}"
-                                        Glyph="&#xee71;" />
-                                    <TextBlock
-                                        Margin="-0.75,-1,0,0"
-                                        FontSize="8"
-                                        Foreground="{DynamicResource FloatBarForeground}"
-                                        Text="插入视频"
+                                        Text="插入媒体"
                                         TextAlignment="Center"
                                         Visibility="{Binding ElementName=FloatBarSelectIconTextBlock, Path=Visibility}" />
                                 </ikw:SimpleStackPanel>
