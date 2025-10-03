@@ -81,7 +81,7 @@ namespace Ink_Canvas
                 catch { IconVideoPlayPause.Glyph = PlayGlyph; }
 
                 BorderVideoSelectionControl.Visibility = Visibility.Visible;
-                updateBorderVideoSelectionControlLocation();
+                UpdateBorderVideoSelectionControlLocation();
 
                 if (videoTimer == null)
                 {
@@ -97,7 +97,7 @@ namespace Ink_Canvas
             }
         }
 
-        private void updateBorderVideoSelectionControlLocation()
+        private void UpdateBorderVideoSelectionControlLocation()
         {
             // 已嵌入到 BorderStrokeSelectionControl 内部，位置随父容器自动变化
             try { BorderVideoSelectionControl.Margin = new Thickness(0, 4, 0, 0); } catch { }
@@ -111,7 +111,7 @@ namespace Ink_Canvas
                 BorderVideoSelectionControl.Visibility = Visibility.Collapsed;
                 
                 // 停止计时器
-                if (videoTimer != null) videoTimer.Stop();
+                videoTimer?.Stop();
 
                 // 安全地清理selectedMediaElement
                 MediaElement tempMediaElement = selectedMediaElement; // 创建临时引用

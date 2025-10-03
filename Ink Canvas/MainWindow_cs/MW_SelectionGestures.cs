@@ -1,4 +1,4 @@
-﻿﻿﻿﻿using Ink_Canvas.Helpers;
+﻿﻿﻿using Ink_Canvas.Helpers;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -225,8 +225,7 @@ namespace Ink_Canvas
         private void ApplyElementMatrixTransform(UIElement element, Matrix matrix)
         {
             FrameworkElement frameworkElement = element as FrameworkElement;
-            TransformGroup transformGroup = frameworkElement.RenderTransform as TransformGroup;
-            if (transformGroup == null)
+            if (!(frameworkElement.RenderTransform is TransformGroup transformGroup))
             {
                 transformGroup = new TransformGroup();
                 frameworkElement.RenderTransform = transformGroup;
@@ -332,7 +331,7 @@ namespace Ink_Canvas
             // add Translate
             m.Translate(trans.X, trans.Y);
             // handle UIElement
-            List<UIElement> elements = new List<UIElement>();
+            List<UIElement> elements;
             if (ElementsSelectionClone.Count != 0)
             {
                 elements = ElementsSelectionClone;
@@ -355,8 +354,8 @@ namespace Ink_Canvas
             {
                 stroke.Transform(m, false);
             }
-            updateBorderStrokeSelectionControlLocation();
-            updateBorderVideoSelectionControlLocation();
+            UpdateBorderStrokeSelectionControlLocation();
+            UpdateBorderVideoSelectionControlLocation();
         }
 
         private void GridInkCanvasSelectionCover_MouseUp(object sender, MouseButtonEventArgs e)
@@ -410,8 +409,8 @@ namespace Ink_Canvas
                 }
                 catch { }
             }
-            updateBorderStrokeSelectionControlLocation();
-            updateBorderVideoSelectionControlLocation();
+            UpdateBorderStrokeSelectionControlLocation();
+            UpdateBorderVideoSelectionControlLocation();
         }
 
         private void BtnSelect_Click(object sender, RoutedEventArgs e)
@@ -448,7 +447,7 @@ namespace Ink_Canvas
         }
         bool isProgramChangeStrokeSelection = false;
 
-        private void inkCanvas_SelectionChanged(object sender, EventArgs e)
+        private void InkCanvas_SelectionChanged(object sender, EventArgs e)
         {
             if (isProgramChangeStrokeSelection) return;
             if (InkCanvasElementsHelper.IsNotCanvasElementSelected(inkCanvas))
@@ -469,13 +468,13 @@ namespace Ink_Canvas
                 IconStrokeSelectionClone.SetResourceReference(TextBlock.ForegroundProperty, "FloatBarForeground");
                 ToggleButtonStrokeSelectionClone.IsChecked = false;
                 isStrokeSelectionCloneOn = false;
-                updateBorderStrokeSelectionControlLocation();
+                UpdateBorderStrokeSelectionControlLocation();
             }
         }
         double BorderStrokeSelectionControlWidth = 695;
         double BorderStrokeSelectionControlHeight = 104;
 
-        private void updateBorderStrokeSelectionControlLocation()
+        private void UpdateBorderStrokeSelectionControlLocation()
         {
             Rect selectionBounds = inkCanvas.GetSelectionBounds();
             double controlWidth = BorderStrokeSelectionControl.ActualWidth > 0 ? BorderStrokeSelectionControl.ActualWidth : BorderStrokeSelectionControlWidth;
@@ -617,8 +616,8 @@ namespace Ink_Canvas
                         }
                         catch { }
                     }
-                    updateBorderStrokeSelectionControlLocation();
-                    try { updateBorderVideoSelectionControlLocation(); } catch { }
+                    UpdateBorderStrokeSelectionControlLocation();
+                    try { UpdateBorderVideoSelectionControlLocation(); } catch { }
                 }
             }
             catch { }

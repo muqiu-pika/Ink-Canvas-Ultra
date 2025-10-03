@@ -140,7 +140,7 @@
                 MouseUp="inkCanvas_MouseUp"
                 PreviewTouchDown="inkCanvas_PreviewTouchDown"
                 PreviewTouchUp="inkCanvas_PreviewTouchUp"
-                SelectionChanged="inkCanvas_SelectionChanged"
+                SelectionChanged="InkCanvas_SelectionChanged"
                 StrokeCollected="inkCanvas_StrokeCollected"
                 TouchDown="Main_Grid_TouchDown"
                 TouchMove="inkCanvas_TouchMove"
@@ -163,11 +163,9 @@
                 PreviewTouchDown="GridInkCanvasSelectionCover_PreviewTouchDown"
                 PreviewTouchUp="GridInkCanvasSelectionCover_PreviewTouchUp"
                 Visibility="Visible" />
-            <!-- 视频选择控制条：与 BorderStrokeSelectionControl 相同的 Border 方式（置于后面以保证同层时在上方） -->
             <Border
                 x:Name="BorderStrokeSelectionControl"
-                Height="Auto"
-                Width="695"
+                Height="104"
                 Margin="0,50,0,0"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
@@ -175,9 +173,8 @@
                 BorderBrush="{DynamicResource FloatBarBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="5"
-                Panel.ZIndex="10"
                 Visibility="{Binding ElementName=GridInkCanvasSelectionCover, Path=Visibility}">
-                <Viewbox Stretch="None">
+                <Viewbox>
                     <ikw:SimpleStackPanel>
                         <ikw:SimpleStackPanel
                             Height="80"
@@ -829,9 +826,7 @@
                         </ikw:SimpleStackPanel>
                         <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                             <ui:FontIcon Width="18" Height="18" FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Foreground="{DynamicResource FloatBarForeground}" Glyph="&#xe767;" />
-                            <Border Height="33" Padding="5,0" Background="{DynamicResource FloatBarBackground}" CornerRadius="3" BorderBrush="{DynamicResource FloatBarBorderBrush}" BorderThickness="1">
-                                <Slider x:Name="SliderVideoVolume" Width="140" Minimum="0" Maximum="100" ValueChanged="SliderVideoVolume_ValueChanged"/>
-                            </Border>
+                            <Slider x:Name="SliderVideoVolume" Width="140" Minimum="0" Maximum="100" ValueChanged="SliderVideoVolume_ValueChanged"/>
                         </ikw:SimpleStackPanel>
                     </ikw:SimpleStackPanel>
                 </Viewbox>

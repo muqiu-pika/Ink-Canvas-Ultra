@@ -157,8 +157,7 @@ namespace Ink_Canvas
 
 		private void InkCanvas_EditingModeChanged(object sender, RoutedEventArgs e)
         {
-			var inkCanvas1 = sender as InkCanvas;
-			if (inkCanvas1 == null) return;
+			if (!(sender is InkCanvas inkCanvas1)) return;
             if (Settings.Canvas.IsShowCursor)
             {
                 if (inkCanvas1.EditingMode == InkCanvasEditingMode.Ink || drawingShapeMode != 0)
