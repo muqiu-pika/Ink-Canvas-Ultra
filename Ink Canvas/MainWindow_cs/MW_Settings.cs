@@ -295,7 +295,7 @@ namespace Ink_Canvas
         {
             if (!isLoaded) return;
             Settings.Canvas.IsShowCursor = ToggleSwitchShowCursor.IsOn;
-            inkCanvas_EditingModeChanged(inkCanvas, null);
+            InkCanvas_EditingModeChanged(inkCanvas, null);
             SaveSettingsToFile();
         }
 

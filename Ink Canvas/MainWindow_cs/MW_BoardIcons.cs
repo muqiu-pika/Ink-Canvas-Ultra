@@ -73,7 +73,7 @@ namespace Ink_Canvas
                 inkCanvas.EditingMode = InkCanvasEditingMode.EraseByPoint;
                 drawingShapeMode = 0;
 
-                inkCanvas_EditingModeChanged(inkCanvas, null);
+                InkCanvas_EditingModeChanged(inkCanvas, null);
                 CancelSingleFingerDragMode();
 
                 HideSubPanels("eraser");
@@ -95,7 +95,7 @@ namespace Ink_Canvas
                 inkCanvas.EditingMode = InkCanvasEditingMode.EraseByStroke;
                 drawingShapeMode = 0;
 
-                inkCanvas_EditingModeChanged(inkCanvas, null);
+                InkCanvas_EditingModeChanged(inkCanvas, null);
                 CancelSingleFingerDragMode();
 
                 HideSubPanels("eraserByStrokes");

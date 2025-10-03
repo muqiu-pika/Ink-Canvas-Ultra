@@ -128,7 +128,7 @@
                 x:Name="inkCanvas"
                 Background="Transparent"
                 Cursor="Pen"
-                EditingModeChanged="inkCanvas_EditingModeChanged"
+                EditingModeChanged="InkCanvas_EditingModeChanged"
                 ForceCursor="False"
                 IsManipulationEnabled="True"
                 ManipulationCompleted="Main_Grid_ManipulationCompleted"

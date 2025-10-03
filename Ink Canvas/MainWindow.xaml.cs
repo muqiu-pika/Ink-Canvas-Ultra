@@ -27,18 +27,17 @@ namespace Ink_Canvas
             // 将视频控制条嵌入到 BorderStrokeSelectionControl 内部容器，统一显示与随动
             try
             {
-                if (VideoControlContainer != null && BorderVideoSelectionControl != null)
-                {
-                    var parentPanel = BorderVideoSelectionControl.Parent as Panel;
-                    if (parentPanel != null)
-                    {
-                        parentPanel.Children.Remove(BorderVideoSelectionControl);
-                    }
-                    VideoControlContainer.Children.Add(BorderVideoSelectionControl);
-                    BorderVideoSelectionControl.Margin = new Thickness(0, 4, 0, 0);
-                    BorderVideoSelectionControl.HorizontalAlignment = HorizontalAlignment.Stretch;
-                    BorderVideoSelectionControl.VerticalAlignment = VerticalAlignment.Top;
-                }
+				if (VideoControlContainer != null && BorderVideoSelectionControl != null)
+				{
+					if (BorderVideoSelectionControl.Parent is Panel parentPanel)
+					{
+						parentPanel.Children.Remove(BorderVideoSelectionControl);
+					}
+					VideoControlContainer.Children.Add(BorderVideoSelectionControl);
+					BorderVideoSelectionControl.Margin = new Thickness(0, 4, 0, 0);
+					BorderVideoSelectionControl.HorizontalAlignment = HorizontalAlignment.Stretch;
+					BorderVideoSelectionControl.VerticalAlignment = VerticalAlignment.Top;
+				}
             }
             catch { }
             // 绑定额外的选择事件以管理视频控制条（与 BorderStrokeSelectionControl 相同方式）
@@ -117,7 +116,7 @@ namespace Ink_Canvas
         #region Ink Canvas Functions
 
         DrawingAttributes drawingAttributes;
-        private void loadPenCanvas()
+		private void LoadPenCanvas()
         {
             try
             {
@@ -156,10 +155,10 @@ namespace Ink_Canvas
             catch { }
         }
 
-        private void inkCanvas_EditingModeChanged(object sender, RoutedEventArgs e)
+		private void InkCanvas_EditingModeChanged(object sender, RoutedEventArgs e)
         {
-            var inkCanvas1 = sender as InkCanvas;
-            if (inkCanvas1 == null) return;
+			var inkCanvas1 = sender as InkCanvas;
+			if (inkCanvas1 == null) return;
             if (Settings.Canvas.IsShowCursor)
             {
                 if (inkCanvas1.EditingMode == InkCanvasEditingMode.Ink || drawingShapeMode != 0)
@@ -188,7 +187,7 @@ namespace Ink_Canvas
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            loadPenCanvas();
+			LoadPenCanvas();
             //加载设置
             LoadSettings(true);
             if (Environment.Is64BitProcess)
