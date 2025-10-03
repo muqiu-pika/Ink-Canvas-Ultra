@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+﻿﻿﻿﻿using Ink_Canvas.Helpers;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -86,6 +86,7 @@ namespace Ink_Canvas
         private void BorderStrokeSelectionDelete_Click(object sender, RoutedEventArgs e)
         {
             SymbolIconDelete_MouseUp(sender, e);
+            try { HideVideoSelectionControl(); } catch { }
         }
 
         private void BtnStrokeSelectionSaveToImage_Click(object sender, RoutedEventArgs e)
@@ -355,6 +356,7 @@ namespace Ink_Canvas
                 stroke.Transform(m, false);
             }
             updateBorderStrokeSelectionControlLocation();
+            updateBorderVideoSelectionControlLocation();
         }
 
         private void GridInkCanvasSelectionCover_MouseUp(object sender, MouseButtonEventArgs e)
@@ -409,6 +411,7 @@ namespace Ink_Canvas
                 catch { }
             }
             updateBorderStrokeSelectionControlLocation();
+            updateBorderVideoSelectionControlLocation();
         }
 
         private void BtnSelect_Click(object sender, RoutedEventArgs e)
@@ -475,17 +478,20 @@ namespace Ink_Canvas
         private void updateBorderStrokeSelectionControlLocation()
         {
             Rect selectionBounds = inkCanvas.GetSelectionBounds();
-            double borderLeft = (selectionBounds.Left + selectionBounds.Right - BorderStrokeSelectionControlWidth) / 2;
+            double controlWidth = BorderStrokeSelectionControl.ActualWidth > 0 ? BorderStrokeSelectionControl.ActualWidth : BorderStrokeSelectionControlWidth;
+            double borderLeft = (selectionBounds.Left + selectionBounds.Right - controlWidth) / 2;
             double borderTop = selectionBounds.Bottom + 15;
 
             // ensure the border is inside the window
             borderLeft = Math.Max(0, borderLeft);
             borderTop = Math.Max(0, borderTop);
-            borderLeft = Math.Min(Width - BorderStrokeSelectionControlWidth, borderLeft);
-            borderTop = Math.Min(Height - BorderStrokeSelectionControlHeight, borderTop);
+            // 使用实际高度优先，保证有视频控制条时自适应尺寸
+            double controlHeight = BorderStrokeSelectionControl.ActualHeight > 0 ? BorderStrokeSelectionControl.ActualHeight : BorderStrokeSelectionControlHeight;
+            borderLeft = Math.Min(ActualWidth - controlWidth, borderLeft);
+            borderTop = Math.Min(ActualHeight - controlHeight, borderTop);
 
-            double borderBottom = borderTop + BorderStrokeSelectionControlHeight;
-            double borderRight = borderLeft + BorderStrokeSelectionControlWidth;
+            double borderBottom = borderTop + controlHeight;
+            double borderRight = borderLeft + controlWidth;
 
             double viewboxTop = ViewboxFloatingBar.Margin.Top;
             double viewboxLeft = ViewboxFloatingBar.Margin.Left;
@@ -499,15 +505,15 @@ namespace Ink_Canvas
                 if (isHorizontalOverlap && isVerticalOverlap)
                 {
                     double belowViewboxMargin = viewboxBottom + 5;
-                    double maxBottomPositionMargin = Height - BorderStrokeSelectionControlHeight;
+                    double maxBottomPositionMargin = ActualHeight - controlHeight;
                     borderTop = belowViewboxMargin > maxBottomPositionMargin
-                        ? viewboxTop - BorderStrokeSelectionControlHeight - 5
+                        ? viewboxTop - controlHeight - 5
                         : belowViewboxMargin;
                 }
             }
             else
             {
-                borderTop = Math.Min(Height - BorderStrokeSelectionControlHeight - 60, borderTop);
+                borderTop = Math.Min(ActualHeight - controlHeight - 60, borderTop);
             }
             if (!double.IsNaN(borderLeft) && !double.IsNaN(borderTop))
             {
@@ -612,6 +618,7 @@ namespace Ink_Canvas
                         catch { }
                     }
                     updateBorderStrokeSelectionControlLocation();
+                    try { updateBorderVideoSelectionControlLocation(); } catch { }
                 }
             }
             catch { }

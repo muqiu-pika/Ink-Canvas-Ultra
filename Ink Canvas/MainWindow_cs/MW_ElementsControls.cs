@@ -4,6 +4,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Windows.Documents;
+using Ink_Canvas.Helpers;
 using System.Windows.Media.Imaging;
 using System.Windows.Input;
 using Microsoft.Win32;
@@ -185,6 +187,8 @@ namespace Ink_Canvas
                     e.Handled = true;
                     TogglePlayback();
                 };
+
+                // 取消通过 Adorner 附加底部控制栏，改为使用类似 BorderStrokeSelectionControl 的 Border 控件方式
 
                 return mediaElement;
             });

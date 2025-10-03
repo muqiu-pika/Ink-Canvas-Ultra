@@ -122,28 +122,30 @@
                 Background="#1F1F1F"
                 Visibility="Collapsed" />
         </Grid>
-        <!--  // 画板 //  -->
-        <InkCanvas
-            x:Name="inkCanvas"
-            Background="Transparent"
-            Cursor="Pen"
-            EditingModeChanged="inkCanvas_EditingModeChanged"
-            ForceCursor="False"
-            IsManipulationEnabled="True"
-            ManipulationCompleted="Main_Grid_ManipulationCompleted"
-            ManipulationDelta="Main_Grid_ManipulationDelta"
-            ManipulationInertiaStarting="inkCanvas_ManipulationInertiaStarting"
-            ManipulationStarting="inkCanvas_ManipulationStarting"
-            MouseDown="inkCanvas_MouseDown"
-            MouseMove="inkCanvas_MouseMove"
-            MouseUp="inkCanvas_MouseUp"
-            PreviewTouchDown="inkCanvas_PreviewTouchDown"
-            PreviewTouchUp="inkCanvas_PreviewTouchUp"
-            SelectionChanged="inkCanvas_SelectionChanged"
-            StrokeCollected="inkCanvas_StrokeCollected"
-            TouchDown="Main_Grid_TouchDown"
-            TouchMove="inkCanvas_TouchMove"
-            TouchUp="Main_Grid_TouchUp" />
+        <!--  // 画板（包裹 AdornerDecorator 以支持视频底部控制栏） //  -->
+        <AdornerDecorator>
+            <InkCanvas
+                x:Name="inkCanvas"
+                Background="Transparent"
+                Cursor="Pen"
+                EditingModeChanged="inkCanvas_EditingModeChanged"
+                ForceCursor="False"
+                IsManipulationEnabled="True"
+                ManipulationCompleted="Main_Grid_ManipulationCompleted"
+                ManipulationDelta="Main_Grid_ManipulationDelta"
+                ManipulationInertiaStarting="inkCanvas_ManipulationInertiaStarting"
+                ManipulationStarting="inkCanvas_ManipulationStarting"
+                MouseDown="inkCanvas_MouseDown"
+                MouseMove="inkCanvas_MouseMove"
+                MouseUp="inkCanvas_MouseUp"
+                PreviewTouchDown="inkCanvas_PreviewTouchDown"
+                PreviewTouchUp="inkCanvas_PreviewTouchUp"
+                SelectionChanged="inkCanvas_SelectionChanged"
+                StrokeCollected="inkCanvas_StrokeCollected"
+                TouchDown="Main_Grid_TouchDown"
+                TouchMove="inkCanvas_TouchMove"
+                TouchUp="Main_Grid_TouchUp" />
+        </AdornerDecorator>
         <!--  // 选择选项窗口 //  -->
         <Grid Visibility="{Binding ElementName=inkCanvas, Path=Visibility}">
             <Grid
@@ -161,9 +163,11 @@
                 PreviewTouchDown="GridInkCanvasSelectionCover_PreviewTouchDown"
                 PreviewTouchUp="GridInkCanvasSelectionCover_PreviewTouchUp"
                 Visibility="Visible" />
+            <!-- 视频选择控制条：与 BorderStrokeSelectionControl 相同的 Border 方式（置于后面以保证同层时在上方） -->
             <Border
                 x:Name="BorderStrokeSelectionControl"
-                Height="104"
+                Height="Auto"
+                Width="695"
                 Margin="0,50,0,0"
                 HorizontalAlignment="Left"
                 VerticalAlignment="Top"
@@ -171,8 +175,9 @@
                 BorderBrush="{DynamicResource FloatBarBorderBrush}"
                 BorderThickness="1"
                 CornerRadius="5"
+                Panel.ZIndex="10"
                 Visibility="{Binding ElementName=GridInkCanvasSelectionCover, Path=Visibility}">
-                <Viewbox>
+                <Viewbox Stretch="None">
                     <ikw:SimpleStackPanel>
                         <ikw:SimpleStackPanel
                             Height="80"
@@ -789,6 +794,44 @@
                                     Text="触屏：单指移动，两指缩放/旋转" />
                             </Border>
 
+                        </ikw:SimpleStackPanel>
+                        <!-- 嵌入：视频控制条容器（运行时将 BorderVideoSelectionControl 移入此处） -->
+                        <StackPanel x:Name="VideoControlContainer" Margin="0,4,0,0" />
+                    </ikw:SimpleStackPanel>
+                </Viewbox>
+            </Border>
+            <!-- 移至此处：同层渲染时后声明的元素位于上方，避免被 Stroke 选择浮条遮挡 -->
+            <Border
+                x:Name="BorderVideoSelectionControl"
+                Height="64"
+                Margin="0,50,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Background="{DynamicResource FloatBarBackground}"
+                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="5"
+                Panel.ZIndex="10"
+                Visibility="Collapsed">
+                <Viewbox>
+                    <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="6" Height="50" VerticalAlignment="Center" Margin="6,0,6,0">
+                        <Button x:Name="BtnVideoPlayPause" Width="40" Height="35" Padding="0"
+                                Background="{DynamicResource FloatBarBackground}" Click="BtnVideoPlayPause_Click">
+                            <!-- 使用 Play 图标（E768），暂停改为 Pause（E769） -->
+                            <ui:FontIcon x:Name="IconVideoPlayPause" Width="18" Height="18" FontFamily="{StaticResource FluentIconFontFamily}" FontSize="18" Foreground="{DynamicResource FloatBarForeground}" Glyph="&#xe768;" />
+                        </Button>
+                        <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <Slider x:Name="SliderVideoProgress" Width="300" Minimum="0" Maximum="100"
+                                    IsMoveToPointEnabled="True"
+                                    ValueChanged="SliderVideoProgress_ValueChanged"
+                                    PreviewMouseDown="SliderVideoProgress_PreviewMouseDown"
+                                    PreviewMouseUp="SliderVideoProgress_PreviewMouseUp"/>
+                        </ikw:SimpleStackPanel>
+                        <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                            <ui:FontIcon Width="18" Height="18" FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Foreground="{DynamicResource FloatBarForeground}" Glyph="&#xe767;" />
+                            <Border Height="33" Padding="5,0" Background="{DynamicResource FloatBarBackground}" CornerRadius="3" BorderBrush="{DynamicResource FloatBarBorderBrush}" BorderThickness="1">
+                                <Slider x:Name="SliderVideoVolume" Width="140" Minimum="0" Maximum="100" ValueChanged="SliderVideoVolume_ValueChanged"/>
+                            </Border>
                         </ikw:SimpleStackPanel>
                     </ikw:SimpleStackPanel>
                 </Viewbox>
@@ -4809,11 +4852,18 @@
                                         Width="20"
                                         Height="20"
                                         RenderOptions.BitmapScalingMode="HighQuality"
-                                        Source="/Resources/DeveloperAvatars/ChangSakura.png" />
+                                        Source="/Resources/DeveloperAvatars/muqiu.png">
+                                        <Image.Clip>
+                                            <EllipseGeometry
+                                                Center="10,10"
+                                                RadiusX="10"
+                                                RadiusY="10" />
+                                        </Image.Clip>
+                                    </Image>
                                     <TextBlock
                                         FontSize="15"
                                         Foreground="{DynamicResource SettingsPageForeground}"
-                                        Text="CJ Wu (ChangSakura)" />
+                                        Text="慕秋_pika" />
                                 </WrapPanel>
 
                                 <Line

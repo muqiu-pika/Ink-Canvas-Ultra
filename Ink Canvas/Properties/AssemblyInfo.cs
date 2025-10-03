@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 
@@ -10,7 +10,7 @@ using System.Windows;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("Ink Canvas Ultra")]
-[assembly: AssemblyCopyright("Copyright © XY Wang 2023 & Chang Wu 2024")]
+[assembly: AssemblyCopyright("Copyright 漏 XY Wang 2023 & Chang Wu 2024")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -48,6 +48,7 @@ using System.Windows;
 //
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
-// [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("5.0.1.0")]
-[assembly: AssemblyFileVersion("5.0.1.0")]
+// [assembly: AssemblyVersion("5.0.2.0")]
+[assembly: AssemblyVersion("5.0.2.0")]
+[assembly: AssemblyFileVersion("5.0.2.0")]
+

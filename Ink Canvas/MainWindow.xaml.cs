@@ -24,6 +24,25 @@ namespace Ink_Canvas
                 处于 PPT 放映内：BtnPPTSlideShowEnd.Visibility
             */
             InitializeComponent();
+            // 将视频控制条嵌入到 BorderStrokeSelectionControl 内部容器，统一显示与随动
+            try
+            {
+                if (VideoControlContainer != null && BorderVideoSelectionControl != null)
+                {
+                    var parentPanel = BorderVideoSelectionControl.Parent as Panel;
+                    if (parentPanel != null)
+                    {
+                        parentPanel.Children.Remove(BorderVideoSelectionControl);
+                    }
+                    VideoControlContainer.Children.Add(BorderVideoSelectionControl);
+                    BorderVideoSelectionControl.Margin = new Thickness(0, 4, 0, 0);
+                    BorderVideoSelectionControl.HorizontalAlignment = HorizontalAlignment.Stretch;
+                    BorderVideoSelectionControl.VerticalAlignment = VerticalAlignment.Top;
+                }
+            }
+            catch { }
+            // 绑定额外的选择事件以管理视频控制条（与 BorderStrokeSelectionControl 相同方式）
+            try { inkCanvas.SelectionChanged += InkCanvas_VideoSelectionChanged; } catch { }
 
             BlackboardLeftSide.Visibility = Visibility.Collapsed;
             BlackboardCenterSide.Visibility = Visibility.Collapsed;

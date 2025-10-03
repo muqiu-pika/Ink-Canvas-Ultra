@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net472</TargetFramework>
 		<RuntimeIdentifiers>win;win-x86;win-x64;win-arm64;win7;win7-x86;win7-x64</RuntimeIdentifiers>
@@ -24,7 +24,7 @@
 		<UpdateRequired>false</UpdateRequired>
 		<MapFileExtensions>true</MapFileExtensions>
 		<ApplicationRevision>2</ApplicationRevision>
-		<ApplicationVersion>2.0.2.%2a</ApplicationVersion>
+		<ApplicationVersion>5.0.2.%2a</ApplicationVersion>
 		<UseApplicationTrust>false</UseApplicationTrust>
 		<BootstrapperEnabled>false</BootstrapperEnabled>
 		<Platforms>AnyCPU;x86;x64;ARM64</Platforms>
@@ -138,6 +138,7 @@
 		<Resource Include="Resources\DeveloperAvatars\Raspberry-Monster.jpg" />
 		<Resource Include="Resources\DeveloperAvatars\STBBRD.png" />
 		<Resource Include="Resources\DeveloperAvatars\WXRIW.png" />
+    <Resource Include="Resources\DeveloperAvatars\muqiu.png" />
 		
 		<Resource Include="Resources\Ink Canvas Ultra.ico" />
 		<Resource Include="Resources\Segoe Fluent Icons.ttf" />
@@ -169,3 +170,4 @@
 	  </None>
 	</ItemGroup>
 </Project>
+
