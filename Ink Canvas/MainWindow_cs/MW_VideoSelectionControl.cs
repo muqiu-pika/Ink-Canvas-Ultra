@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -107,19 +107,27 @@ namespace Ink_Canvas
         {
             try
             {
+                // 先隐藏控制条
                 BorderVideoSelectionControl.Visibility = Visibility.Collapsed;
+                
+                // 停止计时器
                 if (videoTimer != null) videoTimer.Stop();
 
-                if (selectedMediaElement != null)
+                // 安全地清理selectedMediaElement
+                MediaElement tempMediaElement = selectedMediaElement; // 创建临时引用
+                selectedMediaElement = null; // 先将成员变量设为null，避免在事件处理中再次访问
+                
+                if (tempMediaElement != null)
                 {
                     try
                     {
-                        selectedMediaElement.MediaOpened -= SelectedMediaElement_MediaOpened;
-                        selectedMediaElement.MediaEnded -= SelectedMediaElement_MediaEnded;
+                        tempMediaElement.MediaOpened -= SelectedMediaElement_MediaOpened;
+                        tempMediaElement.MediaEnded -= SelectedMediaElement_MediaEnded;
                     }
                     catch { }
-                    selectedMediaElement = null;
                 }
+                
+                // 重置图标状态
                 IconVideoPlayPause.Glyph = PlayGlyph;
             }
             catch { }
@@ -213,7 +221,7 @@ namespace Ink_Canvas
             try
             {
                 IconVideoPlayPause.Glyph = PlayGlyph;
-                if (selectedMediaElement.NaturalDuration.HasTimeSpan)
+                if (selectedMediaElement != null && selectedMediaElement.NaturalDuration.HasTimeSpan)
                 {
                     SliderVideoProgress.Value = SliderVideoProgress.Maximum;
                 }
