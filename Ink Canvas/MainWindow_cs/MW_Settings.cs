@@ -48,7 +48,7 @@ namespace Ink_Canvas
 
         private void BtnResetAutoUpdateProxyToGHProxy_Click(object sender, RoutedEventArgs e)
         {
-            AutoUpdateProxyTextBox.Text = "https://mirror.ghproxy.com/";
+            AutoUpdateProxyTextBox.Text = "https://ghproxy.net/";
         }
 
         private async void BtnCheckAutoUpdateProxyReturnedData_Click(object sender, RoutedEventArgs e)

@@ -3198,7 +3198,7 @@
                                                 <Button
                                                     Padding="15,7.5"
                                                     Click="BtnResetAutoUpdateProxyToGHProxy_Click"
-                                                    Content="设置代理为 GHProxy" />
+                                                    Content="设置Github默认代理" />
                                             </StackPanel>
                                             <StackPanel
                                                 Grid.Column="1"
