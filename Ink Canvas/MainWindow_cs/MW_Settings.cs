@@ -852,7 +852,61 @@ namespace Ink_Canvas
             double value;
             if (!Settings.Advanced.IsQuadIR) value = args.Width;
             else value = Math.Sqrt(args.Width * args.Height); //四边红外
-            TextBlockShowCalculatedMultiplier.Text = (5 / (value * 1.1)).ToString();
+            // 计算推荐触摸倍数
+            double recommended = 5 / (value * 1.1);
+            TextBlockShowCalculatedMultiplier.Text = recommended.ToString();
+
+            // 防御性：在应用到设置与滑块之前进行范围夹紧，避免超出 Slider 的上下限导致异常
+            double touchMultiplierMin = 0.0;
+            double touchMultiplierMax = 5.0;
+            try
+            {
+                // 若控件已加载，优先以控件的范围为准
+                if (TouchMultiplierSlider != null)
+                {
+                    touchMultiplierMin = TouchMultiplierSlider.Minimum;
+                    touchMultiplierMax = TouchMultiplierSlider.Maximum;
+                }
+            }
+            catch { }
+            double recommendedClamped = Math.Max(touchMultiplierMin, Math.Min(touchMultiplierMax, recommended));
+
+            // 新增：提示并自动调整相关参数
+            try
+            {
+                var promptText = $"检测到推荐触摸倍数为 {recommended:F2}。\n\n是否启用特殊屏幕并自动调整相关参数？\n将执行：\n- TouchMultiplier = 推荐值\n- IsSpecialScreen = 启用\n- ThresholdValue = 2.5\n- EraserSize 因子 = 0.8\n- BoundsWidth 保持当前模式值";
+                var result = MessageBox.Show(promptText, "应用推荐设置", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (result == MessageBoxResult.Yes)
+                {
+                    // 应用推荐设置
+                    Settings.Advanced.IsSpecialScreen = true;
+                    Settings.Advanced.TouchMultiplier = recommendedClamped;
+                    Settings.Advanced.NibModeBoundsWidthThresholdValue = 2.5;
+                    Settings.Advanced.FingerModeBoundsWidthThresholdValue = 2.5;
+                    Settings.Advanced.NibModeBoundsWidthEraserSize = 0.8;
+                    Settings.Advanced.FingerModeBoundsWidthEraserSize = 0.8;
+
+                    // 更新界面控件（若存在，避免异常）
+                    try
+                    {
+                        // 设置滑块值前同样进行范围检查
+                        if (TouchMultiplierSlider != null)
+                        {
+                            var v = Settings.Advanced.TouchMultiplier;
+                            TouchMultiplierSlider.Value = Math.Max(TouchMultiplierSlider.Minimum, Math.Min(TouchMultiplierSlider.Maximum, v));
+                        }
+                        NibModeBoundsWidthThresholdValueSlider.Value = Settings.Advanced.NibModeBoundsWidthThresholdValue;
+                        FingerModeBoundsWidthThresholdValueSlider.Value = Settings.Advanced.FingerModeBoundsWidthThresholdValue;
+                        NibModeBoundsWidthEraserSizeSlider.Value = Settings.Advanced.NibModeBoundsWidthEraserSize;
+                        FingerModeBoundsWidthEraserSizeSlider.Value = Settings.Advanced.FingerModeBoundsWidthEraserSize;
+                    }
+                    catch { }
+
+                    SaveSettingsToFile();
+                    MessageBox.Show("已应用推荐设置并调整相关参数。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch { }
         }
 
         private void NibModeBoundsWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
