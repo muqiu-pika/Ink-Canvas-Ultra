@@ -184,6 +184,20 @@ namespace Ink_Canvas
                 SliderBlackboardScale.Value = Settings.Appearance.BlackboardScale;
                 SliderFloatingBarBottomMargin.Value = Settings.Appearance.FloatingBarBottomMargin;
                 ApplyScaling();
+                
+                // Apply Video Presenter Sidebar Position
+                if (!string.IsNullOrEmpty(Settings.Appearance.VideoPresenterSidebarPosition))
+                {
+                    if (Settings.Appearance.VideoPresenterSidebarPosition == "Right")
+                    {
+                        ComboBoxVideoPresenterSidebarPosition.SelectedIndex = 1;
+                    }
+                    else
+                    {
+                        ComboBoxVideoPresenterSidebarPosition.SelectedIndex = 0;
+                    }
+                }
+                ApplyVideoPresenterSidebarPosition();
             }
             else
             {
@@ -193,6 +207,10 @@ namespace Ink_Canvas
                 SliderBlackboardScale.Value = Settings.Appearance.BlackboardScale;
                 SliderFloatingBarBottomMargin.Value = Settings.Appearance.FloatingBarBottomMargin;
                 ApplyScaling();
+                
+                // Initialize Video Presenter Sidebar Position
+                ComboBoxVideoPresenterSidebarPosition.SelectedIndex = 0;
+                ApplyVideoPresenterSidebarPosition();
             }
             // PowerPointSettings
             if (Settings.PowerPointSettings != null)

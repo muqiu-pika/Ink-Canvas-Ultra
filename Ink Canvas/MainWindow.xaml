@@ -2337,6 +2337,43 @@
                             Height="55"
                             Padding="0"
                             BorderThickness="0"
+                            Click="BtnVideoPresenter_Click">
+                            <Border
+                                Width="60"
+                                Height="55"
+                                Background="{DynamicResource BoardBarBackground}"
+                                BorderBrush="{DynamicResource BoardBarBorderBrush}"
+                                BorderThickness="0,1,0.25,1">
+                                <Grid Margin="5">
+                                    <ikw:SimpleStackPanel
+                                        Width="28"
+                                        Height="28"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Top"
+                                        Background="Transparent"
+                                        Orientation="Horizontal">
+                                        <ui:FontIcon
+                                            Width="28"
+                                            Height="22"
+                                            FontFamily="{StaticResource FluentIconFontFamily}"
+                                            FontSize="22"
+                                            Foreground="{DynamicResource BoardBarForeground}"
+                                            Glyph="&#xe714;" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Bottom"
+                                        FontSize="12"
+                                        Foreground="{DynamicResource BoardBarForeground}"
+                                        Text="视频展台" />
+                                </Grid>
+                            </Border>
+                        </Button>
+                        <Button
+                            Width="60"
+                            Height="55"
+                            Padding="0"
+                            BorderThickness="0"
                             Click="SymbolIconUndo_Click">
                             <Border
                                 x:Name="BoardUndo"
@@ -3659,27 +3696,6 @@
                                 </ikw:SimpleStackPanel>
 
                                 <ikw:SimpleStackPanel Margin="0,15,0,0" Spacing="10">
-                                    <!--  Blackboard Scale Slider  -->
-                                    <StackPanel Orientation="Horizontal">
-                                        <Slider
-                                            x:Name="SliderBlackboardScale"
-                                            Width="330"
-                                            ui:ControlHelper.Header="画板 UI 缩放 (%)"
-                                            IsSnapToTickEnabled="True"
-                                            Maximum="150"
-                                            Minimum="50"
-                                            TickFrequency="1"
-                                            TickPlacement="BottomRight"
-                                            ValueChanged="SliderBlackboardScale_ValueChanged"
-                                            Value="100" />
-                                        <TextBlock
-                                            Width="35"
-                                            Margin="10,0,0,8"
-                                            HorizontalAlignment="Right"
-                                            VerticalAlignment="Bottom"
-                                            FontSize="14"
-                                            Text="{Binding Value, ElementName=SliderBlackboardScale, StringFormat={}{0:F0}}" />
-                                    </StackPanel>
                                     <!--  Blackboard Quick Buttons  -->
                                     <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
                                         <Button
@@ -3712,6 +3728,22 @@
                                             Content="125%"
                                             Tag="125" />
                                     </StackPanel>
+                                    <!--  Video Presenter Sidebar Position  -->
+                                    <ikw:SimpleStackPanel Orientation="Horizontal">
+                                        <TextBlock
+                                            VerticalAlignment="Center"
+                                            FontSize="14"
+                                            Foreground="{DynamicResource SettingsPageForeground}"
+                                            Text="视频展台侧栏位置：" />
+                                        <ComboBox
+                                            x:Name="ComboBoxVideoPresenterSidebarPosition"
+                                            Margin="5,0,0,0"
+                                            SelectedIndex="0"
+                                            SelectionChanged="ComboBoxVideoPresenterSidebarPosition_SelectionChanged">
+                                            <ComboBoxItem Content="左侧" Tag="Left" />
+                                            <ComboBoxItem Content="右侧" Tag="Right" />
+                                        </ComboBox>
+                                    </ikw:SimpleStackPanel>
                                 </ikw:SimpleStackPanel>
                             </ikw:SimpleStackPanel>
                         </GroupBox>
@@ -7290,5 +7322,69 @@
                 </Border>
             </ikw:SimpleStackPanel>
         </Viewbox>
+        <!--  视频展台侧栏  -->
+        <Border
+            x:Name="VideoPresenterSidebar"
+            Width="350"
+            Height="Auto"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Stretch"
+            Background="{DynamicResource BoardBarBackground}"
+            BorderBrush="{DynamicResource BoardBarBorderBrush}"
+            BorderThickness="0,0,1,0"
+            Visibility="Collapsed">
+            <Grid>
+                <!--  顶部标题栏  -->
+                <Grid Height="50" VerticalAlignment="Top">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="50" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock
+                        Grid.Column="0"
+                        Margin="15,0,0,0"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        FontSize="16"
+                        FontWeight="Bold"
+                        Foreground="{DynamicResource BoardBarForeground}"
+                        Text="视频展台" />
+                    <Button
+                        Grid.Column="1"
+                        Width="50"
+                        Height="50"
+                        Padding="0"
+                        BorderThickness="0"
+                        Click="BtnCloseVideoPresenter_Click">
+                        <Border
+                            Width="50"
+                            Height="50"
+                            Background="Transparent">
+                            <ui:FontIcon
+                                Width="24"
+                                Height="24"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                FontFamily="{StaticResource FluentIconFontFamily}"
+                                FontSize="20"
+                                Foreground="{DynamicResource BoardBarForeground}"
+                                Glyph="&#xe711;" />
+                        </Border>
+                    </Button>
+                </Grid>
+
+                <!--  内容区域  -->
+                <Grid Grid.Row="1" Margin="10">
+                    <!--  暂时留空，后续实现功能  -->
+                    <TextBlock
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontSize="14"
+                        Foreground="{DynamicResource FloatBarForeground}"
+                        Text="视频展台功能区域"
+                        TextAlignment="Center" />
+                </Grid>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

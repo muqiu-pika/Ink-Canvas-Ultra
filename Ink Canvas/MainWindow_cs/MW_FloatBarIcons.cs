@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using System;
 using System.Threading.Tasks;
 using System.Windows;
@@ -324,6 +324,12 @@ namespace Ink_Canvas
             isDisplayingOrHidingBlackboard = true;
 
             if (inkCanvas.EditingMode == InkCanvasEditingMode.Select) PenIcon_Click(null, null);
+
+            // 折叠视频展台侧栏
+            if (VideoPresenterSidebar != null && VideoPresenterSidebar.Visibility == Visibility.Visible)
+            {
+                VideoPresenterSidebar.Visibility = Visibility.Collapsed;
+            }
 
             if (currentMode == 0)
             {

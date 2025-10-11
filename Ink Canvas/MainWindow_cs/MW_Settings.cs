@@ -196,6 +196,23 @@ namespace Ink_Canvas
             ViewboxFloatingBarMarginAnimation();
         }
 
+        private void ApplyVideoPresenterSidebarPosition()
+        {
+            if (VideoPresenterSidebar != null)
+            {
+                string position = Settings.Appearance.VideoPresenterSidebarPosition ?? "Left";
+                
+                if (position == "Right")
+                {
+                    VideoPresenterSidebar.HorizontalAlignment = HorizontalAlignment.Right;
+                }
+                else
+                {
+                    VideoPresenterSidebar.HorizontalAlignment = HorizontalAlignment.Left;
+                }
+            }
+        }
+
         private void SliderFloatingBarScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (!isLoaded) return;
@@ -331,6 +348,17 @@ namespace Ink_Canvas
             if (!isLoaded) return;
             Settings.Canvas.HyperbolaAsymptoteOption = (OptionalOperation)ComboBoxHyperbolaAsymptoteOption.SelectedIndex;
             SaveSettingsToFile();
+        }
+
+        private void ComboBoxVideoPresenterSidebarPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isLoaded) return;
+            if (ComboBoxVideoPresenterSidebarPosition.SelectedItem is ComboBoxItem item && item.Tag != null)
+            {
+                Settings.Appearance.VideoPresenterSidebarPosition = item.Tag.ToString();
+                ApplyVideoPresenterSidebarPosition();
+                SaveSettingsToFile();
+            }
         }
 
         #endregion

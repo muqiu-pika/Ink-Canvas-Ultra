@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 
 namespace Ink_Canvas
 {
@@ -151,7 +151,10 @@ namespace Ink_Canvas
         [JsonProperty("isShowModeFingerToggleSwitch")]
         public bool IsShowModeFingerToggleSwitch { get; set; } = true;
         [JsonProperty("theme")]
-        public int Theme { get; set; } = 0;            
+        public int Theme { get; set; } = 0;
+        
+        [JsonProperty("videoPresenterSidebarPosition")]
+        public string VideoPresenterSidebarPosition { get; set; } = "Left"; // Left 或 Right
     }
 
     public class PowerPointSettings

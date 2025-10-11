@@ -232,5 +232,25 @@ namespace Ink_Canvas
         }
 
         #endregion Definations and Loading
+
+        // 视频展台按钮点击事件
+        private void BtnVideoPresenter_Click(object sender, RoutedEventArgs e)
+        {
+            // 切换视频展台侧栏的可见性
+            if (VideoPresenterSidebar.Visibility == Visibility.Visible)
+            {
+                VideoPresenterSidebar.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                VideoPresenterSidebar.Visibility = Visibility.Visible;
+            }
+        }
+
+        // 关闭视频展台侧栏按钮点击事件
+        private void BtnCloseVideoPresenter_Click(object sender, RoutedEventArgs e)
+        {
+            VideoPresenterSidebar.Visibility = Visibility.Collapsed;
+        }
     }
 }
