@@ -1,4 +1,5 @@
 using Ink_Canvas.Helpers;
+using Ink_Canvas.Models;
 using iNKORE.UI.WPF.Modern;
 using System;
 using System.Collections.Generic;
@@ -114,6 +115,19 @@ namespace Ink_Canvas
             }
 
             CheckColorTheme(true);
+            
+            // 注册窗口大小变化事件
+            this.SizeChanged += MainWindow_SizeChanged;
+        }
+
+        // 窗口大小变化事件处理
+        private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // 如果视频展台侧栏可见，重新计算照片区域高度
+            if (VideoPresenterSidebar.Visibility == Visibility.Visible)
+            {
+                AutoCalculatePhotoAreaHeight();
+            }
         }
 
         #endregion
@@ -189,6 +203,9 @@ namespace Ink_Canvas
         public static string settingsFileName = "Settings.json";
         bool isLoaded = false;
 
+        // 拍照功能相关字段
+        private ObservableCollection<CapturedImage> capturedPhotos = new ObservableCollection<CapturedImage>();
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
 			LoadPenCanvas();
@@ -261,6 +278,8 @@ namespace Ink_Canvas
                 VideoPresenterSidebar.Visibility = Visibility.Visible;
                 // 当打开侧栏时自动刷新设备列表（设备选择功能保持不变）
                 cameraDeviceManager?.RefreshCameraDevices();
+                // 自动计算照片显示区域高度
+                AutoCalculatePhotoAreaHeight();
             }
         }
 
@@ -278,6 +297,219 @@ namespace Ink_Canvas
         private System.Windows.Controls.Image currentCameraImage;
         // 摄像头画面更新定时器
         private DispatcherTimer cameraFrameTimer;
+
+        #region Photo Capture Functions
+
+        private void BtnCapturePhoto_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (cameraDeviceManager == null)
+                {
+                    MessageBox.Show("摄像头设备管理器未初始化", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var frame = cameraDeviceManager.GetFrameCopy();
+                if (frame == null)
+                {
+                    MessageBox.Show("未获取到摄像头画面", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // 在后台线程中处理图像转换
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        using (frame)
+                        {
+                            var bitmapImage = ConvertBitmapToBitmapImage(frame);
+                            if (bitmapImage != null)
+                            {
+                                Dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    AddCapturedPhoto(bitmapImage);
+                                }));
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"拍照处理失败: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"拍照失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private BitmapImage ConvertBitmapToBitmapImage(Bitmap bitmap)
+        {
+            try
+            {
+                using (var memory = new MemoryStream())
+                {
+                    bitmap.Save(memory, System.Drawing.Imaging.ImageFormat.Bmp);
+                    memory.Position = 0;
+
+                    var bitmapImage = new BitmapImage();
+                    bitmapImage.BeginInit();
+                    bitmapImage.StreamSource = memory;
+                    bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmapImage.EndInit();
+                    bitmapImage.Freeze();
+
+                    return bitmapImage;
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"图像转换失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        private void AddCapturedPhoto(BitmapImage image)
+        {
+            try
+            {
+                var capturedImage = new CapturedImage(image);
+                capturedPhotos.Insert(0, capturedImage);
+                UpdateCapturedPhotosDisplay();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"添加照片失败: {ex.Message}");
+            }
+        }
+
+        private void UpdateCapturedPhotosDisplay()
+        {
+            try
+            {
+                var capturedPhotosStackPanel = FindName("CapturedPhotosStackPanel") as StackPanel;
+                if (capturedPhotosStackPanel == null) return;
+
+                capturedPhotosStackPanel.Children.Clear();
+
+                foreach (var photo in capturedPhotos)
+                {
+                    var photoButton = CreatePhotoButton(photo);
+                    capturedPhotosStackPanel.Children.Add(photoButton);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"更新照片显示失败: {ex.Message}");
+            }
+        }
+
+        private Button CreatePhotoButton(CapturedImage photo)
+        {
+            var button = new Button
+            {
+                Width = 300,
+                Height = 200,
+                Margin = new Thickness(4),
+                Background = System.Windows.Media.Brushes.Transparent,
+                BorderThickness = new Thickness(1),
+                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, 0x80, 0x80, 0x80)),
+                Content = new System.Windows.Controls.Image
+                {
+                    Source = photo.Thumbnail,
+                    Stretch = Stretch.Uniform,
+                    Width = 290,
+                    Height = 180
+                }
+            };
+
+            button.Click += (sender, e) =>
+            {
+                // 点击照片时显示大图（这里可以扩展功能）
+                MessageBox.Show($"拍摄时间: {photo.Timestamp}", "照片信息", MessageBoxButton.OK, MessageBoxImage.Information);
+            };
+
+            return button;
+        }
+
+        #endregion
+
+        // 自动计算照片显示区域高度算法
+        private void AutoCalculatePhotoAreaHeight()
+        {
+            try
+            {
+                // 等待UI布局完成后再计算
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    try
+                    {
+                        // 获取侧栏的实际高度
+                        double sidebarHeight = VideoPresenterSidebar.ActualHeight;
+                        if (sidebarHeight <= 0) return;
+
+                        // 计算各固定区域的高度
+                        double titleBarHeight = 50; // 顶部标题栏高度
+                        double bottomButtonHeight = 60; // 底部按钮区域高度
+                        
+                        // 获取设备选择区域的实际高度
+                        double deviceAreaHeight = 0;
+                        var cameraDevicesScrollViewer = FindName("CameraDevicesScrollViewer") as ScrollViewer;
+                        if (cameraDevicesScrollViewer != null)
+                        {
+                            // 测量设备选择区域的实际高度
+                            cameraDevicesScrollViewer.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
+                            deviceAreaHeight = cameraDevicesScrollViewer.DesiredSize.Height;
+                            
+                            // 如果设备区域高度为0，使用默认值
+                            if (deviceAreaHeight <= 0)
+                            {
+                                deviceAreaHeight = 120; // 默认设备区域高度
+                            }
+                            else
+                            {
+                                // 加上设备区域的边距和内边距
+                                deviceAreaHeight += 10 + 2 + 5; // 上边距2 + 下边距5 + 内边距10
+                            }
+                        }
+
+                        // 计算照片区域的边距和内边距
+                        double photoAreaMargin = 10 + 10 + 2; // 上边距10 + 下边距2 + 内边距10
+                        
+                        // 计算照片显示区域可以使用的最大高度
+                        // 目标：照片区域从当前位置一直延伸到设备列表上方几个像素
+                        double maxPhotoHeight = sidebarHeight - titleBarHeight - bottomButtonHeight - photoAreaMargin - deviceAreaHeight - 10; // 留出10像素间距
+
+                        // 确保照片显示区域至少有最小高度
+                        double minPhotoHeight = 200; // 最小照片区域高度
+                        
+                        // 计算照片显示区域的理想高度
+                        double idealPhotoHeight = Math.Max(minPhotoHeight, maxPhotoHeight);
+                        
+                        // 设置照片滚动区域的最大高度
+                        var capturedPhotosScrollViewer = FindName("CapturedPhotosScrollViewer") as ScrollViewer;
+                        if (capturedPhotosScrollViewer != null)
+                        {
+                            // 为了防止底部照片超出滚动条范围，减去额外的边距
+                            capturedPhotosScrollViewer.MaxHeight = idealPhotoHeight - 20; // 减去20像素作为额外缓冲
+                        }
+
+                        Console.WriteLine($"照片区域高度计算完成: 侧栏高度={sidebarHeight}, 设备区域高度={deviceAreaHeight}, 照片区域高度={idealPhotoHeight}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"自动计算照片区域高度失败: {ex.Message}");
+                    }
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"自动计算照片区域高度失败: {ex.Message}");
+            }
+        }
 
         // 初始化摄像头设备管理器
         private void InitializeCameraDeviceManager()
@@ -303,15 +535,29 @@ namespace Ink_Canvas
             // 如果已有摄像头画面，先移除
             RemoveCameraFrame();
 
-            // 获取第一帧画面并插入
-            var frame = cameraDeviceManager.GetFrameCopy();
-            if (frame != null)
+            // 尝试多次获取第一帧画面并插入
+            bool frameInserted = false;
+            for (int i = 0; i < 5; i++) // 最多尝试5次
             {
-                await InsertCameraFrameAsync(frame);
-                frame.Dispose();
+                var frame = cameraDeviceManager.GetFrameCopy();
+                if (frame != null)
+                {
+                    await InsertCameraFrameAsync(frame);
+                    frame.Dispose();
+                    frameInserted = true;
+                    
+                    // 启动定时器持续更新画面
+                    cameraFrameTimer?.Start();
+                    break;
+                }
                 
-                // 启动定时器持续更新画面
-                cameraFrameTimer?.Start();
+                // 如果没有获取到帧，等待一段时间再重试
+                await System.Threading.Tasks.Task.Delay(500);
+            }
+            
+            if (!frameInserted)
+            {
+                Console.WriteLine("无法获取摄像头画面，可能是摄像头未初始化完成");
             }
         }
 

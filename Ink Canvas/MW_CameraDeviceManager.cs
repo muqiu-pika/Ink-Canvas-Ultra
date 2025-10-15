@@ -236,11 +236,14 @@ namespace Ink_Canvas
             selectedDeviceName = deviceName;
             StartCamera(deviceName);
             
-            // 通知主窗口插入摄像头画面
-            mainWindow.Dispatcher.BeginInvoke(new Action(() =>
+            // 等待一段时间确保摄像头初始化完成并有帧数据，然后通知主窗口插入摄像头画面
+            System.Threading.Tasks.Task.Delay(1000).ContinueWith(_ =>
             {
-                mainWindow.InsertCameraFrameToCanvas();
-            }));
+                mainWindow.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    mainWindow.InsertCameraFrameToCanvas();
+                }));
+            });
         }
 
         private void OnCameraDeselected()
