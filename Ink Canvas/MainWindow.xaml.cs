@@ -270,8 +270,8 @@ namespace Ink_Canvas
             if (VideoPresenterSidebar.Visibility == Visibility.Visible)
             {
                 VideoPresenterSidebar.Visibility = Visibility.Collapsed;
-                // 移除摄像头画面
-                RemoveCameraFrame();
+                // 注意：不再自动移除摄像头画面，让用户手动控制画面显示
+                // 摄像头画面会继续显示在白板中，即使侧栏被隐藏
             }
             else
             {
@@ -287,8 +287,8 @@ namespace Ink_Canvas
         private void BtnCloseVideoPresenter_Click(object sender, RoutedEventArgs e)
         {
             VideoPresenterSidebar.Visibility = Visibility.Collapsed;
-            // 移除摄像头画面
-            RemoveCameraFrame();
+            // 注意：不再自动移除摄像头画面，让用户手动控制画面显示
+            // 摄像头画面会继续显示在白板中，即使侧栏被隐藏
         }
 
         // 摄像头设备管理器
@@ -558,6 +558,37 @@ namespace Ink_Canvas
             if (!frameInserted)
             {
                 Console.WriteLine("无法获取摄像头画面，可能是摄像头未初始化完成");
+            }
+        }
+
+        // 检测当前页面是否有摄像头画面
+        public bool HasCameraFrameOnCurrentPage()
+        {
+            return currentCameraImage != null;
+        }
+
+        // 切换到下一页白板并插入摄像头画面
+        public void SwitchToNextBoardAndInsertCameraFrame()
+        {
+            try
+            {
+                // 调用白板切换功能
+                BtnWhiteBoardSwitchNext_Click(null, null);
+                
+                // 延迟一小段时间确保白板切换完成，然后插入摄像头画面
+                System.Threading.Tasks.Task.Delay(300).ContinueWith(_ =>
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        InsertCameraFrameToCanvas();
+                    }));
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"切换到下一页并插入摄像头画面失败: {ex.Message}");
+                // 如果切换失败，尝试直接插入
+                InsertCameraFrameToCanvas();
             }
         }
 

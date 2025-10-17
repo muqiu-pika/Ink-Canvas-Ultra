@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using System;
 using System.Windows;
 using System.Windows.Ink;
@@ -69,9 +69,13 @@ namespace Ink_Canvas
             if (CurrentWhiteboardIndex <= 1) return;
             SaveStrokes();
             ClearStrokes(true);
+            int oldPage = CurrentWhiteboardIndex;
             CurrentWhiteboardIndex--;
             RestoreStrokes();
             UpdateIndexInfoDisplay();
+            
+            // 通知摄像头管理器页面切换
+            NotifyCameraManagerPageChanged(oldPage, CurrentWhiteboardIndex);
         }
 
         private void BtnWhiteBoardSwitchNext_Click(object sender, EventArgs e)
@@ -87,9 +91,13 @@ namespace Ink_Canvas
             }
             SaveStrokes();
             ClearStrokes(true);
+            int oldPage = CurrentWhiteboardIndex;
             CurrentWhiteboardIndex++;
             RestoreStrokes();
             UpdateIndexInfoDisplay();
+            
+            // 通知摄像头管理器页面切换
+            NotifyCameraManagerPageChanged(oldPage, CurrentWhiteboardIndex);
         }
 
         private void BtnWhiteBoardAdd_Click(object sender, EventArgs e)
@@ -185,6 +193,33 @@ namespace Ink_Canvas
                 //BtnWhiteBoardDelete.IsEnabled = true;
             }
             */
+        }
+        
+        // 通知摄像头管理器页面切换
+        private void NotifyCameraManagerPageChanged(int oldPage, int newPage)
+        {
+            // 通过反射或其他方式获取摄像头管理器实例并调用页面切换处理
+            try
+            {
+                // 假设MainWindow类中有cameraDeviceManager字段
+                var cameraManagerField = this.GetType().GetField("cameraDeviceManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (cameraManagerField != null)
+                {
+                    var cameraManager = cameraManagerField.GetValue(this);
+                    if (cameraManager != null)
+                    {
+                        var handlePageChangedMethod = cameraManager.GetType().GetMethod("HandlePageChanged", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        if (handlePageChangedMethod != null)
+                        {
+                            handlePageChangedMethod.Invoke(cameraManager, new object[] { newPage });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"通知摄像头管理器页面切换失败: {ex.Message}");
+            }
         }
     }
 }

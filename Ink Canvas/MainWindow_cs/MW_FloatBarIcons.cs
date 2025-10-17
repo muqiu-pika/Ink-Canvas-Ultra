@@ -975,6 +975,9 @@ namespace Ink_Canvas
         public static bool CloseIsFromButton = false;
         private void BtnExit_Click(object sender, RoutedEventArgs e)
         {
+            // 通知摄像头管理器处理退出按钮点击事件，暂停摄像头画面
+            NotifyCameraManagerExitButtonClicked();
+            
             CloseIsFromButton = true;
             Close();
         }
@@ -1198,5 +1201,32 @@ namespace Ink_Canvas
             }
         }
         #endregion
+
+        /// <summary>
+        /// 通知摄像头管理器处理退出按钮点击事件
+        /// </summary>
+        private void NotifyCameraManagerExitButtonClicked()
+        {
+            try
+            {
+                // 通过反射获取摄像头设备管理器实例
+                var cameraDeviceManagerField = typeof(MainWindow).GetField("cameraDeviceManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (cameraDeviceManagerField != null)
+                {
+                    var cameraDeviceManager = cameraDeviceManagerField.GetValue(this);
+                    if (cameraDeviceManager != null)
+                    {
+                        // 调用摄像头管理器的HandleExitButtonClicked方法
+                        var handleExitButtonClickedMethod = cameraDeviceManager.GetType().GetMethod("HandleExitButtonClicked", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                        handleExitButtonClickedMethod?.Invoke(cameraDeviceManager, null);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // 记录错误日志，但不影响正常退出流程
+                LogHelper.WriteLogToFile($"通知摄像头管理器退出按钮点击事件失败: {ex.Message}");
+            }
+        }
     }
 }
