@@ -564,7 +564,26 @@ namespace Ink_Canvas
         // 检测当前页面是否有摄像头画面
         public bool HasCameraFrameOnCurrentPage()
         {
-            return currentCameraImage != null;
+            // 首先检查currentCameraImage引用
+            if (currentCameraImage != null) return true;
+            
+            // 如果currentCameraImage为null，再检查画布上是否有摄像头画面元素
+            if (inkCanvas != null)
+            {
+                foreach (var child in inkCanvas.Children)
+                {
+                    if (child is System.Windows.Controls.Image image && 
+                        image.Name != null && 
+                        image.Name.StartsWith("camera_"))
+                    {
+                        // 找到摄像头画面元素，更新currentCameraImage引用
+                        currentCameraImage = image;
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
         }
 
         // 切换到下一页白板并插入摄像头画面
@@ -595,8 +614,7 @@ namespace Ink_Canvas
         // 移除摄像头画面
         public void RemoveCameraFrame()
         {
-            // 停止定时器
-            cameraFrameTimer?.Stop();
+            // 不停止定时器，以便翻页后可以继续使用
             
             // 移除摄像头画面元素
             if (currentCameraImage != null)
@@ -609,10 +627,32 @@ namespace Ink_Canvas
         // 摄像头画面更新定时器事件
         private async void CameraFrameTimer_Tick(object sender, EventArgs e)
         {
-            if (cameraDeviceManager == null || currentCameraImage == null) return;
+            if (cameraDeviceManager == null) return;
 
             try
             {
+                // 如果currentCameraImage为null，尝试在画布上查找摄像头画面元素
+                if (currentCameraImage == null)
+                {
+                    foreach (var child in inkCanvas.Children)
+                    {
+                        if (child is System.Windows.Controls.Image image && 
+                            image.Name != null && 
+                            image.Name.StartsWith("camera_"))
+                        {
+                            currentCameraImage = image;
+                            break;
+                        }
+                    }
+                }
+
+                // 如果仍然没有找到摄像头画面元素，停止定时器
+                if (currentCameraImage == null)
+                {
+                    cameraFrameTimer?.Stop();
+                    return;
+                }
+
                 var frame = cameraDeviceManager.GetFrameCopy();
                 if (frame != null)
                 {
