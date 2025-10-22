@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
@@ -205,6 +206,10 @@ namespace Ink_Canvas
 
         // 拍照功能相关字段
         private ObservableCollection<CapturedImage> capturedPhotos = new ObservableCollection<CapturedImage>();
+        
+        // 照片页面管理相关字段
+        private Dictionary<string, int> photoPageMapping = new Dictionary<string, int>(); // 记录照片时间戳与页码的关联
+        private System.Windows.Controls.Image currentPhotoImage; // 当前显示的照片元素
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -379,6 +384,10 @@ namespace Ink_Canvas
                 var capturedImage = new CapturedImage(image);
                 capturedPhotos.Insert(0, capturedImage);
                 UpdateCapturedPhotosDisplay();
+                
+                // 拍照后不立即插入照片到白板，等待用户点击照片按钮后再插入
+                Console.WriteLine($"照片已保存到相册，时间戳: {capturedImage.Timestamp}");
+                Console.WriteLine("请点击照片按钮将照片插入白板");
             }
             catch (Exception ex)
             {
@@ -428,11 +437,113 @@ namespace Ink_Canvas
 
             button.Click += (sender, e) =>
             {
-                // 点击照片时显示大图（这里可以扩展功能）
-                MessageBox.Show($"拍摄时间: {photo.Timestamp}", "照片信息", MessageBoxButton.OK, MessageBoxImage.Information);
+                // 检查该照片是否已经插入过白板
+                if (photoPageMapping.ContainsKey(photo.Timestamp))
+                {
+                    // 如果已经插入过，直接跳转到该照片所在的页码
+                    int targetPage = photoPageMapping[photo.Timestamp];
+                    Console.WriteLine($"照片 {photo.Timestamp} 已存在于页码 {targetPage}，正在跳转...");
+                    
+                    // 跳转到目标页码
+                    SwitchToPage(targetPage);
+                    Console.WriteLine($"已跳转到页码 {targetPage}，照片已存在，无需重新插入");
+                }
+                else
+                {
+                    // 如果当前页面已有摄像头画面或照片，先切换到下一页再插入
+                    if (HasCameraFrameOrPhotoOnCurrentPage())
+                    {
+                        Console.WriteLine("当前页面已有摄像头画面或照片，切换到下一页插入");
+                        SwitchToNextBoardAndInsertPhoto(photo);
+                    }
+                    else
+                    {
+                        // 如果没有摄像头画面或照片，直接插入到当前页面
+                        Console.WriteLine("当前页面无摄像头画面或照片，直接插入到当前页面");
+                        InsertPhotoToCanvas(photo);
+                    }
+                }
             };
 
             return button;
+        }
+
+        private void InsertPhotoToCanvas(CapturedImage photo)
+        {
+            try
+            {
+                // 去重判断：检查当前页面是否已经有该照片
+                int currentPage = GetCurrentPageIndex();
+                
+                // 检查照片与页码的映射关系
+                if (photoPageMapping.ContainsKey(photo.Timestamp))
+                {
+                    int existingPage = photoPageMapping[photo.Timestamp];
+                    
+                    // 如果照片已经存在于当前页面，则不再插入
+                    if (existingPage == currentPage)
+                    {
+                        Console.WriteLine($"照片 {photo.Timestamp} 已经存在于当前页面 {currentPage}，跳过插入操作");
+                        return;
+                    }
+                    else
+                    {
+                        // 如果照片存在于其他页面，更新映射关系到当前页面
+                        photoPageMapping[photo.Timestamp] = currentPage;
+                        Console.WriteLine($"照片 {photo.Timestamp} 从页面 {existingPage} 移动到页面 {currentPage}");
+                    }
+                }
+                
+                // 检查当前页面是否已经有照片元素
+                if (HasPhotoOnCurrentPage())
+                {
+                    Console.WriteLine($"当前页面 {currentPage} 已有照片，将移除现有照片并插入新照片");
+                    
+                    // 移除当前页面的照片元素
+                    if (currentPhotoImage != null)
+                    {
+                        inkCanvas.Children.Remove(currentPhotoImage);
+                        currentPhotoImage = null;
+                    }
+                    
+                    // 清除可能存在的其他照片元素
+                    ClearPhotoElementsFromCanvas();
+                }
+
+                // 创建图片元素
+                var imageElement = new System.Windows.Controls.Image
+                {
+                    Source = photo.Image,
+                    Width = photo.Image.PixelWidth,
+                    Height = photo.Image.PixelHeight,
+                    Name = "photo_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff")
+                };
+
+                // 居中并缩放
+                CenterAndScaleElement(imageElement);
+
+                // 添加到画布
+                InkCanvas.SetLeft(imageElement, 0);
+                InkCanvas.SetTop(imageElement, 0);
+                inkCanvas.Children.Add(imageElement);
+
+                // 记录当前照片元素引用
+                currentPhotoImage = imageElement;
+
+                // 记录照片与页码的关联
+                photoPageMapping[photo.Timestamp] = currentPage;
+                Console.WriteLine($"照片已记录到页码: {currentPage}");
+
+                // 记录历史
+                timeMachine.CommitElementInsertHistory(imageElement);
+
+                // 显示成功提示
+                Console.WriteLine($"照片已成功插入白板: {photo.Timestamp}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         #endregion
@@ -585,6 +696,126 @@ namespace Ink_Canvas
             
             return false;
         }
+        
+        // 检测当前页面是否有照片
+        public bool HasPhotoOnCurrentPage()
+        {
+            // 首先检查currentPhotoImage引用
+            if (currentPhotoImage != null) return true;
+            
+            // 如果currentPhotoImage为null，再检查画布上是否有照片元素
+            if (inkCanvas != null)
+            {
+                foreach (var child in inkCanvas.Children)
+                {
+                    if (child is System.Windows.Controls.Image image && 
+                        image.Name != null && 
+                        image.Name.StartsWith("photo_"))
+                    {
+                        // 找到照片元素，更新currentPhotoImage引用
+                        currentPhotoImage = image;
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+        
+        // 检测当前页面是否有摄像头画面或照片（两者只要有一种就返回true）
+        public bool HasCameraFrameOrPhotoOnCurrentPage()
+        {
+            return HasCameraFrameOnCurrentPage() || HasPhotoOnCurrentPage();
+        }
+
+        // 清除画布上的所有照片元素
+        private void ClearPhotoElementsFromCanvas()
+        {
+            try
+            {
+                if (inkCanvas == null) return;
+                
+                // 收集所有照片元素
+                var photoElements = new List<System.Windows.Controls.Image>();
+                
+                foreach (var child in inkCanvas.Children)
+                {
+                    if (child is System.Windows.Controls.Image image && 
+                        image.Name != null && 
+                        image.Name.StartsWith("photo_"))
+                    {
+                        photoElements.Add(image);
+                    }
+                }
+                
+                // 移除所有照片元素
+                foreach (var photoElement in photoElements)
+                {
+                    inkCanvas.Children.Remove(photoElement);
+                }
+                
+                // 重置当前照片引用
+                currentPhotoImage = null;
+                
+                Console.WriteLine($"已清除画布上的 {photoElements.Count} 个照片元素");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"清除照片元素失败: {ex.Message}");
+            }
+        }
+
+        // 处理页面切换时的照片显示逻辑
+        private void HandlePhotoDisplayOnPageChange(int newPageIndex)
+        {
+            try
+            {
+                // 清除当前照片显示
+                if (currentPhotoImage != null)
+                {
+                    inkCanvas.Children.Remove(currentPhotoImage);
+                    currentPhotoImage = null;
+                }
+                
+                // 检查新页面是否有关联的照片
+                bool hasPhotoOnNewPage = false;
+                
+                // 遍历photoPageMapping字典，查找与新页面关联的照片
+                foreach (var kvp in photoPageMapping)
+                {
+                    if (kvp.Value == newPageIndex)
+                    {
+                        // 找到与新页面关联的照片
+                        hasPhotoOnNewPage = true;
+                        
+                        // 在照片集合中查找对应的照片
+                        var photo = capturedPhotos.FirstOrDefault(p => p.Timestamp.Equals(kvp.Key));
+                        if (photo != null)
+                        {
+                            // 在新页面上显示照片
+                            InsertPhotoToCanvas(photo);
+                            Console.WriteLine($"页码 {newPageIndex} 上的照片已恢复显示");
+                        }
+                        break; // 每个页面最多只能有一张照片
+                    }
+                }
+                
+                if (!hasPhotoOnNewPage)
+                {
+                    Console.WriteLine($"页码 {newPageIndex} 上没有关联的照片");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"处理页面切换时的照片显示失败: {ex.Message}");
+            }
+        }
+
+        // 获取当前页码
+        public int GetCurrentPageIndex()
+        {
+            return CurrentWhiteboardIndex;
+        }
 
         // 切换到下一页白板并插入摄像头画面
         public void SwitchToNextBoardAndInsertCameraFrame()
@@ -608,6 +839,65 @@ namespace Ink_Canvas
                 Console.WriteLine($"切换到下一页并插入摄像头画面失败: {ex.Message}");
                 // 如果切换失败，尝试直接插入
                 InsertCameraFrameToCanvas();
+            }
+        }
+        
+        // 切换到下一页白板并插入照片
+        public async void SwitchToNextBoardAndInsertPhoto(CapturedImage photo)
+        {
+            try
+            {
+                // 切换到下一页
+                BtnWhiteBoardSwitchNext_Click(null, null);
+                
+                // 等待页面切换完成
+                await System.Threading.Tasks.Task.Delay(300);
+                
+                // 插入照片
+                InsertPhotoToCanvas(photo);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"切换到下一页并插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // 跳转到指定页码
+        public void SwitchToPage(int pageIndex)
+        {
+            try
+            {
+                int currentPage = GetCurrentPageIndex();
+                if (pageIndex != currentPage)
+                {
+                    // 保存当前页面的墨迹
+                    SaveStrokes(false);
+                    
+                    // 清除当前画布
+                    ClearStrokes(true);
+                    
+                    // 设置新的页码
+                    CurrentWhiteboardIndex = pageIndex;
+                    
+                    // 恢复新页面的墨迹
+                    RestoreStrokes(false);
+                    
+                    // 处理页面切换时的照片显示逻辑
+                    HandlePhotoDisplayOnPageChange(pageIndex);
+                    
+                    // 更新页面显示
+                    UpdateIndexInfoDisplay();
+                    
+                    Console.WriteLine($"已成功切换到页码: {pageIndex}");
+                }
+                else
+                {
+                    Console.WriteLine($"当前已在页码: {pageIndex}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"切换到页码 {pageIndex} 失败: {ex.Message}");
             }
         }
 

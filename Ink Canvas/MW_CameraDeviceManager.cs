@@ -374,12 +374,12 @@ namespace Ink_Canvas
                 return;
             }
             
-            // 先检测当前页面是否有摄像头画面（在启动摄像头之前检测）
-            bool hasCameraFrame = false;
+            // 先检测当前页面是否有摄像头画面或照片（在启动摄像头之前检测）
+            bool hasCameraFrameOrPhoto = false;
             int currentPage = GetCurrentPageIndex();
             mainWindow.Dispatcher.Invoke(new Action(() =>
             {
-                hasCameraFrame = mainWindow.HasCameraFrameOnCurrentPage();
+                hasCameraFrameOrPhoto = mainWindow.HasCameraFrameOrPhotoOnCurrentPage();
             }));
             
             // 启动摄像头
@@ -391,9 +391,9 @@ namespace Ink_Canvas
             {
                 mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    if (hasCameraFrame)
+                    if (hasCameraFrameOrPhoto)
                     {
-                        // 如果当前页面已有摄像头画面，先切换到下一页再插入
+                        // 如果当前页面已有摄像头画面或照片，先切换到下一页再插入
                         mainWindow.SwitchToNextBoardAndInsertCameraFrame();
                         
                         // 记录设备与页码的关联（新插入的页码）
@@ -406,7 +406,7 @@ namespace Ink_Canvas
                     }
                     else
                     {
-                        // 如果没有摄像头画面，直接插入
+                        // 如果没有摄像头画面或照片，直接插入
                         mainWindow.InsertCameraFrameToCanvas();
                         
                         // 记录设备与页码的关联（当前页码）
