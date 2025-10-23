@@ -433,8 +433,8 @@ namespace Ink_Canvas
         // 页面切换事件处理
         public void HandlePageChanged(int newPageIndex)
         {
-            // 检查新页面是否有摄像头画面
-            bool hasCameraFrameOnNewPage = false;
+            // 检查新页面是否有摄像头画面或照片
+            bool hasCameraFrameOrPhotoOnNewPage = false;
             string cameraDeviceOnNewPage = null;
             
             // 查找新页面是否有关联的摄像头设备
@@ -442,14 +442,14 @@ namespace Ink_Canvas
             {
                 if (mapping.Value == newPageIndex)
                 {
-                    hasCameraFrameOnNewPage = true;
+                    hasCameraFrameOrPhotoOnNewPage = true;
                     cameraDeviceOnNewPage = mapping.Key;
                     break;
                 }
             }
             
-            // 如果新页面有摄像头画面，恢复摄像头显示
-            if (hasCameraFrameOnNewPage && cameraDeviceOnNewPage != null)
+            // 如果新页面有摄像头画面或照片，恢复摄像头显示
+            if (hasCameraFrameOrPhotoOnNewPage && cameraDeviceOnNewPage != null)
             {
                 Console.WriteLine($"切换到页码 {newPageIndex}，检测到摄像头画面，恢复摄像头显示");
                 
@@ -487,14 +487,14 @@ namespace Ink_Canvas
                     // 统一在主线程处理，避免多次调用Dispatcher
                     mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        // 检查当前页面是否已经有摄像头画面
-                        bool hasCurrentCameraFrame = mainWindow.HasCameraFrameOnCurrentPage();
-                        Console.WriteLine($"HasCameraFrameOnCurrentPage返回: {hasCurrentCameraFrame}");
+                        // 检查当前页面是否已经有摄像头画面或照片
+                        bool hasCurrentCameraFrameOrPhoto = mainWindow.HasCameraFrameOrPhotoOnCurrentPage();
+                        Console.WriteLine($"HasCameraFrameOrPhotoOnCurrentPage返回: {hasCurrentCameraFrameOrPhoto}");
                         
-                        if (hasCurrentCameraFrame)
+                        if (hasCurrentCameraFrameOrPhoto)
                         {
-                            // 如果当前页面有摄像头画面，只需启动定时器更新画面
-                            Console.WriteLine("当前页面已有摄像头画面，启动定时器更新");
+                            // 如果当前页面有摄像头画面或照片，只需启动定时器更新画面
+                            Console.WriteLine("当前页面已有摄像头画面或照片，启动定时器更新");
                             
                             // 启动定时器持续更新画面
                             var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -507,8 +507,8 @@ namespace Ink_Canvas
                         }
                         else
                         {
-                            // 如果当前页面没有摄像头画面，需要插入新的摄像头画面
-                            Console.WriteLine("当前页面无摄像头画面，插入新的摄像头画面");
+                            // 如果当前页面没有摄像头画面或照片，需要插入新的摄像头画面
+                            Console.WriteLine("当前页面无摄像头画面或照片，插入新的摄像头画面");
                             
                             // 插入摄像头画面
                             mainWindow.InsertCameraFrameToCanvas();
@@ -518,17 +518,17 @@ namespace Ink_Canvas
             }
             else
             {
-                // 如果新页面没有摄像头画面，暂停摄像头显示（但不停止摄像头设备）
-                Console.WriteLine($"切换到页码 {newPageIndex}，无摄像头画面，暂停摄像头显示");
+                // 如果新页面没有摄像头画面或照片，暂停摄像头显示（但不停止摄像头设备）
+                Console.WriteLine($"切换到页码 {newPageIndex}，无摄像头画面或照片，暂停摄像头显示");
                 
-                // 检查当前页面是否已经有摄像头画面，避免重复移除
-                bool hasCurrentCameraFrame = false;
+                // 检查当前页面是否已经有摄像头画面或照片，避免重复移除
+                bool hasCurrentCameraFrameOrPhoto = false;
                 mainWindow.Dispatcher.Invoke(new Action(() =>
                 {
-                    hasCurrentCameraFrame = mainWindow.HasCameraFrameOnCurrentPage();
+                    hasCurrentCameraFrameOrPhoto = mainWindow.HasCameraFrameOrPhotoOnCurrentPage();
                 }));
                 
-                if (hasCurrentCameraFrame)
+                if (hasCurrentCameraFrameOrPhoto)
                 {
                     // 通知主窗口移除摄像头画面
                     mainWindow.Dispatcher.BeginInvoke(new Action(() =>
