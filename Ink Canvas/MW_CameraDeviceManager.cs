@@ -134,6 +134,13 @@ namespace Ink_Canvas
                     return;
                 }
 
+                // 如果当前设备已经在运行且设备名称相同，无需重新启动
+                if (currentVideoDevice != null && currentVideoDevice.IsRunning && selectedDeviceName == deviceName)
+                {
+                    Console.WriteLine($"摄像头设备 {deviceName} 已在运行，无需重新启动");
+                    return;
+                }
+
                 if (currentVideoDevice != null && currentVideoDevice.IsRunning)
                 {
                     currentVideoDevice.SignalToStop();
@@ -475,7 +482,7 @@ namespace Ink_Canvas
                         {
                             var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
                             cameraFrameTimer?.Start();
-                            Console.WriteLine("摄像头设备已切换，已恢复画面显示");
+                            Console.WriteLine($"摄像头设备 {cameraDeviceOnNewPage} 已启动并恢复画面显示");
                         }
                     }));
                 }
@@ -518,8 +525,15 @@ namespace Ink_Canvas
             }
             else
             {
-                // 如果新页面没有摄像头画面或照片，暂停摄像头显示（但不停止摄像头设备）
-                Console.WriteLine($"切换到页码 {newPageIndex}，无摄像头画面或照片，暂停摄像头显示");
+                // 如果新页面没有摄像头画面或照片，停止摄像头设备以节省资源
+                Console.WriteLine($"切换到页码 {newPageIndex}，无摄像头画面或照片，停止摄像头设备以节省资源");
+                
+                // 停止摄像头设备以释放资源
+                if (currentVideoDevice != null && currentVideoDevice.IsRunning)
+                {
+                    StopCamera();
+                    Console.WriteLine("摄像头设备已停止，资源已释放");
+                }
                 
                 // 检查当前页面是否已经有摄像头画面或照片，避免重复移除
                 bool hasCurrentCameraFrameOrPhoto = false;
@@ -537,6 +551,12 @@ namespace Ink_Canvas
                     }));
                 }
             }
+            
+            // 更新拍照按钮状态
+            mainWindow.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                mainWindow.UpdateCapturePhotoButtonState();
+            }));
         }
         
         // 退出按钮点击事件处理

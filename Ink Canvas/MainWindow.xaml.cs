@@ -351,6 +351,89 @@ namespace Ink_Canvas
             }
         }
 
+        private void BtnRotateImage_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 获取当前页面上所有可旋转的图像元素
+                var rotatableElements = GetRotatableElementsOnCurrentPage();
+                
+                if (rotatableElements.Count == 0)
+                {
+                    Console.WriteLine("当前页面没有可旋转的图像元素");
+                    return;
+                }
+
+                // 如果有多个可旋转元素，优先旋转最近添加的或当前选中的
+                UIElement elementToRotate = rotatableElements[rotatableElements.Count - 1]; // 默认旋转最后一个
+                
+                // 检查是否有选中的元素
+                var selectedElements = InkCanvasElementsHelper.GetSelectedElements(inkCanvas);
+                if (selectedElements.Count > 0)
+                {
+                    // 如果有选中的元素，优先旋转选中的第一个图像元素
+                    var selectedImage = selectedElements.FirstOrDefault(el => el is System.Windows.Controls.Image || el is MediaElement);
+                    if (selectedImage != null && rotatableElements.Contains(selectedImage))
+                    {
+                        elementToRotate = selectedImage;
+                    }
+                }
+                
+                // 旋转图像元素
+                RotateImageElement(elementToRotate, 90);
+                
+                Console.WriteLine($"图像已向右旋转90度，元素类型: {elementToRotate.GetType().Name}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"旋转图像失败: {ex.Message}");
+            }
+        }
+
+        private void RotateImageElement(UIElement imageElement, double angle)
+        {
+            FrameworkElement frameworkElement = imageElement as FrameworkElement;
+            if (frameworkElement == null) return;
+            
+            // 获取或创建变换组
+            var transformGroup = frameworkElement.RenderTransform as TransformGroup;
+            if (transformGroup == null)
+            {
+                transformGroup = new TransformGroup();
+                frameworkElement.RenderTransform = transformGroup;
+            }
+
+            // 记录初始状态
+            if (!ElementsInitialHistory.ContainsKey(frameworkElement.Name))
+            {
+                ElementsInitialHistory[frameworkElement.Name] = transformGroup.Clone();
+            }
+
+            // 计算元素的实际中心位置
+            // 获取元素的边界框，考虑现有的变换
+            var bounds = frameworkElement.TransformToVisual(inkCanvas).TransformBounds(new Rect(0, 0, frameworkElement.ActualWidth, frameworkElement.ActualHeight));
+            double centerX = bounds.Left + bounds.Width / 2;
+            double centerY = bounds.Top + bounds.Height / 2;
+
+            // 创建旋转变换，设置中心点为元素的实际中心
+            var rotateTransform = new RotateTransform(angle, centerX, centerY);
+            
+            // 添加到变换组
+            transformGroup.Children.Add(rotateTransform);
+
+            // 记录变换历史（使用与MW_SelectionGestures.cs相同的方式）
+            if (ElementsManipulationHistory == null)
+            {
+                ElementsManipulationHistory = new Dictionary<string, Tuple<object, TransformGroup>>();
+            }
+            
+            ElementsManipulationHistory[frameworkElement.Name] =
+                new Tuple<object, TransformGroup>(ElementsInitialHistory[frameworkElement.Name], transformGroup.Clone());
+            
+            // 提交变换历史
+            timeMachine.CommitStrokeManipulationHistory(null, ElementsManipulationHistory);
+        }
+
         private BitmapImage ConvertBitmapToBitmapImage(Bitmap bitmap)
         {
             try
@@ -634,6 +717,9 @@ namespace Ink_Canvas
                 Interval = TimeSpan.FromMilliseconds(33) // ~30fps
             };
             cameraFrameTimer.Tick += CameraFrameTimer_Tick;
+            
+            // 设置拍照按钮的初始状态
+            UpdateCapturePhotoButtonState();
         }
 
         // 摄像头控制按钮功能已移除，仅保留设备选择功能
@@ -670,6 +756,9 @@ namespace Ink_Canvas
             {
                 Console.WriteLine("无法获取摄像头画面，可能是摄像头未初始化完成");
             }
+            
+            // 更新拍照按钮状态
+            UpdateCapturePhotoButtonState();
         }
 
         // 检测当前页面是否有摄像头画面
@@ -697,6 +786,25 @@ namespace Ink_Canvas
             return false;
         }
         
+        // 更新拍照按钮状态
+        public void UpdateCapturePhotoButtonState()
+        {
+            if (BtnCapturePhoto == null) return;
+            
+            bool hasCameraFrame = HasCameraFrameOnCurrentPage();
+            BtnCapturePhoto.IsEnabled = hasCameraFrame;
+            
+            // 根据按钮状态更新视觉样式
+            if (hasCameraFrame)
+            {
+                BtnCapturePhoto.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.SkyBlue);
+            }
+            else
+            {
+                BtnCapturePhoto.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 160, 160));
+            }
+        }
+        
         // 检测当前页面是否有照片
         public bool HasPhotoOnCurrentPage()
         {
@@ -720,6 +828,39 @@ namespace Ink_Canvas
             }
             
             return false;
+        }
+
+        /// <summary>
+        /// 获取当前页面上所有可旋转的图像元素
+        /// </summary>
+        private List<UIElement> GetRotatableElementsOnCurrentPage()
+        {
+            var rotatableElements = new List<UIElement>();
+
+            foreach (var element in inkCanvas.Children)
+            {
+                // 检查图像元素（包括摄像头画面、照片列表照片、导入媒体图片）
+                if (element is System.Windows.Controls.Image imageElement)
+                {
+                    // 检查元素名称前缀，包括所有类型的图像元素
+                    if (imageElement.Name.StartsWith("camera_") || 
+                        imageElement.Name.StartsWith("photo_") || 
+                        imageElement.Name.StartsWith("img_"))
+                    {
+                        rotatableElements.Add(imageElement);
+                    }
+                }
+                // 检查媒体元素（视频）
+                else if (element is MediaElement mediaElement)
+                {
+                    if (mediaElement.Name.StartsWith("media_"))
+                    {
+                        rotatableElements.Add(mediaElement);
+                    }
+                }
+            }
+
+            return rotatableElements;
         }
         
         // 检测当前页面是否有摄像头画面或照片（两者只要有一种就返回true）
@@ -885,8 +1026,17 @@ namespace Ink_Canvas
                     // 处理页面切换时的照片显示逻辑
                     HandlePhotoDisplayOnPageChange(pageIndex);
                     
+                    // 通知摄像头管理器页面切换
+                    if (cameraDeviceManager != null)
+                    {
+                        cameraDeviceManager.HandlePageChanged(pageIndex);
+                    }
+                    
                     // 更新页面显示
                     UpdateIndexInfoDisplay();
+                    
+                    // 更新拍照按钮状态
+                    UpdateCapturePhotoButtonState();
                     
                     Console.WriteLine($"已成功切换到页码: {pageIndex}");
                 }
@@ -912,6 +1062,9 @@ namespace Ink_Canvas
                 inkCanvas.Children.Remove(currentCameraImage);
                 currentCameraImage = null;
             }
+            
+            // 更新拍照按钮状态
+            UpdateCapturePhotoButtonState();
         }
 
         // 摄像头画面更新定时器事件
