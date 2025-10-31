@@ -322,6 +322,19 @@ namespace Ink_Canvas
                     return;
                 }
 
+                // 获取当前摄像头画面的旋转角度
+                double rotationAngle = 0;
+                if (currentCameraImage != null && currentCameraImage.RenderTransform is TransformGroup tg)
+                {
+                    foreach (var t in tg.Children)
+                    {
+                        if (t is RotateTransform rt)
+                        {
+                            rotationAngle += rt.Angle;
+                        }
+                    }
+                }
+
                 // 在后台线程中处理图像转换
                 Task.Run(() =>
                 {
@@ -329,6 +342,18 @@ namespace Ink_Canvas
                     {
                         using (frame)
                         {
+                            // 如果有旋转角度，先旋转Bitmap
+                            if (rotationAngle != 0)
+                            {
+                                System.Drawing.RotateFlipType rotateFlipType = System.Drawing.RotateFlipType.RotateNoneFlipNone;
+                                if (rotationAngle % 360 == 90 || rotationAngle % 360 == -270)
+                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate90FlipNone;
+                                else if (rotationAngle % 360 == 180 || rotationAngle % 360 == -180)
+                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate180FlipNone;
+                                else if (rotationAngle % 360 == 270 || rotationAngle % 360 == -90)
+                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate270FlipNone;
+                                frame.RotateFlip(rotateFlipType);
+                            }
                             var bitmapImage = ConvertBitmapToBitmapImage(frame);
                             if (bitmapImage != null)
                             {
@@ -514,7 +539,9 @@ namespace Ink_Canvas
                     Source = photo.Thumbnail,
                     Stretch = Stretch.Uniform,
                     Width = 290,
-                    Height = 180
+                    Height = 180,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
                 }
             };
 

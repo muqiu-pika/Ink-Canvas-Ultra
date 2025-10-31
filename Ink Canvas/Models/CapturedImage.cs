@@ -21,8 +21,9 @@ namespace Ink_Canvas.Models
 
         private BitmapImage CreateThumbnail(BitmapImage original)
         {
+            double scale = Math.Min(70.0 / original.PixelWidth, 52.0 / original.PixelHeight);
             var thumbnail = new TransformedBitmap(original,
-                new System.Windows.Media.ScaleTransform(70.0 / original.PixelWidth, 52.0 / original.PixelHeight));
+                new System.Windows.Media.ScaleTransform(scale, scale));
 
             var bmp = new PngBitmapEncoder();
             bmp.Frames.Add(BitmapFrame.Create(thumbnail));
