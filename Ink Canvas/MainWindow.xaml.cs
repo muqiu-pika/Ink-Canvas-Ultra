@@ -206,6 +206,8 @@ namespace Ink_Canvas
 
         // 拍照功能相关字段
         private ObservableCollection<CapturedImage> capturedPhotos = new ObservableCollection<CapturedImage>();
+        // 侧栏照片选中状态（使用时间戳标识当前选中照片）
+        private string selectedPhotoTimestamp = null;
         
         // 照片页面管理相关字段
         private Dictionary<string, int> photoPageMapping = new Dictionary<string, int>(); // 记录照片时间戳与页码的关联
@@ -526,27 +528,53 @@ namespace Ink_Canvas
 
         private Button CreatePhotoButton(CapturedImage photo)
         {
+            bool isSelected = selectedPhotoTimestamp != null && selectedPhotoTimestamp == photo.Timestamp;
+
+            var defaultBorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, 0x80, 0x80, 0x80));
+            var image = new System.Windows.Controls.Image
+            {
+                Source = photo.Thumbnail,
+                Stretch = Stretch.Uniform,
+                Width = 290,
+                Height = 180,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // 选中叠加层：居中显示天蓝色☑
+            var checkOverlay = new TextBlock
+            {
+                Text = "☑",
+                Foreground = System.Windows.Media.Brushes.SkyBlue,
+                FontSize = 60,
+                FontWeight = FontWeights.Bold,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Visibility = isSelected ? Visibility.Visible : Visibility.Collapsed
+            };
+
+            var contentGrid = new Grid();
+            contentGrid.Children.Add(image);
+            contentGrid.Children.Add(checkOverlay);
+
             var button = new Button
             {
                 Width = 300,
                 Height = 200,
                 Margin = new Thickness(4),
                 Background = System.Windows.Media.Brushes.Transparent,
-                BorderThickness = new Thickness(1),
-                BorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, 0x80, 0x80, 0x80)),
-                Content = new System.Windows.Controls.Image
-                {
-                    Source = photo.Thumbnail,
-                    Stretch = Stretch.Uniform,
-                    Width = 290,
-                    Height = 180,
-                    HorizontalAlignment = HorizontalAlignment.Center,
-                    VerticalAlignment = VerticalAlignment.Center
-                }
+                BorderThickness = isSelected ? new Thickness(3) : new Thickness(1),
+                BorderBrush = isSelected ? System.Windows.Media.Brushes.SkyBlue : defaultBorderBrush,
+                Content = contentGrid,
+                Tag = photo.Timestamp
             };
 
             button.Click += (sender, e) =>
             {
+                // 更新选中状态并刷新侧栏照片样式
+                selectedPhotoTimestamp = photo.Timestamp;
+                UpdateCapturedPhotosDisplay();
+
                 // 检查该照片是否已经插入过白板
                 if (photoPageMapping.ContainsKey(photo.Timestamp))
                 {
@@ -649,6 +677,10 @@ namespace Ink_Canvas
 
                 // 显示成功提示
                 Console.WriteLine($"照片已成功插入白板: {photo.Timestamp}");
+
+                // 更新选中状态与侧栏样式
+                selectedPhotoTimestamp = photo.Timestamp;
+                UpdateCapturedPhotosDisplay();
             }
             catch (Exception ex)
             {
@@ -963,6 +995,9 @@ namespace Ink_Canvas
                             // 在新页面上显示照片
                             InsertPhotoToCanvas(photo);
                             Console.WriteLine($"页码 {newPageIndex} 上的照片已恢复显示");
+                            // 同步侧栏选中状态
+                            selectedPhotoTimestamp = photo.Timestamp;
+                            UpdateCapturedPhotosDisplay();
                         }
                         break; // 每个页面最多只能有一张照片
                     }
@@ -971,6 +1006,9 @@ namespace Ink_Canvas
                 if (!hasPhotoOnNewPage)
                 {
                     Console.WriteLine($"页码 {newPageIndex} 上没有关联的照片");
+                    // 清除选中状态并刷新侧栏样式
+                    selectedPhotoTimestamp = null;
+                    UpdateCapturedPhotosDisplay();
                 }
             }
             catch (Exception ex)
