@@ -74,6 +74,14 @@ namespace Ink_Canvas
             RestoreStrokes();
             UpdateIndexInfoDisplay();
             
+            // 同步照片与设备选中状态
+            try
+            {
+                HandlePhotoDisplayOnPageChange(CurrentWhiteboardIndex);
+                UpdatePhotoSelectionIndicators();
+            }
+            catch { }
+            
             // 通知摄像头管理器页面切换
             NotifyCameraManagerPageChanged(oldPage, CurrentWhiteboardIndex);
         }
@@ -95,6 +103,14 @@ namespace Ink_Canvas
             CurrentWhiteboardIndex++;
             RestoreStrokes();
             UpdateIndexInfoDisplay();
+            
+            // 同步照片与设备选中状态
+            try
+            {
+                HandlePhotoDisplayOnPageChange(CurrentWhiteboardIndex);
+                UpdatePhotoSelectionIndicators();
+            }
+            catch { }
             
             // 通知摄像头管理器页面切换
             NotifyCameraManagerPageChanged(oldPage, CurrentWhiteboardIndex);

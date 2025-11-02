@@ -17,6 +17,8 @@ namespace Ink_Canvas
         private VideoCaptureDevice currentVideoDevice;
         private MainWindow mainWindow;
         private string selectedDeviceName;
+        // 自动同步设备选中状态时，用于抑制选中事件处理逻辑
+        private bool suppressSelectionHandlers = false;
         private DateTime lastFrameTime = DateTime.MinValue;
         private readonly object frameLock = new object();
         private Bitmap currentFrame;
@@ -96,12 +98,14 @@ namespace Ink_Canvas
 
                     radioButton.Checked += (sender, e) =>
                     {
+                        if (suppressSelectionHandlers) return; // 自动同步时仅更新显示，不触发逻辑
                         selectedDeviceName = cameraName;
                         OnCameraSelected(cameraName);
                     };
 
                     radioButton.Unchecked += (sender, e) =>
                     {
+                        if (suppressSelectionHandlers) return; // 自动同步时仅更新显示，不触发逻辑
                         if (selectedDeviceName == cameraName)
                         {
                             OnCameraDeselected();
@@ -257,62 +261,18 @@ namespace Ink_Canvas
             return currentPage;
         }
 
-        // 跳转到指定页码
+        // 跳转到指定页码（统一走主窗口逻辑，确保侧栏状态与照片显示同步）
         private void SwitchToPage(int pageIndex)
         {
             mainWindow.Dispatcher.BeginInvoke(new Action(() =>
             {
-                // 通过反射获取CurrentWhiteboardIndex字段并设置页码
-                var field = mainWindow.GetType().GetField("CurrentWhiteboardIndex", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (field != null)
+                try
                 {
-                    int currentPage = (int)field.GetValue(mainWindow);
-                    if (pageIndex != currentPage)
-                    {
-                        // 保存当前页面的墨迹
-                        var saveMethod = mainWindow.GetType().GetMethod("SaveStrokes", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        if (saveMethod != null)
-                        {
-                            saveMethod.Invoke(mainWindow, new object[] { false });
-                        }
-                        
-                        // 清除当前画布
-                        var clearMethod = mainWindow.GetType().GetMethod("ClearStrokes", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        if (clearMethod != null)
-                        {
-                            clearMethod.Invoke(mainWindow, new object[] { true });
-                        }
-                        
-                        // 设置新的页码
-                        field.SetValue(mainWindow, pageIndex);
-                        
-                        // 恢复新页面的墨迹
-                        var restoreMethod = mainWindow.GetType().GetMethod("RestoreStrokes", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        if (restoreMethod != null)
-                        {
-                            restoreMethod.Invoke(mainWindow, new object[] { false });
-                        }
-                        
-                        // 更新页面显示
-                        var updateMethod = mainWindow.GetType().GetMethod("UpdateIndexInfoDisplay", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        if (updateMethod != null)
-                        {
-                            updateMethod.Invoke(mainWindow, null);
-                        }
-                        
-                        Console.WriteLine($"已成功切换到页码: {pageIndex}");
-                        
-                        // 调用页面切换事件处理，确保摄像头画面正确显示
-                        HandlePageChanged(pageIndex);
-                    }
-                    else
-                    {
-                        Console.WriteLine($"当前已在页码: {pageIndex}");
-                    }
+                    mainWindow.SwitchToPage(pageIndex);
                 }
-                else
+                catch (Exception ex)
                 {
-                    Console.WriteLine($"无法切换到页码: {pageIndex}，未找到CurrentWhiteboardIndex字段");
+                    Console.WriteLine($"通过主窗口切换到页码 {pageIndex} 失败: {ex.Message}");
                 }
             }));
         }
@@ -454,7 +414,7 @@ namespace Ink_Canvas
                     break;
                 }
             }
-            
+
             // 如果新页面有摄像头画面或照片，恢复摄像头显示
             if (hasCameraFrameOrPhotoOnNewPage && cameraDeviceOnNewPage != null)
             {
@@ -522,6 +482,23 @@ namespace Ink_Canvas
                         }
                     }));
                 }
+
+                // 自动同步设备列表的选中状态（仅更新显示，不触发选中逻辑）
+                mainWindow.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    suppressSelectionHandlers = true;
+                    selectedDeviceName = cameraDeviceOnNewPage;
+                    var stackPanel = mainWindow.CameraDevicesStackPanel;
+                    foreach (var child in stackPanel.Children)
+                    {
+                        if (child is RadioButton rb)
+                        {
+                            var name = rb.Content?.ToString();
+                            rb.IsChecked = !string.IsNullOrEmpty(selectedDeviceName) && name == selectedDeviceName;
+                        }
+                    }
+                    suppressSelectionHandlers = false;
+                }));
             }
             else
             {
@@ -550,6 +527,22 @@ namespace Ink_Canvas
                         mainWindow.RemoveCameraFrame();
                     }));
                 }
+
+                // 自动取消设备列表选中状态（仅更新显示，不触发选中逻辑）
+                mainWindow.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    suppressSelectionHandlers = true;
+                    selectedDeviceName = ""; // 清空选中设备名称
+                    var stackPanel = mainWindow.CameraDevicesStackPanel;
+                    foreach (var child in stackPanel.Children)
+                    {
+                        if (child is RadioButton rb)
+                        {
+                            rb.IsChecked = false;
+                        }
+                    }
+                    suppressSelectionHandlers = false;
+                }));
             }
             
             // 更新拍照按钮状态

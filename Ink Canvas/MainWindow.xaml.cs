@@ -526,6 +526,42 @@ namespace Ink_Canvas
             }
         }
 
+        // 仅同步侧栏照片的选中显示（不插入/删除画面），用于翻页或其他外部触发
+        private void UpdatePhotoSelectionIndicators()
+        {
+            try
+            {
+                int currentPage = GetCurrentPageIndex();
+                string timestampOnThisPage = null;
+
+                // 查找当前页关联的照片时间戳
+                foreach (var kvp in photoPageMapping)
+                {
+                    if (kvp.Value == currentPage)
+                    {
+                        timestampOnThisPage = kvp.Key;
+                        break; // 每页最多一张照片
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(timestampOnThisPage) && capturedPhotos.Any(p => p.Timestamp == timestampOnThisPage))
+                {
+                    selectedPhotoTimestamp = timestampOnThisPage;
+                }
+                else
+                {
+                    selectedPhotoTimestamp = null; // 当前页没有关联照片或相册中不存在该照片
+                }
+
+                // 刷新侧栏按钮样式
+                UpdateCapturedPhotosDisplay();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"同步照片选中显示失败: {ex.Message}");
+            }
+        }
+
         private Button CreatePhotoButton(CapturedImage photo)
         {
             bool isSelected = selectedPhotoTimestamp != null && selectedPhotoTimestamp == photo.Timestamp;
@@ -818,6 +854,16 @@ namespace Ink_Canvas
             
             // 更新拍照按钮状态
             UpdateCapturePhotoButtonState();
+
+            // 在首次插入或自动翻页后，刷新设备侧栏选中显示（仅视觉同步，不触发逻辑）
+            try
+            {
+                cameraDeviceManager?.HandlePageChanged(GetCurrentPageIndex());
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"插入摄像头画面后刷新设备选中显示失败: {ex.Message}");
+            }
         }
 
         // 检测当前页面是否有摄像头画面
@@ -1061,6 +1107,26 @@ namespace Ink_Canvas
                 
                 // 插入照片
                 InsertPhotoToCanvas(photo);
+
+                // 插入后同步一次摄像头设备侧栏选中显示（仅视觉同步，不触发逻辑）
+                try
+                {
+                    cameraDeviceManager?.HandlePageChanged(GetCurrentPageIndex());
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"插入照片后刷新摄像头设备选中显示失败: {ex.Message}");
+                }
+
+                // 插入后再次同步侧栏选中显示，保证首次插入场景视觉稳定
+                try
+                {
+                    UpdatePhotoSelectionIndicators();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"插入照片后刷新侧栏选中显示失败: {ex.Message}");
+                }
             }
             catch (Exception ex)
             {
@@ -1090,6 +1156,8 @@ namespace Ink_Canvas
                     
                     // 处理页面切换时的照片显示逻辑
                     HandlePhotoDisplayOnPageChange(pageIndex);
+                    // 再次仅刷新侧栏选中状态，确保视觉完全同步
+                    UpdatePhotoSelectionIndicators();
                     
                     // 通知摄像头管理器页面切换
                     if (cameraDeviceManager != null)
