@@ -307,10 +307,21 @@ namespace Ink_Canvas
 
         #region Photo Capture Functions
 
+        // 防重复点击计时器
+        private DateTime lastCaptureTime = DateTime.MinValue;
+        private const int CAPTURE_COOLDOWN_MS = 1000; // 1秒冷却时间
+
         private void BtnCapturePhoto_Click(object sender, RoutedEventArgs e)
         {
             try
             {
+                // 防重复点击检查
+                if ((DateTime.Now - lastCaptureTime).TotalMilliseconds < CAPTURE_COOLDOWN_MS)
+                {
+                    Console.WriteLine("拍照功能冷却中，请稍后再试");
+                    return;
+                }
+
                 if (cameraDeviceManager == null)
                 {
                     MessageBox.Show("摄像头设备管理器未初始化", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
@@ -323,6 +334,9 @@ namespace Ink_Canvas
                     MessageBox.Show("未获取到摄像头画面", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
+
+                // 记录本次拍照时间
+                lastCaptureTime = DateTime.Now;
 
                 // 获取当前摄像头画面的旋转角度
                 double rotationAngle = 0;
