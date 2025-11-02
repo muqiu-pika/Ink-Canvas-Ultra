@@ -294,7 +294,49 @@ namespace Ink_Canvas
                     else
                         SaveScreenshot(true);
                 }
-                BtnClear_Click(null, null);
+                
+                // 在白板模式下，保留照片和摄像头画面元素
+                if (currentMode == 1) // 白板模式
+                {
+                    // 保存需要保留的元素
+                    var elementsToKeep = new List<UIElement>();
+                    
+                    foreach (UIElement element in inkCanvas.Children)
+                    {
+                        if (element is System.Windows.Controls.Image image)
+                        {
+                            // 保留照片元素（名称以"photo_"开头）
+                            if (image.Name != null && image.Name.StartsWith("photo_"))
+                            {
+                                elementsToKeep.Add(element);
+                            }
+                            // 保留摄像头画面元素（名称以"camera_"开头）
+                            else if (image.Name != null && image.Name.StartsWith("camera_"))
+                            {
+                                elementsToKeep.Add(element);
+                            }
+                        }
+                    }
+                    
+                    // 清除所有笔迹
+                    inkCanvas.Strokes.Clear();
+                    
+                    // 清除所有子元素
+                    inkCanvas.Children.Clear();
+                    
+                    // 重新添加需要保留的元素
+                    foreach (var element in elementsToKeep)
+                    {
+                        inkCanvas.Children.Add(element);
+                    }
+                    
+                    CancelSingleFingerDragMode();
+                }
+                else
+                {
+                    // 非白板模式下使用原来的清除逻辑
+                    BtnClear_Click(null, null);
+                }
             }
         }
 
