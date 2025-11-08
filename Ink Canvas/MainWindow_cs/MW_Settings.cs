@@ -805,7 +805,7 @@ namespace Ink_Canvas
             Settings.Startup.IsAutoUpdate = true;
             Settings.Startup.IsAutoUpdateWithSilence = true;
             Settings.Startup.IsAutoUpdateWithProxy = true;
-            Settings.Startup.AutoUpdateProxy = "https://mirror.ghproxy.com/";
+            Settings.Startup.AutoUpdateProxy = "https://ghproxy.net/";
             Settings.Startup.AutoUpdateWithSilenceStartTime = "18:20";
             Settings.Startup.AutoUpdateWithSilenceEndTime = "07:40";
             Settings.Startup.IsFoldAtStartup = false;

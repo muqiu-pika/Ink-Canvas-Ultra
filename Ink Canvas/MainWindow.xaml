@@ -3222,7 +3222,7 @@
                                             TextWrapping="Wrap" />
                                         <TextBox
                                             x:Name="AutoUpdateProxyTextBox"
-                                            Text="https://mirror.ghproxy.com/"
+                                            Text="https://ghproxy.net/"
                                             TextChanged="AutoUpdateProxyTextBox_TextChanged"
                                             TextWrapping="Wrap"
                                             Visibility="{Binding ElementName=AutoUpdateWithProxy_Title, Path=Visibility}" />
