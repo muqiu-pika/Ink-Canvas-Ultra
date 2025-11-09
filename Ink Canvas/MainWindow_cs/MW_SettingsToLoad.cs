@@ -381,17 +381,37 @@ namespace Ink_Canvas
                 {
                     if (Topmost)
                     {
+                        // 置顶状态（类似幻灯片模式）：禁用所有手势，除了选中元素双指旋转
                         ToggleSwitchEnableTwoFingerTranslate.IsOn = false;
                         BoardToggleSwitchEnableTwoFingerTranslate.IsOn = false;
+                        ToggleSwitchEnableTwoFingerZoom.IsOn = false;
+                        BoardToggleSwitchEnableTwoFingerZoom.IsOn = false;
+                        ToggleSwitchEnableTwoFingerRotation.IsOn = false;
+                        ToggleSwitchEnableMultiTouchMode.IsOn = false;
+                        ToggleSwitchEnableTwoFingerRotationOnSelection.IsOn = true;
                         Settings.Gesture.IsEnableTwoFingerTranslate = false;
-                        if (!isInMultiTouchMode) ToggleSwitchEnableMultiTouchMode.IsOn = true;
+                        Settings.Gesture.IsEnableTwoFingerZoom = false;
+                        Settings.Gesture.IsEnableTwoFingerRotation = false;
+                        Settings.Gesture.IsEnableMultiTouchMode = false;
+                        Settings.Gesture.IsEnableTwoFingerRotationOnSelection = true;
+                        isInMultiTouchMode = false;
                     }
                     else
                     {
+                        // 非置顶状态（类似画板模式）：启用双指平移和缩放，禁用多指书写
                         ToggleSwitchEnableTwoFingerTranslate.IsOn = true;
                         BoardToggleSwitchEnableTwoFingerTranslate.IsOn = true;
+                        ToggleSwitchEnableTwoFingerZoom.IsOn = true;
+                        BoardToggleSwitchEnableTwoFingerZoom.IsOn = true;
+                        ToggleSwitchEnableTwoFingerRotation.IsOn = false;
+                        ToggleSwitchEnableMultiTouchMode.IsOn = false;
+                        ToggleSwitchEnableTwoFingerRotationOnSelection.IsOn = true;
                         Settings.Gesture.IsEnableTwoFingerTranslate = true;
-                        if (isInMultiTouchMode) ToggleSwitchEnableMultiTouchMode.IsOn = false;
+                        Settings.Gesture.IsEnableTwoFingerZoom = true;
+                        Settings.Gesture.IsEnableTwoFingerRotation = false;
+                        Settings.Gesture.IsEnableMultiTouchMode = false;
+                        Settings.Gesture.IsEnableTwoFingerRotationOnSelection = true;
+                        isInMultiTouchMode = false;
                     }
                 }
                 CheckEnableTwoFingerGestureBtnColorPrompt();

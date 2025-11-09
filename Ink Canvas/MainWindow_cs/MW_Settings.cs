@@ -789,15 +789,16 @@ namespace Ink_Canvas
             Settings.Canvas.EraserSize = 1;
             Settings.Canvas.EraserType = 0;
             Settings.Canvas.HideStrokeWhenSelecting = false;
-            Settings.Canvas.UsingWhiteboard = false;
             Settings.Canvas.HyperbolaAsymptoteOption = 0;
+            Settings.Canvas.UsingWhiteboard = true;
 
             Settings.Gesture.MatrixTransformCenterPoint = MatrixTransformCenterPointOptions.CanvasCenterPoint;
             Settings.Gesture.AutoSwitchTwoFingerGesture = true;
-            Settings.Gesture.IsEnableTwoFingerTranslate = true;
+            Settings.Gesture.IsEnableTwoFingerTranslate = false;
             Settings.Gesture.IsEnableTwoFingerZoom = false;
             Settings.Gesture.IsEnableTwoFingerRotation = false;
             Settings.Gesture.IsEnableTwoFingerRotationOnSelection = true;
+            Settings.Gesture.IsEnableMultiTouchMode = false;
 
             Settings.InkToShape.IsInkToShapeEnabled = true;
 

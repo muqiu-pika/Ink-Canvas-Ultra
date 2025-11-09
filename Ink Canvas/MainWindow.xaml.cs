@@ -591,12 +591,15 @@ namespace Ink_Canvas
                 VerticalAlignment = VerticalAlignment.Center
             };
 
+            // 提升缩放质量，减少缩略图缩放时的模糊
+            System.Windows.Media.RenderOptions.SetBitmapScalingMode(image, System.Windows.Media.BitmapScalingMode.HighQuality);
+
             // 选中叠加层：居中显示天蓝色☑
             var checkOverlay = new TextBlock
             {
                 Text = "☑",
                 Foreground = System.Windows.Media.Brushes.SkyBlue,
-                FontSize = 60,
+                FontSize = 40,
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -613,7 +616,7 @@ namespace Ink_Canvas
                 Height = 200,
                 Margin = new Thickness(4),
                 Background = System.Windows.Media.Brushes.Transparent,
-                BorderThickness = isSelected ? new Thickness(3) : new Thickness(1),
+                BorderThickness = isSelected ? new Thickness(4) : new Thickness(1),
                 BorderBrush = isSelected ? System.Windows.Media.Brushes.SkyBlue : defaultBorderBrush,
                 Content = contentGrid,
                 Tag = photo.Timestamp

@@ -396,10 +396,12 @@ namespace Ink_Canvas
                     PenIcon_Click(BoardPenIcon, null);
                 }
 
-                if (Settings.Gesture.AutoSwitchTwoFingerGesture) // 自动关闭多指书写、开启双指移动
+                if (Settings.Gesture.AutoSwitchTwoFingerGesture) // 画板模式：启用双指平移和缩放，禁用多指书写
                 {
                     ToggleSwitchEnableTwoFingerTranslate.IsOn = true;
-                    if (isInMultiTouchMode) ToggleSwitchEnableMultiTouchMode.IsOn = false;
+                    ToggleSwitchEnableTwoFingerZoom.IsOn = true;
+                    ToggleSwitchEnableMultiTouchMode.IsOn = false;
+                    isInMultiTouchMode = false;
                 }
             }
             else
@@ -454,10 +456,14 @@ namespace Ink_Canvas
                     PenIcon_Click(null, null);
                 }
 
-                if (Settings.Gesture.AutoSwitchTwoFingerGesture) // 自动启用多指书写
+                if (Settings.Gesture.AutoSwitchTwoFingerGesture) // 幻灯片模式：禁用所有手势，除了选中元素双指旋转
                 {
                     ToggleSwitchEnableTwoFingerTranslate.IsOn = false;
-                    if (!isInMultiTouchMode) ToggleSwitchEnableMultiTouchMode.IsOn = true;
+                    ToggleSwitchEnableTwoFingerZoom.IsOn = false;
+                    ToggleSwitchEnableTwoFingerRotation.IsOn = false;
+                    ToggleSwitchEnableMultiTouchMode.IsOn = false;
+                    ToggleSwitchEnableTwoFingerRotationOnSelection.IsOn = true;
+                    isInMultiTouchMode = false;
                 }
             }
 

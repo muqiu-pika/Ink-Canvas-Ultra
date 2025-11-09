@@ -44,7 +44,7 @@ namespace Ink_Canvas
         public bool HideStrokeWhenSelecting { get; set; } = true;
 
         [JsonProperty("usingWhiteboard")]
-        public bool UsingWhiteboard { get; set; }
+        public bool UsingWhiteboard { get; set; } = true;
 
         [JsonProperty("hyperbolaAsymptoteOption")]
         public OptionalOperation HyperbolaAsymptoteOption { get; set; } = OptionalOperation.Ask;
@@ -64,17 +64,17 @@ namespace Ink_Canvas
         [JsonIgnore]
         public bool IsEnableTwoFingerGestureTranslateOrRotation => IsEnableTwoFingerTranslate || IsEnableTwoFingerRotation;
         [JsonProperty("isEnableMultiTouchMode")]
-        public bool IsEnableMultiTouchMode { get; set; } = true;
+        public bool IsEnableMultiTouchMode { get; set; } = false;
         [JsonProperty("isEnableTwoFingerZoom")]
-        public bool IsEnableTwoFingerZoom { get; set; } = true;
+        public bool IsEnableTwoFingerZoom { get; set; } = false;
         [JsonProperty("isEnableTwoFingerTranslate")]
-        public bool IsEnableTwoFingerTranslate { get; set; } = true;
+        public bool IsEnableTwoFingerTranslate { get; set; } = false;
         [JsonProperty("AutoSwitchTwoFingerGesture")]
         public bool AutoSwitchTwoFingerGesture { get; set; } = true;
         [JsonProperty("isEnableTwoFingerRotation")]
         public bool IsEnableTwoFingerRotation { get; set; } = false;
         [JsonProperty("isEnableTwoFingerRotationOnSelection")]
-        public bool IsEnableTwoFingerRotationOnSelection { get; set; } = false;
+        public bool IsEnableTwoFingerRotationOnSelection { get; set; } = true;
 
         [JsonProperty("matrixTransformCenterPoint")]
         public MatrixTransformCenterPointOptions MatrixTransformCenterPoint { get; set; } = MatrixTransformCenterPointOptions.CanvasCenterPoint;

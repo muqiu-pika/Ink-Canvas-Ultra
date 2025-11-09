@@ -21,7 +21,10 @@ namespace Ink_Canvas.Models
 
         private BitmapImage CreateThumbnail(BitmapImage original)
         {
-            double scale = Math.Min(70.0 / original.PixelWidth, 52.0 / original.PixelHeight);
+            // 生成接近展示尺寸（侧栏使用 290x180）的缩略图，避免放大导致模糊
+            double targetWidth = 290.0;
+            double targetHeight = 180.0;
+            double scale = Math.Min(targetWidth / original.PixelWidth, targetHeight / original.PixelHeight);
             var thumbnail = new TransformedBitmap(original,
                 new System.Windows.Media.ScaleTransform(scale, scale));
 

@@ -28,6 +28,21 @@ namespace Ink_Canvas
         // 摄像头设备与页码的关联字典
         private Dictionary<string, int> cameraPageMapping = new Dictionary<string, int>();
 
+        // 获取板幕布侧栏的前景色画刷（优先从窗口资源，其次应用资源）
+        private System.Windows.Media.Brush GetBoardBarForegroundBrush()
+        {
+            try
+            {
+                var fromWindow = mainWindow?.TryFindResource("BoardBarForeground");
+                if (fromWindow is System.Windows.Media.Brush b1) return b1;
+
+                var fromApp = Application.Current?.TryFindResource("BoardBarForeground");
+                if (fromApp is System.Windows.Media.Brush b2) return b2;
+            }
+            catch { /* 忽略资源查找异常，使用回退颜色 */ }
+            return new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.Black);
+        }
+
         public CameraDeviceManager(MainWindow window)
         {
             mainWindow = window;
@@ -77,11 +92,12 @@ namespace Ink_Canvas
                     var noDeviceText = new TextBlock
                     {
                         Text = cameras.Count > 0 ? cameras[0] : "未检测到摄像头设备",
-                        Foreground = new SolidColorBrush(Colors.Gray),
                         FontSize = 12,
                         Margin = new Thickness(5),
                         HorizontalAlignment = HorizontalAlignment.Center
                     };
+                    // 动态资源绑定，确保主题切换时自动更新颜色
+                    noDeviceText.SetResourceReference(TextBlock.ForegroundProperty, "BoardBarForeground");
                     stackPanel.Children.Add(noDeviceText);
                     return;
                 }
@@ -95,6 +111,8 @@ namespace Ink_Canvas
                         FontSize = 12,
                         IsChecked = cameraName == selectedDeviceName
                     };
+                    // 动态资源绑定，确保主题切换时自动更新颜色
+                    radioButton.SetResourceReference(Control.ForegroundProperty, "BoardBarForeground");
 
                     radioButton.Checked += (sender, e) =>
                     {
