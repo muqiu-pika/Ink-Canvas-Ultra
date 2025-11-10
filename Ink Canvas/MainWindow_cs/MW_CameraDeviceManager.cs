@@ -451,8 +451,10 @@ namespace Ink_Canvas
                     // 直接在主线程上恢复画面显示，避免延迟任务导致的多次插入问题
                     mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        // 确保先移除旧的画面，然后只启动定时器恢复显示，不插入新画面
+                        // 先移除旧的画面，然后插入新的摄像头画面并启动定时器
                         mainWindow.RemoveCameraFrame();
+                        // 插入摄像头画面，确保白板进入后能够显示
+                        mainWindow.InsertCameraFrameToCanvas();
                         
                         // 启动定时器持续更新画面
                         var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
@@ -530,6 +532,15 @@ namespace Ink_Canvas
                     Console.WriteLine("摄像头设备已停止，资源已释放");
                 }
                 
+                // 停止摄像头画面定时器，进一步减少资源占用
+                var cameraFrameTimerFieldOnEmptyPage = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (cameraFrameTimerFieldOnEmptyPage != null)
+                {
+                    var cameraFrameTimer = cameraFrameTimerFieldOnEmptyPage.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
+                    cameraFrameTimer?.Stop();
+                    Console.WriteLine("已停止摄像头画面定时器（当前页无摄像头画面/照片）");
+                }
+                
                 // 检查当前页面是否已经有摄像头画面或照片，避免重复移除
                 bool hasCurrentCameraFrameOrPhoto = false;
                 mainWindow.Dispatcher.Invoke(new Action(() =>
@@ -577,6 +588,15 @@ namespace Ink_Canvas
             
             // 停止摄像头设备以节省资源
             StopCamera();
+            
+            // 停止摄像头画面定时器，防止空转占用资源
+            var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (cameraFrameTimerField != null)
+            {
+                var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
+                cameraFrameTimer?.Stop();
+                Console.WriteLine("已停止摄像头画面定时器（退出白板/应用）");
+            }
             
             // 通知主窗口移除摄像头画面
             mainWindow.Dispatcher.BeginInvoke(new Action(() =>

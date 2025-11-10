@@ -403,10 +403,25 @@ namespace Ink_Canvas
                     ToggleSwitchEnableMultiTouchMode.IsOn = false;
                     isInMultiTouchMode = false;
                 }
+
+                // 进入白板时，如果当前页面存在摄像头内容，通知摄像头管理器恢复播放
+                try
+                {
+                    var cameraDeviceManagerField = typeof(MainWindow).GetField("cameraDeviceManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    var cameraDeviceManager = cameraDeviceManagerField?.GetValue(this);
+                    var handlePageChangedMethod = cameraDeviceManager?.GetType().GetMethod("HandlePageChanged", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    handlePageChangedMethod?.Invoke(cameraDeviceManager, new object[] { CurrentWhiteboardIndex });
+                }
+                catch (Exception ex)
+                {
+                    Helpers.LogHelper.WriteLogToFile($"进入白板时恢复摄像头失败: {ex.Message}");
+                }
             }
             else
             {
                 currentMode = 0;
+                // 退出白板模式时，自动停止摄像头调用以节省资源
+                NotifyCameraManagerExitButtonClicked();
                 //退出画板
                 HideSubPanelsImmediately();
 
