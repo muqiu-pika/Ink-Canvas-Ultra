@@ -731,6 +731,7 @@ namespace Ink_Canvas
             Settings.Advanced.IsLogEnabled = true;
             Settings.Advanced.IsSecondConfimeWhenShutdownApp = false;
             Settings.Advanced.IsEnableEdgeGestureUtil = false;
+            Settings.Advanced.IsEnableSilentRestartOnCrash = false;
 
             Settings.Appearance.IsEnableDisPlayFloatBarText = false;
             Settings.Appearance.IsEnableDisPlayNibModeToggler = false;
@@ -1008,6 +1009,13 @@ namespace Ink_Canvas
             if (!isLoaded) return;
             Settings.Advanced.IsEnableEdgeGestureUtil = ToggleSwitchIsEnableEdgeGestureUtil.IsOn;
             if (OSVersion.GetOperatingSystem() >= OSVersionExtension.OperatingSystem.Windows10) EdgeGestureUtil.DisableEdgeGestures(new WindowInteropHelper(this).Handle, ToggleSwitchIsEnableEdgeGestureUtil.IsOn);
+            SaveSettingsToFile();
+        }
+
+        private void ToggleSwitchIsEnableSilentRestartOnCrash_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            Settings.Advanced.IsEnableSilentRestartOnCrash = ToggleSwitchIsEnableSilentRestartOnCrash.IsOn;
             SaveSettingsToFile();
         }
 

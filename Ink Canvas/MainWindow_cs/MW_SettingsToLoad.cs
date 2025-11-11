@@ -517,6 +517,8 @@ namespace Ink_Canvas
                 {
                     if (OSVersion.GetOperatingSystem() >= OSVersionExtension.OperatingSystem.Windows10) EdgeGestureUtil.DisableEdgeGestures(new WindowInteropHelper(this).Handle, true);
                 }
+
+                ToggleSwitchIsEnableSilentRestartOnCrash.IsOn = Settings.Advanced.IsEnableSilentRestartOnCrash;
             }
             else
             {

@@ -4406,6 +4406,22 @@
                                         Foreground="{DynamicResource SettingsPageForeground}"
                                         Text="阻止 Win 10/11 的边缘手势" />
                                 </ikw:SimpleStackPanel>
+                                <ikw:SimpleStackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+                                    <ikw:SimpleStackPanel Width="50">
+                                        <ui:ToggleSwitch
+                                            Name="ToggleSwitchIsEnableSilentRestartOnCrash"
+                                            IsOn="False"
+                                            OffContent="关"
+                                            OnContent="开"
+                                            Toggled="ToggleSwitchIsEnableSilentRestartOnCrash_Toggled" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock
+                                        Margin="0,0,14,0"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Foreground="{DynamicResource SettingsPageForeground}"
+                                        Text="崩溃时静默重启" />
+                                </ikw:SimpleStackPanel>
                             </ikw:SimpleStackPanel>
                         </GroupBox>
                         <GroupBox>

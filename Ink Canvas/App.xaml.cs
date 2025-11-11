@@ -2,6 +2,7 @@ using Ink_Canvas.Helpers;
 using iNKORE.UI.WPF.Modern.Controls;
 using System;
 using System.Linq;
+using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 using MessageBox = System.Windows.MessageBox;
@@ -26,9 +27,40 @@ namespace Ink_Canvas
 
         private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
+            try
+            {
+                if (Ink_Canvas.MainWindow.Settings != null && Ink_Canvas.MainWindow.Settings.Advanced != null && Ink_Canvas.MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash)
+                {
+                    LogHelper.NewLog(e.Exception.ToString());
+                    RestartApplication();
+                    e.Handled = true;
+                    return;
+                }
+            }
+            catch { }
+
             Ink_Canvas.MainWindow.ShowNewMessage("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", true);
             LogHelper.NewLog(e.Exception.ToString());
             e.Handled = true;
+        }
+
+        private void RestartApplication()
+        {
+            try
+            {
+                string exePath = Assembly.GetExecutingAssembly().Location;
+                string args = (StartArgs != null && StartArgs.Length > 0) ? string.Join(" ", StartArgs) : string.Empty;
+                // 使用 -m 允许新进程在旧进程尚未释放互斥量时启动，避免重启失败
+                if (!string.IsNullOrEmpty(args)) args += " ";
+                args += "-m";
+                Process.Start(exePath, args);
+            }
+            catch { }
+            finally
+            {
+                LogHelper.NewLog("Ink Canvas automatically restarting due to unhandled exception");
+                Application.Current.Shutdown();
+            }
         }
 
         void App_Startup(object sender, StartupEventArgs e)

@@ -312,6 +312,9 @@ namespace Ink_Canvas
 
         [JsonProperty("isSecondConfimeWhenShutdownApp")]
         public bool IsSecondConfimeWhenShutdownApp { get; set; } = false;
+
+        [JsonProperty("isEnableSilentRestartOnCrash")]
+        public bool IsEnableSilentRestartOnCrash { get; set; } = false;
     }
 
     public class InkToShape
