@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using Microsoft.Office.Interop.PowerPoint;
 using System;
 using System.Diagnostics;
@@ -697,6 +697,94 @@ namespace Ink_Canvas
         {
             if (lastBorderMouseDownObject != sender) return;
             BtnPPTSlidesDown_Click(null, null);
+        }
+
+        /// <summary>
+        /// 在重启前保存当前演示文稿所有已缓存页面的墨迹快照，以及当前位置。
+        /// 该方法复用 SlideShowEnd 的保存逻辑，但不进行任何 UI 切换或退出放映。
+        /// </summary>
+        private void SavePptSlidesSnapshotBeforeRestart()
+        {
+            try
+            {
+                Presentation pres = null;
+                try { pres = pptApplication?.SlideShowWindows[1]?.Presentation; } catch { pres = null; }
+                if (pres == null) return;
+
+                string folderPath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + pres.Name + "_" + pres.Slides.Count;
+                if (!Directory.Exists(folderPath))
+                {
+                    Directory.CreateDirectory(folderPath);
+                }
+                try
+                {
+                    File.WriteAllText(folderPath + "/Position", previousSlideID.ToString());
+                }
+                catch { }
+
+                // 确保当前页的墨迹也被写入缓存
+                try
+                {
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        try
+                        {
+                            MemoryStream ms = new MemoryStream();
+                            inkCanvas.Strokes.Save(ms);
+                            ms.Position = 0;
+                            memoryStreams[currentShowPosition] = ms;
+                        }
+                        catch { }
+                    });
+                }
+                catch { }
+
+                for (int i = 1; i <= pres.Slides.Count; i++)
+                {
+                    if (memoryStreams[i] != null)
+                    {
+                        try
+                        {
+                            string baseFilePath = folderPath + @"\" + i.ToString("0000");
+                            string icartFilePath = baseFilePath + ".icart";
+                            string icstkFilePath = baseFilePath + ".icstk";
+
+                            if (memoryStreams[i].Length > 8)
+                            {
+                                byte[] srcBuf = new byte[memoryStreams[i].Length];
+                                int byteLength = memoryStreams[i].Read(srcBuf, 0, srcBuf.Length);
+
+                                if (File.Exists(icartFilePath))
+                                {
+                                    File.WriteAllBytes(icartFilePath, srcBuf);
+                                    LogHelper.WriteLogToFile(string.Format("Saved strokes for Slide {0} as .icart, size={1}, byteLength={2}", i.ToString(), memoryStreams[i].Length, byteLength));
+                                }
+                                else
+                                {
+                                    File.WriteAllBytes(icstkFilePath, srcBuf);
+                                    LogHelper.WriteLogToFile(string.Format("Saved strokes for Slide {0} as .icstk, size={1}, byteLength={2}", i.ToString(), memoryStreams[i].Length, byteLength));
+                                }
+                            }
+                            else
+                            {
+                                File.Delete(icartFilePath);
+                                File.Delete(icstkFilePath);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LogHelper.WriteLogToFile(string.Format("Failed to save strokes for Slide {0}\n{1}", i, ex.ToString()), LogHelper.LogType.Error);
+                            File.Delete(folderPath + @"\" + i.ToString("0000") + ".icstk");
+                        }
+                    }
+                }
+
+                LogHelper.WriteLogToFile("Saved PPT slides snapshot before restart", LogHelper.LogType.Event);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Failed to save PPT snapshot before restart | " + ex.ToString(), LogHelper.LogType.Error);
+            }
         }
     }
 }

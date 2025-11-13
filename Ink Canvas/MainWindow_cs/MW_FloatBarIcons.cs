@@ -1047,6 +1047,19 @@ namespace Ink_Canvas
 
         private void BtnRestart_Click(object sender, RoutedEventArgs e)
         {
+            // 在重启前保存当前会话快照与 PPT 页面缓存
+            try { SaveLastSessionSnapshot(); } catch { }
+            try { SavePptSlidesSnapshotBeforeRestart(); } catch { }
+
+            try
+            {
+                var basePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
+                try { if (!System.IO.Directory.Exists(basePath)) System.IO.Directory.CreateDirectory(basePath); } catch { }
+                var reasonPath = basePath + @"\RestartReason.txt";
+                try { System.IO.File.WriteAllText(reasonPath, "settings"); } catch { }
+            }
+            catch { }
+
             Process.Start(System.Windows.Forms.Application.ExecutablePath, "-m");
 
             CloseIsFromButton = true;

@@ -10,6 +10,7 @@ namespace Ink_Canvas.Models
         public BitmapImage Thumbnail { get; }
         public StrokeCollection Strokes { get; }
         public string Timestamp { get; }
+        public string FilePath { get; }
 
         public CapturedImage(BitmapImage image)
         {
@@ -17,6 +18,39 @@ namespace Ink_Canvas.Models
             Thumbnail = CreateThumbnail(image);
             Strokes = new StrokeCollection();
             Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            FilePath = null;
+        }
+
+        public CapturedImage(BitmapImage image, string filePath)
+        {
+            Image = image;
+            Thumbnail = CreateThumbnail(image);
+            Strokes = new StrokeCollection();
+            FilePath = filePath;
+            Timestamp = TryExtractTimestampFromFilePath(filePath) ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+        }
+
+        private static string TryExtractTimestampFromFilePath(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath)) return null;
+                var name = System.IO.Path.GetFileNameWithoutExtension(filePath);
+                if (DateTime.TryParseExact(name, "yyyy-MM-dd HH-mm-ss-fff", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt))
+                {
+                    return dt.ToString("yyyy-MM-dd HH:mm:ss");
+                }
+                if (name.Length >= 23)
+                {
+                    var tail = name.Substring(name.Length - 23);
+                    if (DateTime.TryParseExact(tail, "yyyy-MM-dd HH-mm-ss-fff", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt2))
+                    {
+                        return dt2.ToString("yyyy-MM-dd HH:mm:ss");
+                    }
+                }
+                return null;
+            }
+            catch { return null; }
         }
 
         private BitmapImage CreateThumbnail(BitmapImage original)

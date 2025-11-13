@@ -2,6 +2,7 @@ using Ink_Canvas.Helpers;
 using iNKORE.UI.WPF.Modern.Controls;
 using System;
 using System.Linq;
+using System.IO;
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
@@ -31,6 +32,28 @@ namespace Ink_Canvas
             {
                 if (Ink_Canvas.MainWindow.Settings != null && Ink_Canvas.MainWindow.Settings.Advanced != null && Ink_Canvas.MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash)
                 {
+                    try { Ink_Canvas.MainWindow.ShowNewMessage("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", true); } catch { }
+                    try
+                    {
+                        Application.Current.Dispatcher.Invoke(new Action(() =>
+                        {
+                            try
+                            {
+                                var mw = Application.Current.MainWindow as Ink_Canvas.MainWindow;
+                                mw?.SaveLastSessionSnapshot();
+                            }
+                            catch { }
+                        }));
+                    }
+                    catch { }
+                    try
+                    {
+                        var basePath = Ink_Canvas.MainWindow.Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
+                        try { if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath); } catch { }
+                        var reasonPath = basePath + @"\RestartReason.txt";
+                        try { File.WriteAllText(reasonPath, "silent"); } catch { }
+                    }
+                    catch { }
                     LogHelper.NewLog(e.Exception.ToString());
                     RestartApplication();
                     e.Handled = true;

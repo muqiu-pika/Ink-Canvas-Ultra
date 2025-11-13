@@ -9,13 +9,13 @@ using AForge.Video.DirectShow;
 using System.Windows.Threading;
 using System.Drawing;
 
-namespace Ink_Canvas
+namespace Ink_Canvas.MainWindow_cs
 {
     public class CameraDeviceManager
     {
         private FilterInfoCollection videoDevices;
         private VideoCaptureDevice currentVideoDevice;
-        private MainWindow mainWindow;
+        private readonly MainWindow mainWindow;
         private string selectedDeviceName;
         // 自动同步设备选中状态时，用于抑制选中事件处理逻辑
         private bool suppressSelectionHandlers = false;
@@ -26,7 +26,7 @@ namespace Ink_Canvas
         public event Action<Bitmap> OnNewFrameProcessed;
         
         // 摄像头设备与页码的关联字典
-        private Dictionary<string, int> cameraPageMapping = new Dictionary<string, int>();
+        private readonly Dictionary<string, int> cameraPageMapping = new Dictionary<string, int>();
 
         // 获取板幕布侧栏的前景色画刷（优先从窗口资源，其次应用资源）
         private System.Windows.Media.Brush GetBoardBarForegroundBrush()

@@ -71,6 +71,7 @@ namespace Ink_Canvas
             ClearStrokes(true);
             int oldPage = CurrentWhiteboardIndex;
             CurrentWhiteboardIndex--;
+            try { RestorePageFromDiskIfAvailable(CurrentWhiteboardIndex); } catch { }
             RestoreStrokes();
             UpdateIndexInfoDisplay();
             
@@ -101,6 +102,7 @@ namespace Ink_Canvas
             ClearStrokes(true);
             int oldPage = CurrentWhiteboardIndex;
             CurrentWhiteboardIndex++;
+            try { RestorePageFromDiskIfAvailable(CurrentWhiteboardIndex); } catch { }
             RestoreStrokes();
             UpdateIndexInfoDisplay();
             

@@ -17,6 +17,7 @@ using System.Drawing;
 using System.Windows.Threading;
 using File = System.IO.File;
 using MessageBox = System.Windows.MessageBox;
+using Ink_Canvas.MainWindow_cs;
 
 namespace Ink_Canvas
 {
@@ -234,6 +235,9 @@ namespace Ink_Canvas
             
             isLoaded = true;
             RegisterGlobalHotkeys();
+
+            // 启动后提示是否恢复上次会话
+            PromptRestoreLastSessionOnStartup();
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -269,6 +273,184 @@ namespace Ink_Canvas
         }
 
         #endregion Definations and Loading
+
+        private void PromptRestoreLastSessionOnStartup()
+        {
+            try
+            {
+                string basePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
+                string reasonPath = basePath + @"\RestartReason.txt";
+                string reason = null;
+                try
+                {
+                    if (File.Exists(reasonPath))
+                    {
+                        reason = File.ReadAllText(reasonPath).Trim().ToLowerInvariant();
+                        try { File.Delete(reasonPath); } catch { }
+                    }
+                }
+                catch { }
+                if (string.IsNullOrEmpty(reason) || (reason != "settings" && reason != "silent" && reason != "crash")) return;
+                string metaPath = basePath + @"\SessionMeta.txt";
+                string icartPath = basePath + @"\LastSession.icart";
+                if (!File.Exists(metaPath) || !File.Exists(icartPath)) return;
+
+                var notificationWindow = new YesOrNoNotificationWindow("检测到上次会话快照，是否恢复？",
+                    yesAction: () =>
+                    {
+                        try
+                        {
+                            // 读取元信息
+                            int metaMode = currentMode;
+                            int metaWhiteboardIndex = CurrentWhiteboardIndex;
+                            int metaPpt = 0;
+                            try
+                            {
+                                var lines = File.ReadAllLines(metaPath);
+                                foreach (var line in lines)
+                                {
+                                    var kv = line.Split('=');
+                                    if (kv.Length == 2)
+                                    {
+                                        string key = kv[0].Trim().ToLowerInvariant();
+                                        string val = kv[1].Trim();
+                                        if (key == "mode") int.TryParse(val, out metaMode);
+                                        else if (key == "whiteboard") int.TryParse(val, out metaWhiteboardIndex);
+                                        else if (key == "ppt") int.TryParse(val, out metaPpt);
+                                        else if (key == "whiteboard_total") int.TryParse(val, out WhiteboardTotalCount);
+                                    }
+                                }
+                            }
+                            catch { }
+
+                            // 切换模式以匹配快照
+                            if (metaMode != currentMode)
+                            {
+                                ImageBlackboard_Click(null, null);
+                            }
+
+                            // 恢复快照
+                            bool ok = OpenLastSessionSnapshotIfExists();
+                            if (ok)
+                            {
+                                CurrentWhiteboardIndex = metaWhiteboardIndex;
+                                try
+                                {
+                                    string basePath2 = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
+                                    string pagesDir = System.IO.Path.Combine(basePath2, "pages");
+                                    if (System.IO.Directory.Exists(pagesDir))
+                                    {
+                                        int count = 0;
+                                        foreach (var d in System.IO.Directory.GetDirectories(pagesDir)) count++;
+                                        if (count > 0) WhiteboardTotalCount = count;
+                                        UpdateIndexInfoDisplay();
+                                    }
+                                }
+                                catch { }
+                                ShowNotificationAsync("已恢复上次会话快照", true);
+                                try { LoadLastSessionPhotosToSidebarAndBind(); } catch { }
+                            }
+                            else
+                            {
+                                ShowNotificationAsync("会话快照恢复失败", true);
+                            }
+                        }
+                        catch { }
+                    },
+                    noAction: () => { });
+
+                notificationWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Prompt restore last session failed | " + ex.ToString(), LogHelper.LogType.Error);
+            }
+        }
+
+        private void LoadLastSessionPhotosToSidebarAndBind()
+        {
+            try
+            {
+                string basePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
+                string pagesDir = System.IO.Path.Combine(basePath, "pages");
+                if (!System.IO.Directory.Exists(pagesDir)) return;
+
+                capturedPhotos.Clear();
+                photoPageMapping.Clear();
+
+                foreach (var dir in System.IO.Directory.GetDirectories(pagesDir))
+                {
+                    int pageIndex = 0;
+                    int.TryParse(System.IO.Path.GetFileName(dir), out pageIndex);
+                    string elementsPath = System.IO.Path.Combine(dir, "elements.xaml");
+                    if (!System.IO.File.Exists(elementsPath)) continue;
+                    try
+                    {
+                        using (var fs = new System.IO.FileStream(elementsPath, System.IO.FileMode.Open))
+                        {
+                            if (System.Windows.Markup.XamlReader.Load(fs) is System.Windows.Controls.InkCanvas loadedCanvas)
+                            {
+                                foreach (System.Windows.UIElement child in loadedCanvas.Children)
+                                {
+                                    if (child is System.Windows.Controls.Image image)
+                                    {
+                                        string candidate = null;
+                                        try
+                                        {
+                                            string tagPath = image.Tag as string;
+                                            if (!string.IsNullOrEmpty(tagPath) && tagPath.StartsWith("File Dependency"))
+                                            {
+                                                candidate = System.IO.Path.Combine(dir, tagPath.Replace('/', '\\'));
+                                            }
+                                            else if (image.Source is System.Windows.Media.Imaging.BitmapImage bmi && bmi.UriSource != null)
+                                            {
+                                                candidate = bmi.UriSource.LocalPath;
+                                                string tryLocal = System.IO.Path.Combine(dir, "File Dependency", System.IO.Path.GetFileName(candidate));
+                                                if (System.IO.File.Exists(tryLocal)) candidate = tryLocal;
+                                            }
+                                        }
+                                        catch { }
+
+                                        if (!string.IsNullOrEmpty(candidate) && System.IO.File.Exists(candidate))
+                                        {
+                                            try
+                                            {
+                                                var bi = new System.Windows.Media.Imaging.BitmapImage();
+                                                bi.BeginInit();
+                                                bi.UriSource = new Uri(candidate, UriKind.Absolute);
+                                                bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                                                bi.EndInit();
+                                                bi.Freeze();
+                                                var ci = new Ink_Canvas.Models.CapturedImage(bi, candidate);
+
+                                                bool exists = capturedPhotos.Any(p => (!string.IsNullOrEmpty(p.FilePath) && p.FilePath == candidate) || p.Timestamp == ci.Timestamp);
+                                                if (!exists)
+                                                {
+                                                    capturedPhotos.Insert(0, ci);
+                                                }
+                                                if (!string.IsNullOrEmpty(ci.Timestamp))
+                                                {
+                                                    photoPageMapping[ci.Timestamp] = pageIndex;
+                                                }
+                                            }
+                                            catch { }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch { }
+                }
+
+                UpdateCapturedPhotosDisplay();
+                try { UpdatePhotoSelectionIndicators(); } catch { }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"加载上次会话照片并绑定失败: {ex.Message}");
+            }
+        }
 
         // 视频展台按钮点击事件
         private void BtnVideoPresenter_Click(object sender, RoutedEventArgs e)
@@ -505,7 +687,8 @@ namespace Ink_Canvas
         {
             try
             {
-                var capturedImage = new CapturedImage(image);
+                string path = SaveBitmapImageToPhotoFile(image);
+                var capturedImage = string.IsNullOrEmpty(path) ? new CapturedImage(image) : new CapturedImage(image, path);
                 capturedPhotos.Insert(0, capturedImage);
                 UpdateCapturedPhotosDisplay();
                 
@@ -704,7 +887,7 @@ namespace Ink_Canvas
                 // 创建图片元素
                 var imageElement = new System.Windows.Controls.Image
                 {
-                    Source = photo.Image,
+                    Source = CreateBitmapImageFromFileOrMemory(photo),
                     Width = photo.Image.PixelWidth,
                     Height = photo.Image.PixelHeight,
                     Name = "photo_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff")
@@ -952,6 +1135,95 @@ namespace Ink_Canvas
             return false;
         }
 
+        private BitmapImage CreateBitmapImageFromFileOrMemory(CapturedImage photo)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(photo.FilePath) && File.Exists(photo.FilePath))
+                {
+                    var bi = new BitmapImage();
+                    bi.BeginInit();
+                    bi.UriSource = new Uri(photo.FilePath, UriKind.Absolute);
+                    bi.CacheOption = BitmapCacheOption.OnLoad;
+                    bi.EndInit();
+                    bi.Freeze();
+                    return bi;
+                }
+            }
+            catch { }
+            return photo.Image;
+        }
+
+        private string SaveBitmapImageToPhotoFile(BitmapImage image)
+        {
+            try
+            {
+                string baseDir = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Photos";
+                if (Settings.Automation.IsSaveScreenshotsInDateFolders)
+                {
+                    baseDir += @"\" + DateTime.Now.ToString("yyyy-MM-dd");
+                }
+                if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
+                string fileName = DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss-fff") + ".png";
+                string path = System.IO.Path.Combine(baseDir, fileName);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(image));
+                using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write))
+                {
+                    encoder.Save(fs);
+                }
+                return path;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"保存照片失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        private void LoadSavedPhotosToSidebar()
+        {
+            try
+            {
+                string baseDir = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Photos";
+                var dirs = new List<string>();
+                if (Directory.Exists(baseDir))
+                {
+                    dirs.Add(baseDir);
+                    try
+                    {
+                        foreach (var d in Directory.GetDirectories(baseDir)) dirs.Add(d);
+                    }
+                    catch { }
+                }
+                foreach (var dir in dirs)
+                {
+                    foreach (var file in Directory.GetFiles(dir, "*.png"))
+                    {
+                        try
+                        {
+                            var bi = new BitmapImage();
+                            bi.BeginInit();
+                            bi.UriSource = new Uri(file, UriKind.Absolute);
+                            bi.CacheOption = BitmapCacheOption.OnLoad;
+                            bi.EndInit();
+                            bi.Freeze();
+                            var ci = new CapturedImage(bi, file);
+                            capturedPhotos.Insert(0, ci);
+                        }
+                        catch { }
+                    }
+                }
+                UpdateCapturedPhotosDisplay();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"加载已保存照片失败: {ex.Message}");
+            }
+        }
+
+        
+
         /// <summary>
         /// 获取当前页面上所有可旋转的图像元素
         /// </summary>
@@ -1167,6 +1439,7 @@ namespace Ink_Canvas
                     
                     // 设置新的页码
                     CurrentWhiteboardIndex = pageIndex;
+                    try { RestorePageFromDiskIfAvailable(pageIndex); } catch { }
                     
                     // 恢复新页面的墨迹
                     RestoreStrokes(false);
