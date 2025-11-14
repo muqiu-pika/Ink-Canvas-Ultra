@@ -281,6 +281,13 @@ namespace Ink_Canvas
         Point centerPoint;
         InkCanvasEditingMode lastInkCanvasEditingMode = InkCanvasEditingMode.Ink;
         bool isSingleFingerDragMode = false;
+        enum TwoFingerGestureType { None, Translate, Scale, Rotate }
+        TwoFingerGestureType twoFingerGestureType = TwoFingerGestureType.None;
+        double translateDeadzone = 3.0;
+        double pinchDeadzone = 0.02;
+        double rotateDeadzone = 1.0;
+        Vector translateAccum = new Vector(0, 0);
+        double translateApplyThreshold = 1.5;
 
         private void inkCanvas_PreviewTouchDown(object sender, TouchEventArgs e)
         {
@@ -320,6 +327,7 @@ namespace Ink_Canvas
             inkCanvas.Opacity = 1;
             if (dec.Count == 0)
             {
+                twoFingerGestureType = TwoFingerGestureType.None;
                 if (lastTouchDownStrokeCollection.Count() != inkCanvas.Strokes.Count() &&
                     !(drawingShapeMode == 9 && !isFirstTouchCuboid))
                 {
@@ -348,6 +356,8 @@ namespace Ink_Canvas
             {
                 if (forceEraser) return;
                 inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                twoFingerGestureType = TwoFingerGestureType.None;
+                translateAccum = new Vector(0, 0);
             }
         }
 
@@ -361,51 +371,103 @@ namespace Ink_Canvas
                 // Translation
                 Vector trans = md.Translation;
                 // Rotate, Scale
-                if (Settings.Gesture.IsEnableTwoFingerGestureTranslateOrRotation)
+                double rotate = md.Rotation;
+                Vector scale = md.Scale;
+                Point center = GetMatrixTransformCenterPoint(e.ManipulationOrigin, e.Source as FrameworkElement);
+                double scaleDelta = Math.Max(Math.Abs(scale.X - 1.0), Math.Abs(scale.Y - 1.0));
+                double transDelta = Math.Sqrt(trans.X * trans.X + trans.Y * trans.Y);
+                double rotateDelta = Math.Abs(rotate);
+                if (twoFingerGestureType == TwoFingerGestureType.None)
                 {
-                    double rotate = md.Rotation;
-                    Vector scale = md.Scale;
-                    Point center = GetMatrixTransformCenterPoint(e.ManipulationOrigin, e.Source as FrameworkElement);
-                    if (Settings.Gesture.IsEnableTwoFingerZoom)
-                        m.ScaleAt(scale.X, scale.Y, center.X, center.Y);
-                    if (Settings.Gesture.IsEnableTwoFingerRotation)
-                        m.RotateAt(rotate, center.X, center.Y);
-                    if (Settings.Gesture.IsEnableTwoFingerTranslate)
-                        m.Translate(trans.X, trans.Y);
-                    // handle Elements
-                    List<UIElement> elements = InkCanvasElementsHelper.GetAllElements(inkCanvas);
-                    foreach (UIElement element in elements)
+                    if (Settings.Gesture.IsEnableTwoFingerZoom && scaleDelta > pinchDeadzone)
                     {
-                        if (Settings.Gesture.IsEnableTwoFingerTranslate)
+                        twoFingerGestureType = TwoFingerGestureType.Scale;
+                        translateAccum = new Vector(0, 0);
+                    }
+                    else if (Settings.Gesture.IsEnableTwoFingerRotation && rotateDelta > rotateDeadzone)
+                    {
+                        twoFingerGestureType = TwoFingerGestureType.Rotate;
+                        translateAccum = new Vector(0, 0);
+                    }
+                    else if (Settings.Gesture.IsEnableTwoFingerTranslate && transDelta > translateDeadzone)
+                    {
+                        twoFingerGestureType = TwoFingerGestureType.Translate;
+                    }
+                }
+                else if (Settings.Gesture.AutoSwitchTwoFingerGesture)
+                {
+                    if (Settings.Gesture.IsEnableTwoFingerZoom && scaleDelta > pinchDeadzone && twoFingerGestureType != TwoFingerGestureType.Scale)
+                    {
+                        twoFingerGestureType = TwoFingerGestureType.Scale;
+                        translateAccum = new Vector(0, 0);
+                    }
+                    else if (Settings.Gesture.IsEnableTwoFingerRotation && rotateDelta > rotateDeadzone && twoFingerGestureType != TwoFingerGestureType.Rotate)
+                    {
+                        twoFingerGestureType = TwoFingerGestureType.Rotate;
+                        translateAccum = new Vector(0, 0);
+                    }
+                    else if (Settings.Gesture.IsEnableTwoFingerTranslate && transDelta > translateDeadzone && twoFingerGestureType != TwoFingerGestureType.Translate)
+                    {
+                        twoFingerGestureType = TwoFingerGestureType.Translate;
+                    }
+                }
+                List<UIElement> elements = InkCanvasElementsHelper.GetAllElements(inkCanvas);
+                if (twoFingerGestureType == TwoFingerGestureType.Scale)
+                {
+                    if (Settings.Gesture.IsEnableTwoFingerZoom)
+                    {
+                        m.ScaleAt(scale.X, scale.Y, center.X, center.Y);
+                        foreach (UIElement element in elements)
                         {
                             ApplyElementMatrixTransform(element, m);
                         }
-                        else
+                        foreach (Stroke stroke in inkCanvas.Strokes)
                         {
-                            ApplyElementMatrixTransform(element, m);
+                            stroke.Transform(m, false);
+                            try
+                            {
+                                stroke.DrawingAttributes.Width *= md.Scale.X;
+                                stroke.DrawingAttributes.Height *= md.Scale.Y;
+                            }
+                            catch { }
                         }
                     }
                 }
-                // handle strokes
-                if (Settings.Gesture.IsEnableTwoFingerZoom)
+                else if (twoFingerGestureType == TwoFingerGestureType.Rotate)
                 {
-                    foreach (Stroke stroke in inkCanvas.Strokes)
+                    if (Settings.Gesture.IsEnableTwoFingerRotation)
                     {
-                        stroke.Transform(m, false);
-                        try
+                        m.RotateAt(rotate, center.X, center.Y);
+                        foreach (UIElement element in elements)
                         {
-                            stroke.DrawingAttributes.Width *= md.Scale.X;
-                            stroke.DrawingAttributes.Height *= md.Scale.Y;
+                            ApplyElementMatrixTransform(element, m);
                         }
-                        catch { }
-                    };
+                        foreach (Stroke stroke in inkCanvas.Strokes)
+                        {
+                            stroke.Transform(m, false);
+                        }
+                    }
                 }
-                else
+                else if (twoFingerGestureType == TwoFingerGestureType.Translate)
                 {
-                    foreach (Stroke stroke in inkCanvas.Strokes)
+                    if (Settings.Gesture.IsEnableTwoFingerTranslate)
                     {
-                        stroke.Transform(m, false);
-                    };
+                        translateAccum = new Vector(translateAccum.X + trans.X, translateAccum.Y + trans.Y);
+                        double length = Math.Sqrt(translateAccum.X * translateAccum.X + translateAccum.Y * translateAccum.Y);
+                        if (length >= translateApplyThreshold)
+                        {
+                            m.Translate(translateAccum.X, translateAccum.Y);
+                            foreach (UIElement element in elements)
+                            {
+                                ApplyElementMatrixTransform(element, m);
+                            }
+                            foreach (Stroke stroke in inkCanvas.Strokes)
+                            {
+                                stroke.Transform(m, false);
+                            }
+                            translateAccum = new Vector(0, 0);
+                        }
+                    }
                 }
                 foreach (Circle circle in circles)
                 {
