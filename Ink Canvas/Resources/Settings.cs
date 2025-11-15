@@ -48,6 +48,15 @@ namespace Ink_Canvas
 
         [JsonProperty("hyperbolaAsymptoteOption")]
         public OptionalOperation HyperbolaAsymptoteOption { get; set; } = OptionalOperation.Ask;
+
+        [JsonProperty("autoStraightenLine")]
+        public bool AutoStraightenLine { get; set; } = true;
+        [JsonProperty("autoStraightenLineThreshold")]
+        public int AutoStraightenLineThreshold { get; set; } = 80;
+        [JsonProperty("lineEndpointSnapping")]
+        public bool LineEndpointSnapping { get; set; } = true;
+        [JsonProperty("lineEndpointSnappingThreshold")]
+        public int LineEndpointSnappingThreshold { get; set; } = 15;
     }
 
     public enum OptionalOperation
@@ -321,6 +330,22 @@ namespace Ink_Canvas
     {
         [JsonProperty("isInkToShapeEnabled")]
         public bool IsInkToShapeEnabled { get; set; } = true;
+
+        [JsonProperty("isInkToShapeTriangle")]
+        public bool IsInkToShapeTriangle { get; set; } = true;
+        [JsonProperty("isInkToShapeRectangle")]
+        public bool IsInkToShapeRectangle { get; set; } = true;
+        [JsonProperty("isInkToShapeNoFakePressureRectangle")]
+        public bool IsInkToShapeNoFakePressureRectangle { get; set; } = false;
+        [JsonProperty("isInkToShapeNoFakePressureTriangle")]
+        public bool IsInkToShapeNoFakePressureTriangle { get; set; } = false;
+        [JsonProperty("lineStraightenSensitivity")]
+        public double LineStraightenSensitivity { get; set; } = 0.20;
+
+        [JsonProperty("rectangleEndpointThreshold")]
+        public double RectangleEndpointThreshold { get; set; } = 30.0;
+        [JsonProperty("rectangleAngleThreshold")]
+        public double RectangleAngleThreshold { get; set; } = 15.0;
     }
 
     public class RandSettings {

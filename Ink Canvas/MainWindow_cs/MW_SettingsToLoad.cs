@@ -106,6 +106,22 @@ namespace Ink_Canvas
             {
                 Settings.Startup = new Startup();
             }
+            if (Settings.InkToShape != null)
+            {
+                ToggleSwitchEnableInkToShape.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
+                ToggleSwitchEnableTriangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeTriangle;
+                ToggleSwitchEnableRectangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeRectangle;
+                ToggleSwitchNoFakePressureRectangle.IsOn = Settings.InkToShape.IsInkToShapeNoFakePressureRectangle;
+                ToggleSwitchNoFakePressureTriangle.IsOn = Settings.InkToShape.IsInkToShapeNoFakePressureTriangle;
+                LineStraightenSensitivitySlider.Value = Settings.InkToShape.LineStraightenSensitivity;
+            }
+            if (Settings.Canvas != null)
+            {
+                ToggleSwitchAutoStraightenLine.IsOn = Settings.Canvas.AutoStraightenLine;
+                AutoStraightenLineThresholdSlider.Value = Settings.Canvas.AutoStraightenLineThreshold;
+                ToggleSwitchLineEndpointSnapping.IsOn = Settings.Canvas.LineEndpointSnapping;
+                LineEndpointSnappingThresholdSlider.Value = Settings.Canvas.LineEndpointSnappingThreshold;
+            }
             // Appearance
             if (Settings.Appearance != null)
             {

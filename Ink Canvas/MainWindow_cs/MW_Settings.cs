@@ -1019,6 +1019,69 @@ namespace Ink_Canvas
             SaveSettingsToFile();
         }
 
+        private void ToggleSwitchAutoStraightenLine_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            Settings.Canvas.AutoStraightenLine = ToggleSwitchAutoStraightenLine.IsOn;
+            SaveSettingsToFile();
+        }
+
+        private void AutoStraightenLineThresholdSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded) return;
+            Settings.Canvas.AutoStraightenLineThreshold = (int)e.NewValue;
+            SaveSettingsToFile();
+        }
+
+        private void ToggleSwitchLineEndpointSnapping_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            Settings.Canvas.LineEndpointSnapping = ToggleSwitchLineEndpointSnapping.IsOn;
+            SaveSettingsToFile();
+        }
+
+        private void LineEndpointSnappingThresholdSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded) return;
+            Settings.Canvas.LineEndpointSnappingThreshold = (int)e.NewValue;
+            SaveSettingsToFile();
+        }
+
+        private void LineStraightenSensitivitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded) return;
+            Settings.InkToShape.LineStraightenSensitivity = e.NewValue;
+            SaveSettingsToFile();
+        }
+
+        private void ToggleSwitchNoFakePressureRectangle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            Settings.InkToShape.IsInkToShapeNoFakePressureRectangle = ToggleSwitchNoFakePressureRectangle.IsOn;
+            SaveSettingsToFile();
+        }
+
+        private void ToggleSwitchNoFakePressureTriangle_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            Settings.InkToShape.IsInkToShapeNoFakePressureTriangle = ToggleSwitchNoFakePressureTriangle.IsOn;
+            SaveSettingsToFile();
+        }
+
+        private void ToggleSwitchEnableTriangleRecognition_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            Settings.InkToShape.IsInkToShapeTriangle = ToggleSwitchEnableTriangleRecognition.IsOn;
+            SaveSettingsToFile();
+        }
+
+        private void ToggleSwitchEnableRectangleRecognition_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            Settings.InkToShape.IsInkToShapeRectangle = ToggleSwitchEnableRectangleRecognition.IsOn;
+            SaveSettingsToFile();
+        }
+
         #endregion
 
         public static void SaveSettingsToFile()

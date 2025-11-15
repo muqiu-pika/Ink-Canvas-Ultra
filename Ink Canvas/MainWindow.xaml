@@ -3555,6 +3555,108 @@
                                         Foreground="{DynamicResource SettingsPageForeground}"
                                         Text="启用墨迹识别" />
                                 </ikw:SimpleStackPanel>
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+                                    <ikw:SimpleStackPanel Width="50">
+                                        <ui:ToggleSwitch
+                                            Name="ToggleSwitchEnableTriangleRecognition"
+                                            OffContent="关"
+                                            OnContent="开"
+                                            Toggled="ToggleSwitchEnableTriangleRecognition_Toggled" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="启用三角形识别" />
+                                </ikw:SimpleStackPanel>
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+                                    <ikw:SimpleStackPanel Width="50">
+                                        <ui:ToggleSwitch
+                                            Name="ToggleSwitchEnableRectangleRecognition"
+                                            OffContent="关"
+                                            OnContent="开"
+                                            Toggled="ToggleSwitchEnableRectangleRecognition_Toggled" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="启用四边形识别" />
+                                </ikw:SimpleStackPanel>
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+                                    <ikw:SimpleStackPanel Width="50">
+                                        <ui:ToggleSwitch
+                                            Name="ToggleSwitchAutoStraightenLine"
+                                            OffContent="关"
+                                            OnContent="开"
+                                            Toggled="ToggleSwitchAutoStraightenLine_Toggled" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="直线自动拉直" />
+                                </ikw:SimpleStackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider
+                                        x:Name="AutoStraightenLineThresholdSlider"
+                                        Width="330"
+                                        ui:ControlHelper.Header="直线拉直长度阈值"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="300"
+                                        Minimum="30"
+                                        TickFrequency="1"
+                                        TickPlacement="BottomRight"
+                                        ValueChanged="AutoStraightenLineThresholdSlider_ValueChanged"
+                                        Value="80" />
+                                    <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=AutoStraightenLineThresholdSlider, StringFormat={}{0:F0}}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider
+                                        x:Name="LineStraightenSensitivitySlider"
+                                        Width="330"
+                                        ui:ControlHelper.Header="直线拉直灵敏度"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="2.00"
+                                        Minimum="0.05"
+                                        TickFrequency="0.01"
+                                        TickPlacement="BottomRight"
+                                        ValueChanged="LineStraightenSensitivitySlider_ValueChanged"
+                                        Value="0.20" />
+                                    <TextBlock Width="50" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=LineStraightenSensitivitySlider, StringFormat={}{0:F2}}" />
+                                </StackPanel>
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+                                    <ikw:SimpleStackPanel Width="50">
+                                        <ui:ToggleSwitch
+                                            Name="ToggleSwitchLineEndpointSnapping"
+                                            OffContent="关"
+                                            OnContent="开"
+                                            Toggled="ToggleSwitchLineEndpointSnapping_Toggled" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="端点吸附" />
+                                </ikw:SimpleStackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider
+                                        x:Name="LineEndpointSnappingThresholdSlider"
+                                        Width="330"
+                                        ui:ControlHelper.Header="端点吸附阈值"
+                                        IsSnapToTickEnabled="True"
+                                        Maximum="50"
+                                        Minimum="5"
+                                        TickFrequency="1"
+                                        TickPlacement="BottomRight"
+                                        ValueChanged="LineEndpointSnappingThresholdSlider_ValueChanged"
+                                        Value="15" />
+                                    <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=LineEndpointSnappingThresholdSlider, StringFormat={}{0:F0}}" />
+                                </StackPanel>
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+                                    <ikw:SimpleStackPanel Width="50">
+                                        <ui:ToggleSwitch
+                                            Name="ToggleSwitchNoFakePressureRectangle"
+                                            OffContent="关"
+                                            OnContent="开"
+                                            Toggled="ToggleSwitchNoFakePressureRectangle_Toggled" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="矩形使用等粗线" />
+                                </ikw:SimpleStackPanel>
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+                                    <ikw:SimpleStackPanel Width="50">
+                                        <ui:ToggleSwitch
+                                            Name="ToggleSwitchNoFakePressureTriangle"
+                                            OffContent="关"
+                                            OnContent="开"
+                                            Toggled="ToggleSwitchNoFakePressureTriangle_Toggled" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="三角形使用等粗线" />
+                                </ikw:SimpleStackPanel>
                             </ikw:SimpleStackPanel>
                         </GroupBox>
                         <GroupBox Name="GroupBoxAppearanceNewUI">

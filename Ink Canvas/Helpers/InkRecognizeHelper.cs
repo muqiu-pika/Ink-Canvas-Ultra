@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Windows;
 using System.Windows.Ink;
 using System.Windows.Media;
@@ -74,8 +74,8 @@ namespace Ink_Canvas.Helpers
         {
             if (name.Contains("Triangle") || name.Contains("Circle") ||
                 name.Contains("Rectangle") || name.Contains("Diamond") ||
-                name.Contains("Parallelogram") || name.Contains("Square")
-                || name.Contains("Ellipse"))
+                name.Contains("Parallelogram") || name.Contains("Square") ||
+                name.Contains("Trapezoid") || name.Contains("Ellipse"))
             {
                 return true;
             }

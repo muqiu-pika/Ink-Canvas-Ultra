@@ -15,6 +15,39 @@ namespace Ink_Canvas
     {
         StrokeCollection newStrokes = new StrokeCollection();
         List<Circle> circles = new List<Circle>();
+        const double LINE_STRAIGHTEN_THRESHOLD = 0.20;
+
+        List<RectangleGuideLine> rectangleGuideLines = new List<RectangleGuideLine>();
+        const double RECTANGLE_ENDPOINT_THRESHOLD = 30.0;
+        const double RECTANGLE_ANGLE_THRESHOLD = 15.0;
+
+        class RectangleGuideLine
+        {
+            public Stroke OriginalStroke { get; set; }
+            public Point StartPoint { get; set; }
+            public Point EndPoint { get; set; }
+            public DateTime CreatedTime { get; set; }
+            public double Angle { get; set; }
+            public bool IsHorizontal { get; set; }
+            public bool IsVertical { get; set; }
+
+            public RectangleGuideLine(Stroke stroke, Point start, Point end)
+            {
+                OriginalStroke = stroke;
+                StartPoint = start;
+                EndPoint = end;
+                CreatedTime = DateTime.Now;
+
+                double deltaX = end.X - start.X;
+                double deltaY = end.Y - start.Y;
+                Angle = Math.Atan2(deltaY, deltaX);
+
+                double angleDegrees = Math.Abs(Angle * 180.0 / Math.PI);
+                double angleThreshold = Settings.InkToShape.RectangleAngleThreshold;
+                IsHorizontal = angleDegrees < angleThreshold || angleDegrees > (180 - angleThreshold);
+                IsVertical = Math.Abs(angleDegrees - 90) < angleThreshold;
+            }
+        }
 
         //此函数中的所有代码版权所有 WXRIW，在其他项目中使用前必须提前联系（wxriw@outlook.com），谢谢！
         private void inkCanvas_StrokeCollected(object sender, InkCanvasStrokeCollectedEventArgs e)
@@ -28,7 +61,45 @@ namespace Ink_Canvas
                     {
                         try
                         {
-                            newStrokes.Add(e.Stroke);
+                            var currentStroke = e.Stroke;
+                            if (Settings.Canvas.AutoStraightenLine && IsPotentialStraightLine(currentStroke))
+                            {
+                                Point startPoint = currentStroke.StylusPoints[0].ToPoint();
+                                Point endPoint = currentStroke.StylusPoints[currentStroke.StylusPoints.Count - 1].ToPoint();
+
+                                bool shouldStraighten = ShouldStraightenLine(currentStroke);
+                                if (shouldStraighten && Settings.Canvas.LineEndpointSnapping && (Settings.InkToShape.IsInkToShapeRectangle || Settings.InkToShape.IsInkToShapeTriangle))
+                                {
+                                    var snapped = GetSnappedEndpoints(startPoint, endPoint);
+                                    if (snapped != null)
+                                    {
+                                        startPoint = snapped[0];
+                                        endPoint = snapped[1];
+                                    }
+                                }
+
+                                if (shouldStraighten)
+                                {
+                                    StylusPointCollection straightLinePoints = CreateStraightLine(startPoint, endPoint);
+                                    var straightStroke = new Stroke(straightLinePoints)
+                                    {
+                                        DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone()
+                                    };
+                                    SetNewBackupOfStroke();
+                                    _currentCommitType = CommitReason.ShapeRecognition;
+                                    inkCanvas.Strokes.Remove(currentStroke);
+                                    inkCanvas.Strokes.Add(straightStroke);
+                                    _currentCommitType = CommitReason.UserInput;
+                                    if (newStrokes.Contains(currentStroke))
+                                    {
+                                        newStrokes.Remove(currentStroke);
+                                        newStrokes.Add(straightStroke);
+                                    }
+                                    currentStroke = straightStroke;
+                                }
+                            }
+
+                            newStrokes.Add(currentStroke);
                             if (newStrokes.Count > 4) newStrokes.RemoveAt(0);
                             for (int i = 0; i < newStrokes.Count; i++)
                             {
@@ -49,6 +120,7 @@ namespace Ink_Canvas
                                     i--;
                                 }
                             }
+                            ProcessRectangleGuideLines(currentStroke);
                             var strokeReco = new StrokeCollection();
                             var result = InkRecognizeHelper.RecognizeShape(newStrokes);
                             // 修正：防止result为null或InkDrawingNode为null时抛出异常
@@ -263,7 +335,7 @@ namespace Ink_Canvas
                                     newStrokes = new StrokeCollection();
                                 }
                             }
-                            else if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName().Contains("Triangle"))
+                            else if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName().Contains("Triangle") && Settings.InkToShape.IsInkToShapeTriangle)
                             {
                                 var shape = result.InkDrawingNode.GetShape();
                                 var p = result.InkDrawingNode.HotPoints;
@@ -301,7 +373,9 @@ namespace Ink_Canvas
                                 (result.InkDrawingNode.GetShapeName().Contains("Rectangle") ||
                                  result.InkDrawingNode.GetShapeName().Contains("Diamond") ||
                                  result.InkDrawingNode.GetShapeName().Contains("Parallelogram") ||
-                                 result.InkDrawingNode.GetShapeName().Contains("Square")))
+                                 result.InkDrawingNode.GetShapeName().Contains("Square") ||
+                                 result.InkDrawingNode.GetShapeName().Contains("Trapezoid")) &&
+                                Settings.InkToShape.IsInkToShapeRectangle)
                             {
                                 var shape = result.InkDrawingNode.GetShape();
                                 var p = result.InkDrawingNode.HotPoints;
@@ -577,24 +651,31 @@ namespace Ink_Canvas
 
         public StylusPointCollection GenerateFakePressureTriangle(StylusPointCollection points)
         {
-            var newPoint = new StylusPointCollection();
-            newPoint.Add(new StylusPoint(points[0].X, points[0].Y, (float)0.4));
-            var cPoint = GetCenterPoint(points[0], points[1]);
-            newPoint.Add(new StylusPoint(cPoint.X, cPoint.Y, (float)0.8));
-            newPoint.Add(new StylusPoint(points[1].X, points[1].Y, (float)0.4));
-            newPoint.Add(new StylusPoint(points[1].X, points[1].Y, (float)0.4));
-            cPoint = GetCenterPoint(points[1], points[2]);
-            newPoint.Add(new StylusPoint(cPoint.X, cPoint.Y, (float)0.8));
-            newPoint.Add(new StylusPoint(points[2].X, points[2].Y, (float)0.4));
-            newPoint.Add(new StylusPoint(points[2].X, points[2].Y, (float)0.4));
-            cPoint = GetCenterPoint(points[2], points[0]);
-            newPoint.Add(new StylusPoint(cPoint.X, cPoint.Y, (float)0.8));
-            newPoint.Add(new StylusPoint(points[0].X, points[0].Y, (float)0.4));
-            return newPoint;
+            var result = new StylusPointCollection();
+            bool noFake = Settings.InkToShape.IsInkToShapeNoFakePressureTriangle;
+            StylusPoint P(double x, double y, float pressure) => noFake ? new StylusPoint(x, y) : new StylusPoint(x, y, pressure);
+
+            result.Add(P(points[0].X, points[0].Y, 0.4f));
+            var c01 = GetCenterPoint(points[0], points[1]);
+            result.Add(P(c01.X, c01.Y, 0.8f));
+            result.Add(P(points[1].X, points[1].Y, 0.4f));
+            result.Add(P(points[1].X, points[1].Y, 0.4f));
+            var c12 = GetCenterPoint(points[1], points[2]);
+            result.Add(P(c12.X, c12.Y, 0.8f));
+            result.Add(P(points[2].X, points[2].Y, 0.4f));
+            result.Add(P(points[2].X, points[2].Y, 0.4f));
+            var c20 = GetCenterPoint(points[2], points[0]);
+            result.Add(P(c20.X, c20.Y, 0.8f));
+            result.Add(P(points[0].X, points[0].Y, 0.4f));
+            return result;
         }
 
         public StylusPointCollection GenerateFakePressureRectangle(StylusPointCollection points)
         {
+            if (Settings.InkToShape.IsInkToShapeNoFakePressureRectangle)
+            {
+                return points;
+            }
             var newPoint = new StylusPointCollection();
             newPoint.Add(new StylusPoint(points[0].X, points[0].Y, (float)0.4));
             var cPoint = GetCenterPoint(points[0], points[1]);
@@ -623,6 +704,311 @@ namespace Ink_Canvas
         public StylusPoint GetCenterPoint(StylusPoint point1, StylusPoint point2)
         {
             return new StylusPoint((point1.X + point2.X) / 2, (point1.Y + point2.Y) / 2);
+        }
+
+        double GetResolutionScale()
+        {
+            double baseWidth = 1920.0;
+            double baseHeight = 1080.0;
+            double screenWidth = SystemParameters.PrimaryScreenWidth;
+            double screenHeight = SystemParameters.PrimaryScreenHeight;
+            double scaleW = screenWidth / baseWidth;
+            double scaleH = screenHeight / baseHeight;
+            return (scaleW + scaleH) / 2.0;
+        }
+
+        bool IsPotentialStraightLine(Stroke stroke)
+        {
+            if (stroke.StylusPoints.Count < 5) return false;
+            Point start = stroke.StylusPoints.First().ToPoint();
+            Point end = stroke.StylusPoints.Last().ToPoint();
+            double lineLength = GetDistance(start, end);
+            double adaptiveThreshold = Settings.Canvas.AutoStraightenLineThreshold * GetResolutionScale();
+            if (lineLength < adaptiveThreshold) return false;
+            double threshold = Math.Max(0.01, Settings.InkToShape.LineStraightenSensitivity * 0.2);
+            if (stroke.StylusPoints.Count >= 10)
+            {
+                int quarterIdx = stroke.StylusPoints.Count / 4;
+                int midIdx = stroke.StylusPoints.Count / 2;
+                int threeQuarterIdx = quarterIdx * 3;
+                Point quarterPoint = stroke.StylusPoints[quarterIdx].ToPoint();
+                Point midPoint = stroke.StylusPoints[midIdx].ToPoint();
+                Point threeQuarterPoint = stroke.StylusPoints[threeQuarterIdx].ToPoint();
+                double qd = DistanceFromLineToPoint(start, end, quarterPoint);
+                double md = DistanceFromLineToPoint(start, end, midPoint);
+                double td = DistanceFromLineToPoint(start, end, threeQuarterPoint);
+                double rel = lineLength * threshold;
+                if (qd > rel || md > rel || td > rel) return false;
+            }
+            return true;
+        }
+
+        bool ShouldStraightenLine(Stroke stroke)
+        {
+            Point start = stroke.StylusPoints.First().ToPoint();
+            Point end = stroke.StylusPoints.Last().ToPoint();
+            double lineLength = GetDistance(start, end);
+            double adaptiveThreshold = Settings.Canvas.AutoStraightenLineThreshold * GetResolutionScale();
+            if (lineLength < adaptiveThreshold) return false;
+            double sensitivity = Settings.InkToShape.LineStraightenSensitivity;
+            double maxDeviation = 0;
+            double totalDeviation = 0;
+            int count = 0;
+            foreach (var sp in stroke.StylusPoints)
+            {
+                var p = sp.ToPoint();
+                double d = DistanceFromLineToPoint(start, end, p);
+                if (d > maxDeviation) maxDeviation = d;
+                totalDeviation += d;
+                count++;
+            }
+            double avg = totalDeviation / Math.Max(count, 1);
+            double threshold = Math.Max(0.01, sensitivity * 0.2);
+            if ((maxDeviation / lineLength) > threshold) return false;
+            double variance = 0;
+            foreach (var sp in stroke.StylusPoints)
+            {
+                var p = sp.ToPoint();
+                double d = DistanceFromLineToPoint(start, end, p);
+                variance += (d - avg) * (d - avg);
+            }
+            variance /= Math.Max(count, 1);
+            double varianceThreshold = threshold * lineLength * 0.25;
+            if (variance > varianceThreshold) return false;
+            if (stroke.StylusPoints.Count > 10)
+            {
+                int midIdx = stroke.StylusPoints.Count / 2;
+                var mid = stroke.StylusPoints[midIdx].ToPoint();
+                double midDev = DistanceFromLineToPoint(start, end, mid);
+                double midThreshold = lineLength * threshold * 0.8;
+                if (midDev > midThreshold) return false;
+            }
+            return true;
+        }
+
+        StylusPointCollection CreateStraightLine(Point start, Point end)
+        {
+            var points = new StylusPointCollection();
+            points.Add(new StylusPoint(start.X, start.Y, 0.5f));
+            double distance = GetDistance(start, end);
+            if (distance > 100)
+            {
+                for (int i = 1; i < 3; i++)
+                {
+                    double r = i / 3.0;
+                    Point m = new Point(start.X + (end.X - start.X) * r, start.Y + (end.Y - start.Y) * r);
+                    points.Add(new StylusPoint(m.X, m.Y, 0.5f));
+                }
+            }
+            points.Add(new StylusPoint(end.X, end.Y, 0.5f));
+            return points;
+        }
+
+        double DistanceFromLineToPoint(Point lineStart, Point lineEnd, Point point)
+        {
+            double lineLength = GetDistance(lineStart, lineEnd);
+            if (lineLength == 0) return GetDistance(point, lineStart);
+            double distance = Math.Abs((lineEnd.Y - lineStart.Y) * point.X - (lineEnd.X - lineStart.X) * point.Y + lineEnd.X * lineStart.Y - lineEnd.Y * lineStart.X) / lineLength;
+            return distance;
+        }
+
+        Point[] GetSnappedEndpoints(Point start, Point end)
+        {
+            if (!Settings.Canvas.LineEndpointSnapping) return null;
+            bool startSnapped = false;
+            bool endSnapped = false;
+            Point snappedStart = start;
+            Point snappedEnd = end;
+            double snapThreshold = Settings.Canvas.LineEndpointSnappingThreshold;
+            foreach (var stroke in inkCanvas.Strokes)
+            {
+                if (stroke.StylusPoints.Count == 0) continue;
+                Point s = stroke.StylusPoints.First().ToPoint();
+                Point t = stroke.StylusPoints.Last().ToPoint();
+                if (!startSnapped)
+                {
+                    if (GetDistance(start, s) < snapThreshold)
+                    {
+                        snappedStart = s; startSnapped = true;
+                    }
+                    else if (GetDistance(start, t) < snapThreshold)
+                    {
+                        snappedStart = t; startSnapped = true;
+                    }
+                }
+                if (!endSnapped)
+                {
+                    if (GetDistance(end, s) < snapThreshold)
+                    {
+                        snappedEnd = s; endSnapped = true;
+                    }
+                    else if (GetDistance(end, t) < snapThreshold)
+                    {
+                        snappedEnd = t; endSnapped = true;
+                    }
+                }
+                if (startSnapped && endSnapped) break;
+            }
+            if (startSnapped || endSnapped) return new[] { snappedStart, snappedEnd };
+            return null;
+        }
+
+        void ProcessRectangleGuideLines(Stroke newStroke)
+        {
+            if (!Settings.InkToShape.IsInkToShapeRectangle) return;
+            if (!IsPotentialStraightLine(newStroke)) return;
+            Point startPoint = newStroke.StylusPoints[0].ToPoint();
+            Point endPoint = newStroke.StylusPoints[newStroke.StylusPoints.Count - 1].ToPoint();
+            var newGuideLine = new RectangleGuideLine(newStroke, startPoint, endPoint);
+            CleanupExpiredGuideLines();
+            rectangleGuideLines.Add(newGuideLine);
+            CheckForRectangleFormation();
+        }
+
+        void CleanupExpiredGuideLines()
+        {
+            var expireTime = DateTime.Now.AddSeconds(-30);
+            for (int i = rectangleGuideLines.Count - 1; i >= 0; i--)
+            {
+                var guideLine = rectangleGuideLines[i];
+                if (guideLine.CreatedTime < expireTime || !inkCanvas.Strokes.Contains(guideLine.OriginalStroke))
+                {
+                    rectangleGuideLines.RemoveAt(i);
+                }
+            }
+        }
+
+        void CheckForRectangleFormation()
+        {
+            if (rectangleGuideLines.Count < 4) return;
+            var rectangleLines = FindRectangleLines();
+            if (rectangleLines != null && rectangleLines.Count == 4)
+            {
+                CreateRectangleFromLines(rectangleLines);
+            }
+        }
+
+        List<RectangleGuideLine> FindRectangleLines()
+        {
+            var sortedLines = rectangleGuideLines.OrderByDescending(l => l.CreatedTime).ToList();
+            for (int i = 0; i < sortedLines.Count - 3; i++)
+            {
+                for (int j = i + 1; j < sortedLines.Count - 2; j++)
+                {
+                    for (int k = j + 1; k < sortedLines.Count - 1; k++)
+                    {
+                        for (int l = k + 1; l < sortedLines.Count; l++)
+                        {
+                            var lines = new List<RectangleGuideLine> { sortedLines[i], sortedLines[j], sortedLines[k], sortedLines[l] };
+                            if (CanFormRectangle(lines)) return lines;
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        bool CanFormRectangle(List<RectangleGuideLine> lines)
+        {
+            if (lines.Count != 4) return false;
+            var horizontalLines = lines.Where(l => l.IsHorizontal).ToList();
+            var verticalLines = lines.Where(l => l.IsVertical).ToList();
+            if (horizontalLines.Count != 2 || verticalLines.Count != 2) return false;
+            return CheckEndpointConnections(horizontalLines, verticalLines);
+        }
+
+        bool CheckEndpointConnections(List<RectangleGuideLine> horizontalLines, List<RectangleGuideLine> verticalLines)
+        {
+            var intersectionPoints = new List<Point>();
+            foreach (var hLine in horizontalLines)
+            {
+                foreach (var vLine in verticalLines)
+                {
+                    var intersection = GetLineIntersection(hLine, vLine);
+                    if (intersection.HasValue)
+                    {
+                        if (IsPointNearLineEndpoints(intersection.Value, hLine) && IsPointNearLineEndpoints(intersection.Value, vLine))
+                        {
+                            intersectionPoints.Add(intersection.Value);
+                        }
+                    }
+                }
+            }
+            return intersectionPoints.Count >= 4;
+        }
+
+        Point? GetLineIntersection(RectangleGuideLine line1, RectangleGuideLine line2)
+        {
+            double x1 = line1.StartPoint.X, y1 = line1.StartPoint.Y;
+            double x2 = line1.EndPoint.X, y2 = line1.EndPoint.Y;
+            double x3 = line2.StartPoint.X, y3 = line2.StartPoint.Y;
+            double x4 = line2.EndPoint.X, y4 = line2.EndPoint.Y;
+            double denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+            if (Math.Abs(denom) < 1e-10) return null;
+            double t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom;
+            double intersectionX = x1 + t * (x2 - x1);
+            double intersectionY = y1 + t * (y2 - y1);
+            return new Point(intersectionX, intersectionY);
+        }
+
+        bool IsPointNearLineEndpoints(Point point, RectangleGuideLine line)
+        {
+            double distToStart = GetDistance(point, line.StartPoint);
+            double distToEnd = GetDistance(point, line.EndPoint);
+            double endpointThreshold = Settings.InkToShape.RectangleEndpointThreshold;
+            return distToStart <= endpointThreshold || distToEnd <= endpointThreshold;
+        }
+
+        void CreateRectangleFromLines(List<RectangleGuideLine> lines)
+        {
+            var corners = CalculateRectangleCorners(lines);
+            if (corners == null || corners.Count != 4) return;
+            var pointList = new List<Point>(corners) { corners[0] };
+            var point = new StylusPointCollection(pointList);
+            var rectangleStroke = new Stroke(GenerateFakePressureRectangle(point))
+            {
+                DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone()
+            };
+            SetNewBackupOfStroke();
+            _currentCommitType = CommitReason.ShapeRecognition;
+            foreach (var line in lines)
+            {
+                if (inkCanvas.Strokes.Contains(line.OriginalStroke))
+                {
+                    inkCanvas.Strokes.Remove(line.OriginalStroke);
+                }
+            }
+            inkCanvas.Strokes.Add(rectangleStroke);
+            _currentCommitType = CommitReason.UserInput;
+            foreach (var line in lines) rectangleGuideLines.Remove(line);
+            newStrokes = new StrokeCollection();
+        }
+
+        List<Point> CalculateRectangleCorners(List<RectangleGuideLine> lines)
+        {
+            var horizontalLines = lines.Where(l => l.IsHorizontal).ToList();
+            var verticalLines = lines.Where(l => l.IsVertical).ToList();
+            if (horizontalLines.Count != 2 || verticalLines.Count != 2) return null;
+            var corners = new List<Point>();
+            foreach (var h in horizontalLines)
+            {
+                foreach (var v in verticalLines)
+                {
+                    var intersection = GetLineIntersection(h, v);
+                    if (intersection.HasValue) corners.Add(intersection.Value);
+                }
+            }
+            if (corners.Count != 4) return null;
+            return SortRectangleCorners(corners);
+        }
+
+        List<Point> SortRectangleCorners(List<Point> corners)
+        {
+            if (corners.Count != 4) return corners;
+            double centerX = corners.Average(p => p.X);
+            double centerY = corners.Average(p => p.Y);
+            var center = new Point(centerX, centerY);
+            return corners.OrderBy(p => Math.Atan2(p.Y - center.Y, p.X - center.X)).ToList();
         }
     }
 }
