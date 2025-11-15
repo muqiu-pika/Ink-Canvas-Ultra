@@ -3590,11 +3590,8 @@
                                         x:Name="AutoStraightenLineThresholdSlider"
                                         Width="330"
                                         ui:ControlHelper.Header="直线拉直长度阈值"
-                                        IsSnapToTickEnabled="True"
                                         Maximum="300"
                                         Minimum="30"
-                                        TickFrequency="1"
-                                        TickPlacement="BottomRight"
                                         ValueChanged="AutoStraightenLineThresholdSlider_ValueChanged"
                                         Value="80" />
                                     <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=AutoStraightenLineThresholdSlider, StringFormat={}{0:F0}}" />
@@ -3604,11 +3601,8 @@
                                         x:Name="LineStraightenSensitivitySlider"
                                         Width="330"
                                         ui:ControlHelper.Header="直线拉直灵敏度"
-                                        IsSnapToTickEnabled="True"
                                         Maximum="2.00"
                                         Minimum="0.05"
-                                        TickFrequency="0.01"
-                                        TickPlacement="BottomRight"
                                         ValueChanged="LineStraightenSensitivitySlider_ValueChanged"
                                         Value="0.20" />
                                     <TextBlock Width="50" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=LineStraightenSensitivitySlider, StringFormat={}{0:F2}}" />
@@ -3628,11 +3622,8 @@
                                         x:Name="LineEndpointSnappingThresholdSlider"
                                         Width="330"
                                         ui:ControlHelper.Header="端点吸附阈值"
-                                        IsSnapToTickEnabled="True"
                                         Maximum="50"
                                         Minimum="5"
-                                        TickFrequency="1"
-                                        TickPlacement="BottomRight"
                                         ValueChanged="LineEndpointSnappingThresholdSlider_ValueChanged"
                                         Value="15" />
                                     <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=LineEndpointSnappingThresholdSlider, StringFormat={}{0:F0}}" />
@@ -3722,11 +3713,8 @@
                                             x:Name="SliderFloatingBarScale"
                                             Width="330"
                                             ui:ControlHelper.Header="浮动工具栏 UI 缩放 (%)"
-                                            IsSnapToTickEnabled="True"
                                             Maximum="150"
                                             Minimum="50"
-                                            TickFrequency="1"
-                                            TickPlacement="BottomRight"
                                             ValueChanged="SliderFloatingBarScale_ValueChanged"
                                             Value="100" />
                                         <TextBlock
@@ -3777,11 +3765,8 @@
                                             x:Name="SliderFloatingBarBottomMargin"
                                             Width="330"
                                             ui:ControlHelper.Header="浮动工具栏底部边距 (像素)"
-                                            IsSnapToTickEnabled="True"
                                             Maximum="200"
                                             Minimum="0"
-                                            TickFrequency="1"
-                                            TickPlacement="BottomRight"
                                             ValueChanged="SliderFloatingBarBottomMargin_ValueChanged"
                                             Value="100" />
                                         <TextBlock
@@ -3836,11 +3821,8 @@
                                             x:Name="SliderBlackboardScale"
                                             Width="330"
                                             ui:ControlHelper.Header="黑板缩放比例 (%)"
-                                            IsSnapToTickEnabled="True"
                                             Maximum="200"
                                             Minimum="50"
-                                            TickFrequency="10"
-                                            TickPlacement="BottomRight"
                                             ValueChanged="SliderBlackboardScale_ValueChanged"
                                             Value="100" />
                                         <TextBlock
