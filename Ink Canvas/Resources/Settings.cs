@@ -282,6 +282,9 @@ namespace Ink_Canvas
 
         [JsonProperty("autoDelSavedFilesDaysThreshold")]
         public int AutoDelSavedFilesDaysThreshold = 15;
+
+        [JsonProperty("isEnablePhotoCorrection")]
+        public bool IsEnablePhotoCorrection { get; set; } = false;
     }
 
     public class Advanced

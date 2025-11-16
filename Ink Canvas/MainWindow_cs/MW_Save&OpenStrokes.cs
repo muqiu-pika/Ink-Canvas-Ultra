@@ -141,6 +141,38 @@ namespace Ink_Canvas
                         ApplyHistoryToCanvasOn(canvas, h);
                     }
                 }
+
+                foreach (UIElement child in canvas.Children)
+                {
+                    if (child is Image img)
+                    {
+                        try
+                        {
+                            string filePath = null;
+                            if (img.Source is BitmapImage bi && bi.UriSource != null)
+                            {
+                                filePath = bi.UriSource.LocalPath;
+                            }
+                            else if (img.Source is BitmapSource bs)
+                            {
+                                filePath = SaveBitmapSourceToFile(bs);
+                            }
+
+                            if (!string.IsNullOrEmpty(filePath))
+                            {
+                                var bi2 = new BitmapImage();
+                                bi2.BeginInit();
+                                bi2.UriSource = new Uri(filePath, UriKind.Absolute);
+                                bi2.CacheOption = BitmapCacheOption.OnLoad;
+                                bi2.EndInit();
+                                bi2.Freeze();
+                                img.Source = bi2;
+                                try { img.Tag = "File Dependency/" + System.IO.Path.GetFileName(filePath); } catch { }
+                            }
+                        }
+                        catch { }
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -657,8 +689,31 @@ namespace Ink_Canvas
             }
         }
 
+        // 添加一个标志来跟踪用户是否已确认恢复会话
+        private bool _isRestoreSessionConfirmed = false;
+
+        // 当用户通过对话框确认恢复会话时，设置此标志
+        public void ConfirmRestoreSession()
+        {
+            _isRestoreSessionConfirmed = true;
+        }
+
         private void RestorePageFromDiskIfAvailable(int pageIndex)
         {
+            // 只有在用户确认恢复会话后才执行恢复操作
+            if (!_isRestoreSessionConfirmed)
+            {
+                // 检查是否存在会话文件，但不自动恢复
+                string basePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
+                string pageDir = System.IO.Path.Combine(basePath, "pages", pageIndex.ToString());
+                string strokesPath = System.IO.Path.Combine(pageDir, "strokes.icstk");
+                string elementsPath = System.IO.Path.Combine(pageDir, "elements.xaml");
+                if (!File.Exists(strokesPath) && !File.Exists(elementsPath)) return;
+                
+                // 不执行清除和恢复操作，保持空白状态
+                return;
+            }
+            
             try
             {
                 string basePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
@@ -678,23 +733,89 @@ namespace Ink_Canvas
                 }
                 if (File.Exists(elementsPath))
                 {
-                    using (var es = new FileStream(elementsPath, FileMode.Open))
+                    try
                     {
-                        if (XamlReader.Load(es) is InkCanvas loadedCanvas)
+                        using (var es = new FileStream(elementsPath, FileMode.Open))
                         {
-                            foreach (UIElement child in loadedCanvas.Children)
+                            var obj = XamlReader.Load(es);
+                            var loadedCanvas = obj as InkCanvas;
+                            if (loadedCanvas != null)
                             {
-                                var xaml = XamlWriter.Save(child);
-                                UIElement clonedChild = (UIElement)XamlReader.Parse(xaml);
-                                if (clonedChild is MediaElement mediaElement)
+                                foreach (UIElement child in loadedCanvas.Children)
                                 {
-                                    mediaElement.LoadedBehavior = MediaState.Manual;
-                                    mediaElement.UnloadedBehavior = MediaState.Manual;
-                                    mediaElement.Loaded += (_, __) => { mediaElement.Play(); };
+                                    try
+                                    {
+                                        var xaml = XamlWriter.Save(child);
+                                        UIElement clonedChild = (UIElement)XamlReader.Parse(xaml);
+                                        if (clonedChild is Image image)
+                                        {
+                                            try
+                                            {
+                                                if (image.Source is BitmapImage bmi)
+                                                {
+                                                    var uri = bmi.UriSource;
+                                                    bool needFix = uri == null || (uri != null && !File.Exists(uri.LocalPath));
+                                                    if (needFix)
+                                                    {
+                                                        string candidate = null;
+                                                        string tagPath = image.Tag as string;
+                                                        if (!string.IsNullOrEmpty(tagPath))
+                                                        {
+                                                            candidate = System.IO.Path.Combine(Settings.Automation.AutoSavedStrokesLocation, tagPath.Replace('/', '\\'));
+                                                            if (!File.Exists(candidate))
+                                                            {
+                                                                candidate = System.IO.Path.Combine(Settings.Automation.AutoSavedStrokesLocation, "File Dependency", System.IO.Path.GetFileName(tagPath));
+                                                            }
+                                                        }
+                                                        if ((candidate == null || !File.Exists(candidate)) && uri != null)
+                                                        {
+                                                            string fname = System.IO.Path.GetFileName(uri.LocalPath);
+                                                            if (!string.IsNullOrEmpty(fname))
+                                                            {
+                                                                var fd = System.IO.Path.Combine(Settings.Automation.AutoSavedStrokesLocation, "File Dependency");
+                                                                var tryPath = System.IO.Path.Combine(fd, fname);
+                                                                if (File.Exists(tryPath)) candidate = tryPath;
+                                                            }
+                                                        }
+                                                        if (candidate != null && !string.IsNullOrEmpty(candidate) && File.Exists(candidate))
+                                                        {
+                                                            try
+                                                            {
+                                                                var bi2 = new BitmapImage();
+                                                                bi2.BeginInit();
+                                                                bi2.UriSource = new Uri(candidate, UriKind.Absolute);
+                                                                bi2.CacheOption = BitmapCacheOption.OnLoad;
+                                                                bi2.EndInit();
+                                                                bi2.Freeze();
+                                                                image.Source = bi2;
+                                                            }
+                                                            catch (Exception ex)
+                                                            {
+                                                                // 记录错误但不中断程序
+                                                                Ink_Canvas.Helpers.LogHelper.WriteLogToFile("Failed to load image: " + ex.Message, Ink_Canvas.Helpers.LogHelper.LogType.Error);
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            catch { }
+                                        }
+                                        if (clonedChild is MediaElement mediaElement)
+                                        {
+                                            mediaElement.LoadedBehavior = MediaState.Manual;
+                                            mediaElement.UnloadedBehavior = MediaState.Manual;
+                                            mediaElement.Loaded += (_, __) => { mediaElement.Play(); };
+                                        }
+                                        inkCanvas.Children.Add(clonedChild);
+                                    }
+                                    catch { }
                                 }
-                                inkCanvas.Children.Add(clonedChild);
                             }
                         }
+                    }
+                    catch (Exception exLoad)
+                    {
+                        LogHelper.WriteLogToFile($"加载页面元素失败: {exLoad.Message}", LogHelper.LogType.Error);
                     }
                 }
             }

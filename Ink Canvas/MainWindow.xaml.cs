@@ -18,10 +18,12 @@ using System.Windows.Threading;
 using File = System.IO.File;
 using MessageBox = System.Windows.MessageBox;
 using Ink_Canvas.MainWindow_cs;
+using OpenCvSharp;
+using OpenCvSharp.Extensions;
 
 namespace Ink_Canvas
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : System.Windows.Window
     {
         #region Window Initialization
 
@@ -300,6 +302,9 @@ namespace Ink_Canvas
                     {
                         try
                         {
+                            // 首先确认恢复会话，设置全局标志
+                            ConfirmRestoreSession();
+                            
                             // 读取元信息
                             int metaMode = currentMode;
                             int metaWhiteboardIndex = CurrentWhiteboardIndex;
@@ -634,7 +639,7 @@ namespace Ink_Canvas
 
             // 计算元素的实际中心位置
             // 获取元素的边界框，考虑现有的变换
-            var bounds = frameworkElement.TransformToVisual(inkCanvas).TransformBounds(new Rect(0, 0, frameworkElement.ActualWidth, frameworkElement.ActualHeight));
+            var bounds = frameworkElement.TransformToVisual(inkCanvas).TransformBounds(new System.Windows.Rect(0, 0, frameworkElement.ActualWidth, frameworkElement.ActualHeight));
             double centerX = bounds.Left + bounds.Width / 2;
             double centerY = bounds.Top + bounds.Height / 2;
 
@@ -681,6 +686,161 @@ namespace Ink_Canvas
                 Console.WriteLine($"图像转换失败: {ex.Message}");
                 return null;
             }
+        }
+
+        private Bitmap ScanDocumentWithOpenCv(Bitmap source)
+        {
+            try
+            {
+                using (var matSrc = BitmapConverter.ToMat(source))
+                {
+                    var mat = matSrc.Clone();
+                    var gray = new Mat();
+                    Cv2.CvtColor(mat, gray, ColorConversionCodes.BGR2GRAY);
+                    var blur = new Mat();
+                    Cv2.GaussianBlur(gray, blur, new OpenCvSharp.Size(5, 5), 0);
+                    var edges = new Mat();
+                    Cv2.Canny(blur, edges, 75, 200);
+                    var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(3, 3));
+                    Cv2.Dilate(edges, edges, kernel);
+                    Cv2.Erode(edges, edges, kernel);
+
+                    OpenCvSharp.Point[][] contours;
+                    OpenCvSharp.HierarchyIndex[] hierarchy;
+                    Cv2.FindContours(edges, out contours, out hierarchy, RetrievalModes.List, ContourApproximationModes.ApproxSimple);
+
+                    double frameArea = mat.Rows * mat.Cols;
+                    OpenCvSharp.Point[] best = null;
+                    double bestArea = 0;
+                    foreach (var c in contours)
+                    {
+                        double peri = Cv2.ArcLength(c, true);
+                        var approx = Cv2.ApproxPolyDP(c, 0.02 * peri, true);
+                        if (approx.Length == 4)
+                        {
+                            double area = Math.Abs(Cv2.ContourArea(approx));
+                            if (area > bestArea && area > frameArea * 0.1)
+                            {
+                                bestArea = area;
+                                best = approx;
+                            }
+                        }
+                    }
+
+                    Mat warped;
+                    if (best != null)
+                    {
+                        var pts = best.Select(p => new OpenCvSharp.Point2f(p.X, p.Y)).ToArray();
+                        var ordered = OrderQuadPoints(pts);
+                        float widthA = Distance(ordered[2], ordered[3]);
+                        float widthB = Distance(ordered[1], ordered[0]);
+                        float maxW = Math.Max(widthA, widthB);
+                        float heightA = Distance(ordered[1], ordered[2]);
+                        float heightB = Distance(ordered[0], ordered[3]);
+                        float maxH = Math.Max(heightA, heightB);
+                        var dst = new[]
+                        {
+                            new OpenCvSharp.Point2f(0, 0),
+                            new OpenCvSharp.Point2f(maxW - 1, 0),
+                            new OpenCvSharp.Point2f(maxW - 1, maxH - 1),
+                            new OpenCvSharp.Point2f(0, maxH - 1)
+                        };
+                        var M = Cv2.GetPerspectiveTransform(ordered, dst);
+                        warped = new OpenCvSharp.Mat(new OpenCvSharp.Size((int)maxW, (int)maxH), OpenCvSharp.MatType.CV_8UC3);
+                        Cv2.WarpPerspective(mat, warped, M, warped.Size());
+                    }
+                    else
+                    {
+                        warped = mat;
+                    }
+
+                    var lab = new Mat();
+                    Cv2.CvtColor(warped, lab, ColorConversionCodes.BGR2Lab);
+                    var channels = lab.Split();
+                    var clahe = Cv2.CreateCLAHE(3.0, new OpenCvSharp.Size(8, 8));
+                    var lEnhanced = new Mat();
+                    clahe.Apply(channels[0], lEnhanced);
+                    channels[0] = lEnhanced;
+                    var labMerged = new Mat();
+                    Cv2.Merge(channels, labMerged);
+                    var enhanced = new Mat();
+                    Cv2.CvtColor(labMerged, enhanced, ColorConversionCodes.Lab2BGR);
+
+                    var hsv = new Mat();
+                    Cv2.CvtColor(enhanced, hsv, ColorConversionCodes.BGR2HSV);
+                    var hsvChannels = hsv.Split();
+                    var v = hsvChannels[2];
+                    var kernelLarge = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(31, 31));
+                    var background = new Mat();
+                    Cv2.MorphologyEx(v, background, MorphTypes.Close, kernelLarge);
+                    var v32 = new Mat();
+                    v.ConvertTo(v32, MatType.CV_32F);
+                    var bg32 = new Mat();
+                    background.ConvertTo(bg32, MatType.CV_32F);
+                    var bgPlus = new Mat();
+                    Cv2.Add(bg32, new Scalar(1.0), bgPlus);
+                    var flat32 = new Mat();
+                    Cv2.Divide(v32, bgPlus, flat32);
+                    Cv2.Normalize(flat32, flat32, 0, 255, NormTypes.MinMax);
+                    var flat8 = new Mat();
+                    flat32.ConvertTo(flat8, MatType.CV_8U);
+                    hsvChannels[2] = flat8;
+                    Cv2.Merge(hsvChannels, hsv);
+                    var deShadow = new Mat();
+                    Cv2.CvtColor(hsv, deShadow, ColorConversionCodes.HSV2BGR);
+
+                    var denoised = new Mat();
+                    Cv2.BilateralFilter(deShadow, denoised, 9, 75, 75);
+
+                    var result = BitmapConverter.ToBitmap(denoised);
+                    edges.Dispose();
+                    blur.Dispose();
+                    gray.Dispose();
+                    kernel.Dispose();
+                    lab.Dispose();
+                    foreach (var ch in channels) ch.Dispose();
+                    lEnhanced.Dispose();
+                    labMerged.Dispose();
+                    enhanced.Dispose();
+                    hsv.Dispose();
+                    foreach (var hch in hsvChannels) hch.Dispose();
+                    kernelLarge.Dispose();
+                    background.Dispose();
+                    v32.Dispose();
+                    bg32.Dispose();
+                    bgPlus.Dispose();
+                    flat32.Dispose();
+                    flat8.Dispose();
+                    deShadow.Dispose();
+                    denoised.Dispose();
+                    if (!ReferenceEquals(warped, mat)) warped.Dispose();
+                    mat.Dispose();
+                    return result;
+                }
+            }
+            catch
+            {
+                try { return (Bitmap)source.Clone(); } catch { return null; }
+            }
+        }
+
+        private OpenCvSharp.Point2f[] OrderQuadPoints(OpenCvSharp.Point2f[] pts)
+        {
+            var ordered = new OpenCvSharp.Point2f[4];
+            var sum = pts.Select(p => p.X + p.Y).ToArray();
+            var diff = pts.Select(p => p.X - p.Y).ToArray();
+            ordered[0] = pts[Array.IndexOf(sum, sum.Min())];
+            ordered[2] = pts[Array.IndexOf(sum, sum.Max())];
+            ordered[1] = pts[Array.IndexOf(diff, diff.Min())];
+            ordered[3] = pts[Array.IndexOf(diff, diff.Max())];
+            return ordered;
+        }
+
+        private float Distance(OpenCvSharp.Point2f a, OpenCvSharp.Point2f b)
+        {
+            float dx = a.X - b.X;
+            float dy = a.Y - b.Y;
+            return (float)Math.Sqrt(dx * dx + dy * dy);
         }
 
         private void AddCapturedPhoto(BitmapImage image)
@@ -1015,6 +1175,12 @@ namespace Ink_Canvas
             
             // 设置拍照按钮的初始状态
             UpdateCapturePhotoButtonState();
+            try
+            {
+                var cb = FindName("CheckBoxEnablePhotoCorrection") as CheckBox;
+                if (cb != null) cb.IsChecked = Settings.Automation.IsEnablePhotoCorrection;
+            }
+            catch { }
         }
 
         // 摄像头控制按钮功能已移除，仅保留设备选择功能
@@ -1098,15 +1264,19 @@ namespace Ink_Canvas
             
             bool hasCameraFrame = HasCameraFrameOnCurrentPage();
             BtnCapturePhoto.IsEnabled = hasCameraFrame;
+            var btnCorrect = FindName("BtnCorrectPhoto") as Button;
+            if (btnCorrect != null) btnCorrect.IsEnabled = hasCameraFrame;
             
             // 根据按钮状态更新视觉样式
             if (hasCameraFrame)
             {
                 BtnCapturePhoto.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.SkyBlue);
+                if (btnCorrect != null) btnCorrect.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.SkyBlue);
             }
             else
             {
                 BtnCapturePhoto.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 160, 160));
+                if (btnCorrect != null) btnCorrect.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 160, 160));
             }
         }
         
@@ -1627,6 +1797,92 @@ namespace Ink_Canvas
                 // 静默处理更新错误，避免频繁弹窗
                 Console.WriteLine($"更新摄像头画面失败: {ex.Message}");
             }
+        }
+
+        private void BtnCorrectPhoto_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (cameraDeviceManager == null)
+                {
+                    MessageBox.Show("摄像头设备管理器未初始化", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var frame = cameraDeviceManager.GetFrameCopy();
+                if (frame == null)
+                {
+                    MessageBox.Show("未获取到摄像头画面", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                double rotationAngle = 0;
+                if (currentCameraImage != null && currentCameraImage.RenderTransform is TransformGroup tg)
+                {
+                    foreach (var t in tg.Children)
+                    {
+                        if (t is RotateTransform rt)
+                        {
+                            rotationAngle += rt.Angle;
+                        }
+                    }
+                }
+
+                Task.Run(() =>
+                {
+                    try
+                    {
+                        using (frame)
+                        {
+                            if (rotationAngle != 0)
+                            {
+                                System.Drawing.RotateFlipType rotateFlipType = System.Drawing.RotateFlipType.RotateNoneFlipNone;
+                                if (rotationAngle % 360 == 90 || rotationAngle % 360 == -270)
+                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate90FlipNone;
+                                else if (rotationAngle % 360 == 180 || rotationAngle % 360 == -180)
+                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate180FlipNone;
+                                else if (rotationAngle % 360 == 270 || rotationAngle % 360 == -90)
+                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate270FlipNone;
+                                frame.RotateFlip(rotateFlipType);
+                            }
+
+                            var processed = ScanDocumentWithOpenCv(frame);
+                            if (processed != null)
+                            {
+                                var bitmapImage = ConvertBitmapToBitmapImage(processed);
+                                processed.Dispose();
+                                if (bitmapImage != null)
+                                {
+                                    Dispatcher.BeginInvoke(new Action(() =>
+                                    {
+                                        AddCapturedPhoto(bitmapImage);
+                                    }));
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"矫正拍照处理失败: {ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"矫正拍照失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void CheckBoxEnablePhotoCorrection_Checked(object sender, RoutedEventArgs e)
+        {
+            Settings.Automation.IsEnablePhotoCorrection = true;
+            SaveSettingsToFile();
+        }
+
+        private void CheckBoxEnablePhotoCorrection_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Settings.Automation.IsEnablePhotoCorrection = false;
+            SaveSettingsToFile();
         }
     }
 }

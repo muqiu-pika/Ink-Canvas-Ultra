@@ -85,8 +85,10 @@ namespace Ink_Canvas
 
                 if (videoTimer == null)
                 {
-                    videoTimer = new DispatcherTimer();
-                    videoTimer.Interval = TimeSpan.FromMilliseconds(250);
+                    videoTimer = new DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(250)
+                    };
                     videoTimer.Tick += VideoTimer_Tick;
                 }
                 videoTimer.Start();

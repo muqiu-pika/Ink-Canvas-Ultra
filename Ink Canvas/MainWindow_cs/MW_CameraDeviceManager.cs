@@ -362,9 +362,35 @@ namespace Ink_Canvas.MainWindow_cs
             // 先检测当前页面是否有摄像头画面或照片（在启动摄像头之前检测）
             bool hasCameraFrameOrPhoto = false;
             int currentPage = GetCurrentPageIndex();
+            
+            // 增强检测逻辑，检查photoPageMapping中是否有与当前页面关联的照片
             mainWindow.Dispatcher.Invoke(new Action(() =>
             {
+                // 首先检查画布上的元素
                 hasCameraFrameOrPhoto = mainWindow.HasCameraFrameOrPhotoOnCurrentPage();
+                
+                // 然后检查是否有照片与当前页面关联（通过反射访问photoPageMapping）
+                if (!hasCameraFrameOrPhoto)
+                {
+                    try
+                    {
+                        var photoPageMappingField = mainWindow.GetType().GetField("photoPageMapping", 
+                            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        if (photoPageMappingField != null)
+                        {
+                            var photoPageMapping = photoPageMappingField.GetValue(mainWindow) as System.Collections.Generic.Dictionary<string, int>;
+                            if (photoPageMapping != null && photoPageMapping.ContainsValue(currentPage))
+                            {
+                                hasCameraFrameOrPhoto = true;
+                                Console.WriteLine($"检测到当前页面 {currentPage} 在photoPageMapping中有关联照片");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"检查photoPageMapping失败: {ex.Message}");
+                    }
+                }
             }));
             
             // 启动摄像头
@@ -430,6 +456,30 @@ namespace Ink_Canvas.MainWindow_cs
                     hasCameraFrameOrPhotoOnNewPage = true;
                     cameraDeviceOnNewPage = mapping.Key;
                     break;
+                }
+            }
+            
+            // 如果没有摄像头设备关联，检查是否有照片关联
+            if (!hasCameraFrameOrPhotoOnNewPage)
+            {
+                try
+                {
+                    // 通过反射检查photoPageMapping中是否有与新页面关联的照片
+                    var photoPageMappingField = mainWindow.GetType().GetField("photoPageMapping",
+                        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (photoPageMappingField != null)
+                    {
+                        var photoPageMapping = photoPageMappingField.GetValue(mainWindow) as System.Collections.Generic.Dictionary<string, int>;
+                        if (photoPageMapping != null && photoPageMapping.ContainsValue(newPageIndex))
+                        {
+                            hasCameraFrameOrPhotoOnNewPage = true;
+                            Console.WriteLine($"页面切换时检测到新页面 {newPageIndex} 在photoPageMapping中有关联照片");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"页面切换时检查photoPageMapping失败: {ex.Message}");
                 }
             }
 

@@ -220,19 +220,10 @@ namespace Ink_Canvas
             try
             {
                 // 假设MainWindow类中有cameraDeviceManager字段
-                var cameraManagerField = this.GetType().GetField("cameraDeviceManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (cameraManagerField != null)
-                {
-                    var cameraManager = cameraManagerField.GetValue(this);
-                    if (cameraManager != null)
-                    {
-                        var handlePageChangedMethod = cameraManager.GetType().GetMethod("HandlePageChanged", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                        if (handlePageChangedMethod != null)
-                        {
-                            handlePageChangedMethod.Invoke(cameraManager, new object[] { newPage });
-                        }
-                    }
-                }
+                var cameraManagerField = GetType().GetField("cameraDeviceManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                var cameraManager = cameraManagerField?.GetValue(this);
+                var handlePageChangedMethod = cameraManager?.GetType().GetMethod("HandlePageChanged", System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                handlePageChangedMethod?.Invoke(cameraManager, new object[] { newPage });
             }
             catch (Exception ex)
             {

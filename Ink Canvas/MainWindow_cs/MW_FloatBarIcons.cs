@@ -662,7 +662,7 @@ namespace Ink_Canvas
                 MarginFromEdge = Settings.Appearance.FloatingBarBottomMargin;
             }
             if (MarginFromEdge == 60) MarginFromEdge = 55;
-            MarginFromEdge = MarginFromEdge * (Settings.Appearance.FloatingBarScale / 100);
+            MarginFromEdge *= (Settings.Appearance.FloatingBarScale / 100);
             await Dispatcher.InvokeAsync(() =>
             {
                 if (Topmost == false)

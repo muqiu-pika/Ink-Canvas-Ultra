@@ -7550,8 +7550,33 @@
                         VerticalAlignment="Center"
                         Orientation="Horizontal">
                         <Button
+                            x:Name="BtnCorrectPhoto"
+                            Width="100"
+                            Height="40"
+                            Margin="5,0"
+                            Background="{DynamicResource BoardBarButtonBackground}"
+                            BorderBrush="{DynamicResource BoardBarBorderBrush}"
+                            BorderThickness="1"
+                            Click="BtnCorrectPhoto_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <ui:FontIcon
+                                    Width="16"
+                                    Height="16"
+                                    Margin="0,0,5,0"
+                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                    FontSize="14"
+                                    Foreground="{DynamicResource BoardBarForeground}"
+                                    Glyph="&#xE8D2;" />
+                                <TextBlock
+                                    FontSize="12"
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource BoardBarForeground}"
+                                    Text="矫正拍照" />
+                            </StackPanel>
+                        </Button>
+                        <Button
                             x:Name="BtnCapturePhoto"
-                            Width="120"
+                            Width="100"
                             Height="40"
                             Margin="5,0"
                             Background="{DynamicResource BoardBarButtonBackground}"
@@ -7576,7 +7601,7 @@
                         </Button>
                         <Button
                             x:Name="BtnRotateImage"
-                            Width="120"
+                            Width="100"
                             Height="40"
                             Margin="5,0"
                             Background="{DynamicResource BoardBarButtonBackground}"

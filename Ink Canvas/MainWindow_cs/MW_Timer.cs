@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using System;
 using System.Diagnostics;
 using System.Timers;
@@ -7,7 +7,7 @@ using MessageBox = System.Windows.MessageBox;
 
 namespace Ink_Canvas
 {
-    public partial class MainWindow : Window
+    public partial class MainWindow : System.Windows.Window
     {
         Timer timerCheckPPT = new Timer();
         Timer timerKillProcess = new Timer();
@@ -22,9 +22,9 @@ namespace Ink_Canvas
             timerCheckPPT.Interval = 1000;
             timerKillProcess.Elapsed += TimerKillProcess_Elapsed;
             timerKillProcess.Interval = 5000;
-            timerCheckAutoFold.Elapsed += timerCheckAutoFold_Elapsed;
+            timerCheckAutoFold.Elapsed += TimerCheckAutoFold_Elapsed;
             timerCheckAutoFold.Interval = 1500;
-            timerCheckAutoUpdateWithSilence.Elapsed += timerCheckAutoUpdateWithSilence_Elapsed;
+            timerCheckAutoUpdateWithSilence.Elapsed += TimerCheckAutoUpdateWithSilence_Elapsed;
             timerCheckAutoUpdateWithSilence.Interval = 1000 * 60 * 10;
         }
 
@@ -57,9 +57,13 @@ namespace Ink_Canvas
                 }
                 if (arg != "/F")
                 {
-                    Process p = new Process();
-                    p.StartInfo = new ProcessStartInfo("taskkill", arg);
-                    p.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                    var p = new Process
+                    {
+                        StartInfo = new ProcessStartInfo("taskkill", arg)
+                        {
+                            WindowStyle = ProcessWindowStyle.Hidden
+                        }
+                    };
                     p.Start();
 
                     if (arg.Contains("EasiNote"))
@@ -76,7 +80,7 @@ namespace Ink_Canvas
         bool foldFloatingBarByUser = false, // 保持收纳操作不受自动收纳的控制
             unfoldFloatingBarByUser = false; // 允许用户在希沃软件内进行展开操作
 
-        private void timerCheckAutoFold_Elapsed(object sender, ElapsedEventArgs e)
+        private void TimerCheckAutoFold_Elapsed(object sender, ElapsedEventArgs e)
         {
             if (isFloatingBarChangingHideMode) return;
             try
@@ -122,7 +126,7 @@ namespace Ink_Canvas
             catch { }
         }
 
-        private void timerCheckAutoUpdateWithSilence_Elapsed(object sender, ElapsedEventArgs e)
+        private void TimerCheckAutoUpdateWithSilence_Elapsed(object sender, ElapsedEventArgs e)
         {
             Dispatcher.Invoke(() =>
             {
