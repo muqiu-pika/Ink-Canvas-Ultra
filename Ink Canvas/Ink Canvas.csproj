@@ -81,7 +81,7 @@
 		<PackageReference Include="AForge.Video" Version="2.2.5" />
 		<PackageReference Include="AForge.Video.DirectShow" Version="2.2.5" />
 		<PackageReference Include="iNKORE.UI.WPF.Modern">
-			<Version>0.9.30</Version>
+			<Version>0.10.1</Version>
 		</PackageReference>
 		<PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
 		<PackageReference Include="Microsoft.Office.Interop.PowerPoint">
@@ -94,7 +94,7 @@
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="Newtonsoft.Json">
-			<Version>13.0.3</Version>
+			<Version>13.0.4</Version>
 		</PackageReference>
 		<PackageReference Include="OSVersionExt" Version="3.0.0" />
 		<PackageReference Include="System.IO.Compression" Version="4.3.0" />
