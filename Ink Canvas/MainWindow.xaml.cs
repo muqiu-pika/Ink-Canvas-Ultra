@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Ink;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -18,8 +19,9 @@ using System.Windows.Threading;
 using File = System.IO.File;
 using MessageBox = System.Windows.MessageBox;
 using Ink_Canvas.MainWindow_cs;
-using OpenCvSharp;
-using OpenCvSharp.Extensions;
+using AForge.Imaging;
+using AForge.Imaging.Filters;
+using AForge.Math.Geometry;
 
 namespace Ink_Canvas
 {
@@ -491,6 +493,8 @@ namespace Ink_Canvas
         private System.Windows.Controls.Image currentCameraImage;
         // 摄像头画面更新定时器
         private DispatcherTimer cameraFrameTimer;
+        private const int CorrectedPaperWidth = 500;
+        private const int CorrectedPaperHeight = 600;
 
         #region Photo Capture Functions
 
@@ -545,7 +549,6 @@ namespace Ink_Canvas
                     {
                         using (frame)
                         {
-                            // 如果有旋转角度，先旋转Bitmap
                             if (rotationAngle != 0)
                             {
                                 System.Drawing.RotateFlipType rotateFlipType = System.Drawing.RotateFlipType.RotateNoneFlipNone;
@@ -557,7 +560,24 @@ namespace Ink_Canvas
                                     rotateFlipType = System.Drawing.RotateFlipType.Rotate270FlipNone;
                                 frame.RotateFlip(rotateFlipType);
                             }
-                            var bitmapImage = ConvertBitmapToBitmapImage(frame);
+                            Bitmap toSave = frame;
+                            if (Settings.Automation.IsEnablePhotoCorrection)
+                            {
+                                List<AForge.IntPoint> corners;
+                                if (TryDetectPaperCorners(toSave, out corners))
+                                {
+                                    var corrected = ApplyPerspectiveCorrection(toSave, corners);
+                                    if (corrected != null)
+                                    {
+                                        toSave = corrected;
+                                    }
+                                }
+                            }
+                            var bitmapImage = ConvertBitmapToBitmapImage(toSave);
+                            if (!ReferenceEquals(toSave, frame))
+                            {
+                                toSave.Dispose();
+                            }
                             if (bitmapImage != null)
                             {
                                 Dispatcher.BeginInvoke(new Action(() =>
@@ -688,160 +708,6 @@ namespace Ink_Canvas
             }
         }
 
-        private Bitmap ScanDocumentWithOpenCv(Bitmap source)
-        {
-            try
-            {
-                using (var matSrc = BitmapConverter.ToMat(source))
-                {
-                    var mat = matSrc.Clone();
-                    var gray = new Mat();
-                    Cv2.CvtColor(mat, gray, ColorConversionCodes.BGR2GRAY);
-                    var blur = new Mat();
-                    Cv2.GaussianBlur(gray, blur, new OpenCvSharp.Size(5, 5), 0);
-                    var edges = new Mat();
-                    Cv2.Canny(blur, edges, 75, 200);
-                    var kernel = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(3, 3));
-                    Cv2.Dilate(edges, edges, kernel);
-                    Cv2.Erode(edges, edges, kernel);
-
-                    OpenCvSharp.Point[][] contours;
-                    OpenCvSharp.HierarchyIndex[] hierarchy;
-                    Cv2.FindContours(edges, out contours, out hierarchy, RetrievalModes.List, ContourApproximationModes.ApproxSimple);
-
-                    double frameArea = mat.Rows * mat.Cols;
-                    OpenCvSharp.Point[] best = null;
-                    double bestArea = 0;
-                    foreach (var c in contours)
-                    {
-                        double peri = Cv2.ArcLength(c, true);
-                        var approx = Cv2.ApproxPolyDP(c, 0.02 * peri, true);
-                        if (approx.Length == 4)
-                        {
-                            double area = Math.Abs(Cv2.ContourArea(approx));
-                            if (area > bestArea && area > frameArea * 0.1)
-                            {
-                                bestArea = area;
-                                best = approx;
-                            }
-                        }
-                    }
-
-                    Mat warped;
-                    if (best != null)
-                    {
-                        var pts = best.Select(p => new OpenCvSharp.Point2f(p.X, p.Y)).ToArray();
-                        var ordered = OrderQuadPoints(pts);
-                        float widthA = Distance(ordered[2], ordered[3]);
-                        float widthB = Distance(ordered[1], ordered[0]);
-                        float maxW = Math.Max(widthA, widthB);
-                        float heightA = Distance(ordered[1], ordered[2]);
-                        float heightB = Distance(ordered[0], ordered[3]);
-                        float maxH = Math.Max(heightA, heightB);
-                        var dst = new[]
-                        {
-                            new OpenCvSharp.Point2f(0, 0),
-                            new OpenCvSharp.Point2f(maxW - 1, 0),
-                            new OpenCvSharp.Point2f(maxW - 1, maxH - 1),
-                            new OpenCvSharp.Point2f(0, maxH - 1)
-                        };
-                        var M = Cv2.GetPerspectiveTransform(ordered, dst);
-                        warped = new OpenCvSharp.Mat(new OpenCvSharp.Size((int)maxW, (int)maxH), OpenCvSharp.MatType.CV_8UC3);
-                        Cv2.WarpPerspective(mat, warped, M, warped.Size());
-                    }
-                    else
-                    {
-                        warped = mat;
-                    }
-
-                    var lab = new Mat();
-                    Cv2.CvtColor(warped, lab, ColorConversionCodes.BGR2Lab);
-                    var channels = lab.Split();
-                    var clahe = Cv2.CreateCLAHE(3.0, new OpenCvSharp.Size(8, 8));
-                    var lEnhanced = new Mat();
-                    clahe.Apply(channels[0], lEnhanced);
-                    channels[0] = lEnhanced;
-                    var labMerged = new Mat();
-                    Cv2.Merge(channels, labMerged);
-                    var enhanced = new Mat();
-                    Cv2.CvtColor(labMerged, enhanced, ColorConversionCodes.Lab2BGR);
-
-                    var hsv = new Mat();
-                    Cv2.CvtColor(enhanced, hsv, ColorConversionCodes.BGR2HSV);
-                    var hsvChannels = hsv.Split();
-                    var v = hsvChannels[2];
-                    var kernelLarge = Cv2.GetStructuringElement(MorphShapes.Rect, new OpenCvSharp.Size(31, 31));
-                    var background = new Mat();
-                    Cv2.MorphologyEx(v, background, MorphTypes.Close, kernelLarge);
-                    var v32 = new Mat();
-                    v.ConvertTo(v32, MatType.CV_32F);
-                    var bg32 = new Mat();
-                    background.ConvertTo(bg32, MatType.CV_32F);
-                    var bgPlus = new Mat();
-                    Cv2.Add(bg32, new Scalar(1.0), bgPlus);
-                    var flat32 = new Mat();
-                    Cv2.Divide(v32, bgPlus, flat32);
-                    Cv2.Normalize(flat32, flat32, 0, 255, NormTypes.MinMax);
-                    var flat8 = new Mat();
-                    flat32.ConvertTo(flat8, MatType.CV_8U);
-                    hsvChannels[2] = flat8;
-                    Cv2.Merge(hsvChannels, hsv);
-                    var deShadow = new Mat();
-                    Cv2.CvtColor(hsv, deShadow, ColorConversionCodes.HSV2BGR);
-
-                    var denoised = new Mat();
-                    Cv2.BilateralFilter(deShadow, denoised, 9, 75, 75);
-
-                    var result = BitmapConverter.ToBitmap(denoised);
-                    edges.Dispose();
-                    blur.Dispose();
-                    gray.Dispose();
-                    kernel.Dispose();
-                    lab.Dispose();
-                    foreach (var ch in channels) ch.Dispose();
-                    lEnhanced.Dispose();
-                    labMerged.Dispose();
-                    enhanced.Dispose();
-                    hsv.Dispose();
-                    foreach (var hch in hsvChannels) hch.Dispose();
-                    kernelLarge.Dispose();
-                    background.Dispose();
-                    v32.Dispose();
-                    bg32.Dispose();
-                    bgPlus.Dispose();
-                    flat32.Dispose();
-                    flat8.Dispose();
-                    deShadow.Dispose();
-                    denoised.Dispose();
-                    if (!ReferenceEquals(warped, mat)) warped.Dispose();
-                    mat.Dispose();
-                    return result;
-                }
-            }
-            catch
-            {
-                try { return (Bitmap)source.Clone(); } catch { return null; }
-            }
-        }
-
-        private OpenCvSharp.Point2f[] OrderQuadPoints(OpenCvSharp.Point2f[] pts)
-        {
-            var ordered = new OpenCvSharp.Point2f[4];
-            var sum = pts.Select(p => p.X + p.Y).ToArray();
-            var diff = pts.Select(p => p.X - p.Y).ToArray();
-            ordered[0] = pts[Array.IndexOf(sum, sum.Min())];
-            ordered[2] = pts[Array.IndexOf(sum, sum.Max())];
-            ordered[1] = pts[Array.IndexOf(diff, diff.Min())];
-            ordered[3] = pts[Array.IndexOf(diff, diff.Max())];
-            return ordered;
-        }
-
-        private float Distance(OpenCvSharp.Point2f a, OpenCvSharp.Point2f b)
-        {
-            float dx = a.X - b.X;
-            float dy = a.Y - b.Y;
-            return (float)Math.Sqrt(dx * dx + dy * dy);
-        }
 
         private void AddCapturedPhoto(BitmapImage image)
         {
@@ -1177,7 +1043,7 @@ namespace Ink_Canvas
             UpdateCapturePhotoButtonState();
             try
             {
-                var cb = FindName("CheckBoxEnablePhotoCorrection") as CheckBox;
+                var cb = FindName("CheckBoxEnablePhotoCorrection") as ToggleButton;
                 if (cb != null) cb.IsChecked = Settings.Automation.IsEnablePhotoCorrection;
             }
             catch { }
@@ -1707,6 +1573,10 @@ namespace Ink_Canvas
         {
             try
             {
+                if (Settings.Automation.IsEnablePhotoCorrection)
+                {
+                    OverlayPaperEdgesOnFrame(frame);
+                }
                 // 转换Bitmap到BitmapImage
                 var bitmapImage = await Task.Run(() =>
                 {
@@ -1758,6 +1628,10 @@ namespace Ink_Canvas
             try
             {
                 if (currentCameraImage == null) return;
+                if (Settings.Automation.IsEnablePhotoCorrection)
+                {
+                    OverlayPaperEdgesOnFrame(frame);
+                }
 
                 // 转换Bitmap到BitmapImage
                 var bitmapImage = await Task.Run(() =>
@@ -1797,6 +1671,197 @@ namespace Ink_Canvas
                 // 静默处理更新错误，避免频繁弹窗
                 Console.WriteLine($"更新摄像头画面失败: {ex.Message}");
             }
+        }
+
+        private void OverlayPaperEdgesOnFrame(Bitmap frame)
+        {
+            try
+            {
+                if (frame == null) return;
+                int targetWidth = 640;
+                int ow = frame.Width;
+                int oh = frame.Height;
+                double scale = 1.0;
+                Bitmap work = frame;
+                if (ow > targetWidth)
+                {
+                    int nh = (int)Math.Round(oh * (targetWidth / (double)ow));
+                    var resize = new ResizeBilinear(targetWidth, nh);
+                    work = resize.Apply(frame);
+                    scale = (double)ow / targetWidth;
+                }
+                var gray = Grayscale.CommonAlgorithms.BT709.Apply(work);
+                var blur = new GaussianBlur(3, 2);
+                blur.ApplyInPlace(gray);
+                var canny = new CannyEdgeDetector();
+                canny.ApplyInPlace(gray);
+                var dilate = new Dilatation();
+                dilate.ApplyInPlace(gray);
+                var bc = new BlobCounter
+                {
+                    FilterBlobs = true,
+                    MinHeight = 50,
+                    MinWidth = 50,
+                    ObjectsOrder = ObjectsOrder.Size
+                };
+                bc.ProcessImage(gray);
+                var blobs = bc.GetObjectsInformation();
+                var sc = new SimpleShapeChecker();
+                List<AForge.IntPoint> best = null;
+                double bestArea = 0;
+                foreach (var blob in blobs)
+                {
+                    var edgePoints = bc.GetBlobsEdgePoints(blob);
+                    if (edgePoints == null || edgePoints.Count < 4) continue;
+                    List<AForge.IntPoint> corners;
+                    if (sc.IsQuadrilateral(edgePoints, out corners))
+                    {
+                        double area = Math.Abs(PolygonArea(corners));
+                        if (area > bestArea)
+                        {
+                            bestArea = area;
+                            best = corners;
+                        }
+                    }
+                }
+                if (best != null)
+                {
+                    var pts = best.Select(p => new System.Drawing.Point((int)Math.Round(p.X * scale), (int)Math.Round(p.Y * scale))).ToList();
+                    pts.Sort((a, b) => a.Y.CompareTo(b.Y));
+                    if (pts[0].X > pts[1].X) { var t = pts[0]; pts[0] = pts[1]; pts[1] = t; }
+                    if (pts[2].X > pts[3].X) { var t = pts[2]; pts[2] = pts[3]; pts[3] = t; }
+                    using (var g = Graphics.FromImage(frame))
+                    {
+                        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                        using (var pen = new System.Drawing.Pen(System.Drawing.Color.Lime, 3))
+                        {
+                            g.DrawPolygon(pen, pts.ToArray());
+                        }
+                        using (var brush = new System.Drawing.SolidBrush(System.Drawing.Color.Red))
+                        {
+                            foreach (var p in pts)
+                            {
+                                g.FillEllipse(brush, p.X - 6, p.Y - 6, 12, 12);
+                            }
+                        }
+                        using (var font = new System.Drawing.Font(System.Drawing.FontFamily.GenericSansSerif, 18f, System.Drawing.FontStyle.Bold))
+                        using (var labBrush = new System.Drawing.SolidBrush(System.Drawing.Color.Lime))
+                        {
+                            for (int i = 0; i < 4; i++)
+                            {
+                                g.DrawString((i + 1).ToString(), font, labBrush, pts[i]);
+                            }
+                        }
+                    }
+                }
+                if (!ReferenceEquals(work, frame)) work.Dispose();
+                gray.Dispose();
+            }
+            catch { }
+        }
+
+        private bool TryDetectPaperCorners(Bitmap frame, out List<AForge.IntPoint> cornersOut)
+        {
+            cornersOut = null;
+            try
+            {
+                if (frame == null) return false;
+                int targetWidth = 640;
+                int ow = frame.Width;
+                int oh = frame.Height;
+                double scale = 1.0;
+                Bitmap work = frame;
+                if (ow > targetWidth)
+                {
+                    int nh = (int)Math.Round(oh * (targetWidth / (double)ow));
+                    var resize = new ResizeBilinear(targetWidth, nh);
+                    work = resize.Apply(frame);
+                    scale = (double)ow / targetWidth;
+                }
+                var gray = Grayscale.CommonAlgorithms.BT709.Apply(work);
+                var blur = new GaussianBlur(3, 2);
+                blur.ApplyInPlace(gray);
+                var canny = new CannyEdgeDetector();
+                canny.ApplyInPlace(gray);
+                var dilate = new Dilatation();
+                dilate.ApplyInPlace(gray);
+                var bc = new BlobCounter
+                {
+                    FilterBlobs = true,
+                    MinHeight = 50,
+                    MinWidth = 50,
+                    ObjectsOrder = ObjectsOrder.Size
+                };
+                bc.ProcessImage(gray);
+                var blobs = bc.GetObjectsInformation();
+                var sc = new SimpleShapeChecker();
+                List<AForge.IntPoint> best = null;
+                double bestArea = 0;
+                foreach (var blob in blobs)
+                {
+                    var edgePoints = bc.GetBlobsEdgePoints(blob);
+                    if (edgePoints == null || edgePoints.Count < 4) continue;
+                    List<AForge.IntPoint> crn;
+                    if (sc.IsQuadrilateral(edgePoints, out crn))
+                    {
+                        double area = Math.Abs(PolygonArea(crn));
+                        if (area > bestArea)
+                        {
+                            bestArea = area;
+                            best = crn;
+                        }
+                    }
+                }
+                if (best != null)
+                {
+                    var pts = best
+                        .Select(p => new AForge.IntPoint((int)Math.Round(p.X * scale), (int)Math.Round(p.Y * scale)))
+                        .ToList();
+                    pts.Sort((a, b) => a.Y.CompareTo(b.Y));
+                    if (pts[0].X > pts[1].X) { var t = pts[0]; pts[0] = pts[1]; pts[1] = t; }
+                    if (pts[2].X > pts[3].X) { var t = pts[2]; pts[2] = pts[3]; pts[3] = t; }
+                    cornersOut = pts;
+                    if (!ReferenceEquals(work, frame)) work.Dispose();
+                    gray.Dispose();
+                    return true;
+                }
+                if (!ReferenceEquals(work, frame)) work.Dispose();
+                gray.Dispose();
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private Bitmap ApplyPerspectiveCorrection(Bitmap frame, List<AForge.IntPoint> corners)
+        {
+            try
+            {
+                if (frame == null || corners == null || corners.Count != 4) return null;
+                var tl = corners[0];
+                var tr = corners[1];
+                var bl = corners[2];
+                var br = corners[3];
+                var qtf = new QuadrilateralTransformation(corners, CorrectedPaperWidth, CorrectedPaperHeight);
+                return qtf.Apply(frame);
+            }
+            catch { return null; }
+        }
+
+        private static double PolygonArea(List<AForge.IntPoint> pts)
+        {
+            int n = pts.Count;
+            if (n < 3) return 0;
+            long sum = 0;
+            for (int i = 0; i < n; i++)
+            {
+                var p = pts[i];
+                var q = pts[(i + 1) % n];
+                sum += (long)p.X * q.Y - (long)p.Y * q.X;
+            }
+            return 0.5 * sum;
         }
 
         private void BtnCorrectPhoto_Click(object sender, RoutedEventArgs e)
@@ -1846,18 +1911,13 @@ namespace Ink_Canvas
                                 frame.RotateFlip(rotateFlipType);
                             }
 
-                            var processed = ScanDocumentWithOpenCv(frame);
-                            if (processed != null)
+                            var bitmapImage = ConvertBitmapToBitmapImage(frame);
+                            if (bitmapImage != null)
                             {
-                                var bitmapImage = ConvertBitmapToBitmapImage(processed);
-                                processed.Dispose();
-                                if (bitmapImage != null)
+                                Dispatcher.BeginInvoke(new Action(() =>
                                 {
-                                    Dispatcher.BeginInvoke(new Action(() =>
-                                    {
-                                        AddCapturedPhoto(bitmapImage);
-                                    }));
-                                }
+                                    AddCapturedPhoto(bitmapImage);
+                                }));
                             }
                         }
                     }
