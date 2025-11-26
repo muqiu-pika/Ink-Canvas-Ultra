@@ -498,21 +498,22 @@ namespace Ink_Canvas.MainWindow_cs
                     // 如果摄像头未运行或设备不一致，启动新摄像头
                     StartCamera(cameraDeviceOnNewPage);
                     
-                    // 直接在主线程上恢复画面显示，避免延迟任务导致的多次插入问题
+                    // 在主线程上恢复画面显示，如页面已有画面则仅启动更新，否则插入
                     mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        // 先移除旧的画面，然后插入新的摄像头画面并启动定时器
-                        mainWindow.RemoveCameraFrame();
-                        // 插入摄像头画面，确保白板进入后能够显示
-                        mainWindow.InsertCameraFrameToCanvas();
-                        
-                        // 启动定时器持续更新画面
-                        var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        if (cameraFrameTimerField != null)
+                        if (mainWindow.HasCameraFrameOnCurrentPage())
                         {
-                            var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
-                            cameraFrameTimer?.Start();
-                            Console.WriteLine($"摄像头设备 {cameraDeviceOnNewPage} 已启动并恢复画面显示");
+                            var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                            if (cameraFrameTimerField != null)
+                            {
+                                var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
+                                cameraFrameTimer?.Start();
+                                Console.WriteLine($"摄像头设备 {cameraDeviceOnNewPage} 已启动并恢复旧画面更新");
+                            }
+                        }
+                        else
+                        {
+                            mainWindow.InsertCameraFrameToCanvas();
                         }
                     }));
                 }

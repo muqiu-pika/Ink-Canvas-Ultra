@@ -561,16 +561,13 @@ namespace Ink_Canvas
                                 frame.RotateFlip(rotateFlipType);
                             }
                             Bitmap toSave = frame;
-                            if (Settings.Automation.IsEnablePhotoCorrection)
+                            List<AForge.IntPoint> corners;
+                            if (TryDetectPaperCorners(toSave, out corners))
                             {
-                                List<AForge.IntPoint> corners;
-                                if (TryDetectPaperCorners(toSave, out corners))
+                                var corrected = ApplyPerspectiveCorrection(toSave, corners);
+                                if (corrected != null)
                                 {
-                                    var corrected = ApplyPerspectiveCorrection(toSave, corners);
-                                    if (corrected != null)
-                                    {
-                                        toSave = corrected;
-                                    }
+                                    toSave = corrected;
                                 }
                             }
                             var bitmapImage = ConvertBitmapToBitmapImage(toSave);
@@ -1056,8 +1053,16 @@ namespace Ink_Canvas
         {
             if (cameraDeviceManager == null) return;
 
-            // 如果已有摄像头画面，先移除
-            RemoveCameraFrame();
+            // 如果当前页面已有摄像头画面，直接恢复更新，不重复插入
+            if (HasCameraFrameOnCurrentPage())
+            {
+                cameraFrameTimer?.Start();
+                UpdateCapturePhotoButtonState();
+                return;
+            }
+
+            // 清理残留的摄像头画面元素，确保页面唯一
+            ClearCameraElementsFromCanvas();
 
             // 尝试多次获取第一帧画面并插入
             bool frameInserted = false;
@@ -1515,15 +1520,39 @@ namespace Ink_Canvas
         {
             // 不停止定时器，以便翻页后可以继续使用
             
-            // 移除摄像头画面元素
-            if (currentCameraImage != null)
-            {
-                inkCanvas.Children.Remove(currentCameraImage);
-                currentCameraImage = null;
-            }
+            // 移除页面上所有摄像头画面元素，避免残留导致重复
+            ClearCameraElementsFromCanvas();
             
             // 更新拍照按钮状态
             UpdateCapturePhotoButtonState();
+        }
+
+        // 清除画布上的所有摄像头画面元素
+        private void ClearCameraElementsFromCanvas()
+        {
+            try
+            {
+                if (inkCanvas == null) return;
+                var cameraElements = new List<System.Windows.Controls.Image>();
+                foreach (var child in inkCanvas.Children)
+                {
+                    if (child is System.Windows.Controls.Image image &&
+                        image.Name != null &&
+                        image.Name.StartsWith("camera_"))
+                    {
+                        cameraElements.Add(image);
+                    }
+                }
+                foreach (var img in cameraElements)
+                {
+                    inkCanvas.Children.Remove(img);
+                }
+                currentCameraImage = null;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"清除摄像头画面元素失败: {ex.Message}");
+            }
         }
 
         // 摄像头画面更新定时器事件
@@ -1691,11 +1720,11 @@ namespace Ink_Canvas
                     scale = (double)ow / targetWidth;
                 }
                 var gray = Grayscale.CommonAlgorithms.BT709.Apply(work);
-                var blur = new GaussianBlur(3, 2);
+                var blur = new GaussianBlur(3, 3);
                 blur.ApplyInPlace(gray);
                 var canny = new CannyEdgeDetector();
                 canny.ApplyInPlace(gray);
-                var dilate = new Dilatation();
+                var dilate = new Dilatation3x3();
                 dilate.ApplyInPlace(gray);
                 var bc = new BlobCounter
                 {
@@ -1779,11 +1808,11 @@ namespace Ink_Canvas
                     scale = (double)ow / targetWidth;
                 }
                 var gray = Grayscale.CommonAlgorithms.BT709.Apply(work);
-                var blur = new GaussianBlur(3, 2);
+                var blur = new GaussianBlur(3, 3);
                 blur.ApplyInPlace(gray);
                 var canny = new CannyEdgeDetector();
                 canny.ApplyInPlace(gray);
-                var dilate = new Dilatation();
+                var dilate = new Dilatation3x3();
                 dilate.ApplyInPlace(gray);
                 var bc = new BlobCounter
                 {
@@ -1844,7 +1873,22 @@ namespace Ink_Canvas
                 var tr = corners[1];
                 var bl = corners[2];
                 var br = corners[3];
-                var qtf = new QuadrilateralTransformation(corners, CorrectedPaperWidth, CorrectedPaperHeight);
+
+                double topW = Math.Sqrt((tr.X - tl.X) * (tr.X - tl.X) + (tr.Y - tl.Y) * (tr.Y - tl.Y));
+                double bottomW = Math.Sqrt((br.X - bl.X) * (br.X - bl.X) + (br.Y - bl.Y) * (br.Y - bl.Y));
+                double leftH = Math.Sqrt((bl.X - tl.X) * (bl.X - tl.X) + (bl.Y - tl.Y) * (bl.Y - tl.Y));
+                double rightH = Math.Sqrt((br.X - tr.X) * (br.X - tr.X) + (br.Y - tr.Y) * (br.Y - tr.Y));
+
+                double avgW = (topW + bottomW) / 2.0;
+                double avgH = (leftH + rightH) / 2.0;
+                if (avgH <= 0) avgH = 1;
+                double ratio = avgW / avgH;
+
+                int targetH = CorrectedPaperHeight;
+                int targetW = Math.Max(1, (int)Math.Round(targetH * ratio));
+
+                var orderedCorners = new List<AForge.IntPoint> { tl, tr, br, bl };
+                var qtf = new QuadrilateralTransformation(orderedCorners, targetW, targetH);
                 return qtf.Apply(frame);
             }
             catch { return null; }
@@ -1910,8 +1954,21 @@ namespace Ink_Canvas
                                     rotateFlipType = System.Drawing.RotateFlipType.Rotate270FlipNone;
                                 frame.RotateFlip(rotateFlipType);
                             }
-
-                            var bitmapImage = ConvertBitmapToBitmapImage(frame);
+                            Bitmap toSave = frame;
+                            List<AForge.IntPoint> corners;
+                            if (TryDetectPaperCorners(toSave, out corners))
+                            {
+                                var corrected = ApplyPerspectiveCorrection(toSave, corners);
+                                if (corrected != null)
+                                {
+                                    toSave = corrected;
+                                }
+                            }
+                            var bitmapImage = ConvertBitmapToBitmapImage(toSave);
+                            if (!ReferenceEquals(toSave, frame))
+                            {
+                                toSave.Dispose();
+                            }
                             if (bitmapImage != null)
                             {
                                 Dispatcher.BeginInvoke(new Action(() =>
