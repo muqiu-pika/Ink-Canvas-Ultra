@@ -7551,9 +7551,9 @@
                         Orientation="Horizontal">
                         <ToggleButton
                             x:Name="CheckBoxEnablePhotoCorrection"
-                            Width="120"
+                            Width="110"
                             Height="40"
-                            Margin="5,0"
+                            Margin="3,0"
                             Background="{DynamicResource BoardBarButtonBackground}"
                             BorderBrush="{DynamicResource BoardBarBorderBrush}"
                             BorderThickness="1"
@@ -7572,14 +7572,14 @@
                                     FontSize="12"
                                     FontWeight="SemiBold"
                                     Foreground="{DynamicResource BoardBarForeground}"
-                                    Text="实时矫正开关" />
+                                    Text="实时矫正" />
                             </StackPanel>
                         </ToggleButton>
                         <Button
                             x:Name="BtnCapturePhoto"
-                            Width="100"
+                            Width="90"
                             Height="40"
-                            Margin="5,0"
+                            Margin="3,0"
                             Background="{DynamicResource BoardBarButtonBackground}"
                             BorderBrush="{DynamicResource BoardBarBorderBrush}"
                             BorderThickness="1"
@@ -7602,9 +7602,9 @@
                         </Button>
                         <Button
                             x:Name="BtnRotateImage"
-                            Width="100"
+                            Width="90"
                             Height="40"
-                            Margin="5,0"
+                            Margin="3,0"
                             Background="{DynamicResource BoardBarButtonBackground}"
                             BorderBrush="{DynamicResource BoardBarBorderBrush}"
                             BorderThickness="1"
