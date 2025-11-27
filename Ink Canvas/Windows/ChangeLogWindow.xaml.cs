@@ -1,5 +1,6 @@
-﻿using iNKORE.UI.WPF.Modern;
+using iNKORE.UI.WPF.Modern;
 using System;
+using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
 
@@ -68,6 +69,15 @@ namespace Ink_Canvas
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
+            // 询问用户是否跳转到网站查看日志
+            if (MessageBox.Show("是否跳转到官网查看完整更新日志？", "查看更新日志", MessageBoxButton.YesNo, MessageBoxImage.Information) == MessageBoxResult.Yes)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://doc.muqiu.eu.org/article/changelog/",
+                    UseShellExecute = true
+                });
+            }
             Close();
         }
     }
