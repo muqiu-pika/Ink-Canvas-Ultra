@@ -280,6 +280,20 @@ namespace Ink_Canvas
             LogHelper.WriteLogToFile("PowerPoint Application Slide Show Begin", LogHelper.LogType.Event);
             Application.Current.Dispatcher.Invoke(() =>
             {
+                if (currentMode == 0 && inkCanvas.Strokes.Count > 0)
+                {
+                    try
+                    {
+                        _desktopStrokesBackup = new MemoryStream();
+                        inkCanvas.Strokes.Save(_desktopStrokesBackup);
+                    }
+                    catch { }
+                }
+                else
+                {
+                    _desktopStrokesBackup = null;
+                }
+
                 if (currentMode != 0)
                 {
                     ImageBlackboard_Click(null, null);
@@ -391,6 +405,22 @@ namespace Ink_Canvas
                 }
 
                 ClearStrokes(true);
+
+                try
+                {
+                    int currentSlideIndex = Wn.View.CurrentShowPosition;
+                    if (currentSlideIndex > 0 && currentSlideIndex < memoryStreams.Length && memoryStreams[currentSlideIndex] != null && memoryStreams[currentSlideIndex].Length > 0)
+                    {
+                        memoryStreams[currentSlideIndex].Position = 0;
+                        inkCanvas.Strokes.Add(new StrokeCollection(memoryStreams[currentSlideIndex]));
+                    }
+                    currentShowPosition = currentSlideIndex;
+                    previousSlideID = currentSlideIndex;
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile("Failed to load initial slide strokes: " + ex.Message, LogHelper.LogType.Error);
+                }
 
                 BorderFloatingBarMainControls.Visibility = Visibility.Visible;
 
@@ -508,6 +538,21 @@ namespace Ink_Canvas
                 }
 
                 ClearStrokes(true);
+                timeMachine.ClearStrokeHistory();
+
+                if (_desktopStrokesBackup != null && _desktopStrokesBackup.Length > 0)
+                {
+                    try
+                    {
+                        _desktopStrokesBackup.Position = 0;
+                        inkCanvas.Strokes.Add(new StrokeCollection(_desktopStrokesBackup));
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile("Failed to restore desktop strokes: " + ex.Message, LogHelper.LogType.Error);
+                    }
+                    _desktopStrokesBackup = null;
+                }
 
                 if (Main_Grid.Background != Brushes.Transparent)
                 {
@@ -530,6 +575,7 @@ namespace Ink_Canvas
 
         int previousSlideID = 0;
         MemoryStream[] memoryStreams = new MemoryStream[50];
+        MemoryStream _desktopStrokesBackup = null;
 
         private void PptApplication_SlideShowNextSlide(SlideShowWindow Wn)
         {
