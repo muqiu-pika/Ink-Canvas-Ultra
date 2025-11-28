@@ -36,11 +36,17 @@
             Margin="20,0"
             VerticalContentAlignment="Center"
             FontSize="12" />
-        <Button Grid.Row="3"
-            Width="150"
-            Margin="10"
-            HorizontalAlignment="Center"
-            Click="Button_Click"
-            Content="查看更新日志" />
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Button
+                Width="150"
+                Margin="10"
+                Click="Button_IgnoreUpdate"
+                Content="忽略查看" />
+            <Button
+                Width="150"
+                Margin="10"
+                Click="Button_Click"
+                Content="查看更新日志" />
+        </StackPanel>
     </Grid>
 </Window>

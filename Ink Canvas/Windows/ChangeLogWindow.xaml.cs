@@ -55,7 +55,7 @@ namespace Ink_Canvas
             //TextBlockChangeLog.Text = "" +
             //    "1. 添加“墨迹识别”功能，目前可实现智能识别圆、三角形、特殊四边形，并自动转换为规范图形。可自动识别同心圆，相切圆，可自动识别球的截面圆。\n" +
             //    "2. 优化“抽奖”中的“名单导入”功能\n";
-            TextBlockSuggestionTitle.Visibility = Visibility.Collapsed;
+            // 不需要设置不存在的控件可见性
             //TextBlockSuggestion.Text = "老师讲评试卷可以点击右侧的背景和深色按钮，即可启动黑板功能（同样支持用笔来擦除），\n双指可以缩放和拖动，左边也会有工具栏方便画图形。";
 
             Version version = Assembly.GetExecutingAssembly().GetName().Version;
@@ -65,6 +65,12 @@ namespace Ink_Canvas
         private void Window_Closed(object sender, EventArgs e)
         {
 
+        }
+
+        private void Button_IgnoreUpdate(object sender, RoutedEventArgs e)
+        {
+            // 点击忽略查看按钮，直接关闭窗口
+            this.Close();
         }
 
         private void Button_Click(object sender, RoutedEventArgs e)
