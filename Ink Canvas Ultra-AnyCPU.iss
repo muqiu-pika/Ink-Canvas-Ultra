@@ -30,7 +30,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=dist
-#define OutputBaseFilename "Ink.Canvas.Ultra.V" + MyAppVersion + ".AnyCPU.Setup"
+#define OutputBaseFilename "Ink.Canvas.Ultra.V" + MyAppVersion + ".Setup"
 OutputBaseFilename={#OutputBaseFilename}
 SetupIconFile=Ink Canvas\Resources\Ink Canvas Ultra.ico
 Compression=lzma
