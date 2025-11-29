@@ -491,6 +491,7 @@ namespace Ink_Canvas
         private CameraDeviceManager cameraDeviceManager;
         // 当前显示的摄像头画面元素
         private System.Windows.Controls.Image currentCameraImage;
+        private Dictionary<int, System.Windows.Controls.Image> cameraFramesByPage = new Dictionary<int, System.Windows.Controls.Image>();
         // 摄像头画面更新定时器
         private DispatcherTimer cameraFrameTimer;
         private const int CorrectedPaperWidth = 500;
@@ -891,10 +892,10 @@ namespace Ink_Canvas
                     }
                 }
                 
-                // 检查当前页面是否已经有照片元素
-                if (HasPhotoOnCurrentPage())
+                // 检查当前页面是否已经有照片元素或摄像头画面
+                if (HasPhotoOnCurrentPage() || HasCameraFrameOnCurrentPage())
                 {
-                    Console.WriteLine($"当前页面 {currentPage} 已有照片，将移除现有照片并插入新照片");
+                    Console.WriteLine($"当前页面 {currentPage} 已有照片或摄像头画面，将移除现有元素并插入新照片");
                     
                     // 移除当前页面的照片元素
                     if (currentPhotoImage != null)
@@ -903,8 +904,18 @@ namespace Ink_Canvas
                         currentPhotoImage = null;
                     }
                     
+                    // 移除当前页面的摄像头画面元素
+                    if (currentCameraImage != null)
+                    {
+                        inkCanvas.Children.Remove(currentCameraImage);
+                        currentCameraImage = null;
+                    }
+                    
                     // 清除可能存在的其他照片元素
                     ClearPhotoElementsFromCanvas();
+                    
+                    // 清除可能存在的其他摄像头元素
+                    ClearCameraElementsFromCanvas();
                 }
 
                 // 创建图片元素
@@ -1053,20 +1064,80 @@ namespace Ink_Canvas
         {
             if (cameraDeviceManager == null) return;
 
-            // 如果当前页面已有摄像头画面，直接恢复更新，不重复插入
-            if (HasCameraFrameOnCurrentPage())
+            int currentPage = GetCurrentPageIndex();
+            if (cameraFramesByPage.TryGetValue(currentPage, out var existing) && existing != null)
             {
+                if (!inkCanvas.Children.Contains(existing))
+                {
+                    // 检查当前页面是否已经有照片或其他摄像头画面
+                    if (HasPhotoOnCurrentPage() || HasCameraFrameOnCurrentPage())
+                    {
+                        Console.WriteLine($"当前页面 {currentPage} 已有照片或摄像头画面，将移除现有元素并恢复摄像头画面");
+                        
+                        // 移除当前页面的照片元素
+                        if (currentPhotoImage != null)
+                        {
+                            inkCanvas.Children.Remove(currentPhotoImage);
+                            currentPhotoImage = null;
+                        }
+                        
+                        // 移除当前页面的摄像头画面元素
+                        if (currentCameraImage != null)
+                        {
+                            inkCanvas.Children.Remove(currentCameraImage);
+                            currentCameraImage = null;
+                        }
+                        
+                        // 清除可能存在的其他照片元素
+                        ClearPhotoElementsFromCanvas();
+                        
+                        // 清除可能存在的其他摄像头元素
+                        ClearCameraElementsFromCanvas();
+                    }
+                    
+                    currentCameraImage = existing;
+                    inkCanvas.Children.Add(existing);
+                }
+                else
+                {
+                    currentCameraImage = existing;
+                }
                 cameraFrameTimer?.Start();
                 UpdateCapturePhotoButtonState();
+                try { cameraDeviceManager?.HandlePageChanged(GetCurrentPageIndex()); } catch (Exception ex) { Console.WriteLine($"插入摄像头画面后刷新设备选中显示失败: {ex.Message}"); }
                 return;
             }
 
-            // 清理残留的摄像头画面元素，确保页面唯一
+            // 检查当前页面是否已经有照片或摄像头画面
+            if (HasPhotoOnCurrentPage() || HasCameraFrameOnCurrentPage())
+            {
+                Console.WriteLine($"当前页面 {currentPage} 已有照片或摄像头画面，将移除现有元素并插入新摄像头画面");
+                
+                // 移除当前页面的照片元素
+                if (currentPhotoImage != null)
+                {
+                    inkCanvas.Children.Remove(currentPhotoImage);
+                    currentPhotoImage = null;
+                }
+                
+                // 移除当前页面的摄像头画面元素
+                if (currentCameraImage != null)
+                {
+                    inkCanvas.Children.Remove(currentCameraImage);
+                    currentCameraImage = null;
+                }
+                
+                // 清除可能存在的其他照片元素
+                ClearPhotoElementsFromCanvas();
+                
+                // 清除可能存在的其他摄像头元素
+                ClearCameraElementsFromCanvas();
+            }
+
             ClearCameraElementsFromCanvas();
 
-            // 尝试多次获取第一帧画面并插入
             bool frameInserted = false;
-            for (int i = 0; i < 5; i++) // 最多尝试5次
+            for (int i = 0; i < 5; i++)
             {
                 var frame = cameraDeviceManager.GetFrameCopy();
                 if (frame != null)
@@ -1074,25 +1145,19 @@ namespace Ink_Canvas
                     await InsertCameraFrameAsync(frame);
                     frame.Dispose();
                     frameInserted = true;
-                    
-                    // 启动定时器持续更新画面
                     cameraFrameTimer?.Start();
                     break;
                 }
-                
-                // 如果没有获取到帧，等待一段时间再重试
                 await System.Threading.Tasks.Task.Delay(500);
             }
-            
+
             if (!frameInserted)
             {
                 Console.WriteLine("无法获取摄像头画面，可能是摄像头未初始化完成");
             }
-            
-            // 更新拍照按钮状态
+
             UpdateCapturePhotoButtonState();
 
-            // 在首次插入或自动翻页后，刷新设备侧栏选中显示（仅视觉同步，不触发逻辑）
             try
             {
                 cameraDeviceManager?.HandlePageChanged(GetCurrentPageIndex());
@@ -1644,6 +1709,12 @@ namespace Ink_Canvas
 
                 // 记录历史
                 timeMachine.CommitElementInsertHistory(currentCameraImage);
+                try
+                {
+                    var page = GetCurrentPageIndex();
+                    cameraFramesByPage[page] = currentCameraImage;
+                }
+                catch { }
             }
             catch (Exception ex)
             {
