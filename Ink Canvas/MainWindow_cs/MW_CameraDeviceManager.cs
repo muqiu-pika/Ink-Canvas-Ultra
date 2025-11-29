@@ -308,51 +308,26 @@ namespace Ink_Canvas.MainWindow_cs
                 selectedDeviceName = deviceName;
                 StartCamera(deviceName);
                 
-                // 等待一段时间确保摄像头初始化完成，然后跳转到目标页码
-                System.Threading.Tasks.Task.Delay(1000).ContinueWith(_ =>
+                // 减少等待时间，从1000ms减到300ms，快速响应
+                System.Threading.Tasks.Task.Delay(300).ContinueWith(_ =>
                 {
+                    // 合并多个Dispatcher调用，减少UI线程负担
                     mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         // 跳转到目标页码
                         SwitchToPage(targetPage);
                         Console.WriteLine($"已跳转到页码 {targetPage}，摄像头画面已存在，无需重新插入");
                         
-                        // 检查当前页面是否已经有摄像头画面
-                        bool hasCurrentCameraFrame = false;
-                        mainWindow.Dispatcher.Invoke(new Action(() =>
-                        {
-                            hasCurrentCameraFrame = mainWindow.HasCameraFrameOnCurrentPage();
-                        }));
+                        // 合并检查和启动定时器的操作
+                        bool hasCurrentCameraFrame = mainWindow.HasCameraFrameOnCurrentPage();
                         
-                        if (!hasCurrentCameraFrame)
+                        // 一次性获取timer字段，避免重复反射
+                        var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                        if (cameraFrameTimerField != null)
                         {
-                            // 如果当前页面没有摄像头画面，只需启动定时器恢复显示，不插入新画面
-                            mainWindow.Dispatcher.BeginInvoke(new Action(() =>
-                            {
-                                // 启动定时器持续更新画面
-                                var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                                if (cameraFrameTimerField != null)
-                                {
-                                    var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
-                                    cameraFrameTimer?.Start();
-                                    Console.WriteLine($"已恢复摄像头画面显示到页码 {targetPage}");
-                                }
-                            }));
-                        }
-                        else
-                        {
-                            // 如果已经有摄像头画面，只需启动定时器更新
-                            mainWindow.Dispatcher.BeginInvoke(new Action(() =>
-                            {
-                                // 启动定时器持续更新画面
-                                var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                                if (cameraFrameTimerField != null)
-                                {
-                                    var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
-                                    cameraFrameTimer?.Start();
-                                    Console.WriteLine($"已启动摄像头画面定时器更新");
-                                }
-                            }));
+                            var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
+                            cameraFrameTimer?.Start();
+                            Console.WriteLine(hasCurrentCameraFrame ? "已启动摄像头画面定时器更新" : $"已恢复摄像头画面显示到页码 {targetPage}");
                         }
                     }));
                 });
@@ -397,8 +372,8 @@ namespace Ink_Canvas.MainWindow_cs
             selectedDeviceName = deviceName;
             StartCamera(deviceName);
             
-            // 等待一段时间确保摄像头初始化完成并有帧数据，然后通知主窗口插入摄像头画面
-            System.Threading.Tasks.Task.Delay(1000).ContinueWith(_ =>
+            // 减少等待时间，从1000ms减到300ms，快速响应
+            System.Threading.Tasks.Task.Delay(300).ContinueWith(_ =>
             {
                 mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                 {
