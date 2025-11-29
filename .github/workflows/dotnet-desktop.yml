@@ -42,22 +42,6 @@ jobs:
       run: |
         msbuild -t:restore /p:GitFlow="Github Action"
         msbuild -target:"Ink Canvas" /p:Configuration=Release /p:Platform="Any CPU" /p:GitFlow="Github Action"
-      env:
-        Configuration: ${{ matrix.configuration }}
-
-    - name: Build the solution (x64)
-      run: |
-        msbuild -t:restore /p:GitFlow="Github Action"
-        msbuild -target:"Ink Canvas" /p:Configuration=Release /p:Platform="x64" /p:GitFlow="Github Action"
-      env:
-        Configuration: ${{ matrix.configuration }}
-
-    - name: Build the solution (ARM64)
-      run: |
-        msbuild -t:restore /p:GitFlow="Github Action"
-        msbuild -target:"Ink Canvas" /p:Configuration=Release /p:Platform="ARM64" /p:GitFlow="Github Action"
-      env:
-        Configuration: ${{ matrix.configuration }}
         
     # 上传编译成品
     - name: Upload to artifact
@@ -65,15 +49,3 @@ jobs:
       with:
         name: Ink Canvas Ultra
         path: Ink Canvas/bin/Release
-        
-    - name: Upload to artifact (x64)
-      uses: actions/upload-artifact@v4
-      with:
-        name: Ink Canvas Ultra (x64)
-        path: Ink Canvas/bin/x64/Release
-        
-    - name: Upload to artifact (ARM64)
-      uses: actions/upload-artifact@v4
-      with:
-        name: Ink Canvas Ultra (ARM64)
-        path: Ink Canvas/bin/ARM64/Release

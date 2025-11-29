@@ -34,15 +34,7 @@ jobs:
 
     - name: Build Any CPU
       run: |
-        msbuild "Ink Canvas/Ink Canvas.csproj" /p:Configuration=Release /p:Platform="Any CPU" /p:AllowUnsafeBlocks=true
-
-    - name: Build x64
-      run: |
-        msbuild "Ink Canvas/Ink Canvas.csproj" /p:Configuration=Release /p:Platform=x64 /p:AllowUnsafeBlocks=true
-
-    - name: Build ARM64
-      run: |
-        msbuild "Ink Canvas/Ink Canvas.csproj" /p:Configuration=Release /p:Platform=ARM64 /p:AllowUnsafeBlocks=true
+        msbuild "Ink Canvas/Ink Canvas.csproj" /p:Configuration=Release /p:Platform="Any CPU" /p:GitFlow="Github Action"
 
     - name: Install Inno Setup
       run: |
@@ -54,27 +46,13 @@ jobs:
         New-Item -ItemType Directory -Force -Path dist
       shell: pwsh
 
-    - name: Build installers
+    - name: Build installer
       run: |
         iscc ".github\iss\Ink Canvas Ultra-AnyCPU.ci.iss"
-        iscc ".github\iss\Ink Canvas Ultra-x64.ci.iss"
-        iscc ".github\iss\Ink Canvas Ultra-ARM64.ci.iss"
       shell: pwsh
 
-    - name: Upload AnyCPU installer
+    - name: Upload installer
       uses: actions/upload-artifact@v4
       with:
-        name: Ink Canvas Ultra (AnyCPU) Installer
-        path: dist\Ink.Canvas.Ultra.V*.AnyCPU.Setup.exe
-
-    - name: Upload x64 installer
-      uses: actions/upload-artifact@v4
-      with:
-        name: Ink Canvas Ultra (x64) Installer
-        path: dist\Ink.Canvas.Ultra.V*.x64.Setup.exe
-
-    - name: Upload ARM64 installer
-      uses: actions/upload-artifact@v4
-      with:
-        name: Ink Canvas Ultra (ARM64) Installer
-        path: dist\Ink.Canvas.Ultra.V*.ARM64.Setup.exe
+        name: Ink Canvas Ultra Installer
+        path: dist\Ink.Canvas.Ultra.V*.Setup.exe

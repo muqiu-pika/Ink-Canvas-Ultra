@@ -30,7 +30,7 @@ DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=..\..\dist
-#define OutputBaseFilename "Ink.Canvas.Ultra.V" + MyAppVersion + ".AnyCPU.Setup"
+#define OutputBaseFilename "Ink.Canvas.Ultra.V" + MyAppVersion + ".Setup"
 OutputBaseFilename={#OutputBaseFilename}
 SetupIconFile="..\..\Ink Canvas\Resources\Ink Canvas Ultra.ico"
 Compression=lzma
@@ -47,8 +47,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 //Flags: unchecked
 
 [Files]
-Source: "..\..\Ink Canvas\bin\Any CPU\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\Ink Canvas\bin\Any CPU\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\Ink Canvas\bin\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\..\Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]

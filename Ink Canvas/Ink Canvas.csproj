@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>net472</TargetFramework>
-		<RuntimeIdentifiers>win;win-x86;win-x64;win-arm64;win7;win7-x86;win7-x64</RuntimeIdentifiers>
+		<RuntimeIdentifiers>win;win-x86;win7;win7-x86;win7-x64</RuntimeIdentifiers>
 		<OutputType>WinExe</OutputType>
 		<GenerateAssemblyInfo>False</GenerateAssemblyInfo>
 		<AssemblyName>Ink Canvas Ultra</AssemblyName>
@@ -27,7 +27,7 @@
 		<ApplicationVersion>6.0.1.%2a</ApplicationVersion>
 		<UseApplicationTrust>false</UseApplicationTrust>
 		<BootstrapperEnabled>false</BootstrapperEnabled>
-		<Platforms>AnyCPU;x86;x64;ARM64</Platforms>
+		<Platforms>AnyCPU;x86</Platforms>
 		<ApplicationManifest>app.manifest</ApplicationManifest>
 		<PlatformTarget>AnyCPU</PlatformTarget>
 		<UserSecretsId>f49ced3b-26c5-4244-91af-88faafb1a4e5</UserSecretsId>
@@ -44,18 +44,7 @@
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
 	  <Prefer32Bit>True</Prefer32Bit>
 	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-	  <Prefer32Bit>True</Prefer32Bit>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-	  <Prefer32Bit>True</Prefer32Bit>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
-	  <Prefer32Bit>True</Prefer32Bit>
-	</PropertyGroup>
-	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
-	  <Prefer32Bit>True</Prefer32Bit>
-	</PropertyGroup>
+	<!-- x64和ARM64平台支持已移除 -->
 	<ItemGroup>
 		<Reference Include="IACore">
 			<HintPath>.\IACore.dll</HintPath>
