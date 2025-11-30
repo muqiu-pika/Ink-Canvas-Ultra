@@ -33,6 +33,7 @@ OutputDir=dist
 #define OutputBaseFilename "Ink.Canvas.Ultra.V" + MyAppVersion + ".Setup"
 OutputBaseFilename={#OutputBaseFilename}
 SetupIconFile=Ink Canvas\Resources\Ink Canvas Ultra.ico
+UninstallDisplayIcon={app}\{#MyAppExeName}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
