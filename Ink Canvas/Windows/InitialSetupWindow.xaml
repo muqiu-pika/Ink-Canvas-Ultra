@@ -1,0 +1,676 @@
+<Window
+    x:Class="Ink_Canvas.InitialSetupWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+    xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
+    mc:Ignorable="d"
+    Title="Ink Canvas Ultra 初始设置"
+    Width="820"
+    Height="540"
+    MinWidth="720"
+    MinHeight="480"
+    WindowStartupLocation="CenterScreen"
+    ResizeMode="NoResize"
+    ui:ThemeManager.RequestedTheme="Light"
+    ui:WindowHelper.UseModernWindowStyle="False"
+    ui:WindowHelper.SystemBackdropType="Mica"
+    Topmost="True"
+    ShowInTaskbar="False">
+    <Border
+        Margin="10"
+        Padding="20"
+        Background="{DynamicResource PopupWindowBackground}"
+        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 头部 -->
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock
+                        Margin="0,0,8,0"
+                        FontSize="26"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource PopupWindowForeground}"
+                        Text="欢迎使用 Ink Canvas Ultra" />
+                    <Border
+                        Padding="6,2"
+                        Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                        CornerRadius="4">
+                        <TextBlock
+                            FontSize="11"
+                            Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
+                            Text="初始设置" />
+                    </Border>
+                </StackPanel>
+                <TextBlock
+                    Grid.Column="0"
+                    Margin="0,32,0,0"
+                    Foreground="{DynamicResource PopupWindowForeground}"
+                    Opacity="0.8"
+                    Text="我们会根据你的使用场景快速完成手势、PPT 和笔迹矫正等关键设置。"
+                    TextWrapping="Wrap" />
+                <TextBlock
+                    x:Name="StepIndicatorTextBlock"
+                    Grid.Column="1"
+                    VerticalAlignment="Bottom"
+                    FontSize="14"
+                    Foreground="{DynamicResource PopupWindowForeground}"
+                    Opacity="0.8"
+                    Text="步骤 1 / 3" />
+            </Grid>
+
+            <!-- 主内容区 -->
+            <Grid Grid.Row="1" Margin="0,20,0,20">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2.2*" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <!-- 左侧：分步内容 -->
+                <ScrollViewer Grid.Column="0" Margin="0,0,20,0" VerticalScrollBarVisibility="Auto">
+                    <Grid x:Name="ContentHostGrid">
+                    <Grid x:Name="Step1Grid" Opacity="1">
+                        <StackPanel>
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="SemiBold"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Text="启动选项" />
+                            <TextBlock
+                                Margin="0,6,0,16"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Opacity="0.8"
+                                Text="设置应用的自动更新与开机启动行为。"
+                                TextWrapping="Wrap" />
+
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Text="更新" />
+                                <CheckBox
+                                    x:Name="CheckBoxIsAutoUpdate"
+                                    Content="自动检查更新"
+                                    Margin="0,6,0,2"
+                                    Foreground="{DynamicResource PopupWindowForeground}" />
+                                <CheckBox
+                                    x:Name="CheckBoxIsAutoUpdateWithSilence"
+                                    Content="静默更新"
+                                    Margin="0,2,0,2"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Click="CheckBoxIsAutoUpdateWithSilence_Click" />
+                                <StackPanel x:Name="SilencePeriodPanel" Margin="10,4,0,0">
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Opacity="0.7"
+                                        Text="静默更新时间段" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                                            <TextBlock
+                                                Margin="0,0,10,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Foreground="{DynamicResource PopupWindowForeground}"
+                                                Text="起始时间" />
+                                            <ComboBox x:Name="ComboBoxAutoUpdateSilenceStartTime" Width="90" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock
+                                                Margin="0,0,10,0"
+                                                VerticalAlignment="Center"
+                                                FontSize="12"
+                                                Foreground="{DynamicResource PopupWindowForeground}"
+                                                Text="终止时间" />
+                                            <ComboBox x:Name="ComboBoxAutoUpdateSilenceEndTime" Width="90" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+                            </StackPanel>
+
+                            <StackPanel Margin="0,10,0,0">
+                                <TextBlock
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Text="启动" />
+                                <CheckBox
+                                    x:Name="CheckBoxRunAtStartup"
+                                    Content="开机时运行"
+                                    Margin="0,6,0,2"
+                                    Foreground="{DynamicResource PopupWindowForeground}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="Step2Grid" Opacity="0" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="SemiBold"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Text="墨迹识别选项" />
+                            <TextBlock
+                                Margin="0,6,0,16"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Opacity="0.8"
+                                Text="启用并调整墨迹识别功能，让手绘图形更规整。"
+                                TextWrapping="Wrap" />
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Text="识别与优化" />
+                                <UniformGrid Columns="2" Margin="0,6,0,0">
+                                    <CheckBox x:Name="CheckBoxEnableInkToShape" Content="启用墨迹识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                    <CheckBox x:Name="CheckBoxAutoStraightenLine" Content="直线自动拉直" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                    <CheckBox x:Name="CheckBoxInkToShapeTriangle" Content="启用三角形识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                    <CheckBox x:Name="CheckBoxLineEndpointSnapping" Content="端点吸附" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                    <CheckBox x:Name="CheckBoxInkToShapeRectangle" Content="启用四边形识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                    <CheckBox x:Name="CheckBoxNoFakePressureTriangle" Content="三角形使用等粗线" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                    <CheckBox x:Name="CheckBoxNoFakePressureRectangle" Content="矩形使用等粗线" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                </UniformGrid>
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <!-- Step 3: 外观选项 -->
+                    <Grid x:Name="Step3Grid" Opacity="0" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="SemiBold"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Text="外观选项" />
+                            <TextBlock
+                                Margin="0,6,0,16"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Opacity="0.8"
+                                Text="调整工具栏缩放、文字注释、展台侧栏位置与 PPT 导航按钮。"
+                                TextWrapping="Wrap" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                    <TextBlock
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="浮动工具栏" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Slider
+                                            x:Name="SliderFloatingBarScaleWizard"
+                                            Width="240"
+                                            Maximum="150"
+                                            Minimum="50"
+                                            ValueChanged="SliderFloatingBarScaleWizard_ValueChanged" />
+                                        <TextBlock
+                                            Width="40"
+                                            Margin="10,0,0,8"
+                                            VerticalAlignment="Bottom"
+                                            FontSize="14"
+                                            Text="{Binding Value, ElementName=SliderFloatingBarScaleWizard, Mode=OneWay}" />
+                                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Button Content="80%" Tag="80" Width="56" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                        <Button Content="100%" Tag="100" Width="56" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                        <Button Content="120%" Tag="120" Width="56" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                    </StackPanel>
+                                    <CheckBox
+                                        x:Name="CheckBoxEnableFloatBarText"
+                                        Content="浮动工具栏显示文字注释"
+                                        Margin="0,10,0,2"
+                                        Foreground="{DynamicResource PopupWindowForeground}" />
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                    <TextBlock
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="视频展台侧栏位置" />
+                                    <ComboBox x:Name="ComboBoxVideoPresenterSidebarPositionWizard" Width="160" Margin="0,6,0,0">
+                                        <ComboBoxItem Content="左侧" Tag="Left" />
+                                        <ComboBoxItem Content="右侧" Tag="Right" />
+                                    </ComboBox>
+
+                                    <TextBlock
+                                        Margin="0,12,0,0"
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="显示 PPT 导航按钮" />
+                                    <UniformGrid Columns="2" Margin="0,6,0,0">
+                                        <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="显示底部导航面板" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                        <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="显示底部上一页/下一页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                        <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="显示侧边导航面板" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                        <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="显示侧边上一页/下一页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="Step4Grid" Opacity="0" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="SemiBold"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Text="PPT 选项" />
+                            <TextBlock
+                                Margin="0,6,0,16"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Opacity="0.8"
+                                Text="配置幻灯片相关功能，优化演示体验。"
+                                TextWrapping="Wrap" />
+
+                            <StackPanel Margin="0,0,0,8">
+                                <TextBlock
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Text="集成" />
+                                <CheckBox
+                                    x:Name="CheckBoxSupportPowerPoint"
+                                    Content="Microsoft PowerPoint 支持"
+                                    Margin="0,6,0,2"
+                                    Foreground="{DynamicResource PopupWindowForeground}" />
+                                <CheckBox
+                                    x:Name="CheckBoxSupportWPS"
+                                    Content="WPS 支持"
+                                    Margin="0,2,0,2"
+                                    Foreground="{DynamicResource PopupWindowForeground}" />
+                            </StackPanel>
+
+                            <StackPanel Margin="0,10,0,8">
+                                <TextBlock
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Text="自动与提示" />
+                                <CheckBox
+                                    x:Name="CheckBoxAutoSaveScreenShotInPowerPoint"
+                                    Content="自动幻灯片截屏"
+                                    Margin="0,6,0,2"
+                                    Foreground="{DynamicResource PopupWindowForeground}" />
+                                <CheckBox
+                                    x:Name="CheckBoxNotifyHiddenPage"
+                                    Content="提示隐藏幻灯片"
+                                    Margin="0,2,0,2"
+                                    Foreground="{DynamicResource PopupWindowForeground}" />
+                                <CheckBox
+                                    x:Name="CheckBoxNotifyAutoPlayPresentation"
+                                    Content="提示是否已启用自动播放"
+                                    Margin="0,2,0,2"
+                                    Foreground="{DynamicResource PopupWindowForeground}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid x:Name="Step5Grid" Opacity="0" Visibility="Collapsed">
+                        <StackPanel>
+                            <TextBlock
+                                FontSize="20"
+                                FontWeight="SemiBold"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Text="高级选项" />
+                            <TextBlock
+                                Margin="0,6,0,16"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Opacity="0.8"
+                                Text="根据设备特性进行高级调节。"
+                                TextWrapping="Wrap" />
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+
+                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                    <TextBlock
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="特殊屏幕模式" />
+                                    <CheckBox
+                                        x:Name="CheckBoxIsSpecialScreen"
+                                        Content="启用特殊屏幕模式"
+                                        Margin="0,6,0,2"
+                                        Foreground="{DynamicResource PopupWindowForeground}" />
+                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <Slider
+                                            x:Name="SliderTouchMultiplier"
+                                            Width="260"
+                                            Maximum="5"
+                                            Minimum="0"
+                                            IsSnapToTickEnabled="True" />
+                                        <TextBlock
+                                            Width="40"
+                                            Margin="10,0,0,8"
+                                            VerticalAlignment="Bottom"
+                                            FontSize="14"
+                                            Text="{Binding Value, ElementName=SliderTouchMultiplier, Mode=OneWay}" />
+                                    </StackPanel>
+                                    <StackPanel Margin="0,6,0,0">
+                                        <TextBlock
+                                            FontSize="12"
+                                            Foreground="{DynamicResource PopupWindowForeground}"
+                                            Opacity="0.7"
+                                            Text="在下方区域内触摸以估计倍数" />
+                                        <Border
+                                            x:Name="BorderCalculateMultiplierWizard"
+                                            Height="48"
+                                            Margin="0,4,10,0"
+                                            Background="{DynamicResource PopupWindowBackground}"
+                                            BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                                            BorderThickness="2"
+                                            CornerRadius="4"
+                                            TouchDown="BorderCalculateMultiplier_TouchDown" />
+                                        <TextBlock
+                                            x:Name="TextBlockShowCalculatedMultiplierWizard"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource PopupWindowForeground}" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                    <TextBlock
+                                        FontWeight="SemiBold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="其他" />
+                                    <UniformGrid Columns="2" Margin="0,6,0,0">
+                                        <CheckBox x:Name="CheckBoxIsQuadIR" Content="四边红外模式" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                        <CheckBox x:Name="CheckBoxIsSecondConfimeWhenShutdownApp" Content="关闭软件时二次弹窗确认" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                        <CheckBox x:Name="CheckBoxIsEnableSilentRestartOnCrash" Content="崩溃时静默重启" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
+                                    </UniformGrid>
+                                </StackPanel>
+                            </Grid>
+                        </StackPanel>
+                    </Grid>
+                    </Grid>
+                </ScrollViewer>
+
+                <!-- 右侧：插画 / 提示 + Emoji 动画 -->
+                <Border
+                    Grid.Column="1"
+                    Background="{DynamicResource PopupWindowBackground}"
+                    CornerRadius="12">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <Border
+                            Margin="10"
+                            Background="#12111111"
+                            CornerRadius="10">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Ellipse
+                                    Width="120"
+                                    Height="120"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Top"
+                                    Margin="-40,-40,0,0"
+                                    Fill="#3338A4FF" />
+                                <Ellipse
+                                    Width="140"
+                                    Height="140"
+                                    HorizontalAlignment="Right"
+                                    VerticalAlignment="Bottom"
+                                    Margin="0,0,-50,-40"
+                                    Fill="#3324C087" />
+                                <Viewbox Grid.Row="0" Margin="20" Stretch="Uniform" StretchDirection="DownOnly">
+                                    <Grid>
+                                        <TextBlock
+                                            x:Name="EmojiStep1"
+                                            FontSize="300"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Center"
+                                            RenderTransformOrigin="0.5,0.5"
+                                            Text="🚀">
+                                            <TextBlock.RenderTransform>
+                                                <ScaleTransform />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                        <TextBlock
+                                            x:Name="EmojiStep2"
+                                            FontSize="300"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Center"
+                                            RenderTransformOrigin="0.5,0.5"
+                                            Text="✏️">
+                                            <TextBlock.RenderTransform>
+                                                <ScaleTransform />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                        <TextBlock
+                                            x:Name="EmojiStep3"
+                                            FontSize="300"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Center"
+                                            RenderTransformOrigin="0.5,0.5"
+                                            Text="🎨">
+                                            <TextBlock.RenderTransform>
+                                                <ScaleTransform />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                        <TextBlock
+                                            x:Name="EmojiStep4"
+                                            FontSize="300"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Center"
+                                            RenderTransformOrigin="0.5,0.5"
+                                            Text="📽️">
+                                            <TextBlock.RenderTransform>
+                                                <ScaleTransform />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                        <TextBlock
+                                            x:Name="EmojiStep5"
+                                            FontSize="300"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            TextAlignment="Center"
+                                            RenderTransformOrigin="0.5,0.5"
+                                            Text="⚙️">
+                                            <TextBlock.RenderTransform>
+                                                <ScaleTransform />
+                                            </TextBlock.RenderTransform>
+                                        </TextBlock>
+                                    </Grid>
+                                </Viewbox>
+
+                                <StackPanel Grid.Row="1" Margin="20,0,20,16" VerticalAlignment="Bottom">
+                                    <TextBlock
+                                        FontSize="20"
+                                        FontWeight="SemiBold"
+                                        Foreground="White"
+                                        Text="准备就绪" />
+                                    <TextBlock
+                                        Margin="0,6,0,0"
+                                        FontSize="12"
+                                        Foreground="#CCFFFFFF"
+                                        Text="这些设置会立即生效，你之后随时可以在“设置”中重新调整。"
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <Grid.Triggers>
+                                    <EventTrigger RoutedEvent="Loaded">
+                                        <BeginStoryboard>
+                                            <Storyboard RepeatBehavior="Forever" AutoReverse="True">
+                                                <DoubleAnimation
+                                                    Storyboard.TargetName="EmojiStep1"
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                    From="1"
+                                                    To="1.06"
+                                                    Duration="0:0:1.6" />
+                                                <DoubleAnimation
+                                                    Storyboard.TargetName="EmojiStep2"
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                    From="1"
+                                                    To="1.06"
+                                                    BeginTime="0:0:0.2"
+                                                    Duration="0:0:1.8" />
+                                                <DoubleAnimation
+                                                    Storyboard.TargetName="EmojiStep3"
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                    From="1"
+                                                    To="1.06"
+                                                    BeginTime="0:0:0.4"
+                                                    Duration="0:0:1.5" />
+                                                <DoubleAnimation
+                                                    Storyboard.TargetName="EmojiStep4"
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                    From="1"
+                                                    To="1.06"
+                                                    BeginTime="0:0:0.6"
+                                                    Duration="0:0:1.7" />
+                                                <DoubleAnimation
+                                                    Storyboard.TargetName="EmojiStep5"
+                                                    Storyboard.TargetProperty="(UIElement.RenderTransform).(ScaleTransform.ScaleY)"
+                                                    From="1"
+                                                    To="1.06"
+                                                    BeginTime="0:0:0.8"
+                                                    Duration="0:0:1.4" />
+                                            </Storyboard>
+                                        </BeginStoryboard>
+                                    </EventTrigger>
+                                </Grid.Triggers>
+                            </Grid>
+                        </Border>
+                        <StackPanel
+                            Grid.Row="1"
+                            Margin="10,4,10,0">
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Opacity="0.8"
+                                Text="此向导仅在首次启动时出现。"
+                                TextWrapping="Wrap" />
+                            <TextBlock
+                                Margin="0,2,0,6"
+                                FontSize="12"
+                                Foreground="{DynamicResource PopupWindowForeground}"
+                                Opacity="0.7"
+                                Text="你可以在菜单中打开“使用指南”和“设置”获取更多功能说明。"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <!-- 底部：导航按钮 -->
+            <Grid Grid.Row="2">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel
+                    Grid.Column="0"
+                    Orientation="Horizontal"
+                    VerticalAlignment="Center">
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Margin="2"
+                        Fill="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                        x:Name="DotStep1" />
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Margin="2"
+                        Fill="#40808080"
+                        x:Name="DotStep2" />
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Margin="2"
+                        Fill="#40808080"
+                        x:Name="DotStep3" />
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Margin="2"
+                        Fill="#40808080"
+                        x:Name="DotStep4" />
+                    <Ellipse
+                        Width="8"
+                        Height="8"
+                        Margin="2"
+                        Fill="#40808080"
+                        x:Name="DotStep5" />
+                </StackPanel>
+                <StackPanel
+                    Grid.Column="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+                    <Button
+                        x:Name="BtnSkip"
+                        Width="110"
+                        Margin="0,0,8,0"
+                        Padding="8,4"
+                        Background="Transparent"
+                        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                        BorderThickness="1"
+                        Foreground="{DynamicResource PopupWindowForeground}"
+                        Click="BtnSkip_Click">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <ui:FontIcon Margin="0,0,6,0" Glyph="&#xE711;" />
+                            <TextBlock Text="跳过" />
+                        </StackPanel>
+                    </Button>
+                    <Button
+                        x:Name="BtnPrevious"
+                        Width="110"
+                        Margin="0,0,8,0"
+                        Padding="8,4"
+                        Background="Transparent"
+                        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                        BorderThickness="1"
+                        Foreground="{DynamicResource PopupWindowForeground}"
+                        Click="BtnPrevious_Click"
+                        Visibility="Collapsed">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <ui:FontIcon Margin="0,0,6,0" Glyph="&#xE76B;" />
+                            <TextBlock Text="上一步" />
+                        </StackPanel>
+                    </Button>
+                    <Button
+                        x:Name="BtnNext"
+                        Width="140"
+                        Padding="8,4"
+                        Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                        BorderBrush="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                        Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
+                        Click="BtnNext_Click">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                            <ui:FontIcon Margin="0,0,6,0" Glyph="&#xE76C;" />
+                            <TextBlock x:Name="BtnNextTextBlock" Text="下一步" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 
+#pragma warning disable IDE0130 // 命名空间“Ink_Canvas”与文件夹结构不匹配
 namespace Ink_Canvas
 {
     public class Settings
@@ -120,6 +121,9 @@ namespace Ink_Canvas
         public bool IsAutoEnterModeFinger { get; set; } = false;*/
         [JsonProperty("isFoldAtStartup")]
         public bool IsFoldAtStartup { get; set; } = false;
+
+        [JsonProperty("isInitialSetupCompleted")]
+        public bool IsInitialSetupCompleted { get; set; } = false;
     }
 
     public class Appearance
@@ -358,3 +362,4 @@ namespace Ink_Canvas
         public bool IsNotRepeatName { get; set; } = false;
     }
 }
+#pragma warning restore IDE0130

@@ -14,8 +14,7 @@ namespace Ink_Canvas
         public ChangeLogWindow()
         {
             InitializeComponent();
-            MainWindow mainWindow = Application.Current.MainWindow as MainWindow;
-            if (mainWindow != null)
+            if (Application.Current.MainWindow is MainWindow mainWindow)
             {
                 if (mainWindow.GetMainWindowTheme() == "Light")
                 {

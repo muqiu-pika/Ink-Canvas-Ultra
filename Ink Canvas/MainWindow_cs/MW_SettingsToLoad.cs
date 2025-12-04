@@ -178,13 +178,16 @@ namespace Ink_Canvas
 
                 if (Settings.Appearance.IsColorfulViewboxFloatingBar) // 浮动工具栏背景色
                 {
-                    LinearGradientBrush gradientBrush = new LinearGradientBrush();
-                    gradientBrush.StartPoint = new Point(0, 0);
-                    gradientBrush.EndPoint = new Point(1, 1);
-                    GradientStop blueStop = new GradientStop(Color.FromArgb(0x95, 0x80, 0xB0, 0xFF), 0);
-                    GradientStop greenStop = new GradientStop(Color.FromArgb(0x95, 0xC0, 0xFF, 0xC0), 1);
-                    gradientBrush.GradientStops.Add(blueStop);
-                    gradientBrush.GradientStops.Add(greenStop);
+                    var gradientBrush = new LinearGradientBrush
+                    {
+                        StartPoint = new Point(0, 0),
+                        EndPoint = new Point(1, 1),
+                        GradientStops = new GradientStopCollection
+                        {
+                            new GradientStop(Color.FromArgb(0x95, 0x80, 0xB0, 0xFF), 0),
+                            new GradientStop(Color.FromArgb(0x95, 0xC0, 0xFF, 0xC0), 1)
+                        }
+                    };
                     EnableTwoFingerGestureBorder.Background = gradientBrush;
                     BorderFloatingBarMainControls.Background = gradientBrush;
                     BorderFloatingBarMoveControls.Background = gradientBrush;
@@ -708,6 +711,38 @@ namespace Ink_Canvas
                 Settings.Automation = new Automation();
             }
             ViewboxFloatingBarMarginAnimation();
+        }
+
+        /// <summary>
+        /// 从当前内存中的 Settings 对象重新应用设置到主窗口 UI。
+        /// （不重新从磁盘读取，用于设置被外部窗口修改后快速刷新界面）
+        /// </summary>
+        public void ReloadSettingsFromSettingsObject()
+        {
+            LoadSettings();
+        }
+
+        /// <summary>
+        /// 如果是首次启动且尚未完成初始向导，则尝试显示初始设置向导窗口。
+        /// </summary>
+        private void TryShowInitialSetupWizard()
+        {
+            try
+            {
+                if (Settings?.Startup == null) return;
+                if (Settings.Startup.IsInitialSetupCompleted) return;
+
+                // 避免在特殊无界面模式下弹窗（如某些自动化场景），此处仅在主窗口正常显示后调用
+                var wizard = new InitialSetupWindow
+                {
+                    Owner = this
+                };
+                wizard.Show();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("TryShowInitialSetupWizard failed | " + ex, LogHelper.LogType.Error);
+            }
         }
     }
 }

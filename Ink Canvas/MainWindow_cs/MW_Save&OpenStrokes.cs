@@ -738,8 +738,7 @@ namespace Ink_Canvas
                         using (var es = new FileStream(elementsPath, FileMode.Open))
                         {
                             var obj = XamlReader.Load(es);
-                            var loadedCanvas = obj as InkCanvas;
-                            if (loadedCanvas != null)
+                            if (obj is InkCanvas loadedCanvas)
                             {
                                 foreach (UIElement child in loadedCanvas.Children)
                                 {

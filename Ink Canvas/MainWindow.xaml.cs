@@ -242,6 +242,9 @@ namespace Ink_Canvas
 
             // 启动后提示是否恢复上次会话
             PromptRestoreLastSessionOnStartup();
+
+            // 首次安装引导
+            TryShowInitialSetupWizard();
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

@@ -351,14 +351,12 @@ namespace Ink_Canvas.MainWindow_cs
                     {
                         var photoPageMappingField = mainWindow.GetType().GetField("photoPageMapping", 
                             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                        if (photoPageMappingField != null)
+                        if (photoPageMappingField != null &&
+                            photoPageMappingField.GetValue(mainWindow) is System.Collections.Generic.Dictionary<string, int> photoPageMapping &&
+                            photoPageMapping.ContainsValue(currentPage))
                         {
-                            var photoPageMapping = photoPageMappingField.GetValue(mainWindow) as System.Collections.Generic.Dictionary<string, int>;
-                            if (photoPageMapping != null && photoPageMapping.ContainsValue(currentPage))
-                            {
-                                hasCameraFrameOrPhoto = true;
-                                Console.WriteLine($"检测到当前页面 {currentPage} 在photoPageMapping中有关联照片");
-                            }
+                            hasCameraFrameOrPhoto = true;
+                            Console.WriteLine($"检测到当前页面 {currentPage} 在photoPageMapping中有关联照片");
                         }
                     }
                     catch (Exception ex)
@@ -442,14 +440,12 @@ namespace Ink_Canvas.MainWindow_cs
                     // 通过反射检查photoPageMapping中是否有与新页面关联的照片
                     var photoPageMappingField = mainWindow.GetType().GetField("photoPageMapping",
                         System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                    if (photoPageMappingField != null)
+                    if (photoPageMappingField != null &&
+                        photoPageMappingField.GetValue(mainWindow) is System.Collections.Generic.Dictionary<string, int> photoPageMapping &&
+                        photoPageMapping.ContainsValue(newPageIndex))
                     {
-                        var photoPageMapping = photoPageMappingField.GetValue(mainWindow) as System.Collections.Generic.Dictionary<string, int>;
-                        if (photoPageMapping != null && photoPageMapping.ContainsValue(newPageIndex))
-                        {
-                            hasCameraFrameOrPhotoOnNewPage = true;
-                            Console.WriteLine($"页面切换时检测到新页面 {newPageIndex} 在photoPageMapping中有关联照片");
-                        }
+                        hasCameraFrameOrPhotoOnNewPage = true;
+                        Console.WriteLine($"页面切换时检测到新页面 {newPageIndex} 在photoPageMapping中有关联照片");
                     }
                 }
                 catch (Exception ex)

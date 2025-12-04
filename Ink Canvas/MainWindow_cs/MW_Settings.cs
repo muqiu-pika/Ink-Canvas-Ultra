@@ -828,6 +828,20 @@ namespace Ink_Canvas
             ShowNotificationAsync("设置已重置为默认推荐设置~");
         }
 
+        private void BtnOpenInitialSetup_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var wizard = new InitialSetupWindow
+                {
+                    Owner = this,
+                    Topmost = true
+                };
+                wizard.Show();
+            }
+            catch { }
+        }
+
         private async void SpecialVersionResetToSuggestion_Click()
         {
             await Task.Delay(1000);
