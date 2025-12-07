@@ -1,10 +1,12 @@
 using Ink_Canvas.Helpers;
 using iNKORE.UI.WPF.Modern;
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
+using System.Windows.Media;
 
 namespace Ink_Canvas
 {
@@ -12,6 +14,7 @@ namespace Ink_Canvas
     {
         private int _currentStep = 1;
         private readonly MainWindow _mainWindow;
+        private bool _navLocked = false;
 
         public InitialSetupWindow()
         {
@@ -39,6 +42,21 @@ namespace Ink_Canvas
                         var rd = new ResourceDictionary { Source = new Uri("Resources/Styles/Dark-PopupWindow.xaml", UriKind.Relative) };
                         Application.Current.Resources.MergedDictionaries.Add(rd);
                     }
+                    try
+                    {
+                        var baseBrush = FindResource("PopupWindowDarkBlueBorderBackground") as System.Windows.Media.SolidColorBrush;
+                        if (baseBrush != null)
+                        {
+                            var c = baseBrush.Color;
+                            byte r = (byte)Math.Max(0, c.R - 18);
+                            byte g = (byte)Math.Max(0, c.G - 18);
+                            byte b = (byte)Math.Max(0, c.B - 18);
+                            var hoverBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(r, g, b));
+                            hoverBrush.Opacity = Math.Min(1.0, baseBrush.Opacity + 0.05);
+                            Resources["PopupWindowHoverBackground"] = hoverBrush;
+                        }
+                    }
+                    catch { }
                 }
             }
             catch { }
@@ -70,10 +88,8 @@ namespace Ink_Canvas
                     catch { }
                     try
                     {
-                        if (System.IO.File.Exists(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\Ink Canvas Ultra.lnk"))
-                        {
-                            CheckBoxRunAtStartup.IsChecked = true;
-                        }
+                        var link = Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\Ink Canvas Ultra.lnk";
+                        CheckBoxRunAtStartup.IsChecked = System.IO.File.Exists(link);
                     }
                     catch { }
                 }
@@ -93,13 +109,26 @@ namespace Ink_Canvas
                 {
                     CheckBoxAutoStraightenLine.IsChecked = canvas.AutoStraightenLine;
                     CheckBoxLineEndpointSnapping.IsChecked = canvas.LineEndpointSnapping;
+                    try { CheckBoxShowCursorWizard.IsChecked = canvas.IsShowCursor; } catch { }
+                    try { CheckBoxAutoClearOnExitWizard.IsChecked = canvas.HideStrokeWhenSelecting; } catch { }
                 }
 
                 // Step3 - 外观选项
                 var appearance = MainWindow.Settings.Appearance;
                 if (appearance != null)
                 {
-                    try { SliderFloatingBarScaleWizard.Value = appearance.FloatingBarScale; } catch { }
+                    try
+                    {
+                        double v = appearance.FloatingBarScale;
+                        if (v > 0 && v <= 3)
+                        {
+                            v *= 100;
+                        }
+                        if (v < SliderFloatingBarScaleWizard.Minimum) v = SliderFloatingBarScaleWizard.Minimum;
+                        if (v > SliderFloatingBarScaleWizard.Maximum) v = SliderFloatingBarScaleWizard.Maximum;
+                        SliderFloatingBarScaleWizard.Value = v;
+                    }
+                    catch { }
                     CheckBoxEnableFloatBarText.IsChecked = appearance.IsEnableDisPlayFloatBarText;
                     try
                     {
@@ -192,6 +221,14 @@ namespace Ink_Canvas
                 {
                     MainWindow.Settings.Canvas.AutoStraightenLine = CheckBoxAutoStraightenLine.IsChecked == true;
                     MainWindow.Settings.Canvas.LineEndpointSnapping = CheckBoxLineEndpointSnapping.IsChecked == true;
+                    // 保存画笔与笔迹相关设置
+                    MainWindow.Settings.Canvas.IsShowCursor = CheckBoxShowCursorWizard.IsChecked == true;
+                }
+                
+                // 保存退出画板模式后隐藏墨迹的设置
+                if (MainWindow.Settings.Canvas != null)
+                {
+                    MainWindow.Settings.Canvas.HideStrokeWhenSelecting = CheckBoxAutoClearOnExitWizard.IsChecked == true;
                 }
 
                 // Step3 - 外观选项
@@ -279,12 +316,23 @@ namespace Ink_Canvas
 
         private void UpdateSilencePeriodVisibility()
         {
-            try { SilencePeriodPanel.Visibility = (CheckBoxIsAutoUpdateWithSilence.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed; } catch { }
+            try
+            {
+                bool autoUpdateOn = CheckBoxIsAutoUpdate.IsChecked == true;
+                CheckBoxIsAutoUpdateWithSilence.Visibility = autoUpdateOn ? Visibility.Visible : Visibility.Collapsed;
+                if (!autoUpdateOn)
+                {
+                    CheckBoxIsAutoUpdateWithSilence.IsChecked = false;
+                }
+                SilencePeriodPanel.Visibility = (autoUpdateOn && CheckBoxIsAutoUpdateWithSilence.IsChecked == true) ? Visibility.Visible : Visibility.Collapsed;
+            }
+            catch { }
         }
 
         private void CheckBoxIsAutoUpdateWithSilence_Click(object sender, RoutedEventArgs e)
         {
             UpdateSilencePeriodVisibility();
+            try { _mainWindow?.SetAutoUpdateWithSilenceEnabled(CheckBoxIsAutoUpdateWithSilence.IsChecked == true); } catch { }
         }
 
         private void BorderCalculateMultiplier_TouchDown(object sender, TouchEventArgs e)
@@ -423,24 +471,166 @@ namespace Ink_Canvas
 
         private void BtnPrevious_Click(object sender, RoutedEventArgs e)
         {
+            if (_navLocked) return;
             if (_currentStep <= 1) return;
+            LockNav();
             _currentStep--;
             UpdateStepVisual();
         }
 
         private void BtnNext_Click(object sender, RoutedEventArgs e)
         {
+            if (_navLocked) return;
             if (_currentStep < 5)
             {
+                LockNav();
                 _currentStep++;
                 UpdateStepVisual();
             }
             else
             {
-                // 完成
-                SaveToSettings();
-                Close();
+                ShowCongratsPage();
             }
+        }
+
+        private bool _isCongratsShown = false;
+
+        private void ShowCongratsPage()
+        {
+            try
+            {
+                _isCongratsShown = true;
+                ShowStepGrid(Step1Grid, false);
+                ShowStepGrid(Step2Grid, false);
+                ShowStepGrid(Step3Grid, false);
+                ShowStepGrid(Step4Grid, false);
+                ShowStepGrid(Step5Grid, false);
+                ShowStepGrid(Step6Grid, true);
+                
+                // 隐藏底部导航面板
+                if (BottomNavPanel != null) BottomNavPanel.Visibility = Visibility.Collapsed;
+                
+                // 隐藏步骤指示器
+                if (StepIndicatorTextBlock != null) StepIndicatorTextBlock.Visibility = Visibility.Collapsed;
+                
+                // 1. 隐藏右侧插画区域
+                var rightBorder = this.FindName("RightBorder") as Border;
+                if (rightBorder == null)
+                {
+                    // 如果没有找到命名的Border，尝试通过Grid.Column查找
+                    var contentHostGrid = this.FindName("ContentHostGrid") as Grid;
+                    if (contentHostGrid != null)
+                    {
+                        var parentGrid = contentHostGrid.Parent as ScrollViewer;
+                        if (parentGrid != null && parentGrid.Parent is Grid mainGrid)
+                        {
+                            rightBorder = mainGrid.Children.OfType<Border>().FirstOrDefault(b => Grid.GetColumn(b) == 1);
+                        }
+                    }
+                }
+                if (rightBorder != null)
+                {
+                    rightBorder.Visibility = Visibility.Collapsed;
+                }
+                
+                // 2. 调整列宽，让左侧内容占据整个宽度
+                LeftColumn.Width = new GridLength(1, GridUnitType.Star);
+                RightColumn.Width = new GridLength(0);
+                
+                // 3. 调整ScrollViewer，使其占据整个宽度
+                var mainContentGrid = ContentHostGrid.Parent as ScrollViewer;
+                if (mainContentGrid != null)
+                {
+                    mainContentGrid.Margin = new Thickness(0);
+                }
+                
+                StartConfetti();
+            }
+            catch { }
+        }
+
+        private void BtnStartUsing_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                SaveToSettings();
+            }
+            catch { }
+            Close();
+        }
+
+        private void StartConfetti()
+        {
+            try
+            {
+                if (ConfettiCanvas == null) return;
+                ConfettiCanvas.Children.Clear();
+                var rand = new Random();
+                for (int i = 0; i < 60; i++)
+                {
+                    var rect = new System.Windows.Shapes.Rectangle
+                    {
+                        Width = rand.Next(6, 14),
+                        Height = rand.Next(10, 24),
+                        Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb((byte)rand.Next(50, 255), (byte)rand.Next(50, 255), (byte)rand.Next(50, 255)))
+                    };
+                    double left = rand.NextDouble() * ConfettiCanvas.ActualWidth;
+                    if (double.IsNaN(left) || left <= 0) left = rand.Next(0, 780);
+                    System.Windows.Controls.Canvas.SetLeft(rect, left);
+                    System.Windows.Controls.Canvas.SetTop(rect, -rand.Next(20, 200));
+                    ConfettiCanvas.Children.Add(rect);
+
+                    var transform = new TranslateTransform();
+                    rect.RenderTransform = transform;
+
+                    var fall = new DoubleAnimation
+                    {
+                        From = 0,
+                        To = ConfettiCanvas.ActualHeight + 300,
+                        Duration = TimeSpan.FromSeconds(rand.NextDouble() * 1.8 + 1.8),
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    transform.BeginAnimation(TranslateTransform.YProperty, fall);
+
+                    var sway = new DoubleAnimation
+                    {
+                        From = -12,
+                        To = 12,
+                        Duration = TimeSpan.FromSeconds(rand.NextDouble() * 1.5 + 0.8),
+                        AutoReverse = true,
+                        RepeatBehavior = RepeatBehavior.Forever
+                    };
+                    transform.BeginAnimation(TranslateTransform.XProperty, sway);
+                }
+            }
+            catch { }
+        }
+
+        private void LockNav(int milliseconds = 320)
+        {
+            try
+            {
+                _navLocked = true;
+                if (BtnNext != null) BtnNext.IsEnabled = false;
+                if (BtnPrevious != null) BtnPrevious.IsEnabled = false;
+                var t = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(milliseconds)
+                };
+                t.Tick += (s, e) =>
+                {
+                    try
+                    {
+                        _navLocked = false;
+                        if (BtnNext != null) BtnNext.IsEnabled = true;
+                        if (BtnPrevious != null) BtnPrevious.IsEnabled = _currentStep > 1 ? Visibility.Visible == BtnPrevious.Visibility : false;
+                    }
+                    catch { }
+                    if (s is System.Windows.Threading.DispatcherTimer dt) dt.Stop();
+                };
+                t.Start();
+            }
+            catch { }
         }
 
         private void BtnSkip_Click(object sender, RoutedEventArgs e)
@@ -459,6 +649,175 @@ namespace Ink_Canvas
             Close();
         }
 
+        private void CheckBoxIsAutoUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            try { _mainWindow?.SetAutoUpdateEnabled(CheckBoxIsAutoUpdate.IsChecked == true); } catch { }
+            UpdateSilencePeriodVisibility();
+        }
+
+        private void CheckBoxRunAtStartup_Click(object sender, RoutedEventArgs e)
+        {
+            try { _mainWindow?.SetRunAtStartupEnabled(CheckBoxRunAtStartup.IsChecked == true); } catch { }
+        }
+
+        private void CheckBoxEnableFloatBarText_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Appearance != null)
+                {
+                    MainWindow.Settings.Appearance.IsEnableDisPlayFloatBarText = CheckBoxEnableFloatBarText.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void ComboBoxVideoPresenterSidebarPositionWizard_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Appearance != null)
+                {
+                    var item = ComboBoxVideoPresenterSidebarPositionWizard.SelectedItem as ComboBoxItem;
+                    if (item?.Tag != null)
+                    {
+                        MainWindow.Settings.Appearance.VideoPresenterSidebarPosition = item.Tag.ToString();
+                        MainWindow.SaveSettingsToFile();
+                        _mainWindow?.ReloadSettingsFromSettingsObject();
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxShowPPTNavigationPanelBottom_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.IsShowBottomPPTNavigationPanel = CheckBoxShowPPTNavigationPanelBottom.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxShowButtonPPTNavigationBottom_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.IsShowPPTNavigationBottom = CheckBoxShowButtonPPTNavigationBottom.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxShowPPTNavigationPanelSide_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.IsShowSidePPTNavigationPanel = CheckBoxShowPPTNavigationPanelSide.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxShowButtonPPTNavigationSides_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.IsShowPPTNavigationSides = CheckBoxShowButtonPPTNavigationSides.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxSupportPowerPoint_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.PowerPointSupport = CheckBoxSupportPowerPoint.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxSupportWPS_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.IsSupportWPS = CheckBoxSupportWPS.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxAutoSaveScreenShotInPowerPoint_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint = CheckBoxAutoSaveScreenShotInPowerPoint.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxNotifyHiddenPage_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.IsNotifyHiddenPage = CheckBoxNotifyHiddenPage.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxNotifyAutoPlayPresentation_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.PowerPointSettings != null)
+                {
+                    MainWindow.Settings.PowerPointSettings.IsNotifyAutoPlayPresentation = CheckBoxNotifyAutoPlayPresentation.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
         protected override void OnPreviewKeyDown(KeyEventArgs e)
         {
             base.OnPreviewKeyDown(e);
@@ -467,6 +826,202 @@ namespace Ink_Canvas
                 BtnSkip_Click(this, new RoutedEventArgs());
                 e.Handled = true;
             }
+        }
+
+        private void CheckBoxShowCursorWizard_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Canvas != null)
+                {
+                    MainWindow.Settings.Canvas.IsShowCursor = CheckBoxShowCursorWizard.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxAutoClearOnExitWizard_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Canvas != null)
+                {
+                    MainWindow.Settings.Canvas.HideStrokeWhenSelecting = CheckBoxAutoClearOnExitWizard.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxEnableInkToShape_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.InkToShape != null)
+                {
+                    MainWindow.Settings.InkToShape.IsInkToShapeEnabled = CheckBoxEnableInkToShape.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxInkToShapeTriangle_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.InkToShape != null)
+                {
+                    MainWindow.Settings.InkToShape.IsInkToShapeTriangle = CheckBoxInkToShapeTriangle.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxInkToShapeRectangle_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.InkToShape != null)
+                {
+                    MainWindow.Settings.InkToShape.IsInkToShapeRectangle = CheckBoxInkToShapeRectangle.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxNoFakePressureTriangle_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.InkToShape != null)
+                {
+                    MainWindow.Settings.InkToShape.IsInkToShapeNoFakePressureTriangle = CheckBoxNoFakePressureTriangle.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxNoFakePressureRectangle_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.InkToShape != null)
+                {
+                    MainWindow.Settings.InkToShape.IsInkToShapeNoFakePressureRectangle = CheckBoxNoFakePressureRectangle.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxAutoStraightenLine_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Canvas != null)
+                {
+                    MainWindow.Settings.Canvas.AutoStraightenLine = CheckBoxAutoStraightenLine.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxLineEndpointSnapping_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Canvas != null)
+                {
+                    MainWindow.Settings.Canvas.LineEndpointSnapping = CheckBoxLineEndpointSnapping.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxIsSpecialScreen_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Advanced != null)
+                {
+                    MainWindow.Settings.Advanced.IsSpecialScreen = CheckBoxIsSpecialScreen.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void SliderTouchMultiplier_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Advanced != null)
+                {
+                    MainWindow.Settings.Advanced.TouchMultiplier = e.NewValue;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxIsQuadIR_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Advanced != null)
+                {
+                    MainWindow.Settings.Advanced.IsQuadIR = CheckBoxIsQuadIR.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxIsSecondConfimeWhenShutdownApp_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Advanced != null)
+                {
+                    MainWindow.Settings.Advanced.IsSecondConfimeWhenShutdownApp = CheckBoxIsSecondConfimeWhenShutdownApp.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
+        }
+
+        private void CheckBoxIsEnableSilentRestartOnCrash_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (MainWindow.Settings?.Advanced != null)
+                {
+                    MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash = CheckBoxIsEnableSilentRestartOnCrash.IsChecked == true;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
+                }
+            }
+            catch { }
         }
 
         #endregion

@@ -51,326 +51,344 @@
                         Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
                         CornerRadius="4">
                         <TextBlock
-                            FontSize="11"
+                            FontSize="13"
                             Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
-                            Text="初始设置" />
+                            Text="初始设置" Height="18" />
                     </Border>
                 </StackPanel>
                 <TextBlock
                     Grid.Column="0"
-                    Margin="0,32,0,0"
+                    Margin="0,52,0,-20"
                     Foreground="{DynamicResource PopupWindowForeground}"
                     Opacity="0.8"
                     Text="我们会根据你的使用场景快速完成手势、PPT 和笔迹矫正等关键设置。"
                     TextWrapping="Wrap" />
                 <TextBlock
                     x:Name="StepIndicatorTextBlock"
-                    Grid.Column="1"
-                    VerticalAlignment="Bottom"
+                    VerticalAlignment="Top"
                     FontSize="14"
                     Foreground="{DynamicResource PopupWindowForeground}"
                     Opacity="0.8"
-                    Text="步骤 1 / 3" />
+                    Text="步骤 1 / 5" Margin="634,42,31,0" />
             </Grid>
 
             <!-- 主内容区 -->
             <Grid Grid.Row="1" Margin="0,20,0,20">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2.2*" />
-                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="2.2*" x:Name="LeftColumn" />
+                    <ColumnDefinition Width="*" x:Name="RightColumn" />
                 </Grid.ColumnDefinitions>
 
                 <!-- 左侧：分步内容 -->
                 <ScrollViewer Grid.Column="0" Margin="0,0,20,0" VerticalScrollBarVisibility="Auto">
                     <Grid x:Name="ContentHostGrid">
-                    <Grid x:Name="Step1Grid" Opacity="1">
-                        <StackPanel>
-                            <TextBlock
+                        <Grid x:Name="Step1Grid" Opacity="1">
+                            <StackPanel>
+                                <TextBlock
                                 FontSize="20"
                                 FontWeight="SemiBold"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Text="启动选项" />
-                            <TextBlock
+                                <TextBlock
                                 Margin="0,6,0,16"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Opacity="0.8"
                                 Text="设置应用的自动更新与开机启动行为。"
                                 TextWrapping="Wrap" />
 
-                            <StackPanel Margin="0,0,0,8">
-                                <TextBlock
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock
                                     FontWeight="SemiBold"
                                     Foreground="{DynamicResource PopupWindowForeground}"
                                     Text="更新" />
-                                <CheckBox
+                                    <CheckBox
                                     x:Name="CheckBoxIsAutoUpdate"
                                     Content="自动检查更新"
                                     Margin="0,6,0,2"
-                                    Foreground="{DynamicResource PopupWindowForeground}" />
-                                <CheckBox
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Click="CheckBoxIsAutoUpdate_Click" />
+                                    <CheckBox
                                     x:Name="CheckBoxIsAutoUpdateWithSilence"
                                     Content="静默更新"
                                     Margin="0,2,0,2"
                                     Foreground="{DynamicResource PopupWindowForeground}"
                                     Click="CheckBoxIsAutoUpdateWithSilence_Click" />
-                                <StackPanel x:Name="SilencePeriodPanel" Margin="10,4,0,0">
-                                    <TextBlock
+                                    <StackPanel x:Name="SilencePeriodPanel" Margin="10,4,0,0">
+                                        <TextBlock
                                         FontSize="12"
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Opacity="0.7"
                                         Text="静默更新时间段" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
-                                            <TextBlock
+                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,12,0">
+                                                <TextBlock
                                                 Margin="0,0,10,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="12"
                                                 Foreground="{DynamicResource PopupWindowForeground}"
                                                 Text="起始时间" />
-                                            <ComboBox x:Name="ComboBoxAutoUpdateSilenceStartTime" Width="90" />
-                                        </StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock
+                                                <ComboBox x:Name="ComboBoxAutoUpdateSilenceStartTime" Width="90" />
+                                            </StackPanel>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBlock
                                                 Margin="0,0,10,0"
                                                 VerticalAlignment="Center"
                                                 FontSize="12"
                                                 Foreground="{DynamicResource PopupWindowForeground}"
                                                 Text="终止时间" />
-                                            <ComboBox x:Name="ComboBoxAutoUpdateSilenceEndTime" Width="90" />
+                                                <ComboBox x:Name="ComboBoxAutoUpdateSilenceEndTime" Width="90" />
+                                            </StackPanel>
                                         </StackPanel>
                                     </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
 
-                            <StackPanel Margin="0,10,0,0">
-                                <TextBlock
+                                <StackPanel Margin="0,10,0,0">
+                                    <TextBlock
                                     FontWeight="SemiBold"
                                     Foreground="{DynamicResource PopupWindowForeground}"
                                     Text="启动" />
-                                <CheckBox
+                                    <CheckBox
                                     x:Name="CheckBoxRunAtStartup"
                                     Content="开机时运行"
                                     Margin="0,6,0,2"
-                                    Foreground="{DynamicResource PopupWindowForeground}" />
-                            </StackPanel>
-                        </StackPanel>
-                    </Grid>
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Click="CheckBoxRunAtStartup_Click" />
+                                </StackPanel>
 
-                    <Grid x:Name="Step2Grid" Opacity="0" Visibility="Collapsed">
-                        <StackPanel>
-                            <TextBlock
+                                <StackPanel Margin="0,10,0,0">
+                                    <TextBlock
+                                    FontWeight="SemiBold"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Text="画笔与笔迹" />
+                                    <UniformGrid Columns="2" Margin="0,6,0,0">
+                                        <CheckBox x:Name="CheckBoxShowCursorWizard" Content="显示画笔光标" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowCursorWizard_Click" />
+                                        <CheckBox x:Name="CheckBoxAutoClearOnExitWizard" Content="退出画板模式后隐藏墨迹" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxAutoClearOnExitWizard_Click" />
+                                    </UniformGrid>
+                                </StackPanel>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid x:Name="Step2Grid" Opacity="0" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock
                                 FontSize="20"
                                 FontWeight="SemiBold"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Text="墨迹识别选项" />
-                            <TextBlock
+                                <TextBlock
                                 Margin="0,6,0,16"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Opacity="0.8"
                                 Text="启用并调整墨迹识别功能，让手绘图形更规整。"
                                 TextWrapping="Wrap" />
-                            <StackPanel Margin="0,0,0,8">
-                                <TextBlock
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock
                                     FontWeight="SemiBold"
                                     Foreground="{DynamicResource PopupWindowForeground}"
                                     Text="识别与优化" />
-                                <UniformGrid Columns="2" Margin="0,6,0,0">
-                                    <CheckBox x:Name="CheckBoxEnableInkToShape" Content="启用墨迹识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                    <CheckBox x:Name="CheckBoxAutoStraightenLine" Content="直线自动拉直" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                    <CheckBox x:Name="CheckBoxInkToShapeTriangle" Content="启用三角形识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                    <CheckBox x:Name="CheckBoxLineEndpointSnapping" Content="端点吸附" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                    <CheckBox x:Name="CheckBoxInkToShapeRectangle" Content="启用四边形识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                    <CheckBox x:Name="CheckBoxNoFakePressureTriangle" Content="三角形使用等粗线" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                    <CheckBox x:Name="CheckBoxNoFakePressureRectangle" Content="矩形使用等粗线" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                </UniformGrid>
+                                    <UniformGrid Columns="2" Margin="0,6,0,0">
+                                        <CheckBox x:Name="CheckBoxEnableInkToShape" Content="启用墨迹识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxEnableInkToShape_Click" />
+                                        <CheckBox x:Name="CheckBoxAutoStraightenLine" Content="直线自动拉直" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxAutoStraightenLine_Click" />
+                                        <CheckBox x:Name="CheckBoxInkToShapeTriangle" Content="启用三角形识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxInkToShapeTriangle_Click" />
+                                        <CheckBox x:Name="CheckBoxLineEndpointSnapping" Content="端点吸附" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxLineEndpointSnapping_Click" />
+                                        <CheckBox x:Name="CheckBoxInkToShapeRectangle" Content="启用四边形识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxInkToShapeRectangle_Click" />
+                                        <CheckBox x:Name="CheckBoxNoFakePressureTriangle" Content="三角形使用等粗线" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxNoFakePressureTriangle_Click" />
+                                        <CheckBox x:Name="CheckBoxNoFakePressureRectangle" Content="矩形使用等粗线" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxNoFakePressureRectangle_Click" />
+                                    </UniformGrid>
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Grid>
+                        </Grid>
 
-                    <!-- Step 3: 外观选项 -->
-                    <Grid x:Name="Step3Grid" Opacity="0" Visibility="Collapsed">
-                        <StackPanel>
-                            <TextBlock
+                        <!-- Step 3: 外观选项 -->
+                        <Grid x:Name="Step3Grid" Opacity="0" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock
                                 FontSize="20"
                                 FontWeight="SemiBold"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Text="外观选项" />
-                            <TextBlock
+                                <TextBlock
                                 Margin="0,6,0,16"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Opacity="0.8"
                                 Text="调整工具栏缩放、文字注释、展台侧栏位置与 PPT 导航按钮。"
                                 TextWrapping="Wrap" />
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                    <TextBlock
+                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                        <TextBlock
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="浮动工具栏" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <Slider
+                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                            <Slider
                                             x:Name="SliderFloatingBarScaleWizard"
                                             Width="240"
                                             Maximum="150"
                                             Minimum="50"
                                             ValueChanged="SliderFloatingBarScaleWizard_ValueChanged" />
-                                        <TextBlock
+                                            <TextBlock
                                             Width="40"
                                             Margin="10,0,0,8"
                                             VerticalAlignment="Bottom"
                                             FontSize="14"
                                             Text="{Binding Value, ElementName=SliderFloatingBarScaleWizard, Mode=OneWay}" />
-                                    </StackPanel>
-                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <Button Content="80%" Tag="80" Width="56" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
-                                        <Button Content="100%" Tag="100" Width="56" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
-                                        <Button Content="120%" Tag="120" Width="56" Click="BtnSetFloatingBarScaleWizard_Click" />
-                                    </StackPanel>
-                                    <CheckBox
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                            <Button Content="80%" Tag="80" Width="56" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                            <Button Content="100%" Tag="100" Width="56" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                            <Button Content="120%" Tag="120" Width="56" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                        </StackPanel>
+                                        <CheckBox
                                         x:Name="CheckBoxEnableFloatBarText"
                                         Content="浮动工具栏显示文字注释"
                                         Margin="0,10,0,2"
-                                        Foreground="{DynamicResource PopupWindowForeground}" />
-                                </StackPanel>
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Click="CheckBoxEnableFloatBarText_Click" />
+                                    </StackPanel>
 
-                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                    <TextBlock
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                        <TextBlock
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="视频展台侧栏位置" />
-                                    <ComboBox x:Name="ComboBoxVideoPresenterSidebarPositionWizard" Width="160" Margin="0,6,0,0">
-                                        <ComboBoxItem Content="左侧" Tag="Left" />
-                                        <ComboBoxItem Content="右侧" Tag="Right" />
-                                    </ComboBox>
+                                        <ComboBox x:Name="ComboBoxVideoPresenterSidebarPositionWizard" Width="160" Margin="0,6,0,0" SelectionChanged="ComboBoxVideoPresenterSidebarPositionWizard_SelectionChanged">
+                                            <ComboBoxItem Content="左侧" Tag="Left" />
+                                            <ComboBoxItem Content="右侧" Tag="Right" />
+                                        </ComboBox>
 
-                                    <TextBlock
+                                        <TextBlock
                                         Margin="0,12,0,0"
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="显示 PPT 导航按钮" />
-                                    <UniformGrid Columns="2" Margin="0,6,0,0">
-                                        <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="显示底部导航面板" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                        <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="显示底部上一页/下一页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                        <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="显示侧边导航面板" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                        <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="显示侧边上一页/下一页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                    </UniformGrid>
-                                </StackPanel>
-                            </Grid>
-                        </StackPanel>
-                    </Grid>
+                                        <UniformGrid Columns="2" Margin="0,6,0,0">
+                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="显示底部导航面板" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelBottom_Click" />
+                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="显示底部上一页/下一页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationBottom_Click" />
+                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="显示侧边导航面板" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelSide_Click" />
+                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="显示侧边上一页/下一页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationSides_Click" />
+                                        </UniformGrid>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
 
-                    <Grid x:Name="Step4Grid" Opacity="0" Visibility="Collapsed">
-                        <StackPanel>
-                            <TextBlock
+                        <Grid x:Name="Step4Grid" Opacity="0" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock
                                 FontSize="20"
                                 FontWeight="SemiBold"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Text="PPT 选项" />
-                            <TextBlock
+                                <TextBlock
                                 Margin="0,6,0,16"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Opacity="0.8"
                                 Text="配置幻灯片相关功能，优化演示体验。"
                                 TextWrapping="Wrap" />
 
-                            <StackPanel Margin="0,0,0,8">
-                                <TextBlock
+                                <StackPanel Margin="0,0,0,8">
+                                    <TextBlock
                                     FontWeight="SemiBold"
                                     Foreground="{DynamicResource PopupWindowForeground}"
                                     Text="集成" />
-                                <CheckBox
+                                    <CheckBox
                                     x:Name="CheckBoxSupportPowerPoint"
                                     Content="Microsoft PowerPoint 支持"
                                     Margin="0,6,0,2"
-                                    Foreground="{DynamicResource PopupWindowForeground}" />
-                                <CheckBox
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Click="CheckBoxSupportPowerPoint_Click" />
+                                    <CheckBox
                                     x:Name="CheckBoxSupportWPS"
                                     Content="WPS 支持"
                                     Margin="0,2,0,2"
-                                    Foreground="{DynamicResource PopupWindowForeground}" />
-                            </StackPanel>
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Click="CheckBoxSupportWPS_Click" />
+                                </StackPanel>
 
-                            <StackPanel Margin="0,10,0,8">
-                                <TextBlock
+                                <StackPanel Margin="0,10,0,8">
+                                    <TextBlock
                                     FontWeight="SemiBold"
                                     Foreground="{DynamicResource PopupWindowForeground}"
                                     Text="自动与提示" />
-                                <CheckBox
+                                    <CheckBox
                                     x:Name="CheckBoxAutoSaveScreenShotInPowerPoint"
                                     Content="自动幻灯片截屏"
                                     Margin="0,6,0,2"
-                                    Foreground="{DynamicResource PopupWindowForeground}" />
-                                <CheckBox
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Click="CheckBoxAutoSaveScreenShotInPowerPoint_Click" />
+                                    <CheckBox
                                     x:Name="CheckBoxNotifyHiddenPage"
                                     Content="提示隐藏幻灯片"
                                     Margin="0,2,0,2"
-                                    Foreground="{DynamicResource PopupWindowForeground}" />
-                                <CheckBox
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Click="CheckBoxNotifyHiddenPage_Click" />
+                                    <CheckBox
                                     x:Name="CheckBoxNotifyAutoPlayPresentation"
                                     Content="提示是否已启用自动播放"
                                     Margin="0,2,0,2"
-                                    Foreground="{DynamicResource PopupWindowForeground}" />
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Click="CheckBoxNotifyAutoPlayPresentation_Click" />
+                                </StackPanel>
                             </StackPanel>
-                        </StackPanel>
-                    </Grid>
+                        </Grid>
 
-                    <Grid x:Name="Step5Grid" Opacity="0" Visibility="Collapsed">
-                        <StackPanel>
-                            <TextBlock
+                        <Grid x:Name="Step5Grid" Opacity="0" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock
                                 FontSize="20"
                                 FontWeight="SemiBold"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Text="高级选项" />
-                            <TextBlock
+                                <TextBlock
                                 Margin="0,6,0,16"
                                 Foreground="{DynamicResource PopupWindowForeground}"
                                 Opacity="0.8"
                                 Text="根据设备特性进行高级调节。"
                                 TextWrapping="Wrap" />
 
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
 
-                                <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                    <TextBlock
+                                    <StackPanel Grid.Column="0" Margin="0,0,10,0">
+                                        <TextBlock
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="特殊屏幕模式" />
-                                    <CheckBox
+                                        <CheckBox
                                         x:Name="CheckBoxIsSpecialScreen"
                                         Content="启用特殊屏幕模式"
                                         Margin="0,6,0,2"
-                                        Foreground="{DynamicResource PopupWindowForeground}" />
-                                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                        <Slider
+                                        Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsSpecialScreen_Click" />
+                                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                            <Slider
                                             x:Name="SliderTouchMultiplier"
                                             Width="260"
                                             Maximum="5"
                                             Minimum="0"
-                                            IsSnapToTickEnabled="True" />
-                                        <TextBlock
+                                            IsSnapToTickEnabled="True" ValueChanged="SliderTouchMultiplier_ValueChanged" />
+                                            <TextBlock
                                             Width="40"
                                             Margin="10,0,0,8"
                                             VerticalAlignment="Bottom"
                                             FontSize="14"
                                             Text="{Binding Value, ElementName=SliderTouchMultiplier, Mode=OneWay}" />
-                                    </StackPanel>
-                                    <StackPanel Margin="0,6,0,0">
-                                        <TextBlock
+                                        </StackPanel>
+                                        <StackPanel Margin="0,6,0,0">
+                                            <TextBlock
                                             FontSize="12"
                                             Foreground="{DynamicResource PopupWindowForeground}"
                                             Opacity="0.7"
                                             Text="在下方区域内触摸以估计倍数" />
-                                        <Border
+                                            <Border
                                             x:Name="BorderCalculateMultiplierWizard"
                                             Height="48"
                                             Margin="0,4,10,0"
@@ -379,27 +397,65 @@
                                             BorderThickness="2"
                                             CornerRadius="4"
                                             TouchDown="BorderCalculateMultiplier_TouchDown" />
-                                        <TextBlock
+                                            <TextBlock
                                             x:Name="TextBlockShowCalculatedMultiplierWizard"
                                             FontSize="12"
                                             Foreground="{DynamicResource PopupWindowForeground}" />
+                                        </StackPanel>
                                     </StackPanel>
-                                </StackPanel>
 
-                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                    <TextBlock
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                        <TextBlock
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="其他" />
-                                    <UniformGrid Columns="2" Margin="0,6,0,0">
-                                        <CheckBox x:Name="CheckBoxIsQuadIR" Content="四边红外模式" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                        <CheckBox x:Name="CheckBoxIsSecondConfimeWhenShutdownApp" Content="关闭软件时二次弹窗确认" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                        <CheckBox x:Name="CheckBoxIsEnableSilentRestartOnCrash" Content="崩溃时静默重启" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" />
-                                    </UniformGrid>
+                                        <UniformGrid Columns="2" Margin="0,6,0,0">
+                                            <CheckBox x:Name="CheckBoxIsQuadIR" Content="四边红外模式" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsQuadIR_Click" />
+                                            <CheckBox x:Name="CheckBoxIsSecondConfimeWhenShutdownApp" Content="关闭软件时二次弹窗确认" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsSecondConfimeWhenShutdownApp_Click" />
+                                            <CheckBox x:Name="CheckBoxIsEnableSilentRestartOnCrash" Content="崩溃时静默重启" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsEnableSilentRestartOnCrash_Click" />
+                                        </UniformGrid>
+                                    </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid x:Name="Step6Grid" Opacity="0" Visibility="Collapsed" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto">
+                            <Grid HorizontalAlignment="Stretch" VerticalAlignment="Stretch" Width="Auto" Height="Auto">
+                                <Canvas x:Name="ConfettiCanvas" Background="Transparent" />
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                    <TextBlock FontSize="34" FontWeight="Bold" Foreground="{DynamicResource PopupWindowForeground}" Text="恭喜完成初始设置" TextAlignment="Center" />
+                                    <TextBlock Margin="0,8,0,24" FontSize="14" Foreground="{DynamicResource PopupWindowForeground}" Opacity="0.8" Text="已为你的场景优化关键选项" TextAlignment="Center" />
+                                    <Button x:Name="BtnStartUsing" Width="200" Padding="10,6" Background="{DynamicResource PopupWindowDarkBlueBorderBackground}" BorderBrush="{DynamicResource PopupWindowDarkBlueBorderBackground}" Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}" Click="BtnStartUsing_Click" OverridesDefaultStyle="True">
+                                        <Button.Style>
+                                            <Style TargetType="Button">
+                                                <Setter Property="Template">
+                                                    <Setter.Value>
+                                                        <ControlTemplate TargetType="Button">
+                                                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                            </Border>
+                                                            <ControlTemplate.Triggers>
+                                                                <Trigger Property="IsMouseOver" Value="True">
+                                                                    <Setter Property="Background" Value="{DynamicResource PopupWindowHoverBackground}" />
+                                                                    <Setter Property="BorderBrush" Value="{DynamicResource PopupWindowHoverBackground}" />
+                                                                </Trigger>
+                                                                <Trigger Property="IsEnabled" Value="False">
+                                                                    <Setter Property="Opacity" Value="0.85" />
+                                                                </Trigger>
+                                                            </ControlTemplate.Triggers>
+                                                        </ControlTemplate>
+                                                    </Setter.Value>
+                                                </Setter>
+                                            </Style>
+                                        </Button.Style>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <ui:FontIcon Margin="0,0,6,0" Glyph="&#xE8FB;" />
+                                            <TextBlock Text="开始使用" />
+                                        </StackPanel>
+                                    </Button>
                                 </StackPanel>
                             </Grid>
-                        </StackPanel>
-                    </Grid>
+                        </Grid>
                     </Grid>
                 </ScrollViewer>
 
@@ -622,6 +678,7 @@
                         x:Name="DotStep5" />
                 </StackPanel>
                 <StackPanel
+                    x:Name="BottomNavPanel"
                     Grid.Column="1"
                     Orientation="Horizontal"
                     HorizontalAlignment="Right">
@@ -650,7 +707,30 @@
                         BorderThickness="1"
                         Foreground="{DynamicResource PopupWindowForeground}"
                         Click="BtnPrevious_Click"
-                        Visibility="Collapsed">
+                        Visibility="Collapsed"
+                        OverridesDefaultStyle="True">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource PopupWindowHoverBackground}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource PopupWindowHoverBackground}" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Opacity" Value="0.85" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <ui:FontIcon Margin="0,0,6,0" Glyph="&#xE76B;" />
                             <TextBlock Text="上一步" />
@@ -663,7 +743,30 @@
                         Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
                         BorderBrush="{DynamicResource PopupWindowDarkBlueBorderBackground}"
                         Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
-                        Click="BtnNext_Click">
+                        Click="BtnNext_Click"
+                        OverridesDefaultStyle="True">
+                        <Button.Style>
+                            <Style TargetType="Button">
+                                <Setter Property="Template">
+                                    <Setter.Value>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <ControlTemplate.Triggers>
+                                                <Trigger Property="IsMouseOver" Value="True">
+                                                    <Setter Property="Background" Value="{DynamicResource PopupWindowHoverBackground}" />
+                                                    <Setter Property="BorderBrush" Value="{DynamicResource PopupWindowHoverBackground}" />
+                                                </Trigger>
+                                                <Trigger Property="IsEnabled" Value="False">
+                                                    <Setter Property="Opacity" Value="0.85" />
+                                                </Trigger>
+                                            </ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </Setter.Value>
+                                </Setter>
+                            </Style>
+                        </Button.Style>
                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                             <ui:FontIcon Margin="0,0,6,0" Glyph="&#xE76C;" />
                             <TextBlock x:Name="BtnNextTextBlock" Text="下一步" />

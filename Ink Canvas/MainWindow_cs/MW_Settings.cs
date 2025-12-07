@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using OSVersionExtension;
 using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,6 +23,24 @@ namespace Ink_Canvas
             Settings.Startup.IsAutoUpdate = ToggleSwitchIsAutoUpdate.IsOn;
             IsAutoUpdateWithSilenceBlock.Visibility = ToggleSwitchIsAutoUpdate.IsOn ? Visibility.Visible : Visibility.Collapsed;
             SaveSettingsToFile();
+            var wizard = System.Windows.Application.Current.Windows.OfType<InitialSetupWindow>().FirstOrDefault();
+            if (wizard != null)
+            {
+                wizard.Dispatcher.Invoke(() =>
+                {
+                    wizard.CheckBoxIsAutoUpdate.IsChecked = Settings.Startup.IsAutoUpdate;
+                    wizard.CheckBoxIsAutoUpdateWithSilence.Visibility = Settings.Startup.IsAutoUpdate ? Visibility.Visible : Visibility.Collapsed;
+                    if (!Settings.Startup.IsAutoUpdate)
+                    {
+                        wizard.CheckBoxIsAutoUpdateWithSilence.IsChecked = false;
+                        wizard.SilencePeriodPanel.Visibility = Visibility.Collapsed;
+                    }
+                    else
+                    {
+                        wizard.SilencePeriodPanel.Visibility = Settings.Startup.IsAutoUpdateWithSilence ? Visibility.Visible : Visibility.Collapsed;
+                    }
+                });
+            }
         }
         private void ToggleSwitchIsAutoUpdateWithSilence_Toggled(object sender, RoutedEventArgs e)
         {
@@ -29,6 +48,21 @@ namespace Ink_Canvas
             Settings.Startup.IsAutoUpdateWithSilence = ToggleSwitchIsAutoUpdateWithSilence.IsOn;
             AutoUpdateTimePeriodBlock.Visibility = Settings.Startup.IsAutoUpdateWithSilence ? Visibility.Visible : Visibility.Collapsed;
             SaveSettingsToFile();
+            var wizard = System.Windows.Application.Current.Windows.OfType<InitialSetupWindow>().FirstOrDefault();
+            if (wizard != null)
+            {
+                wizard.Dispatcher.Invoke(() =>
+                {
+                    if (wizard.CheckBoxIsAutoUpdate.IsChecked == true)
+                    {
+                        wizard.SilencePeriodPanel.Visibility = Settings.Startup.IsAutoUpdateWithSilence ? Visibility.Visible : Visibility.Collapsed;
+                    }
+                    else
+                    {
+                        wizard.SilencePeriodPanel.Visibility = System.Windows.Visibility.Collapsed;
+                    }
+                });
+            }
         }
 
         private void ToggleSwitchIsAutoUpdateWithProxy_Toggled(object sender, RoutedEventArgs e)
@@ -86,6 +120,14 @@ namespace Ink_Canvas
                 StartAutomaticallyDel("Ink Canvas Annotation");
                 StartAutomaticallyDel("Ink Canvas Ultra");
             }
+            var wizard = System.Windows.Application.Current.Windows.OfType<InitialSetupWindow>().FirstOrDefault();
+            if (wizard != null)
+            {
+                wizard.Dispatcher.Invoke(() =>
+                {
+                    wizard.CheckBoxRunAtStartup.IsChecked = ToggleSwitchRunAtStartup.IsOn;
+                });
+            }
         }
 
         private void ToggleSwitchFoldAtStartup_Toggled(object sender, RoutedEventArgs e)
@@ -121,6 +163,27 @@ namespace Ink_Canvas
         }
 
         #endregion
+
+        public void SetAutoUpdateEnabled(bool enabled)
+        {
+            if (!isLoaded) return;
+            ToggleSwitchIsAutoUpdate.IsOn = enabled;
+            ToggleSwitchIsAutoUpdate_Toggled(ToggleSwitchIsAutoUpdate, new RoutedEventArgs());
+        }
+
+        public void SetAutoUpdateWithSilenceEnabled(bool enabled)
+        {
+            if (!isLoaded) return;
+            ToggleSwitchIsAutoUpdateWithSilence.IsOn = enabled;
+            ToggleSwitchIsAutoUpdateWithSilence_Toggled(ToggleSwitchIsAutoUpdateWithSilence, new RoutedEventArgs());
+        }
+
+        public void SetRunAtStartupEnabled(bool enabled)
+        {
+            if (!isLoaded) return;
+            ToggleSwitchRunAtStartup.IsOn = enabled;
+            ToggleSwitchRunAtStartup_Toggled(ToggleSwitchRunAtStartup, new RoutedEventArgs());
+        }
 
         #region Startup
 
