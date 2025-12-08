@@ -63,6 +63,9 @@ namespace Ink_Canvas
 
             LoadFromSettings();
             UpdateStepVisual();
+            
+            // 初始化完成，允许滑块值变化事件正常工作
+            _isInitializing = false;
         }
 
         #region 初始化与设置读写
@@ -118,17 +121,22 @@ namespace Ink_Canvas
                 if (appearance != null)
                 {
                     try
+                {
+                    double v = appearance.FloatingBarScale;
+                    // 修复：当值为0或未初始化时，使用默认值100
+                    if (v <= 0)
                     {
-                        double v = appearance.FloatingBarScale;
-                        if (v > 0 && v <= 3)
-                        {
-                            v *= 100;
-                        }
-                        if (v < SliderFloatingBarScaleWizard.Minimum) v = SliderFloatingBarScaleWizard.Minimum;
-                        if (v > SliderFloatingBarScaleWizard.Maximum) v = SliderFloatingBarScaleWizard.Maximum;
-                        SliderFloatingBarScaleWizard.Value = v;
+                        v = 100.0;
                     }
-                    catch { }
+                    else if (v > 0 && v <= 3)
+                    {
+                        v *= 100;
+                    }
+                    if (v < SliderFloatingBarScaleWizard.Minimum) v = SliderFloatingBarScaleWizard.Minimum;
+                    if (v > SliderFloatingBarScaleWizard.Maximum) v = SliderFloatingBarScaleWizard.Maximum;
+                    SliderFloatingBarScaleWizard.Value = v;
+                }
+                catch { }
                     CheckBoxEnableFloatBarText.IsChecked = appearance.IsEnableDisPlayFloatBarText;
                     try
                     {
@@ -439,19 +447,7 @@ namespace Ink_Canvas
             catch { }
         }
 
-        private void SliderFloatingBarScaleWizard_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            try
-            {
-                if (MainWindow.Settings?.Appearance != null)
-                {
-                    MainWindow.Settings.Appearance.FloatingBarScale = e.NewValue;
-                    MainWindow.SaveSettingsToFile();
-                    _mainWindow?.ReloadSettingsFromSettingsObject();
-                }
-            }
-            catch { }
-        }
+        private bool _isInitializing = true;
 
         private void BtnSetFloatingBarScaleWizard_Click(object sender, RoutedEventArgs e)
         {
@@ -460,6 +456,23 @@ namespace Ink_Canvas
                 if (sender is Button btn && btn.Tag != null && double.TryParse(btn.Tag.ToString(), out double scalePercent))
                 {
                     SliderFloatingBarScaleWizard.Value = scalePercent;
+                }
+            }
+            catch { }
+        }
+
+        private void SliderFloatingBarScaleWizard_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            // 修复：初始化过程中不保存和应用设置，避免立即改变浮动栏大小
+            if (_isInitializing) return;
+            
+            try
+            {
+                if (MainWindow.Settings?.Appearance != null)
+                {
+                    MainWindow.Settings.Appearance.FloatingBarScale = e.NewValue;
+                    MainWindow.SaveSettingsToFile();
+                    _mainWindow?.ReloadSettingsFromSettingsObject();
                 }
             }
             catch { }
@@ -493,13 +506,10 @@ namespace Ink_Canvas
             }
         }
 
-        private bool _isCongratsShown = false;
-
         private void ShowCongratsPage()
         {
             try
             {
-                _isCongratsShown = true;
                 ShowStepGrid(Step1Grid, false);
                 ShowStepGrid(Step2Grid, false);
                 ShowStepGrid(Step3Grid, false);
