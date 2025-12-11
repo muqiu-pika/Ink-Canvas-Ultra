@@ -80,7 +80,7 @@
                 </Grid.ColumnDefinitions>
 
                 <!-- 左侧：分步内容 -->
-                <ScrollViewer Grid.Column="0" Margin="0,0,20,0" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer Grid.Column="0" Margin="0,0,20,0" VerticalScrollBarVisibility="Auto" ManipulationBoundaryFeedback="SCManipulationBoundaryFeedback" PanningMode="VerticalFirst">
                     <Grid x:Name="ContentHostGrid">
                         <Grid x:Name="Step1Grid" Opacity="1">
                             <StackPanel>
@@ -268,10 +268,10 @@
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="显示 PPT 导航按钮" />
                                         <UniformGrid Columns="2" Margin="0,6,0,0">
-                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="显示底部导航面板" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelBottom_Click" />
-                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="显示底部上一页/下一页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationBottom_Click" />
-                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="显示侧边导航面板" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelSide_Click" />
-                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="显示侧边上一页/下一页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationSides_Click" />
+                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="底部显示页码" Margin="0,6,12,6" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelBottom_Click" />
+                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="底部翻页按钮" Margin="0,6,0,6" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationBottom_Click" />
+                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="侧边显示页码" Margin="0,6,12,6" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelSide_Click" />
+                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="侧边翻页按钮" Margin="0,6,0,6" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationSides_Click" />
                                         </UniformGrid>
                                     </StackPanel>
                                 </Grid>

@@ -1034,6 +1034,11 @@ namespace Ink_Canvas
             catch { }
         }
 
+        private void SCManipulationBoundaryFeedback(object sender, System.Windows.Input.ManipulationBoundaryFeedbackEventArgs e)
+        {
+            e.Handled = true;
+        }
+
         #endregion
     }
 }
