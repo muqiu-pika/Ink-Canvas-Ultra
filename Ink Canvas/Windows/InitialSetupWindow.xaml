@@ -228,7 +228,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                             <Slider
                                             x:Name="SliderFloatingBarScaleWizard"
-                                            Width="240"
+                                            Width="190"
                                             Maximum="150"
                                             Minimum="50"
                                             ValueChanged="SliderFloatingBarScaleWizard_ValueChanged" />
@@ -240,9 +240,9 @@
                                             Text="{Binding Value, ElementName=SliderFloatingBarScaleWizard, Mode=OneWay}" />
                                         </StackPanel>
                                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
-                                            <Button Content="80%" Tag="80" Width="56" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
-                                            <Button Content="100%" Tag="100" Width="56" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
-                                            <Button Content="120%" Tag="120" Width="56" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                            <Button Content="80%" Tag="80" Width="70" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                            <Button Content="100%" Tag="100" Width="70" Margin="0,0,8,0" Click="BtnSetFloatingBarScaleWizard_Click" />
+                                            <Button Content="120%" Tag="120" Width="70" Click="BtnSetFloatingBarScaleWizard_Click" />
                                         </StackPanel>
                                         <CheckBox
                                         x:Name="CheckBoxEnableFloatBarText"
@@ -267,11 +267,11 @@
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="显示 PPT 导航按钮" />
-                                        <UniformGrid Columns="2" Margin="0,6,0,0">
-                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="底部显示页码" Margin="0,6,12,6" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelBottom_Click" />
-                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="底部翻页按钮" Margin="0,6,0,6" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationBottom_Click" />
-                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="侧边显示页码" Margin="0,6,12,6" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelSide_Click" />
-                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="侧边翻页按钮" Margin="0,6,0,6" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationSides_Click" />
+                                        <UniformGrid Columns="1" Margin="0,6,0,0">
+                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="底部显示页码" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelBottom_Click" />
+                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="底部翻页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationBottom_Click" />
+                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="侧边显示页码" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelSide_Click" />
+                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="侧边翻页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationSides_Click" />
                                         </UniformGrid>
                                     </StackPanel>
                                 </Grid>
@@ -371,7 +371,7 @@
                                         <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
                                             <Slider
                                             x:Name="SliderTouchMultiplier"
-                                            Width="260"
+                                            Width="210"
                                             Maximum="5"
                                             Minimum="0"
                                             IsSnapToTickEnabled="True" ValueChanged="SliderTouchMultiplier_ValueChanged" />
@@ -409,10 +409,10 @@
                                         FontWeight="SemiBold"
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="其他" />
-                                        <UniformGrid Columns="2" Margin="0,6,0,0">
-                                            <CheckBox x:Name="CheckBoxIsQuadIR" Content="四边红外模式" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsQuadIR_Click" />
+                                        <UniformGrid Columns="1" Margin="0,6,0,0">
+                                            <CheckBox x:Name="CheckBoxIsQuadIR" Content="四边红外模式" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsQuadIR_Click" />
                                             <CheckBox x:Name="CheckBoxIsSecondConfimeWhenShutdownApp" Content="关闭软件时二次弹窗确认" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsSecondConfimeWhenShutdownApp_Click" />
-                                            <CheckBox x:Name="CheckBoxIsEnableSilentRestartOnCrash" Content="崩溃时静默重启" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsEnableSilentRestartOnCrash_Click" />
+                                            <CheckBox x:Name="CheckBoxIsEnableSilentRestartOnCrash" Content="崩溃时静默重启" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxIsEnableSilentRestartOnCrash_Click" />
                                         </UniformGrid>
                                     </StackPanel>
                                 </Grid>

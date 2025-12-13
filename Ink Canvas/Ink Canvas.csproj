@@ -24,7 +24,7 @@
 		<UpdateRequired>false</UpdateRequired>
 		<MapFileExtensions>true</MapFileExtensions>
 		<ApplicationRevision>2</ApplicationRevision>
-		<ApplicationVersion>6.0.2.%2a</ApplicationVersion>
+		<ApplicationVersion>6.0.3.%2a</ApplicationVersion>
 		<UseApplicationTrust>false</UseApplicationTrust>
 		<BootstrapperEnabled>false</BootstrapperEnabled>
 		<Platforms>AnyCPU;x86</Platforms>
