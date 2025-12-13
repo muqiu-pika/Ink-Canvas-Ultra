@@ -246,7 +246,7 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && inkCanvas.Strokes.Count == 0 && Settings.PowerPointSettings.IsEnableFingerGestureSlideShowControl)
+                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && inkCanvas.Strokes.Count == 0 && Settings.PowerPointSettings.IsEnableFingerGestureSlideShowControl && dec.Count <= 1)
                     {
                         isLastTouchEraser = false;
                         inkCanvas.EditingMode = InkCanvasEditingMode.GestureOnly;
@@ -288,6 +288,21 @@ namespace Ink_Canvas
         double rotateDeadzone = 1.0;
         Vector translateAccum = new Vector(0, 0);
         double translateApplyThreshold = 1.5;
+
+        private void ResetTouchState()
+        {
+            dec.Clear();
+            TouchDownPointsList.Clear();
+            StrokeVisualList.Clear();
+            VisualCanvasList.Clear();
+            twoFingerGestureType = TwoFingerGestureType.None;
+            translateAccum = new Vector(0, 0);
+            inkCanvas.Opacity = 1;
+            if (!forceEraser)
+            {
+                inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+            }
+        }
 
         private void inkCanvas_PreviewTouchDown(object sender, TouchEventArgs e)
         {

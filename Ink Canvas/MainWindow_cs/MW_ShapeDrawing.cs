@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using iNKORE.UI.WPF.Modern.Controls;
 using System;
 using System.Collections.Generic;
@@ -1289,6 +1289,11 @@ namespace Ink_Canvas
             if (dec.Count == 0)
             {
                 isWaitUntilNextTouchDown = false;
+                if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && inkCanvas.EditingMode == InkCanvasEditingMode.GestureOnly)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                    inkCanvas.Opacity = 1;
+                }
             }
         }
         Stroke lastTempStroke = null;

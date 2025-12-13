@@ -280,6 +280,8 @@ namespace Ink_Canvas
             LogHelper.WriteLogToFile("PowerPoint Application Slide Show Begin", LogHelper.LogType.Event);
             Application.Current.Dispatcher.Invoke(() =>
             {
+                ResetTouchState();
+
                 if (currentMode == 0 && inkCanvas.Strokes.Count > 0)
                 {
                     try
@@ -522,6 +524,8 @@ namespace Ink_Canvas
 
             Application.Current.Dispatcher.Invoke(() =>
             {
+                ResetTouchState();
+
                 //isPresentationHaveBlackSpace = false;
 
                 //BtnPPTSlideShow.Visibility = Visibility.Visible;
