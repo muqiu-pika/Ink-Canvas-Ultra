@@ -7531,9 +7531,10 @@
                 </Grid>
 
                 <!--  照片显示区域  -->
-                <Border Grid.Row="1" Margin="10,10,10,2" Padding="10,10,10,10">
+                <Border x:Name="CapturedPhotosBorder" Grid.Row="1" Margin="10,10,10,2" Padding="10,10,10,10">
                     <StackPanel>
                         <TextBlock
+                            x:Name="CapturedPhotosTitleTextBlock"
                             Margin="0,0,0,8"
                             HorizontalAlignment="Left"
                             FontSize="12"

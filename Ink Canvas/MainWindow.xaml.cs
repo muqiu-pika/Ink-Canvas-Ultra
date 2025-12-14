@@ -960,62 +960,37 @@ namespace Ink_Canvas
         {
             try
             {
-                // 等待UI布局完成后再计算
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
                     try
                     {
-                        // 获取侧栏的实际高度
-                        double sidebarHeight = VideoPresenterSidebar.ActualHeight;
-                        if (sidebarHeight <= 0) return;
+                        if (VideoPresenterSidebar.ActualHeight <= 0) return;
 
-                        // 计算各固定区域的高度
-                        double titleBarHeight = 50; // 顶部标题栏高度
-                        double bottomButtonHeight = 60; // 底部按钮区域高度
-                        
-                        // 获取设备选择区域的实际高度
-                        double deviceAreaHeight = 0;
-                        var cameraDevicesScrollViewer = FindName("CameraDevicesScrollViewer") as ScrollViewer;
-                        if (cameraDevicesScrollViewer != null)
-                        {
-                            // 测量设备选择区域的实际高度
-                            cameraDevicesScrollViewer.Measure(new System.Windows.Size(double.PositiveInfinity, double.PositiveInfinity));
-                            deviceAreaHeight = cameraDevicesScrollViewer.DesiredSize.Height;
-                            
-                            // 如果设备区域高度为0，使用默认值
-                            if (deviceAreaHeight <= 0)
-                            {
-                                deviceAreaHeight = 120; // 默认设备区域高度
-                            }
-                            else
-                            {
-                                // 加上设备区域的边距和内边距
-                                deviceAreaHeight += 10 + 2 + 5; // 上边距2 + 下边距5 + 内边距10
-                            }
-                        }
-
-                        // 计算照片区域的边距和内边距
-                        double photoAreaMargin = 10 + 10 + 2; // 上边距10 + 下边距2 + 内边距10
-                        
-                        // 计算照片显示区域可以使用的最大高度
-                        // 目标：照片区域从当前位置一直延伸到设备列表上方几个像素
-                        double maxPhotoHeight = sidebarHeight - titleBarHeight - bottomButtonHeight - photoAreaMargin - deviceAreaHeight - 10; // 留出10像素间距
-
-                        // 确保照片显示区域至少有最小高度
-                        double minPhotoHeight = 200; // 最小照片区域高度
-                        
-                        // 计算照片显示区域的理想高度
-                        double idealPhotoHeight = Math.Max(minPhotoHeight, maxPhotoHeight);
-                        
-                        // 设置照片滚动区域的最大高度
                         var capturedPhotosScrollViewer = FindName("CapturedPhotosScrollViewer") as ScrollViewer;
-                        if (capturedPhotosScrollViewer != null)
+                        var capturedPhotosBorder = FindName("CapturedPhotosBorder") as Border;
+                        var capturedPhotosTitleTextBlock = FindName("CapturedPhotosTitleTextBlock") as TextBlock;
+
+                        if (capturedPhotosScrollViewer == null || capturedPhotosBorder == null || capturedPhotosTitleTextBlock == null)
+                            return;
+
+                        double borderInnerHeight = capturedPhotosBorder.ActualHeight
+                                                   - capturedPhotosBorder.Padding.Top
+                                                   - capturedPhotosBorder.Padding.Bottom;
+
+                        if (borderInnerHeight <= 0) return;
+
+                        double titleHeight = capturedPhotosTitleTextBlock.ActualHeight
+                                             + capturedPhotosTitleTextBlock.Margin.Top
+                                             + capturedPhotosTitleTextBlock.Margin.Bottom;
+
+                        double maxScrollViewerHeight = borderInnerHeight - titleHeight;
+
+                        if (maxScrollViewerHeight > 0)
                         {
-                            // 为了防止底部照片超出滚动条范围，减去额外的边距
-                            capturedPhotosScrollViewer.MaxHeight = idealPhotoHeight - 20; // 减去20像素作为额外缓冲
+                            capturedPhotosScrollViewer.MaxHeight = maxScrollViewerHeight;
                         }
 
-                        Console.WriteLine($"照片区域高度计算完成: 侧栏高度={sidebarHeight}, 设备区域高度={deviceAreaHeight}, 照片区域高度={idealPhotoHeight}");
+                        Console.WriteLine($"照片区域高度计算完成: 照片区域高度={maxScrollViewerHeight}");
                     }
                     catch (Exception ex)
                     {
