@@ -331,7 +331,8 @@ namespace Ink_Canvas
                     if (Directory.Exists(Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + Wn.Presentation.Name + "_" + Wn.Presentation.Slides.Count))
                     {
                         LogHelper.WriteLogToFile("Found saved strokes", LogHelper.LogType.Trace);
-                        FileInfo[] files = new DirectoryInfo(Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + Wn.Presentation.Name + "_" + Wn.Presentation.Slides.Count).GetFiles();
+                        var directory = new DirectoryInfo(Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + Wn.Presentation.Name + "_" + Wn.Presentation.Slides.Count);
+                        FileInfo[] files = directory.GetFiles();
                         int count = 0;
                         foreach (FileInfo file in files)
                         {

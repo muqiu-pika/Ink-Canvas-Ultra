@@ -78,6 +78,7 @@ namespace Ink_Canvas.MainWindow_cs
         {
             var cameras = GetAvailableCameras();
             UpdateCameraDeviceList(cameras);
+            lastFrameTime = DateTime.MinValue;
         }
 
         public void UpdateCameraDeviceList(List<string> cameras)
@@ -160,6 +161,7 @@ namespace Ink_Canvas.MainWindow_cs
                 if (currentVideoDevice != null && currentVideoDevice.IsRunning && selectedDeviceName == deviceName)
                 {
                     Console.WriteLine($"摄像头设备 {deviceName} 已在运行，无需重新启动");
+                    lastFrameTime = DateTime.MinValue;
                     return;
                 }
 
@@ -178,6 +180,7 @@ namespace Ink_Canvas.MainWindow_cs
                         currentVideoDevice.NewFrame += Device_NewFrame;
                         currentVideoDevice.Start();
                         selectedDeviceName = deviceName;
+                        lastFrameTime = DateTime.MinValue;
                         deviceFound = true;
                         break;
                     }
@@ -279,6 +282,19 @@ namespace Ink_Canvas.MainWindow_cs
             return currentPage;
         }
 
+        public void BindCurrentCameraToPage(int pageIndex)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(selectedDeviceName)) return;
+                cameraPageMapping[selectedDeviceName] = pageIndex;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"绑定摄像头设备到页码 {pageIndex} 失败: {ex.Message}");
+            }
+        }
+
         // 跳转到指定页码（统一走主窗口逻辑，确保侧栏状态与照片显示同步）
         private void SwitchToPage(int pageIndex)
         {
@@ -375,28 +391,10 @@ namespace Ink_Canvas.MainWindow_cs
             {
                 mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    if (hasCameraFrameOrPhoto)
-                    {
-                        // 如果当前页面已有摄像头画面或照片，先切换到下一页再插入
-                        mainWindow.SwitchToNextBoardAndInsertCameraFrame();
-                        
-                        // 记录设备与页码的关联（新插入的页码）
-                        int newPage = GetCurrentPageIndex();
-                        if (newPage != currentPage)
-                        {
-                            cameraPageMapping[deviceName] = newPage;
-                            Console.WriteLine($"摄像头设备 {deviceName} 已插入到页码 {newPage}");
-                        }
-                    }
-                    else
-                    {
-                        // 如果没有摄像头画面或照片，直接插入
-                        mainWindow.InsertCameraFrameToCanvas();
-                        
-                        // 记录设备与页码的关联（当前页码）
-                        cameraPageMapping[deviceName] = currentPage;
-                        Console.WriteLine($"摄像头设备 {deviceName} 已插入到页码 {currentPage}");
-                    }
+                    // 直接切换到下一页插入，不再判断当前页面是否有内容
+                    mainWindow.SwitchToNextBoardAndInsertCameraFrame();
+                    // 由于SwitchToNextBoardAndInsertCameraFrame是异步的，我们不需要在这里记录设备与页码的关联
+                    // 设备与页码的关联会在插入逻辑中记录
                 }));
             });
         }
@@ -468,62 +466,30 @@ namespace Ink_Canvas.MainWindow_cs
                 {
                     // 如果摄像头未运行或设备不一致，启动新摄像头
                     StartCamera(cameraDeviceOnNewPage);
-                    
-                    // 在主线程上恢复画面显示，如页面已有画面则仅启动更新，否则插入
-                    mainWindow.Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        if (mainWindow.HasCameraFrameOnCurrentPage())
-                        {
-                            var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                            if (cameraFrameTimerField != null)
-                            {
-                                var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
-                                cameraFrameTimer?.Start();
-                                Console.WriteLine($"摄像头设备 {cameraDeviceOnNewPage} 已启动并恢复旧画面更新");
-                            }
-                        }
-                        else
-                        {
-                            mainWindow.InsertCameraFrameToCanvas();
-                        }
-                    }));
                 }
-                else
+
+                // 在主线程上统一处理画面恢复和定时器启动
+                mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    // 如果已经是正确的摄像头设备在运行，只需恢复画面显示和启动定时器
-                    Console.WriteLine($"摄像头设备 {cameraDeviceOnNewPage} 已在运行，直接恢复画面显示");
+                    // 首先确保currentCameraImage引用正确
+                    mainWindow.HasCameraFrameOnCurrentPage();
                     
-                    // 统一在主线程处理，避免多次调用Dispatcher
-                    mainWindow.Dispatcher.BeginInvoke(new Action(() =>
+                    // 强制启动定时器，确保画面持续更新
+                    var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                    if (cameraFrameTimerField != null)
                     {
-                        // 检查当前页面是否已经有摄像头画面或照片
-                        bool hasCurrentCameraFrameOrPhoto = mainWindow.HasCameraFrameOrPhotoOnCurrentPage();
-                        Console.WriteLine($"HasCameraFrameOrPhotoOnCurrentPage返回: {hasCurrentCameraFrameOrPhoto}");
-                        
-                        if (hasCurrentCameraFrameOrPhoto)
-                        {
-                            // 如果当前页面有摄像头画面或照片，只需启动定时器更新画面
-                            Console.WriteLine("当前页面已有摄像头画面或照片，启动定时器更新");
-                            
-                            // 启动定时器持续更新画面
-                            var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                            if (cameraFrameTimerField != null)
-                            {
-                                var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
-                                cameraFrameTimer?.Start();
-                                Console.WriteLine("已启动摄像头画面定时器更新");
-                            }
-                        }
-                        else
-                        {
-                            // 如果当前页面没有摄像头画面或照片，需要插入新的摄像头画面
-                            Console.WriteLine("当前页面无摄像头画面或照片，插入新的摄像头画面");
-                            
-                            // 插入摄像头画面
-                            mainWindow.InsertCameraFrameToCanvas();
-                        }
-                    }));
-                }
+                        var cameraFrameTimer = cameraFrameTimerField.GetValue(mainWindow) as System.Windows.Threading.DispatcherTimer;
+                        cameraFrameTimer?.Start();
+                        Console.WriteLine($"摄像头设备 {cameraDeviceOnNewPage} 画面定时器已启动");
+                    }
+                    
+                    // 如果当前页面没有摄像头画面，插入新的
+                    if (!mainWindow.HasCameraFrameOnCurrentPage())
+                    {
+                        Console.WriteLine("当前页面无摄像头画面，插入新的摄像头画面");
+                        mainWindow.InsertCameraFrameToCanvas();
+                    }
+                }));
 
                 // 自动同步设备列表的选中状态（仅更新显示，不触发选中逻辑）
                 mainWindow.Dispatcher.BeginInvoke(new Action(() =>

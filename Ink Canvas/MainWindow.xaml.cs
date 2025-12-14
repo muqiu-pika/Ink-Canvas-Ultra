@@ -566,7 +566,8 @@ namespace Ink_Canvas
                             }
                             Bitmap toSave = frame;
                             List<AForge.IntPoint> corners;
-                            if (TryDetectPaperCorners(toSave, out corners))
+                            // 只有在实时校正开关开启时，才进行照片校正
+                            if (Settings.Automation.IsEnablePhotoCorrection && TryDetectPaperCorners(toSave, out corners))
                             {
                                 var corrected = ApplyPerspectiveCorrection(toSave, corners);
                                 if (corrected != null)
@@ -851,18 +852,9 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    // 如果当前页面已有摄像头画面或照片，先切换到下一页再插入
-                    if (HasCameraFrameOrPhotoOnCurrentPage())
-                    {
-                        Console.WriteLine("当前页面已有摄像头画面或照片，切换到下一页插入");
-                        SwitchToNextBoardAndInsertPhoto(photo);
-                    }
-                    else
-                    {
-                        // 如果没有摄像头画面或照片，直接插入到当前页面
-                        Console.WriteLine("当前页面无摄像头画面或照片，直接插入到当前页面");
-                        InsertPhotoToCanvas(photo);
-                    }
+                    // 直接切换到下一页插入，不再判断当前页面是否有内容
+                    Console.WriteLine("直接切换到下一页插入照片");
+                    SwitchToNextBoardAndInsertPhoto(photo);
                 }
             };
 
@@ -1075,27 +1067,10 @@ namespace Ink_Canvas
                     // 检查当前页面是否已经有照片或其他摄像头画面
                     if (HasPhotoOnCurrentPage() || HasCameraFrameOnCurrentPage())
                     {
-                        Console.WriteLine($"当前页面 {currentPage} 已有照片或摄像头画面，将移除现有元素并恢复摄像头画面");
-                        
-                        // 移除当前页面的照片元素
-                        if (currentPhotoImage != null)
-                        {
-                            inkCanvas.Children.Remove(currentPhotoImage);
-                            currentPhotoImage = null;
-                        }
-                        
-                        // 移除当前页面的摄像头画面元素
-                        if (currentCameraImage != null)
-                        {
-                            inkCanvas.Children.Remove(currentCameraImage);
-                            currentCameraImage = null;
-                        }
-                        
-                        // 清除可能存在的其他照片元素
-                        ClearPhotoElementsFromCanvas();
-                        
-                        // 清除可能存在的其他摄像头元素
-                        ClearCameraElementsFromCanvas();
+                        Console.WriteLine($"当前页面 {currentPage} 已有照片或摄像头画面，将切换到下一页插入");
+                        // 如果当前页面已有照片或摄像头画面，切换到下一页插入
+                        SwitchToNextBoardAndInsertCameraFrame();
+                        return;
                     }
                     
                     currentCameraImage = existing;
@@ -1107,68 +1082,14 @@ namespace Ink_Canvas
                 }
                 cameraFrameTimer?.Start();
                 UpdateCapturePhotoButtonState();
+                try { cameraDeviceManager?.BindCurrentCameraToPage(currentPage); } catch (Exception ex) { Console.WriteLine($"绑定摄像头设备到页码 {currentPage} 失败: {ex.Message}"); }
                 try { cameraDeviceManager?.HandlePageChanged(GetCurrentPageIndex()); } catch (Exception ex) { Console.WriteLine($"插入摄像头画面后刷新设备选中显示失败: {ex.Message}"); }
                 return;
             }
 
-            // 检查当前页面是否已经有照片或摄像头画面
-            if (HasPhotoOnCurrentPage() || HasCameraFrameOnCurrentPage())
-            {
-                Console.WriteLine($"当前页面 {currentPage} 已有照片或摄像头画面，将移除现有元素并插入新摄像头画面");
-                
-                // 移除当前页面的照片元素
-                if (currentPhotoImage != null)
-                {
-                    inkCanvas.Children.Remove(currentPhotoImage);
-                    currentPhotoImage = null;
-                }
-                
-                // 移除当前页面的摄像头画面元素
-                if (currentCameraImage != null)
-                {
-                    inkCanvas.Children.Remove(currentCameraImage);
-                    currentCameraImage = null;
-                }
-                
-                // 清除可能存在的其他照片元素
-                ClearPhotoElementsFromCanvas();
-                
-                // 清除可能存在的其他摄像头元素
-                ClearCameraElementsFromCanvas();
-            }
-
-            ClearCameraElementsFromCanvas();
-
-            bool frameInserted = false;
-            for (int i = 0; i < 5; i++)
-            {
-                var frame = cameraDeviceManager.GetFrameCopy();
-                if (frame != null)
-                {
-                    await InsertCameraFrameAsync(frame);
-                    frame.Dispose();
-                    frameInserted = true;
-                    cameraFrameTimer?.Start();
-                    break;
-                }
-                await System.Threading.Tasks.Task.Delay(500);
-            }
-
-            if (!frameInserted)
-            {
-                Console.WriteLine("无法获取摄像头画面，可能是摄像头未初始化完成");
-            }
-
-            UpdateCapturePhotoButtonState();
-
-            try
-            {
-                cameraDeviceManager?.HandlePageChanged(GetCurrentPageIndex());
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"插入摄像头画面后刷新设备选中显示失败: {ex.Message}");
-            }
+            // 直接切换到下一页插入，不再判断当前页面是否有内容
+            Console.WriteLine($"直接切换到下一页插入摄像头画面");
+            SwitchToNextBoardAndInsertCameraFrame();
         }
 
         // 检测当前页面是否有摄像头画面
@@ -1472,23 +1393,127 @@ namespace Ink_Canvas
         {
             try
             {
-                // 调用白板切换功能
-                BtnWhiteBoardSwitchNext_Click(null, null);
+                // 直接调用BtnWhiteBoardAdd_Click方法，确保能正确添加新页面
+                BtnWhiteBoardAdd_Click(null, null);
+                int targetPage = GetCurrentPageIndex();
                 
-                // 延迟一小段时间确保白板切换完成，然后插入摄像头画面
+                // 延迟一小段时间确保白板切换完成，然后直接插入摄像头画面，避免递归调用
                 System.Threading.Tasks.Task.Delay(300).ContinueWith(_ =>
                 {
-                    Dispatcher.BeginInvoke(new Action(() =>
+                    Dispatcher.BeginInvoke(new Action(async () =>
                     {
-                        InsertCameraFrameToCanvas();
+                        if (cameraDeviceManager == null) return;
+
+                        if (GetCurrentPageIndex() != targetPage)
+                        {
+                            SwitchToPage(targetPage);
+                        }
+
+                        int currentPage = targetPage;
+                        if (cameraFramesByPage.TryGetValue(currentPage, out var existing) && existing != null)
+                        {
+                            if (!inkCanvas.Children.Contains(existing))
+                            {
+                                currentCameraImage = existing;
+                                inkCanvas.Children.Add(existing);
+                            }
+                            else
+                            {
+                                currentCameraImage = existing;
+                            }
+                            cameraFrameTimer?.Start();
+                            UpdateCapturePhotoButtonState();
+                            try { cameraDeviceManager?.BindCurrentCameraToPage(currentPage); } catch (Exception ex) { Console.WriteLine($"绑定摄像头设备到页码 {currentPage} 失败: {ex.Message}"); }
+                            try { cameraDeviceManager?.HandlePageChanged(currentPage); } catch (Exception ex) { Console.WriteLine($"插入摄像头画面后刷新设备选中显示失败: {ex.Message}"); }
+                            return;
+                        }
+
+                        ClearCameraElementsFromCanvas();
+
+                        bool frameInserted = false;
+                        for (int i = 0; i < 5; i++)
+                        {
+                            var frame = cameraDeviceManager.GetFrameCopy();
+                            if (frame != null)
+                            {
+                                // 直接在UI线程上执行插入操作
+                                if (Settings.Automation.IsEnablePhotoCorrection)
+                                {
+                                    OverlayPaperEdgesOnFrame(frame);
+                                }
+                                // 转换Bitmap到BitmapImage
+                                var bitmapImage = await Task.Run(() =>
+                                {
+                                    using (var memoryStream = new MemoryStream())
+                                    {
+                                        frame.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
+                                        memoryStream.Position = 0;
+
+                                        var bitmap = new BitmapImage();
+                                        bitmap.BeginInit();
+                                        bitmap.StreamSource = memoryStream;
+                                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                                        bitmap.EndInit();
+                                        bitmap.Freeze();
+
+                                        return bitmap;
+                                    }
+                                });
+
+                                // 创建图片元素
+                                currentCameraImage = new System.Windows.Controls.Image
+                                {
+                                    Source = bitmapImage,
+                                    Width = bitmapImage.PixelWidth,
+                                    Height = bitmapImage.PixelHeight,
+                                    Name = "camera_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff")
+                                };
+
+                                // 居中并缩放
+                                CenterAndScaleElement(currentCameraImage);
+
+                                // 添加到画布
+                                InkCanvas.SetLeft(currentCameraImage, 0);
+                                InkCanvas.SetTop(currentCameraImage, 0);
+                                inkCanvas.Children.Add(currentCameraImage);
+
+                                // 记录历史
+                                timeMachine.CommitElementInsertHistory(currentCameraImage);
+                                try
+                                {
+                                    cameraFramesByPage[currentPage] = currentCameraImage;
+                                    cameraDeviceManager?.BindCurrentCameraToPage(currentPage);
+                                }
+                                catch { }
+
+                                frame.Dispose();
+                                frameInserted = true;
+                                cameraFrameTimer?.Start();
+                                UpdateCapturePhotoButtonState();
+                                break;
+                            }
+                            await System.Threading.Tasks.Task.Delay(500);
+                        }
+
+                        if (!frameInserted)
+                        {
+                            Console.WriteLine("无法获取摄像头画面，可能是摄像头未初始化完成");
+                        }
+
+                        try
+                        {
+                            cameraDeviceManager?.HandlePageChanged(currentPage);
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"插入摄像头画面后刷新设备选中显示失败: {ex.Message}");
+                        }
                     }));
                 });
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"切换到下一页并插入摄像头画面失败: {ex.Message}");
-                // 如果切换失败，尝试直接插入
-                InsertCameraFrameToCanvas();
             }
         }
         
@@ -1497,19 +1522,25 @@ namespace Ink_Canvas
         {
             try
             {
-                // 切换到下一页
-                BtnWhiteBoardSwitchNext_Click(null, null);
+                // 直接调用BtnWhiteBoardAdd_Click方法，确保能正确添加新页面
+                BtnWhiteBoardAdd_Click(null, null);
+                int targetPage = GetCurrentPageIndex();
                 
                 // 等待页面切换完成
                 await System.Threading.Tasks.Task.Delay(300);
-                
+
+                if (GetCurrentPageIndex() != targetPage)
+                {
+                    SwitchToPage(targetPage);
+                }
+
                 // 插入照片
                 InsertPhotoToCanvas(photo);
 
                 // 插入后同步一次摄像头设备侧栏选中显示（仅视觉同步，不触发逻辑）
                 try
                 {
-                    cameraDeviceManager?.HandlePageChanged(GetCurrentPageIndex());
+                    cameraDeviceManager?.HandlePageChanged(targetPage);
                 }
                 catch (Exception ex)
                 {
@@ -1546,6 +1577,10 @@ namespace Ink_Canvas
                     // 清除当前画布
                     ClearStrokes(true);
                     
+                    // 重置摄像头画面和照片引用
+                    currentCameraImage = null;
+                    currentPhotoImage = null;
+                    
                     // 设置新的页码
                     CurrentWhiteboardIndex = pageIndex;
                     try { RestorePageFromDiskIfAvailable(pageIndex); } catch { }
@@ -1566,7 +1601,6 @@ namespace Ink_Canvas
                     
                     // 更新页面显示
                     UpdateIndexInfoDisplay();
-                    
                     // 更新拍照按钮状态
                     UpdateCapturePhotoButtonState();
                     
@@ -1630,6 +1664,14 @@ namespace Ink_Canvas
 
             try
             {
+                var frame = cameraDeviceManager.GetFrameCopy();
+                if (frame != null && currentCameraImage != null)
+                {
+                    await UpdateCameraFrameAsync(frame);
+                    frame.Dispose();
+                    return;
+                }
+
                 // 如果currentCameraImage为null，尝试在画布上查找摄像头画面元素
                 if (currentCameraImage == null)
                 {
@@ -1652,7 +1694,7 @@ namespace Ink_Canvas
                     return;
                 }
 
-                var frame = cameraDeviceManager.GetFrameCopy();
+                frame = cameraDeviceManager.GetFrameCopy();
                 if (frame != null)
                 {
                     await UpdateCameraFrameAsync(frame);
@@ -2068,12 +2110,36 @@ namespace Ink_Canvas
         {
             Settings.Automation.IsEnablePhotoCorrection = true;
             SaveSettingsToFile();
+            // 重新查找摄像头画面元素，确保currentCameraImage不为null
+            FindCurrentCameraImage();
+            // 重新启动摄像头画面更新定时器，确保画面继续更新
+            cameraFrameTimer?.Start();
         }
 
         private void CheckBoxEnablePhotoCorrection_Unchecked(object sender, RoutedEventArgs e)
         {
             Settings.Automation.IsEnablePhotoCorrection = false;
             SaveSettingsToFile();
+            // 重新查找摄像头画面元素，确保currentCameraImage不为null
+            FindCurrentCameraImage();
+            // 重新启动摄像头画面更新定时器，确保画面继续更新
+            cameraFrameTimer?.Start();
+        }
+        
+        // 查找当前摄像头画面元素
+        private void FindCurrentCameraImage()
+        {
+            currentCameraImage = null;
+            foreach (var child in inkCanvas.Children)
+            {
+                if (child is System.Windows.Controls.Image image && 
+                    image.Name != null && 
+                    image.Name.StartsWith("camera_"))
+                {
+                    currentCameraImage = image;
+                    break;
+                }
+            }
         }
     }
 }

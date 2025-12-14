@@ -36,6 +36,11 @@ namespace Ink_Canvas
             if (isErasedByCode) _currentCommitType = CommitReason.CodeInput;
             inkCanvas.Strokes.Clear();
             inkCanvas.Children.Clear();
+            
+            // 重置摄像头画面和照片引用，避免误判
+            currentCameraImage = null;
+            currentPhotoImage = null;
+            
             _currentCommitType = CommitReason.UserInput;
         }
 
@@ -128,14 +133,16 @@ namespace Ink_Canvas
             SaveStrokes();
             ClearStrokes(true);
             WhiteboardTotalCount++;
-            CurrentWhiteboardIndex++;
-            if (CurrentWhiteboardIndex != WhiteboardTotalCount)
-            {
-                for (int i = WhiteboardTotalCount; i > CurrentWhiteboardIndex; i--)
-                {
-                    TimeMachineHistories[i] = TimeMachineHistories[i - 1];
-                }
-            }
+            
+            // 保存当前页面历史记录
+            var currentHistory = timeMachine.ExportTimeMachineHistory();
+            
+            // 更新当前页码
+            CurrentWhiteboardIndex = WhiteboardTotalCount;
+            
+            // 确保新页面有自己的历史记录对象
+            TimeMachineHistories[CurrentWhiteboardIndex] = new TimeMachineHistory[0];
+            
             UpdateIndexInfoDisplay();
         }
 
