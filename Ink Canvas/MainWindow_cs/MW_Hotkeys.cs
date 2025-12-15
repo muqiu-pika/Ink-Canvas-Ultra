@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Input;
 
 namespace Ink_Canvas
@@ -60,7 +60,7 @@ namespace Ink_Canvas
 
         private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible || currentMode != 0) return;
+            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
             if (e.Delta >= 120)
             {
                 BtnPPTSlidesUp_Click(null, null);
@@ -73,7 +73,7 @@ namespace Ink_Canvas
 
         private void Main_Grid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible || currentMode != 0) return;
+            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
 
             if (e.Key == Key.Down || e.Key == Key.PageDown || e.Key == Key.Right || e.Key == Key.N || e.Key == Key.Space)
             {
