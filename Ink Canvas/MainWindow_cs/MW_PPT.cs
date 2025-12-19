@@ -101,30 +101,39 @@ namespace Ink_Canvas
 
                 if (pptApplication != null)
                 {
-                    timerCheckPPT.Stop();
-                    //获得演示文稿对象
-                    presentation = pptApplication.ActivePresentation;
+                    // 先注册事件，再停止定时器
                     pptApplication.PresentationClose += PptApplication_PresentationClose;
                     pptApplication.SlideShowBegin += PptApplication_SlideShowBegin;
                     pptApplication.SlideShowNextSlide += PptApplication_SlideShowNextSlide;
                     pptApplication.SlideShowEnd += PptApplication_SlideShowEnd;
-                    // 获得幻灯片对象集合
-                    slides = presentation.Slides;
+                    
+                    //获得演示文稿对象
+                    presentation = pptApplication.ActivePresentation;
+                    if (presentation != null)
+                    {
+                        // 获得幻灯片对象集合
+                        slides = presentation.Slides;
 
-                    // 获得幻灯片的数量
-                    slidescount = slides.Count;
-                    memoryStreams = new MemoryStream[slidescount + 2];
-                    // 获得当前选中的幻灯片
-                    try
-                    {
-                        // 在普通视图下这种方式可以获得当前选中的幻灯片对象
-                        // 然而在阅读模式下，这种方式会出现异常
-                        slide = slides[pptApplication.ActiveWindow.Selection.SlideRange.SlideNumber];
-                    }
-                    catch
-                    {
-                        // 在阅读模式下出现异常时，通过下面的方式来获得当前选中的幻灯片对象
-                        slide = pptApplication.SlideShowWindows[1].View.Slide;
+                        // 获得幻灯片的数量
+                        slidescount = slides.Count;
+                        memoryStreams = new MemoryStream[slidescount + 2];
+                        // 获得当前选中的幻灯片
+                        try
+                        {
+                            // 在普通视图下这种方式可以获得当前选中的幻灯片对象
+                            // 然而在阅读模式下，这种方式会出现异常
+                            slide = slides[pptApplication.ActiveWindow.Selection.SlideRange.SlideNumber];
+                        }
+                        catch
+                        {
+                            // 在阅读模式下出现异常时，通过下面的方式来获得当前选中的幻灯片对象
+                            if (pptApplication.SlideShowWindows.Count >= 1)
+                            {
+                                slide = pptApplication.SlideShowWindows[1].View.Slide;
+                            }
+                        }
+                        
+                        timerCheckPPT.Stop();
                     }
                 }
 
@@ -231,11 +240,19 @@ namespace Ink_Canvas
                 //如果检测到已经开始放映，则立即进入画板模式
                 if (pptApplication.SlideShowWindows.Count >= 1)
                 {
-                    PptApplication_SlideShowBegin(pptApplication.SlideShowWindows[1]);
+                    try
+                    {
+                        PptApplication_SlideShowBegin(pptApplication.SlideShowWindows[1]);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile(string.Format("Failed to enter PPT mode: {0}", ex.ToString()), LogHelper.LogType.Error);
+                    }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LogHelper.WriteLogToFile(string.Format("TimerCheckPPT error: {0}", ex.ToString()), LogHelper.LogType.Error);
                 /*
                 Application.Current.Dispatcher.Invoke(() =>
                 {
