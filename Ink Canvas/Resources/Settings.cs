@@ -53,7 +53,7 @@ namespace Ink_Canvas
         [JsonProperty("autoStraightenLine")]
         public bool AutoStraightenLine { get; set; } = true;
         [JsonProperty("autoStraightenLineThreshold")]
-        public int AutoStraightenLineThreshold { get; set; } = 80;
+        public int AutoStraightenLineThreshold { get; set; } = 120;
         [JsonProperty("lineEndpointSnapping")]
         public bool LineEndpointSnapping { get; set; } = true;
         [JsonProperty("lineEndpointSnappingThreshold")]
@@ -138,10 +138,10 @@ namespace Ink_Canvas
         public bool IsColorfulViewboxFloatingBar { get; set; } = false;
 
         [JsonProperty("enableViewboxFloatingBarScaleTransform")]
-        public double FloatingBarScale { get; set; } = 100.0;
+        public double FloatingBarScale { get; set; } = 80.0;
 
         [JsonProperty("enableViewboxBlackBoardScaleTransform")]
-        public double BlackboardScale { get; set; } = 100.0;
+        public double BlackboardScale { get; set; } = 80.0;
 
         [JsonProperty("floatingBarBottomMargin")]
         public double FloatingBarBottomMargin { get; set; } = 100.0;
@@ -175,11 +175,11 @@ namespace Ink_Canvas
         [JsonProperty("isShowPPTNavigationBottom")]
         public bool IsShowPPTNavigationBottom { get; set; } = true;
         [JsonProperty("isShowPPTNavigationSides")]
-        public bool IsShowPPTNavigationSides { get; set; } = true;
+        public bool IsShowPPTNavigationSides { get; set; } = false;
         [JsonProperty("isShowBottomPPTNavigationPanel")]
         public bool IsShowBottomPPTNavigationPanel { get; set; } = true;
         [JsonProperty("isShowSidePPTNavigationPanel")]
-        public bool IsShowSidePPTNavigationPanel { get; set; } = true;
+        public bool IsShowSidePPTNavigationPanel { get; set; } = false;
         [JsonProperty("powerPointSupport")]
         public bool PowerPointSupport { get; set; } = true;
         [JsonProperty("isShowCanvasAtNewSlideShow")]
@@ -193,7 +193,7 @@ namespace Ink_Canvas
         [JsonProperty("isAutoSaveScreenShotInPowerPoint")]
         public bool IsAutoSaveScreenShotInPowerPoint { get; set; } = false;
         [JsonProperty("isNotifyPreviousPage")]
-        public bool IsNotifyPreviousPage { get; set; } = false;
+        public bool IsNotifyPreviousPage { get; set; } = true;
         [JsonProperty("isNotifyHiddenPage")]
         public bool IsNotifyHiddenPage { get; set; } = true;
         [JsonProperty("isNotifyAutoPlayPresentation")]
@@ -330,7 +330,7 @@ namespace Ink_Canvas
         public bool IsSecondConfimeWhenShutdownApp { get; set; } = false;
 
         [JsonProperty("isEnableSilentRestartOnCrash")]
-        public bool IsEnableSilentRestartOnCrash { get; set; } = false;
+        public bool IsEnableSilentRestartOnCrash { get; set; } = true;
     }
 
     public class InkToShape
@@ -343,11 +343,11 @@ namespace Ink_Canvas
         [JsonProperty("isInkToShapeRectangle")]
         public bool IsInkToShapeRectangle { get; set; } = true;
         [JsonProperty("isInkToShapeNoFakePressureRectangle")]
-        public bool IsInkToShapeNoFakePressureRectangle { get; set; } = false;
+        public bool IsInkToShapeNoFakePressureRectangle { get; set; } = true;
         [JsonProperty("isInkToShapeNoFakePressureTriangle")]
-        public bool IsInkToShapeNoFakePressureTriangle { get; set; } = false;
+        public bool IsInkToShapeNoFakePressureTriangle { get; set; } = true;
         [JsonProperty("lineStraightenSensitivity")]
-        public double LineStraightenSensitivity { get; set; } = 0.20;
+        public double LineStraightenSensitivity { get; set; } = 0.8;
 
         [JsonProperty("rectangleEndpointThreshold")]
         public double RectangleEndpointThreshold { get; set; } = 30.0;

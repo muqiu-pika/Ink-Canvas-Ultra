@@ -794,13 +794,13 @@ namespace Ink_Canvas
             Settings.Advanced.IsLogEnabled = true;
             Settings.Advanced.IsSecondConfimeWhenShutdownApp = false;
             Settings.Advanced.IsEnableEdgeGestureUtil = false;
-            Settings.Advanced.IsEnableSilentRestartOnCrash = false;
+            Settings.Advanced.IsEnableSilentRestartOnCrash = true;
 
             Settings.Appearance.IsEnableDisPlayFloatBarText = false;
             Settings.Appearance.IsEnableDisPlayNibModeToggler = false;
             Settings.Appearance.IsColorfulViewboxFloatingBar = false;
-            Settings.Appearance.FloatingBarScale = 100.0;
-            Settings.Appearance.BlackboardScale = 100.0;
+            Settings.Appearance.FloatingBarScale = 80.0;
+            Settings.Appearance.BlackboardScale = 80.0;
             Settings.Appearance.IsTransparentButtonBackground = true;
             Settings.Appearance.IsShowExitButton = true;
             Settings.Appearance.IsShowEraserButton = true;
@@ -832,14 +832,14 @@ namespace Ink_Canvas
 
             Settings.PowerPointSettings.IsShowPPTNavigationBottom = false;
             Settings.PowerPointSettings.IsShowBottomPPTNavigationPanel = true;
-            Settings.PowerPointSettings.IsShowSidePPTNavigationPanel = true;
+            Settings.PowerPointSettings.IsShowSidePPTNavigationPanel = false;
             Settings.PowerPointSettings.PowerPointSupport = true;
             Settings.PowerPointSettings.IsShowCanvasAtNewSlideShow = true;
             Settings.PowerPointSettings.IsNoClearStrokeOnSelectWhenInPowerPoint = true;
             Settings.PowerPointSettings.IsShowStrokeOnSelectInPowerPoint = false;
             Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint = true;
-            Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint = true;
-            Settings.PowerPointSettings.IsNotifyPreviousPage = false;
+            Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint = false;
+            Settings.PowerPointSettings.IsNotifyPreviousPage = true;
             Settings.PowerPointSettings.IsNotifyHiddenPage = false;
             Settings.PowerPointSettings.IsNotifyAutoPlayPresentation = true;
             Settings.PowerPointSettings.IsEnableTwoFingerGestureInPresentationMode = false;
