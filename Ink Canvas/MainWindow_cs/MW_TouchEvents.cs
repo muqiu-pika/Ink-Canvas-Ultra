@@ -283,11 +283,17 @@ namespace Ink_Canvas
         bool isSingleFingerDragMode = false;
         enum TwoFingerGestureType { None, Translate, Scale, Rotate }
         TwoFingerGestureType twoFingerGestureType = TwoFingerGestureType.None;
-        double translateDeadzone = 3.0;
-        double pinchDeadzone = 0.02;
-        double rotateDeadzone = 1.0;
+        double translateDeadzone = 5.0; // 增大死区减少抖动
+        double pinchDeadzone = 0.03;   // 增大死区减少抖动
+        double rotateDeadzone = 2.0;   // 增大死区减少抖动
         Vector translateAccum = new Vector(0, 0);
-        double translateApplyThreshold = 1.5;
+        double translateApplyThreshold = 2.0; // 增大应用阈值减少抖动
+        
+        // 手势平滑处理
+        private const int gestureSmoothingWindow = 8; // 增大窗口大小，提高快速缩放时的平滑效果
+        private Queue<Vector> scaleHistory = new Queue<Vector>(); // 缩放历史改为Vector类型
+        private Queue<double> rotateHistory = new Queue<double>();
+        private Queue<Vector> translateHistory = new Queue<Vector>();
 
         private void ResetTouchState()
         {
@@ -302,6 +308,11 @@ namespace Ink_Canvas
             {
                 inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
             }
+            
+            // 重置手势平滑历史
+            scaleHistory.Clear();
+            rotateHistory.Clear();
+            translateHistory.Clear();
         }
 
         private void inkCanvas_PreviewTouchDown(object sender, TouchEventArgs e)
@@ -373,11 +384,82 @@ namespace Ink_Canvas
                 inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
                 twoFingerGestureType = TwoFingerGestureType.None;
                 translateAccum = new Vector(0, 0);
+                
+                // 重置手势平滑历史
+                scaleHistory.Clear();
+                rotateHistory.Clear();
+                translateHistory.Clear();
             }
         }
+        
+        // 手势平滑处理方法 - 滑动窗口平均
+        private Vector ApplyGestureSmoothing(Vector value, Queue<Vector> history)
+        {
+            history.Enqueue(value);
+            if (history.Count > gestureSmoothingWindow)
+            {
+                history.Dequeue();
+            }
+            
+            // 计算加权平均值，最新的数据权重更高
+            double avgX = 0, avgY = 0;
+            int weight = 1;
+            int totalWeight = 0;
+            
+            foreach (Vector v in history)
+            {
+                avgX += v.X * weight;
+                avgY += v.Y * weight;
+                totalWeight += weight;
+                weight++;
+            }
+            
+            avgX /= totalWeight;
+            avgY /= totalWeight;
+            
+            return new Vector(avgX, avgY);
+        }
+        
+        // 手势平滑处理方法 - 滑动窗口平均
+        private double ApplyGestureSmoothing(double value, Queue<double> history)
+        {
+            history.Enqueue(value);
+            if (history.Count > gestureSmoothingWindow)
+            {
+                history.Dequeue();
+            }
+            
+            // 计算加权平均值，最新的数据权重更高
+            double avg = 0;
+            int weight = 1;
+            int totalWeight = 0;
+            
+            foreach (double v in history)
+            {
+                avg += v * weight;
+                totalWeight += weight;
+                weight++;
+            }
+            avg /= totalWeight;
+            
+            return avg;
+        }
+        
+
+
+        // 节流机制
+        private DateTime lastManipulationTime = DateTime.MinValue;
+        private const int manipulationThrottleMs = 10; // 提高帧率，减少快速缩放时的延迟
 
         private void Main_Grid_ManipulationDelta(object sender, ManipulationDeltaEventArgs e)
         {
+            // 节流处理
+            if ((DateTime.Now - lastManipulationTime).TotalMilliseconds < manipulationThrottleMs)
+            {
+                return;
+            }
+            lastManipulationTime = DateTime.Now;
+
             if (isInMultiTouchMode || !Settings.Gesture.IsEnableTwoFingerGesture) return;
             if ((dec.Count >= 2 && (Settings.PowerPointSettings.IsEnableTwoFingerGestureInPresentationMode || BtnPPTSlideShowEnd.Visibility != Visibility.Visible)) || isSingleFingerDragMode)
             {
@@ -389,6 +471,13 @@ namespace Ink_Canvas
                 double rotate = md.Rotation;
                 Vector scale = md.Scale;
                 Point center = GetMatrixTransformCenterPoint(e.ManipulationOrigin, e.Source as FrameworkElement);
+                
+                // 应用手势平滑处理
+                trans = ApplyGestureSmoothing(trans, translateHistory);
+                rotate = ApplyGestureSmoothing(rotate, rotateHistory);
+                // 修正缩放平滑处理，使用Vector类型的历史队列
+                scale = ApplyGestureSmoothing(scale, scaleHistory);
+                
                 double scaleDelta = Math.Max(Math.Abs(scale.X - 1.0), Math.Abs(scale.Y - 1.0));
                 double transDelta = Math.Sqrt(trans.X * trans.X + trans.Y * trans.Y);
                 double rotateDelta = Math.Abs(rotate);
@@ -431,21 +520,29 @@ namespace Ink_Canvas
                 {
                     if (Settings.Gesture.IsEnableTwoFingerZoom)
                     {
-                        m.ScaleAt(scale.X, scale.Y, center.X, center.Y);
-                        foreach (UIElement element in elements)
-                        {
-                            ApplyElementMatrixTransform(element, m);
-                        }
-                        foreach (Stroke stroke in inkCanvas.Strokes)
-                        {
-                            stroke.Transform(m, false);
-                            try
-                            {
-                                stroke.DrawingAttributes.Width *= md.Scale.X;
-                                stroke.DrawingAttributes.Height *= md.Scale.Y;
-                            }
-                            catch { }
-                        }
+                        // 应用缩放变换
+                m.ScaleAt(scale.X, scale.Y, center.X, center.Y);
+                foreach (UIElement element in elements)
+                {
+                    ApplyElementMatrixTransform(element, m);
+                }
+                
+                // 对笔迹进行缩放变换
+                foreach (Stroke stroke in inkCanvas.Strokes)
+                {
+                    stroke.Transform(m, false);
+                    try
+                    {
+                        // 使用平滑的缩放因子，避免笔迹宽度突变
+                        double scaleFactor = Math.Max(scale.X, scale.Y);
+                        // 限制缩放因子的变化范围，避免快速缩放时的抖动
+                        double maxScaleChange = 0.1; // 每次缩放最大变化10%
+                        scaleFactor = Math.Max(1 - maxScaleChange, Math.Min(scaleFactor, 1 + maxScaleChange));
+                        stroke.DrawingAttributes.Width *= scaleFactor;
+                        stroke.DrawingAttributes.Height *= scaleFactor;
+                    }
+                    catch { }
+                }
                     }
                 }
                 else if (twoFingerGestureType == TwoFingerGestureType.Rotate)
