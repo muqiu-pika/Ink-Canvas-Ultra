@@ -62,7 +62,9 @@ namespace Ink_Canvas.Models
             var thumbnail = new TransformedBitmap(original,
                 new System.Windows.Media.ScaleTransform(scale, scale));
 
-            var bmp = new PngBitmapEncoder();
+            // 使用 JpegBitmapEncoder 进行略微压缩，平衡画质和文件大小
+            var bmp = new JpegBitmapEncoder();
+            bmp.QualityLevel = 85; // 设置质量为85%，在画质和压缩之间取得平衡
             bmp.Frames.Add(BitmapFrame.Create(thumbnail));
 
             using (var stream = new System.IO.MemoryStream())
