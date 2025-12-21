@@ -274,10 +274,7 @@ namespace Ink_Canvas
                 pptApplication = null;
             }
             
-            if (timerCheckPPT != null)
-            {
-                timerCheckPPT.Start();
-            }
+            timerCheckPPT?.Start();
 
             Application.Current.Dispatcher.Invoke(() =>
             {
@@ -369,8 +366,7 @@ namespace Ink_Canvas
                                 try
                                 {
                                     i = int.Parse(System.IO.Path.GetFileNameWithoutExtension(file.Name));
-                                    memoryStreams[i] = new MemoryStream(File.ReadAllBytes(file.FullName));
-                                    memoryStreams[i].Position = 0;
+                                    memoryStreams[i] = new MemoryStream(File.ReadAllBytes(file.FullName)) { Position = 0 };
                                     count++;
                                 }
                                 catch (Exception ex)
