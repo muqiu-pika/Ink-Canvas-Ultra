@@ -265,17 +265,27 @@ namespace Ink_Canvas
 
         private void PptApplication_PresentationClose(Presentation Pres)
         {
-            pptApplication.PresentationClose -= PptApplication_PresentationClose;
-            pptApplication.SlideShowBegin -= PptApplication_SlideShowBegin;
-            pptApplication.SlideShowNextSlide -= PptApplication_SlideShowNextSlide;
-            pptApplication.SlideShowEnd -= PptApplication_SlideShowEnd;
-            pptApplication = null;
-            timerCheckPPT.Start();
+            if (pptApplication != null)
+            {
+                pptApplication.PresentationClose -= PptApplication_PresentationClose;
+                pptApplication.SlideShowBegin -= PptApplication_SlideShowBegin;
+                pptApplication.SlideShowNextSlide -= PptApplication_SlideShowNextSlide;
+                pptApplication.SlideShowEnd -= PptApplication_SlideShowEnd;
+                pptApplication = null;
+            }
+            
+            if (timerCheckPPT != null)
+            {
+                timerCheckPPT.Start();
+            }
 
             Application.Current.Dispatcher.Invoke(() =>
             {
                 //BtnPPTSlideShow.Visibility = Visibility.Collapsed;
-                BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
+                if (BtnPPTSlideShowEnd != null)
+                {
+                    BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
+                }
             });
 
         }
@@ -559,13 +569,12 @@ namespace Ink_Canvas
                     ImageBlackboard_Click(null, null);
                 }
 
-                ClearStrokes(true);
-                timeMachine.ClearStrokeHistory();
-
                 if (_desktopStrokesBackup != null && _desktopStrokesBackup.Length > 0)
                 {
                     try
                     {
+                        ClearStrokes(true);
+                        timeMachine.ClearStrokeHistory();
                         _desktopStrokesBackup.Position = 0;
                         inkCanvas.Strokes.Add(new StrokeCollection(_desktopStrokesBackup));
                     }

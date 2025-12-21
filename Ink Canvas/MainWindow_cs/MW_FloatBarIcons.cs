@@ -382,14 +382,15 @@ namespace Ink_Canvas
                 PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
                 PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
 
-                new Thread(new ThreadStart(() =>
+                // 使用非阻塞延迟代替Thread.Sleep
+                Task.Run(async () =>
                 {
-                    Thread.Sleep(100);
+                    await Task.Delay(100);
                     Application.Current.Dispatcher.Invoke(() =>
                     {
                         ViewboxFloatingBarMarginAnimation();
                     });
-                })).Start();
+                });
 
                 if (Pen_Icon.Background == null)
                 {
@@ -1154,6 +1155,8 @@ namespace Ink_Canvas
                     RestoreStrokes();
                 }
                 Topmost = true;
+                // 确保窗口获得焦点
+                WindowFocusHelper.EnsureWindowFocus(this);
                 BtnHideInkCanvas_Click(null, e);
             }
             else
@@ -1171,6 +1174,8 @@ namespace Ink_Canvas
                         ClearStrokes(true);
                         RestoreStrokes(true);
                         Topmost = true;
+                        // 确保窗口获得焦点
+                        WindowFocusHelper.EnsureWindowFocus(this);
                         break;
                     case 1: //黑板或白板模式
                         currentMode = 1;
@@ -1184,6 +1189,8 @@ namespace Ink_Canvas
                         RestoreStrokes();
 
                         Topmost = false;
+                        // 确保窗口在非Topmost模式下也能正确显示
+                        this.Activate();
                         break;
                 }
             }

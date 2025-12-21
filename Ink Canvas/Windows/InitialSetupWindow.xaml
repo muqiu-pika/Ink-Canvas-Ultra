@@ -268,10 +268,10 @@
                                         Foreground="{DynamicResource PopupWindowForeground}"
                                         Text="显示 PPT 导航按钮" />
                                         <UniformGrid Columns="1" Margin="0,6,0,0">
-                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="底部显示页码" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelBottom_Click" />
-                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="底部翻页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationBottom_Click" />
-                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="侧边显示页码" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelSide_Click" />
-                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="侧边翻页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationSides_Click" />
+                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelBottom" Content="底部翻页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelBottom_Click" />
+                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationBottom" Content="底部显示页码" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationBottom_Click" />
+                                            <CheckBox x:Name="CheckBoxShowPPTNavigationPanelSide" Content="侧边翻页按钮" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowPPTNavigationPanelSide_Click" />
+                                            <CheckBox x:Name="CheckBoxShowButtonPPTNavigationSides" Content="侧边显示页码" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxShowButtonPPTNavigationSides_Click" />
                                         </UniformGrid>
                                     </StackPanel>
                                 </Grid>
