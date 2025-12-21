@@ -1157,6 +1157,8 @@ namespace Ink_Canvas
                 Topmost = true;
                 // 确保窗口获得焦点
                 WindowFocusHelper.EnsureWindowFocus(this);
+                // 重新注册触摸窗口以修复讯飞智慧窗触屏锁导致的触摸问题
+                TouchLockFix.ReRegisterTouchWindow(this);
                 BtnHideInkCanvas_Click(null, e);
             }
             else
@@ -1176,6 +1178,8 @@ namespace Ink_Canvas
                         Topmost = true;
                         // 确保窗口获得焦点
                         WindowFocusHelper.EnsureWindowFocus(this);
+                        // 重新注册触摸窗口以修复讯飞智慧窗触屏锁导致的触摸问题
+                        TouchLockFix.ReRegisterTouchWindow(this);
                         break;
                     case 1: //黑板或白板模式
                         currentMode = 1;
@@ -1191,6 +1195,8 @@ namespace Ink_Canvas
                         Topmost = false;
                         // 确保窗口在非Topmost模式下也能正确显示
                         this.Activate();
+                        // 重新注册触摸窗口以修复讯飞智慧窗触屏锁导致的触摸问题
+                        TouchLockFix.ReRegisterTouchWindow(this);
                         break;
                 }
             }

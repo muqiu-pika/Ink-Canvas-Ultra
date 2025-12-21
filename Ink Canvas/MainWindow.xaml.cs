@@ -240,6 +240,9 @@ namespace Ink_Canvas
             isLoaded = true;
             RegisterGlobalHotkeys();
 
+            // 注册触摸窗口以确保触摸事件正常工作
+            TouchLockFix.ReRegisterTouchWindow(this);
+
             // 启动后提示是否恢复上次会话
             PromptRestoreLastSessionOnStartup();
 
