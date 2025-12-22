@@ -31,7 +31,7 @@ namespace Ink_Canvas
 
         private void HotKey_Capture()
         {
-            SaveScreenShotToDesktop();
+            CaptureScreenRegionAndHandle();
         }
         
         private void HotKey_Hide()

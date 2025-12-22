@@ -356,7 +356,7 @@ namespace Ink_Canvas
         {
             HideSubPanelsImmediately();
             await Task.Delay(50);
-            SaveScreenShotToDesktop();
+            CaptureScreenRegionAndHandle();
         }
 
         bool isDisplayingOrHidingBlackboard = false;
