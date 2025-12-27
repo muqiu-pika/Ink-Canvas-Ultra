@@ -565,12 +565,14 @@ namespace Ink_Canvas
                     ImageBlackboard_Click(null, null);
                 }
 
+                // Clear current PPT slide strokes before potentially restoring desktop strokes
+                ClearStrokes(true);
+                timeMachine.ClearStrokeHistory();
+
                 if (_desktopStrokesBackup != null && _desktopStrokesBackup.Length > 0)
                 {
                     try
                     {
-                        ClearStrokes(true);
-                        timeMachine.ClearStrokeHistory();
                         _desktopStrokesBackup.Position = 0;
                         inkCanvas.Strokes.Add(new StrokeCollection(_desktopStrokesBackup));
                     }
