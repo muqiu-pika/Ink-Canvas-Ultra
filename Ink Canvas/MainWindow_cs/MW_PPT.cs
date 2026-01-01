@@ -306,18 +306,34 @@ namespace Ink_Canvas
             {
                 ResetTouchState();
 
+                // 确保备份的笔迹是独立的，不会被后续操作影响
                 if (currentMode == 0 && inkCanvas.Strokes.Count > 0)
                 {
                     try
                     {
+                        // 创建独立的笔迹集合备份
+                        _desktopStrokesBackupStrokes = new StrokeCollection();
+                        foreach (Stroke stroke in inkCanvas.Strokes)
+                        {
+                            _desktopStrokesBackupStrokes.Add(stroke.Clone());
+                        }
+                        
+                        // 同时创建流备份，确保双重保险
                         _desktopStrokesBackup = new MemoryStream();
                         inkCanvas.Strokes.Save(_desktopStrokesBackup);
+                        _desktopStrokesBackup.Position = 0; // 确保流位置正确
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile("Failed to backup desktop strokes: " + ex.Message, LogHelper.LogType.Error);
+                        _desktopStrokesBackup = null;
+                        _desktopStrokesBackupStrokes = null;
+                    }
                 }
                 else
                 {
                     _desktopStrokesBackup = null;
+                    _desktopStrokesBackupStrokes = null;
                 }
 
                 if (currentMode != 0)
@@ -548,53 +564,94 @@ namespace Ink_Canvas
 
             Application.Current.Dispatcher.Invoke(() =>
             {
-                ResetTouchState();
-
-                //isPresentationHaveBlackSpace = false;
-
-                //BtnPPTSlideShow.Visibility = Visibility.Visible;
-                BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
-                BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
-                PPTNavigationBottomLeft.Visibility = Visibility.Collapsed;
-                PPTNavigationBottomRight.Visibility = Visibility.Collapsed;
-                PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
-                PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
-
-                if (currentMode != 0)
+                _isRestoringDesktopStrokesAfterPpt = true;
+                try
                 {
-                    ImageBlackboard_Click(null, null);
-                }
+                    ResetTouchState();
 
-                // Clear current PPT slide strokes before potentially restoring desktop strokes
-                ClearStrokes(true);
-                timeMachine.ClearStrokeHistory();
+                    //isPresentationHaveBlackSpace = false;
 
-                if (_desktopStrokesBackup != null && _desktopStrokesBackup.Length > 0)
-                {
-                    try
+                    //BtnPPTSlideShow.Visibility = Visibility.Visible;
+                    BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
+                    BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
+                    PPTNavigationBottomLeft.Visibility = Visibility.Collapsed;
+                    PPTNavigationBottomRight.Visibility = Visibility.Collapsed;
+                    PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
+                    PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
+
+                    if (currentMode != 0)
                     {
-                        _desktopStrokesBackup.Position = 0;
-                        inkCanvas.Strokes.Add(new StrokeCollection(_desktopStrokesBackup));
+                        ImageBlackboard_Click(null, null);
                     }
-                    catch (Exception ex)
+
+                    // Clear current PPT slide strokes before potentially restoring desktop strokes
+                    ClearStrokes(true);
+                    timeMachine.ClearStrokeHistory();
+
+                    bool restored = false;
+                    
+                    // 尝试从备份的笔迹集合恢复
+                    if (_desktopStrokesBackupStrokes != null && _desktopStrokesBackupStrokes.Count > 0)
                     {
-                        LogHelper.WriteLogToFile("Failed to restore desktop strokes: " + ex.Message, LogHelper.LogType.Error);
+                        try
+                        {
+                            inkCanvas.Strokes.Add(_desktopStrokesBackupStrokes);
+                            LogHelper.WriteLogToFile("Restored desktop strokes from backup strokes collection", LogHelper.LogType.Trace);
+                            restored = true;
+                        }
+                        catch (Exception ex)
+                        {
+                            LogHelper.WriteLogToFile("Failed to restore desktop strokes from backup strokes: " + ex.Message, LogHelper.LogType.Error);
+                        }
                     }
-                    _desktopStrokesBackup = null;
-                }
+                    
+                    // 如果从笔迹集合恢复失败，尝试从流中恢复
+                    if (!restored && _desktopStrokesBackup != null && _desktopStrokesBackup.Length > 0)
+                    {
+                        try
+                        {
+                            _desktopStrokesBackup.Position = 0;
+                            var strokesFromStream = new StrokeCollection(_desktopStrokesBackup);
+                            if (strokesFromStream.Count > 0)
+                            {
+                                inkCanvas.Strokes.Add(strokesFromStream);
+                                LogHelper.WriteLogToFile("Restored desktop strokes from backup stream", LogHelper.LogType.Trace);
+                                restored = true;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            LogHelper.WriteLogToFile("Failed to restore desktop strokes from backup stream: " + ex.Message, LogHelper.LogType.Error);
+                        }
+                    }
+                    
+                    // 清理备份资源
+                    _desktopStrokesBackupStrokes = null;
+                    if (_desktopStrokesBackup != null)
+                    {
+                        _desktopStrokesBackup.Dispose();
+                        _desktopStrokesBackup = null;
+                    }
+                    
+                    LogHelper.WriteLogToFile("Desktop strokes restore " + (restored ? "successful" : "failed"), LogHelper.LogType.Trace);
 
-                if (Main_Grid.Background != Brushes.Transparent)
-                {
-                    BtnHideInkCanvas_Click(null, null);
-                }
+                    if (Main_Grid.Background != Brushes.Transparent)
+                    {
+                        BtnHideInkCanvas_Click(null, null);
+                    }
 
-                if (Settings.Appearance.IsColorfulViewboxFloatingBar)
-                {
-                    ViewboxFloatingBar.Opacity = 0.95;
+                    if (Settings.Appearance.IsColorfulViewboxFloatingBar)
+                    {
+                        ViewboxFloatingBar.Opacity = 0.95;
+                    }
+                    else
+                    {
+                        ViewboxFloatingBar.Opacity = 1;
+                    }
                 }
-                else
+                finally
                 {
-                    ViewboxFloatingBar.Opacity = 1;
+                    _isRestoringDesktopStrokesAfterPpt = false;
                 }
             });
 
@@ -605,6 +662,8 @@ namespace Ink_Canvas
         int previousSlideID = 0;
         MemoryStream[] memoryStreams = new MemoryStream[50];
         MemoryStream _desktopStrokesBackup = null;
+        StrokeCollection _desktopStrokesBackupStrokes = null;
+        bool _isRestoringDesktopStrokesAfterPpt = false;
 
         private void PptApplication_SlideShowNextSlide(SlideShowWindow Wn)
         {

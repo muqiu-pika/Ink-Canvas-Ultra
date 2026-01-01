@@ -1221,7 +1221,7 @@ namespace Ink_Canvas
                 // Auto-clear Strokes 要等待截图完成再清理笔记
                 if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
                 {
-                    if (isLoaded && Settings.Automation.IsAutoClearWhenExitingWritingMode)
+                    if (!_isRestoringDesktopStrokesAfterPpt && isLoaded && Settings.Automation.IsAutoClearWhenExitingWritingMode)
                     {
                         if (inkCanvas.Strokes.Count > 0)
                         {
@@ -1239,7 +1239,7 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    if (isLoaded && Settings.Automation.IsAutoClearWhenExitingWritingMode && !Settings.PowerPointSettings.IsNoClearStrokeOnSelectWhenInPowerPoint)
+                    if (!_isRestoringDesktopStrokesAfterPpt && isLoaded && Settings.Automation.IsAutoClearWhenExitingWritingMode && !Settings.PowerPointSettings.IsNoClearStrokeOnSelectWhenInPowerPoint)
                     {
                         if (inkCanvas.Strokes.Count > 0)
                         {
