@@ -18,8 +18,7 @@ namespace Ink_Canvas
         {
             InitializeComponent();
             AnimationsHelper.ShowWithSlideFromBottomAndFade(this, 0.25);
-            MainWindow mainWindow = Application.Current.MainWindow as MainWindow;
-            if (mainWindow != null)
+            if (Application.Current.MainWindow is MainWindow mainWindow)
             {
                 if (mainWindow.GetMainWindowTheme() == "Light")
                 {
@@ -84,7 +83,7 @@ namespace Ink_Canvas
             }
         }
 
-        SoundPlayer player = new SoundPlayer();
+        readonly SoundPlayer player = new SoundPlayer();
 
         int hour = 0;
         int minute = 1;
@@ -97,7 +96,7 @@ namespace Ink_Canvas
         bool isTimerRunning = false;
         bool isPaused = false;
 
-        Timer timer = new Timer();
+        readonly Timer timer = new Timer();
 
         private void Grid_MouseUp(object sender, MouseButtonEventArgs e)
         {

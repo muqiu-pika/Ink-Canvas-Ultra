@@ -393,8 +393,7 @@ namespace Ink_Canvas
 
                 foreach (var dir in System.IO.Directory.GetDirectories(pagesDir))
                 {
-                    int pageIndex = 0;
-                    int.TryParse(System.IO.Path.GetFileName(dir), out pageIndex);
+                    int.TryParse(System.IO.Path.GetFileName(dir), out int pageIndex);
                     string elementsPath = System.IO.Path.Combine(dir, "elements.xaml");
                     if (!System.IO.File.Exists(elementsPath)) continue;
                     try
@@ -568,9 +567,8 @@ namespace Ink_Canvas
                                 frame.RotateFlip(rotateFlipType);
                             }
                             Bitmap toSave = frame;
-                            List<AForge.IntPoint> corners;
                             // 只有在实时校正开关开启时，才进行照片校正
-                            if (Settings.Automation.IsEnablePhotoCorrection && TryDetectPaperCorners(toSave, out corners))
+                            if (Settings.Automation.IsEnablePhotoCorrection && TryDetectPaperCorners(toSave, out List<AForge.IntPoint> corners))
                             {
                                 var corrected = ApplyPerspectiveCorrection(toSave, corners);
                                 if (corrected != null)
@@ -649,7 +647,7 @@ namespace Ink_Canvas
             if (frameworkElement == null) return;
             
             // 获取或创建变换组
-            var transformGroup = frameworkElement.RenderTransform as TransformGroup;
+            TransformGroup transformGroup = frameworkElement.RenderTransform as TransformGroup;
             if (transformGroup == null)
             {
                 transformGroup = new TransformGroup();
@@ -737,7 +735,7 @@ namespace Ink_Canvas
         {
             try
             {
-                var capturedPhotosStackPanel = FindName("CapturedPhotosStackPanel") as StackPanel;
+                StackPanel capturedPhotosStackPanel = FindName("CapturedPhotosStackPanel") as StackPanel;
                 if (capturedPhotosStackPanel == null) return;
 
                 capturedPhotosStackPanel.Children.Clear();
@@ -969,9 +967,9 @@ namespace Ink_Canvas
                     {
                         if (VideoPresenterSidebar.ActualHeight <= 0) return;
 
-                        var capturedPhotosScrollViewer = FindName("CapturedPhotosScrollViewer") as ScrollViewer;
-                        var capturedPhotosBorder = FindName("CapturedPhotosBorder") as Border;
-                        var capturedPhotosTitleTextBlock = FindName("CapturedPhotosTitleTextBlock") as TextBlock;
+                        ScrollViewer capturedPhotosScrollViewer = FindName("CapturedPhotosScrollViewer") as ScrollViewer;
+                        Border capturedPhotosBorder = FindName("CapturedPhotosBorder") as Border;
+                        TextBlock capturedPhotosTitleTextBlock = FindName("CapturedPhotosTitleTextBlock") as TextBlock;
 
                         if (capturedPhotosScrollViewer == null || capturedPhotosBorder == null || capturedPhotosTitleTextBlock == null)
                             return;
@@ -1024,8 +1022,8 @@ namespace Ink_Canvas
             UpdateCapturePhotoButtonState();
             try
             {
-                var cb = FindName("CheckBoxEnablePhotoCorrection") as ToggleButton;
-                if (cb != null) cb.IsChecked = Settings.Automation.IsEnablePhotoCorrection;
+                if (FindName("CheckBoxEnablePhotoCorrection") is ToggleButton cb)
+                    cb.IsChecked = Settings.Automation.IsEnablePhotoCorrection;
             }
             catch { }
         }
@@ -1572,10 +1570,7 @@ namespace Ink_Canvas
                     UpdatePhotoSelectionIndicators();
                     
                     // 通知摄像头管理器页面切换
-                    if (cameraDeviceManager != null)
-                    {
-                        cameraDeviceManager.HandlePageChanged(pageIndex);
-                    }
+                    cameraDeviceManager?.HandlePageChanged(pageIndex);
                     
                     // 更新页面显示
                     UpdateIndexInfoDisplay();
@@ -1851,8 +1846,8 @@ namespace Ink_Canvas
                 {
                     var pts = best.Select(p => new System.Drawing.Point((int)Math.Round(p.X * scale), (int)Math.Round(p.Y * scale))).ToList();
                     pts.Sort((a, b) => a.Y.CompareTo(b.Y));
-                    if (pts[0].X > pts[1].X) { var t = pts[0]; pts[0] = pts[1]; pts[1] = t; }
-                    if (pts[2].X > pts[3].X) { var t = pts[2]; pts[2] = pts[3]; pts[3] = t; }
+                    if (pts[0].X > pts[1].X) { (pts[0], pts[1]) = (pts[1], pts[0]); }
+                    if (pts[2].X > pts[3].X) { (pts[2], pts[3]) = (pts[3], pts[2]); }
                     using (var g = Graphics.FromImage(frame))
                     {
                         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
@@ -1941,8 +1936,8 @@ namespace Ink_Canvas
                         .Select(p => new AForge.IntPoint((int)Math.Round(p.X * scale), (int)Math.Round(p.Y * scale)))
                         .ToList();
                     pts.Sort((a, b) => a.Y.CompareTo(b.Y));
-                    if (pts[0].X > pts[1].X) { var t = pts[0]; pts[0] = pts[1]; pts[1] = t; }
-                    if (pts[2].X > pts[3].X) { var t = pts[2]; pts[2] = pts[3]; pts[3] = t; }
+                    if (pts[0].X > pts[1].X) { (pts[0], pts[1]) = (pts[1], pts[0]); }
+                    if (pts[2].X > pts[3].X) { (pts[2], pts[3]) = (pts[3], pts[2]); }
                     cornersOut = pts;
                     if (!ReferenceEquals(work, frame)) work.Dispose();
                     gray.Dispose();
@@ -2049,8 +2044,7 @@ namespace Ink_Canvas
                                 frame.RotateFlip(rotateFlipType);
                             }
                             Bitmap toSave = frame;
-                            List<AForge.IntPoint> corners;
-                            if (TryDetectPaperCorners(toSave, out corners))
+                            if (TryDetectPaperCorners(toSave, out List<AForge.IntPoint> corners))
                             {
                                 var corrected = ApplyPerspectiveCorrection(toSave, corners);
                                 if (corrected != null)
