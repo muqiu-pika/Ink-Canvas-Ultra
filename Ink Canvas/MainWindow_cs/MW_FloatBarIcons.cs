@@ -114,6 +114,8 @@ namespace Ink_Canvas
             isDragDropInEffect = true;
             pos = e.GetPosition(null);
             downPos = e.GetPosition(null);
+            // 确保拖拽开始时窗口保持在最顶层
+            Topmost = true;
             GridForFloatingBarDraging.Visibility = Visibility.Visible;
             SymbolIconEmoji1.Width = 0;
             SymbolIconEmoji2.Width = 28;
@@ -140,6 +142,8 @@ namespace Ink_Canvas
             GridForFloatingBarDraging.Visibility = Visibility.Collapsed;
             SymbolIconEmoji1.Width = 28;
             SymbolIconEmoji2.Width = 0;
+            // 确保拖拽结束后窗口仍然保持在最顶层
+            Topmost = true;
         }
 
         #endregion
@@ -736,7 +740,17 @@ namespace Ink_Canvas
             await Dispatcher.InvokeAsync(() =>
             {
                 ViewboxFloatingBar.Margin = new Thickness(pos.X, pos.Y, -2000, -200);
-                if (Topmost == false) ViewboxFloatingBar.Visibility = Visibility.Hidden;
+                // 确保浮动栏可见时始终保持在最顶层
+                if (ViewboxFloatingBar.Visibility == Visibility.Visible)
+                {
+                    Topmost = true;
+                    ViewboxFloatingBar.Visibility = Visibility.Visible;
+                }
+                // 只有在黑板模式下且非PPT放映时才隐藏浮动栏
+                else if (currentMode == 1 && BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
+                {
+                    ViewboxFloatingBar.Visibility = Visibility.Hidden;
+                }
             });
         }
 

@@ -90,6 +90,25 @@ namespace Ink_Canvas
         {
             /*if (!StoreHelper.IsStoreApp) */RootPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase;
 
+            // Diagnostic logging added to help investigate Debug/Release differences
+            try
+            {
+                var asm = Assembly.GetEntryAssembly() ?? Assembly.GetExecutingAssembly();
+                var dbgAttr = asm.GetCustomAttributes(typeof(System.Diagnostics.DebuggableAttribute), false).FirstOrDefault() as System.Diagnostics.DebuggableAttribute;
+                bool isJitTracking = dbgAttr?.IsJITTrackingEnabled ?? false;
+                bool isJitOptimizerDisabled = dbgAttr?.IsJITOptimizerDisabled ?? false;
+
+                LogHelper.WriteLogToFile($"Startup diagnostics: ApplicationBase={AppDomain.CurrentDomain.SetupInformation.ApplicationBase}");
+                LogHelper.WriteLogToFile($"Environment.CurrentDirectory={Environment.CurrentDirectory}");
+                LogHelper.WriteLogToFile($"APPDATA={Environment.GetEnvironmentVariable("APPDATA")}");
+                LogHelper.WriteLogToFile($"AssemblyLocation={asm.Location}");
+                LogHelper.WriteLogToFile($"Is64BitProcess={Environment.Is64BitProcess}");
+                LogHelper.WriteLogToFile($"DebuggableAttribute:IsJITTrackingEnabled={isJitTracking},IsJITOptimizerDisabled={isJitOptimizerDisabled}");
+                LogHelper.WriteLogToFile($"Startup args: {string.Join(" ", e.Args ?? new string[0])}");
+                LogHelper.WriteLogToFile($"Initial RootPath value: {RootPath}");
+            }
+            catch { }
+
             LogHelper.NewLog(string.Format("Ink Canvas Starting (Version: {0})", Assembly.GetExecutingAssembly().GetName().Version.ToString()));
 
             mutex = new System.Threading.Mutex(true, "Ink_Canvas_Ultra", out bool ret);
