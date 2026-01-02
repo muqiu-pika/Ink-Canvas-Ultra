@@ -643,12 +643,10 @@ namespace Ink_Canvas
 
         private void RotateImageElement(UIElement imageElement, double angle)
         {
-            FrameworkElement frameworkElement = imageElement as FrameworkElement;
-            if (frameworkElement == null) return;
+            if (!(imageElement is FrameworkElement frameworkElement)) return;
             
             // 获取或创建变换组
-            TransformGroup transformGroup = frameworkElement.RenderTransform as TransformGroup;
-            if (transformGroup == null)
+            if (!(frameworkElement.RenderTransform is TransformGroup transformGroup))
             {
                 transformGroup = new TransformGroup();
                 frameworkElement.RenderTransform = transformGroup;
@@ -735,8 +733,7 @@ namespace Ink_Canvas
         {
             try
             {
-                StackPanel capturedPhotosStackPanel = FindName("CapturedPhotosStackPanel") as StackPanel;
-                if (capturedPhotosStackPanel == null) return;
+                if (!(FindName("CapturedPhotosStackPanel") is StackPanel capturedPhotosStackPanel)) return;
 
                 capturedPhotosStackPanel.Children.Clear();
 
@@ -967,11 +964,9 @@ namespace Ink_Canvas
                     {
                         if (VideoPresenterSidebar.ActualHeight <= 0) return;
 
-                        ScrollViewer capturedPhotosScrollViewer = FindName("CapturedPhotosScrollViewer") as ScrollViewer;
-                        Border capturedPhotosBorder = FindName("CapturedPhotosBorder") as Border;
-                        TextBlock capturedPhotosTitleTextBlock = FindName("CapturedPhotosTitleTextBlock") as TextBlock;
-
-                        if (capturedPhotosScrollViewer == null || capturedPhotosBorder == null || capturedPhotosTitleTextBlock == null)
+                        if (!(FindName("CapturedPhotosScrollViewer") is ScrollViewer capturedPhotosScrollViewer) ||
+                            !(FindName("CapturedPhotosBorder") is Border capturedPhotosBorder) ||
+                            !(FindName("CapturedPhotosTitleTextBlock") is TextBlock capturedPhotosTitleTextBlock))
                             return;
 
                         double borderInnerHeight = capturedPhotosBorder.ActualHeight
@@ -1831,8 +1826,7 @@ namespace Ink_Canvas
                 {
                     var edgePoints = bc.GetBlobsEdgePoints(blob);
                     if (edgePoints == null || edgePoints.Count < 4) continue;
-                    List<AForge.IntPoint> corners;
-                    if (sc.IsQuadrilateral(edgePoints, out corners))
+                    if (sc.IsQuadrilateral(edgePoints, out List<AForge.IntPoint> corners))
                     {
                         double area = Math.Abs(PolygonArea(corners));
                         if (area > bestArea)
@@ -1919,8 +1913,7 @@ namespace Ink_Canvas
                 {
                     var edgePoints = bc.GetBlobsEdgePoints(blob);
                     if (edgePoints == null || edgePoints.Count < 4) continue;
-                    List<AForge.IntPoint> crn;
-                    if (sc.IsQuadrilateral(edgePoints, out crn))
+                    if (sc.IsQuadrilateral(edgePoints, out List<AForge.IntPoint> crn))
                     {
                         double area = Math.Abs(PolygonArea(crn));
                         if (area > bestArea)
