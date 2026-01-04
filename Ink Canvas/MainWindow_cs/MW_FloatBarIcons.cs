@@ -631,15 +631,28 @@ namespace Ink_Canvas
 
         private void SymbolIconTools_Click(object sender, RoutedEventArgs e)
         {
-            if (BorderTools.Visibility == Visibility.Visible)
+            // 根据当前模式只显示对应窗口
+            if (currentMode == 1) // 画板模式
             {
-                AnimationsHelper.HideWithSlideAndFade(BorderTools);
-                AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
+                if (BoardBorderTools.Visibility == Visibility.Visible)
+                {
+                    AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
+                }
+                else
+                {
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardBorderTools);
+                }
             }
-            else
+            else // 浮动栏模式
             {
-                AnimationsHelper.ShowWithSlideFromBottomAndFade(BorderTools);
-                AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardBorderTools);
+                if (BorderTools.Visibility == Visibility.Visible)
+                {
+                    AnimationsHelper.HideWithSlideAndFade(BorderTools);
+                }
+                else
+                {
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BorderTools);
+                }
             }
         }
 

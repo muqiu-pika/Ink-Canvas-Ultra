@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+﻿﻿using Ink_Canvas.Helpers;
 using iNKORE.UI.WPF.Modern;
 using System;
 using System.Media;
