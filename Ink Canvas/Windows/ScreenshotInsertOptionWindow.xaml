@@ -1,0 +1,198 @@
+<Window x:Class="Ink_Canvas.Windows.ScreenshotInsertOptionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:Ink_Canvas.Windows"
+        xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+        mc:Ignorable="d"
+        Title="截图插入选项"
+        Height="320"
+        Width="440"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Topmost="True"
+        Background="Transparent"
+        AllowsTransparency="True"
+        WindowStyle="None">
+
+    <Window.Resources>
+        <Style x:Key="OptionButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="380"/>
+            <Setter Property="Height" Value="70"/>
+            <Setter Property="Margin" Value="0,8"/>
+            <Setter Property="Padding" Value="20,12"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="Foreground" Value="#1a1a2e"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="12">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="8" Direction="0" Opacity="0.08" ShadowDepth="0"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Stretch" 
+                                              VerticalAlignment="Center"
+                                              Margin="15,10"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#F0F4FF"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="1.02" ScaleY="1.02"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E8EDFF"/>
+                                <Setter Property="RenderTransform">
+                                    <Setter.Value>
+                                        <ScaleTransform ScaleX="0.98" ScaleY="0.98"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="TitleTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="20"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="#1a1a2e"/>
+        </Style>
+
+        <Style x:Key="SubtitleTextStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="Margin" Value="0,4,0,0"/>
+        </Style>
+
+        <Style x:Key="CancelButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="380"/>
+            <Setter Property="Height" Value="45"/>
+            <Setter Property="Margin" Value="0,15,0,0"/>
+            <Setter Property="Background" Value="#F3F4F6"/>
+            <Setter Property="Foreground" Value="#6B7280"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border" 
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center" 
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="#E5E7EB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Background="{DynamicResource PopupWindowBackground}"
+            CornerRadius="16">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16" Direction="0" Opacity="0.15" ShadowDepth="0"/>
+        </Border.Effect>
+        <Grid Margin="25">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Margin="0,0,0,20">
+                <TextBlock Text="截图已成功" 
+                           Style="{StaticResource TitleTextStyle}"
+                           FontSize="22"/>
+                <TextBlock Text="请选择截图插入位置" 
+                           Style="{StaticResource SubtitleTextStyle}"/>
+            </StackPanel>
+
+            <StackPanel Grid.Row="1">
+                <Button x:Name="BtnInsertToCanvas" 
+                        Style="{StaticResource OptionButtonStyle}"
+                        Click="BtnInsertToCanvas_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <Border Width="48" Height="48" 
+                                Background="#EEF2FF" 
+                                CornerRadius="10"
+                                Margin="0,0,15,0">
+                            <TextBlock Text="&#xE7C4;" 
+                                       FontFamily="{StaticResource FluentIconFontFamily}"
+                                       FontSize="24" 
+                                       Foreground="#4A6CF7"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="插入到画板" 
+                                       Style="{StaticResource TitleTextStyle}"
+                                       FontSize="17"/>
+                            <TextBlock Text="将截图插入到当前画布中，支持移动和缩放" 
+                                       Style="{StaticResource SubtitleTextStyle}"/>
+                        </StackPanel>
+                    </Grid>
+                </Button>
+
+                <Button x:Name="BtnInsertToBoard" 
+                        Style="{StaticResource OptionButtonStyle}"
+                        Click="BtnInsertToBoard_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <Border Width="48" Height="48" 
+                                Background="#F0FDF4" 
+                                CornerRadius="10"
+                                Margin="0,0,15,0">
+                            <TextBlock Text="&#xE8B7;" 
+                                       FontFamily="{StaticResource FluentIconFontFamily}"
+                                       FontSize="24" 
+                                       Foreground="#22C55E"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="插入到白板照片列表" 
+                                       Style="{StaticResource TitleTextStyle}"
+                                       FontSize="17"/>
+                            <TextBlock Text="将截图添加到白板右侧的照片列表中" 
+                                       Style="{StaticResource SubtitleTextStyle}"/>
+                        </StackPanel>
+                    </Grid>
+                </Button>
+            </StackPanel>
+
+            <Button Grid.Row="2" 
+                    x:Name="BtnCancel"
+                    Content="取消"
+                    Style="{StaticResource CancelButtonStyle}"
+                    Click="BtnCancel_Click"/>
+        </Grid>
+    </Border>
+</Window>

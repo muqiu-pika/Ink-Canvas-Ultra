@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Documents;
+using System.Windows.Ink;
 using Ink_Canvas.Helpers;
 using System.Windows.Media.Imaging;
 using System.Windows.Input;
@@ -215,6 +216,18 @@ namespace Ink_Canvas
             transformGroup.Children.Add(new TranslateTransform(centerX, centerY));
 
             element.RenderTransform = transformGroup;
+        }
+
+        // 初始化InkCanvas选择设置
+        private void InitializeInkCanvasSelectionSettings()
+        {
+            if (inkCanvas != null)
+            {
+                // 清除当前选择，避免显示控制点
+                inkCanvas.Select(new StrokeCollection());
+                // 设置编辑模式为非选择模式
+                inkCanvas.EditingMode = InkCanvasEditingMode.None;
+            }
         }
     }
 }

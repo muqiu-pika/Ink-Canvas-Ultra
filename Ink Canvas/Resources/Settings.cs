@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
+using System.Collections.Generic;
 
-#pragma warning disable IDE0130 // 命名空间“Ink_Canvas”与文件夹结构不匹配
+#pragma warning disable IDE0130 // 命名空间"Ink_Canvas"与文件夹结构不匹配
 namespace Ink_Canvas
 {
     public class Settings
@@ -23,6 +24,8 @@ namespace Ink_Canvas
         public Startup Startup { get; set; } = new Startup();
         [JsonProperty("randSettings")]
         public RandSettings RandSettings { get; set; } = new RandSettings();
+        [JsonProperty("camera")]
+        public CameraSettings Camera { get; set; } = new CameraSettings();
     }
 
     public class Canvas
@@ -361,5 +364,21 @@ namespace Ink_Canvas
         [JsonProperty("isNotRepeatName")]
         public bool IsNotRepeatName { get; set; } = false;
     }
+
+    public class CameraSettings
+    {
+        [JsonProperty("rotationAngle")]
+        public int RotationAngle { get; set; } = 0;
+
+        [JsonProperty("resolutionWidth")]
+        public int ResolutionWidth { get; set; } = 1920;
+
+        [JsonProperty("resolutionHeight")]
+        public int ResolutionHeight { get; set; } = 1080;
+
+        [JsonProperty("selectedCameraIndex")]
+        public int SelectedCameraIndex { get; set; } = 0;
+    }
+
 }
 #pragma warning restore IDE0130
