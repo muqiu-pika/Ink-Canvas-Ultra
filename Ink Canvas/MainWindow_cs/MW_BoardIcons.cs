@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
@@ -43,6 +43,41 @@ namespace Ink_Canvas
             }
         }
 
+        // 白板模式画笔按钮点击事件 - 独立处理，不影响浮动栏按钮
+        private void BoardPenIcon_Click(object sender, RoutedEventArgs e)
+        {
+            if (BoardPen.Opacity != 1)
+            {
+                AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardPenPalette);
+            }
+            else
+            {
+                inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+
+                Main_Grid.Background = new SolidColorBrush(StringToColor("#01FFFFFF"));
+
+                inkCanvas.IsHitTestVisible = true;
+                inkCanvas.Visibility = Visibility.Visible;
+
+                GridBackgroundCoverHolder.Visibility = Visibility.Visible;
+                GridInkCanvasSelectionCover.Visibility = Visibility.Collapsed;
+
+                StackPanelCanvasControls.Visibility = Visibility.Visible;
+
+                CheckEnableTwoFingerGestureBtnVisibility(true);
+                inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                ColorSwitchCheck();
+                HideSubPanels("pen", false, true);
+            }
+        }
+
+        // 白板模式选择按钮点击事件 - 独立处理，不影响浮动栏按钮
+        private void BoardSelectIcon_Click(object sender, RoutedEventArgs e)
+        {
+            BtnSelect_Click(null, null);
+            HideSubPanels("select", false, true);
+        }
+
         private void BoardEraserIcon_Click(object sender, RoutedEventArgs e)
         {
             if (BoardEraser.Opacity != 1)
@@ -76,7 +111,7 @@ namespace Ink_Canvas
                 InkCanvas_EditingModeChanged(inkCanvas, null);
                 CancelSingleFingerDragMode();
 
-                HideSubPanels("eraser");
+                HideSubPanels("eraser", false, true);
             }
         }
 
@@ -98,13 +133,13 @@ namespace Ink_Canvas
                 InkCanvas_EditingModeChanged(inkCanvas, null);
                 CancelSingleFingerDragMode();
 
-                HideSubPanels("eraserByStrokes");
+                HideSubPanels("eraserByStrokes", false, true);
             }
         }
 
         private void BoardSymbolIconDelete_Click(object sender, RoutedEventArgs e)
         {
-            PenIcon_Click(null, null);
+            BoardPenIcon_Click(null, null);
             SymbolIconDelete_MouseUp(sender, e);
         }
 

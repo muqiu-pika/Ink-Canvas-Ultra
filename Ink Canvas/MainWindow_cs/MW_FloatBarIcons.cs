@@ -159,7 +159,7 @@ namespace Ink_Canvas
             BorderSettings.Visibility = Visibility.Collapsed;
         }
 
-        private async void HideSubPanels(String mode = null, bool autoAlignCenter = false)
+        private async void HideSubPanels(String mode = null, bool autoAlignCenter = false, bool isFromBoard = false)
         {
             AnimationsHelper.HideWithSlideAndFade(BorderTools);
             AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
@@ -179,22 +179,31 @@ namespace Ink_Canvas
             {
                 if (mode != "clear")
                 {
-                    Pen_Icon.Background = null;
+                    // 如果不是来自白板的调用，才更新浮动栏按钮状态
+                    if (!isFromBoard)
+                    {
+                        Pen_Icon.Background = null;
+                        Eraser_Icon.Background = null;
+                        SymbolIconSelect.Background = null;
+                        EraserByStrokes_Icon.Background = null;
+                    }
+                    // 如果不是来自浮动栏的调用，才更新白板按钮状态
                     BoardPen.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
                     BoardPen.Opacity = 1;
-                    Eraser_Icon.Background = null;
                     BoardEraser.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
                     BoardEraser.Opacity = 1;
-                    SymbolIconSelect.Background = null;
                     BoardSelect.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
                     BoardSelect.Opacity = 1;
-                    EraserByStrokes_Icon.Background = null;
                     BoardEraserByStrokes.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
                     BoardEraserByStrokes.Opacity = 1;
                 }
                 if (mode == "pen" || mode == "color")
                 {
-                    Pen_Icon.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                    // 如果不是来自白板的调用，才更新浮动栏按钮状态
+                    if (!isFromBoard)
+                    {
+                        Pen_Icon.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                    }
                     BoardPen.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
                     BoardPen.Opacity = 0.99;
                 }
@@ -202,21 +211,33 @@ namespace Ink_Canvas
                 {
                     if (mode == "eraser")
                     {
-                        Eraser_Icon.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                        // 如果不是来自白板的调用，才更新浮动栏按钮状态
+                        if (!isFromBoard)
+                        {
+                            Eraser_Icon.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                        }
                         BoardEraser.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
                         BoardEraser.Opacity = 0.99;
                     }
                     else if (mode == "eraserByStrokes")
                     {
-                        EraserByStrokes_Icon.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                        // 如果不是来自白板的调用，才更新浮动栏按钮状态
+                        if (!isFromBoard)
+                        {
+                            EraserByStrokes_Icon.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                        }
                         BoardEraserByStrokes.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
                         BoardEraserByStrokes.Opacity = 0.99;
                     }
                     else if (mode == "select")
                     {
                         BoardSelect.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
-                        SymbolIconSelect.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
-                        SymbolIconSelect.Opacity = 0.99;
+                        // 如果不是来自白板的调用，才更新浮动栏按钮状态
+                        if (!isFromBoard)
+                        {
+                            SymbolIconSelect.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                            SymbolIconSelect.Opacity = 0.99;
+                        }
                     }
                 }
 
@@ -396,9 +417,10 @@ namespace Ink_Canvas
                     });
                 });
 
-                if (Pen_Icon.Background == null)
+                // 进入白板模式时，只更新白板按钮状态，不更新浮动栏按钮
+                if (BoardPen.Opacity == 1)
                 {
-                    PenIcon_Click(BoardPenIcon, null);
+                    BoardPenIcon_Click(null, null);
                 }
 
                 if (Settings.Gesture.AutoSwitchTwoFingerGesture) // 画板模式：启用双指平移和缩放，禁用多指书写

@@ -17,16 +17,28 @@ namespace Ink_Canvas
     {
         #region Floating Bar Control
 
+        // 浮动栏图形按钮点击事件
         private void ImageDrawShape_Click(object sender, RoutedEventArgs e)
         {
             if (BorderDrawShape.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderDrawShape);
-                AnimationsHelper.HideWithSlideAndFade(BoardBorderDrawShape);
             }
             else
             {
                 AnimationsHelper.ShowWithSlideFromBottomAndFade(BorderDrawShape);
+            }
+        }
+
+        // 白板模式图形按钮点击事件 - 独立处理，不影响浮动栏
+        private void BoardImageDrawShape_Click(object sender, RoutedEventArgs e)
+        {
+            if (BoardBorderDrawShape.Visibility == Visibility.Visible)
+            {
+                AnimationsHelper.HideWithSlideAndFade(BoardBorderDrawShape);
+            }
+            else
+            {
                 AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardBorderDrawShape);
             }
         }

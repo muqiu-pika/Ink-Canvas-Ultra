@@ -1301,7 +1301,7 @@
                             Height="55"
                             Padding="0"
                             BorderThickness="0"
-                            Click="SymbolIconSelect_Click">
+                            Click="BoardSelectIcon_Click">
                             <Border
                                 x:Name="BoardSelect"
                                 Width="60"
@@ -1348,7 +1348,7 @@
                             Height="55"
                             Padding="0"
                             BorderThickness="0"
-                            Click="PenIcon_Click">
+                            Click="BoardPenIcon_Click">
                             <Border
                                 x:Name="BoardPen"
                                 Width="60"
@@ -2050,7 +2050,7 @@
                             Height="55"
                             Padding="0"
                             BorderThickness="0"
-                            Click="ImageDrawShape_Click">
+                            Click="BoardImageDrawShape_Click">
                             <Border
                                 x:Name="BoardGeometry"
                                 Width="60"
