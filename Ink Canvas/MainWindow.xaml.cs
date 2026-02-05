@@ -164,7 +164,8 @@ namespace Ink_Canvas
             {
                 foreach (GestureRecognitionResult gest in gestures)
                 {
-                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
+                    // 在白板模式下(currentMode == 1)不响应PPT翻页手势
+                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && currentMode != 1)
                     {
                         if (gest.ApplicationGesture == ApplicationGesture.Left)
                         {

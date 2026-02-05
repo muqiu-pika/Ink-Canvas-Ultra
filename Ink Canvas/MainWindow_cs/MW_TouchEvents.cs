@@ -246,7 +246,8 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && inkCanvas.Strokes.Count == 0 && Settings.PowerPointSettings.IsEnableFingerGestureSlideShowControl && dec.Count <= 1)
+                    // 在白板模式下(currentMode == 1)不启用PPT翻页手势控制
+                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && currentMode != 1 && inkCanvas.Strokes.Count == 0 && Settings.PowerPointSettings.IsEnableFingerGestureSlideShowControl && dec.Count <= 1)
                     {
                         isLastTouchEraser = false;
                         inkCanvas.EditingMode = InkCanvasEditingMode.GestureOnly;
@@ -461,7 +462,8 @@ namespace Ink_Canvas
             lastManipulationTime = DateTime.Now;
 
             if (isInMultiTouchMode || !Settings.Gesture.IsEnableTwoFingerGesture) return;
-            if ((dec.Count >= 2 && (Settings.PowerPointSettings.IsEnableTwoFingerGestureInPresentationMode || BtnPPTSlideShowEnd.Visibility != Visibility.Visible)) || isSingleFingerDragMode)
+            // 在白板模式下(currentMode == 1)，手势应该遵循常规设置，不受PPT设置限制
+            if ((dec.Count >= 2 && (currentMode == 1 || Settings.PowerPointSettings.IsEnableTwoFingerGestureInPresentationMode || BtnPPTSlideShowEnd.Visibility != Visibility.Visible)) || isSingleFingerDragMode)
             {
                 Matrix m = new Matrix();
                 ManipulationDelta md = e.DeltaManipulation;
