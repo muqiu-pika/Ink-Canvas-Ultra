@@ -24,6 +24,8 @@ namespace Ink_Canvas
         public static Microsoft.Office.Interop.PowerPoint.Slides slides = null;
         public static Microsoft.Office.Interop.PowerPoint.Slide slide = null;
         public static int slidescount = 0;
+        private int _isCheckingPptCom = 0;
+        private DateTime _suspendPptComCheckUntilUtc = DateTime.MinValue;
 
         /*
         private void BtnCheckPPT_Click(object sender, RoutedEventArgs e)
@@ -90,6 +92,72 @@ namespace Ink_Canvas
         private void TimerCheckPPT_Elapsed(object sender, ElapsedEventArgs e)
         {
             if (IsShowingRestoreHiddenSlidesWindow) return;
+            if (DateTime.UtcNow < _suspendPptComCheckUntilUtc) return;
+            try
+            {
+                if (Application.Current?.Dispatcher != null)
+                {
+                    Application.Current.Dispatcher.BeginInvoke((Action)(() =>
+                    {
+                        try
+                        {
+                            EnsurePptComConnectedFromTimer();
+                        }
+                        catch { }
+                    }));
+                }
+            }
+            catch { }
+        }
+
+        private static bool IsRetryableComException(Exception ex)
+        {
+            if (ex is COMException comEx)
+            {
+                int hr = comEx.HResult;
+                if (hr == unchecked((int)0x80010001)) return true;
+                if (hr == unchecked((int)0x8001010A)) return true;
+                if (hr == unchecked((int)0x80010108)) return false;
+                if (hr == unchecked((int)0x800401E3)) return false;
+            }
+            return false;
+        }
+
+        private static bool TryPingPptApplication(Microsoft.Office.Interop.PowerPoint.Application app)
+        {
+            if (app == null) return false;
+            try
+            {
+                _ = app.HWND;
+                return true;
+            }
+            catch { return false; }
+        }
+
+        private async Task<bool> RetryComAsync(Action action, int maxAttempts, int delayMs)
+        {
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                try
+                {
+                    action();
+                    return true;
+                }
+                catch (Exception ex) when (IsRetryableComException(ex))
+                {
+                    await Task.Delay(delayMs);
+                }
+                catch
+                {
+                    return false;
+                }
+            }
+            return false;
+        }
+
+        private async void EnsurePptComConnectedFromTimer()
+        {
+            if (Interlocked.Exchange(ref _isCheckingPptCom, 1) == 1) return;
             try
             {
                 if (!IsWPSSupportOn && Process.GetProcessesByName("wpp").Length > 0)
@@ -97,26 +165,65 @@ namespace Ink_Canvas
                     return;
                 }
 
-                pptApplication = (Microsoft.Office.Interop.PowerPoint.Application)Marshal.GetActiveObject("PowerPoint.Application");
+                string className = ForegroundWindowInfo.WindowClassName();
+                if (className == "Progman" || className == "WorkerW" || className == "Shell_TrayWnd")
+                {
+                    _suspendPptComCheckUntilUtc = DateTime.UtcNow.AddMilliseconds(1500);
+                    return;
+                }
+
+                if (pptApplication != null && TryPingPptApplication(pptApplication)) return;
+
+                Microsoft.Office.Interop.PowerPoint.Application acquired = null;
+                for (int attempt = 0; attempt < 6; attempt++)
+                {
+                    try
+                    {
+                        acquired = (Microsoft.Office.Interop.PowerPoint.Application)Marshal.GetActiveObject("PowerPoint.Application");
+                        if (!TryPingPptApplication(acquired)) acquired = null;
+                        if (acquired != null) break;
+                    }
+                    catch (Exception ex) when (IsRetryableComException(ex))
+                    {
+                        await Task.Delay(150);
+                    }
+                    catch
+                    {
+                        acquired = null;
+                        break;
+                    }
+                }
+
+                if (acquired == null) return;
+                pptApplication = acquired;
 
                 if (pptApplication != null)
                 {
                     // 先注册事件，再停止定时器
+                    try { pptApplication.PresentationClose -= PptApplication_PresentationClose; } catch { }
+                    try { pptApplication.SlideShowBegin -= PptApplication_SlideShowBegin; } catch { }
+                    try { pptApplication.SlideShowNextSlide -= PptApplication_SlideShowNextSlide; } catch { }
+                    try { pptApplication.SlideShowEnd -= PptApplication_SlideShowEnd; } catch { }
                     pptApplication.PresentationClose += PptApplication_PresentationClose;
                     pptApplication.SlideShowBegin += PptApplication_SlideShowBegin;
                     pptApplication.SlideShowNextSlide += PptApplication_SlideShowNextSlide;
                     pptApplication.SlideShowEnd += PptApplication_SlideShowEnd;
                     
                     //获得演示文稿对象
-                    presentation = pptApplication.ActivePresentation;
+                    bool gotPresentation = await RetryComAsync(() => { presentation = pptApplication.ActivePresentation; }, 4, 150);
                     if (presentation != null)
                     {
                         // 获得幻灯片对象集合
-                        slides = presentation.Slides;
+                        bool gotSlides = await RetryComAsync(() => { slides = presentation.Slides; }, 4, 150);
+                        if (!gotPresentation || !gotSlides) return;
 
                         // 获得幻灯片的数量
-                        slidescount = slides.Count;
-                        memoryStreams = new MemoryStream[slidescount + 2];
+                        bool gotCount = await RetryComAsync(() =>
+                        {
+                            slidescount = slides.Count;
+                            memoryStreams = new MemoryStream[slidescount + 2];
+                        }, 4, 150);
+                        if (!gotCount) return;
                         // 获得当前选中的幻灯片
                         try
                         {
@@ -260,6 +367,10 @@ namespace Ink_Canvas
                 });
                 */
                 timerCheckPPT.Start();
+            }
+            finally
+            {
+                Interlocked.Exchange(ref _isCheckingPptCom, 0);
             }
         }
 

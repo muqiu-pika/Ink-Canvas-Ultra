@@ -22,7 +22,7 @@ namespace Ink_Canvas
             Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.D, HotKey_DrawTool);
             Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.Q, HotKey_QuitDrawMode);
             Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.B, HotKey_Board);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_CONTROL, Key.V, HotKey_Paste);
+            Hotkey.Regist(this, HotkeyModifiers.MOD_CONTROL | HotkeyModifiers.MOD_SHIFT, Key.V, HotKey_Paste);
         }
 
         private void HotKey_ExitPPTSlideShow()

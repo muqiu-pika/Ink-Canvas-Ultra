@@ -724,9 +724,13 @@ namespace Ink_Canvas
                 }
                 IntPtr windowHandle = new WindowInteropHelper(this).Handle;
                 System.Windows.Forms.Screen screen = System.Windows.Forms.Screen.FromHandle(windowHandle);
-                double screenWidth = screen.Bounds.Width / dpiScaleX, screenHeight = screen.Bounds.Height / dpiScaleY;
-                pos.X = (screenWidth - ViewboxFloatingBar.ActualWidth * ViewboxFloatingBarScaleTransform.ScaleX) / 2;
-                pos.Y = screenHeight - MarginFromEdge * ((ViewboxFloatingBarScaleTransform.ScaleY == 1) ? 1 : 0.9);
+                var workingArea = screen.WorkingArea;
+                double workLeft = workingArea.Left / dpiScaleX;
+                double workTop = workingArea.Top / dpiScaleY;
+                double workWidth = workingArea.Width / dpiScaleX;
+                double workHeight = workingArea.Height / dpiScaleY;
+                pos.X = workLeft + (workWidth - ViewboxFloatingBar.ActualWidth * ViewboxFloatingBarScaleTransform.ScaleX) / 2;
+                pos.Y = workTop + workHeight - MarginFromEdge * ((ViewboxFloatingBarScaleTransform.ScaleY == 1) ? 1 : 0.9);
 
                 if (MarginFromEdge != -60)
                 {

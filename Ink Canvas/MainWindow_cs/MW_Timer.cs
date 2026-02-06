@@ -12,9 +12,11 @@ namespace Ink_Canvas
         Timer timerCheckPPT = new Timer();
         Timer timerKillProcess = new Timer();
         Timer timerCheckAutoFold = new Timer();
+        Timer timerFixFloatingBarZOrder = new Timer();
         string AvailableLatestVersion = null;
         Timer timerCheckAutoUpdateWithSilence = new Timer();
         bool isHidingSubPanelsWhenInking = false; // 避免书写时触发二次关闭二级菜单导致动画不连续
+        DateTime _lastFixFloatingBarZOrderTimeUtc = DateTime.MinValue;
 
         private void InitTimers()
         {
@@ -24,6 +26,8 @@ namespace Ink_Canvas
             timerKillProcess.Interval = 5000;
             timerCheckAutoFold.Elapsed += TimerCheckAutoFold_Elapsed;
             timerCheckAutoFold.Interval = 1500;
+            timerFixFloatingBarZOrder.Elapsed += TimerFixFloatingBarZOrder_Elapsed;
+            timerFixFloatingBarZOrder.Interval = 900;
             timerCheckAutoUpdateWithSilence.Elapsed += TimerCheckAutoUpdateWithSilence_Elapsed;
             timerCheckAutoUpdateWithSilence.Interval = 1000 * 60 * 10;
         }
@@ -151,6 +155,33 @@ namespace Ink_Canvas
             {
                 LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
             }
+        }
+
+        private void TimerFixFloatingBarZOrder_Elapsed(object sender, ElapsedEventArgs e)
+        {
+            try
+            {
+                if (currentMode != 0) return;
+                if (ViewboxFloatingBar == null) return;
+                if (ViewboxFloatingBar.Visibility != Visibility.Visible) return;
+
+                var nowUtc = DateTime.UtcNow;
+                if (nowUtc - _lastFixFloatingBarZOrderTimeUtc < TimeSpan.FromMilliseconds(900)) return;
+
+                string className = ForegroundWindowInfo.WindowClassName();
+                if (className != "Progman" && className != "WorkerW" && className != "Shell_TrayWnd") return;
+
+                _lastFixFloatingBarZOrderTimeUtc = nowUtc;
+                Dispatcher.BeginInvoke((Action)(() =>
+                {
+                    try
+                    {
+                        WindowFocusHelper.EnsureWindowTopmost(this, true);
+                    }
+                    catch { }
+                }));
+            }
+            catch { }
         }
     }
 }

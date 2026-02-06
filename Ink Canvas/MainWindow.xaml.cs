@@ -240,6 +240,7 @@ namespace Ink_Canvas
             
             isLoaded = true;
             RegisterGlobalHotkeys();
+            timerFixFloatingBarZOrder?.Start();
 
             // 注册触摸窗口以确保触摸事件正常工作
             TouchLockFix.ReRegisterTouchWindow(this);
@@ -277,6 +278,7 @@ namespace Ink_Canvas
         private void Window_Closed(object sender, EventArgs e)
         {
             LogHelper.WriteLogToFile("Ink Canvas closed", LogHelper.LogType.Event);
+            try { timerFixFloatingBarZOrder?.Stop(); } catch { }
             // 移除摄像头画面
             RemoveCameraFrame();
             // 清理摄像头资源
