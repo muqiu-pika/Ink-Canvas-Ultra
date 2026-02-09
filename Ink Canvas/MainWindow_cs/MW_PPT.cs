@@ -247,39 +247,39 @@ namespace Ink_Canvas
                 if (pptApplication == null) return;
 
                 // 跳转到上次播放页
-                if (Settings.PowerPointSettings.IsNotifyPreviousPage)
-                {
-                    Application.Current.Dispatcher.BeginInvoke((Action)(() =>
-                    {
-                        string folderPath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + presentation.Name + "_" + presentation.Slides.Count;
-                        try
+                        if (Settings.PowerPointSettings.IsNotifyPreviousPage)
                         {
-                            if (File.Exists(folderPath + "/Position"))
+                            _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
                             {
-                                if (int.TryParse(File.ReadAllText(folderPath + "/Position"), out var page))
+                                string folderPath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + presentation.Name + "_" + presentation.Slides.Count;
+                                try
                                 {
-                                    if (page <= 0) return;
-                                    new YesOrNoNotificationWindow($"上次播放到了第 {page} 页, 是否立即跳转", () =>
+                                    if (File.Exists(folderPath + "/Position"))
                                     {
-                                        if (pptApplication.SlideShowWindows.Count >= 1)
+                                        if (int.TryParse(File.ReadAllText(folderPath + "/Position"), out var page))
                                         {
-                                            // 如果已经播放了的话, 跳转
-                                            presentation.SlideShowWindow.View.GotoSlide(page);
+                                            if (page <= 0) return;
+                                            new YesOrNoNotificationWindow($"上次播放到了第 {page} 页, 是否立即跳转", () =>
+                                            {
+                                                if (pptApplication.SlideShowWindows.Count >= 1)
+                                                {
+                                                    // 如果已经播放了的话, 跳转
+                                                    presentation.SlideShowWindow.View.GotoSlide(page);
+                                                }
+                                                else
+                                                {
+                                                    presentation.Windows[1].View.GotoSlide(page);
+                                                }
+                                            }).ShowDialog();
                                         }
-                                        else
-                                        {
-                                            presentation.Windows[1].View.GotoSlide(page);
-                                        }
-                                    }).ShowDialog();
+                                    }
                                 }
-                            }
+                                catch (Exception ex)
+                                {
+                                    LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
+                                }
+                            }));
                         }
-                        catch (Exception ex)
-                        {
-                            LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
-                        }
-                    }));
-                }
 
                 //检查是否有隐藏幻灯片
                 if (Settings.PowerPointSettings.IsNotifyHiddenPage)
@@ -294,7 +294,7 @@ namespace Ink_Canvas
                         }
                     }
 
-                    Application.Current.Dispatcher.BeginInvoke((Action)(() =>
+                    _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
                     {
                         if (isHaveHiddenSlide && !IsShowingRestoreHiddenSlidesWindow)
                         {
@@ -332,7 +332,7 @@ namespace Ink_Canvas
                     }
                     if (hasSlideTimings)
                     {
-                        Application.Current.Dispatcher.BeginInvoke((Action)(() =>
+                        _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
                         {
                             new YesOrNoNotificationWindow("检测到此演示文档中自动播放或排练计时已经启用，可能导致幻灯片自动翻页，是否取消？",
                                 () =>
@@ -738,11 +738,8 @@ namespace Ink_Canvas
                     
                     // 清理备份资源
                     _desktopStrokesBackupStrokes = null;
-                    if (_desktopStrokesBackup != null)
-                    {
-                        _desktopStrokesBackup.Dispose();
-                        _desktopStrokesBackup = null;
-                    }
+                    _desktopStrokesBackup?.Dispose();
+                    _desktopStrokesBackup = null;
                     
                     LogHelper.WriteLogToFile("Desktop strokes restore " + (restored ? "successful" : "failed"), LogHelper.LogType.Trace);
 
