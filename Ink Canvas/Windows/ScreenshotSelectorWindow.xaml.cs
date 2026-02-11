@@ -151,28 +151,42 @@ namespace Ink_Canvas
             {
                 CameraSelectionComboBox.Items.Clear();
 
-                if (_cameraService.HasAvailableCameras())
+                if (_cameraService != null)
                 {
-                    var cameraNames = _cameraService.GetCameraNames();
-                    foreach (var name in cameraNames)
-                    {
-                        CameraSelectionComboBox.Items.Add(name);
-                    }
+                    // 刷新摄像头列表
+                    _cameraService.RefreshCameraList();
 
-                    if (cameraNames.Count > 0)
+                    if (_cameraService.HasAvailableCameras())
                     {
+                        var cameraNames = _cameraService.GetCameraNames();
+                        foreach (var name in cameraNames)
+                        {
+                            CameraSelectionComboBox.Items.Add(name);
+                        }
+
+                        if (cameraNames.Count > 0)
+                        {
+                            CameraSelectionComboBox.SelectedIndex = 0;
+                        }
+                    }
+                    else
+                    {
+                        CameraSelectionComboBox.Items.Add("未找到摄像头设备");
                         CameraSelectionComboBox.SelectedIndex = 0;
                     }
                 }
                 else
                 {
-                    CameraSelectionComboBox.Items.Add("未找到摄像头设备");
+                    CameraSelectionComboBox.Items.Add("摄像头服务未初始化");
                     CameraSelectionComboBox.SelectedIndex = 0;
                 }
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"刷新摄像头列表失败: {ex.Message}", LogHelper.LogType.Error);
+                CameraSelectionComboBox.Items.Clear();
+                CameraSelectionComboBox.Items.Add("刷新摄像头列表失败");
+                CameraSelectionComboBox.SelectedIndex = 0;
             }
         }
 
@@ -201,7 +215,9 @@ namespace Ink_Canvas
                             if (bitmapSource != null)
                             {
                                 CameraPreviewImage.Source = bitmapSource;
-                                CameraStatusText.Text = "摄像头已连接";
+                                // 更新状态为已连接（绿色）
+                                CameraStatusText.Text = "✓ 摄像头已连接";
+                                CameraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(100, 255, 100));
                             }
 
                             // 释放临时位图
@@ -226,12 +242,143 @@ namespace Ink_Canvas
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    CameraStatusText.Text = $"摄像头错误: {error}";
+                    // 根据错误类型显示不同的提示
+                    string displayMessage = GetUserFriendlyCameraError(error);
+                    CameraStatusText.Text = displayMessage;
+                    CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
+
+                    // 显示错误提示弹窗
+                    ShowCameraErrorNotification(displayMessage);
                 }));
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"处理摄像头错误失败: {ex.Message}", LogHelper.LogType.Error);
+            }
+        }
+
+        /// <summary>
+        /// 获取用户友好的摄像头错误信息
+        /// </summary>
+        private string GetUserFriendlyCameraError(string error)
+        {
+            if (string.IsNullOrEmpty(error))
+                return "摄像头发生未知错误";
+
+            // 检查各种错误情况
+            if (error.Contains("占用") || error.Contains("in use") || error.Contains("busy") ||
+                error.Contains("无法启动") || error.Contains("已被其他程序"))
+            {
+                return "⚠️ 摄像头被占用\n请关闭其他正在使用摄像头的程序（如微信、QQ、Zoom等）后重试";
+            }
+
+            if (error.Contains("找不到") || error.Contains("未找到") || error.Contains("not found") ||
+                error.Contains("disconnected") || error.Contains("无法插入") || error.Contains("未连接"))
+            {
+                return "⚠️ 摄像头未找到\n请检查摄像头是否正确连接到电脑";
+            }
+
+            if (error.Contains("插入") || error.Contains("连接") || error.Contains("连接失败"))
+            {
+                return "⚠️ 摄像头连接失败\n请检查摄像头是否正确插入，或尝试重新插拔摄像头";
+            }
+
+            if (error.Contains("初始化失败"))
+            {
+                return "⚠️ 摄像头初始化失败\n请尝试重新插拔摄像头，或重启电脑后重试";
+            }
+
+            if (error.Contains("索引超出范围"))
+            {
+                return "⚠️ 摄像头选择错误\n请重新选择摄像头设备";
+            }
+
+            return $"⚠️ 摄像头错误\n{error}";
+        }
+
+        /// <summary>
+        /// 显示摄像头错误通知
+        /// </summary>
+        private void ShowCameraErrorNotification(string message)
+        {
+            try
+            {
+                // 创建错误提示弹窗
+                var errorWindow = new Window
+                {
+                    Title = "摄像头错误",
+                    Width = 400,
+                    Height = 200,
+                    WindowStartupLocation = WindowStartupLocation.CenterScreen,
+                    ResizeMode = ResizeMode.NoResize,
+                    WindowStyle = WindowStyle.ToolWindow,
+                    Topmost = true,
+                    Background = new SolidColorBrush(Color.FromRgb(26, 26, 26))
+                };
+
+                var grid = new Grid();
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+                grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+                // 标题
+                var titleBlock = new TextBlock
+                {
+                    Text = "摄像头错误",
+                    FontSize = 16,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    Margin = new Thickness(20, 15, 20, 10),
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center
+                };
+                Grid.SetRow(titleBlock, 0);
+                grid.Children.Add(titleBlock);
+
+                // 错误信息
+                var messageBlock = new TextBlock
+                {
+                    Text = message,
+                    FontSize = 13,
+                    Foreground = new SolidColorBrush(Color.FromRgb(255, 100, 100)),
+                    Margin = new Thickness(20, 10, 20, 10),
+                    TextWrapping = TextWrapping.Wrap,
+                    TextAlignment = TextAlignment.Center,
+                    VerticalAlignment = System.Windows.VerticalAlignment.Center
+                };
+                Grid.SetRow(messageBlock, 1);
+                grid.Children.Add(messageBlock);
+
+                // 确定按钮
+                var buttonPanel = new StackPanel
+                {
+                    Orientation = System.Windows.Controls.Orientation.Horizontal,
+                    HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 10, 0, 15)
+                };
+
+                var okButton = new System.Windows.Controls.Button
+                {
+                    Content = "确定",
+                    Width = 80,
+                    Height = 32,
+                    Background = new SolidColorBrush(Color.FromRgb(59, 130, 246)),
+                    Foreground = System.Windows.Media.Brushes.White,
+                    BorderThickness = new Thickness(0),
+                    FontWeight = FontWeights.Medium,
+                    Cursor = System.Windows.Input.Cursors.Hand
+                };
+                okButton.Click += (s, e) => errorWindow.Close();
+
+                buttonPanel.Children.Add(okButton);
+                Grid.SetRow(buttonPanel, 2);
+                grid.Children.Add(buttonPanel);
+
+                errorWindow.Content = grid;
+                errorWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"显示错误通知失败: {ex.Message}", LogHelper.LogType.Error);
             }
         }
 
@@ -421,24 +568,58 @@ namespace Ink_Canvas
                 HintText.Text = "摄像头预览模式，点击确认截图按钮进行截图";
                 HintTextBorder.Visibility = Visibility.Visible;
 
+                // 重置状态文本颜色
+                CameraStatusText.Foreground = System.Windows.Media.Brushes.White;
+
                 // 启动摄像头预览
-                if (_cameraService != null && _cameraService.HasAvailableCameras())
+                if (_cameraService != null)
                 {
-                    var selectedIndex = CameraSelectionComboBox.SelectedIndex;
-                    if (selectedIndex >= 0 && selectedIndex < _cameraService.GetCameraNames().Count)
+                    // 刷新摄像头列表
+                    _cameraService.RefreshCameraList();
+
+                    if (_cameraService.HasAvailableCameras())
                     {
-                        _cameraService.StartPreview(selectedIndex);
+                        var selectedIndex = CameraSelectionComboBox.SelectedIndex;
+                        var cameraNames = _cameraService.GetCameraNames();
+
+                        if (selectedIndex >= 0 && selectedIndex < cameraNames.Count)
+                        {
+                            CameraStatusText.Text = "正在启动摄像头...";
+
+                            // 尝试启动摄像头
+                            bool success = _cameraService.StartPreview(selectedIndex);
+                            if (!success)
+                            {
+                                // 启动失败，错误信息会通过 ErrorOccurred 事件处理
+                                CameraStatusText.Text = "摄像头启动失败";
+                            }
+                        }
+                        else
+                        {
+                            CameraStatusText.Text = "请选择一个有效的摄像头";
+                            CameraStatusText.Foreground = System.Windows.Media.Brushes.Yellow;
+                        }
+                    }
+                    else
+                    {
+                        CameraStatusText.Text = "⚠️ 未找到摄像头设备\n请检查摄像头是否正确连接";
+                        CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                        ShowCameraErrorNotification("⚠️ 未找到摄像头设备\n请检查摄像头是否正确连接到电脑");
                     }
                 }
                 else
                 {
-                    CameraStatusText.Text = "未找到摄像头设备";
+                    CameraStatusText.Text = "摄像头服务初始化失败";
+                    CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                    ShowCameraErrorNotification("⚠️ 摄像头服务初始化失败\n请重启应用程序后重试");
                 }
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"启动摄像头模式失败: {ex.Message}", LogHelper.LogType.Error);
                 CameraStatusText.Text = $"启动摄像头失败: {ex.Message}";
+                CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                ShowCameraErrorNotification($"⚠️ 启动摄像头失败\n{ex.Message}");
             }
         }
 
@@ -449,15 +630,28 @@ namespace Ink_Canvas
                 if (_isCameraMode && _cameraService != null)
                 {
                     var selectedIndex = CameraSelectionComboBox.SelectedIndex;
-                    if (selectedIndex >= 0 && selectedIndex < _cameraService.GetCameraNames().Count)
+                    var cameraNames = _cameraService.GetCameraNames();
+
+                    if (selectedIndex >= 0 && selectedIndex < cameraNames.Count)
                     {
-                        _cameraService.SwitchCamera(selectedIndex);
+                        CameraStatusText.Foreground = System.Windows.Media.Brushes.White;
+                        CameraStatusText.Text = $"正在切换到 {cameraNames[selectedIndex]}...";
+
+                        bool success = _cameraService.SwitchCamera(selectedIndex);
+                        if (!success)
+                        {
+                            // 切换失败，错误信息会通过 ErrorOccurred 事件处理
+                            LogHelper.WriteLogToFile($"切换到摄像头 {cameraNames[selectedIndex]} 失败", LogHelper.LogType.Error);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"切换摄像头失败: {ex.Message}", LogHelper.LogType.Error);
+                CameraStatusText.Text = $"切换摄像头失败: {ex.Message}";
+                CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                ShowCameraErrorNotification($"⚠️ 切换摄像头失败\n{ex.Message}");
             }
         }
 
@@ -473,12 +667,33 @@ namespace Ink_Canvas
                         var currentIndex = CameraSelectionComboBox.SelectedIndex;
                         var nextIndex = (currentIndex + 1) % cameraNames.Count;
                         CameraSelectionComboBox.SelectedIndex = nextIndex;
+                        // 实际的切换逻辑在 SelectionChanged 事件中处理
                     }
+                    else if (cameraNames.Count == 1)
+                    {
+                        CameraStatusText.Text = "只有一个摄像头可用";
+                        CameraStatusText.Foreground = System.Windows.Media.Brushes.Yellow;
+                    }
+                    else
+                    {
+                        CameraStatusText.Text = "未找到摄像头设备";
+                        CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                        ShowCameraErrorNotification("⚠️ 未找到摄像头设备\n请检查摄像头是否正确连接到电脑");
+                    }
+                }
+                else
+                {
+                    CameraStatusText.Text = "无法访问摄像头服务";
+                    CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                    ShowCameraErrorNotification("⚠️ 无法访问摄像头服务\n请重启应用程序后重试");
                 }
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"切换摄像头失败: {ex.Message}", LogHelper.LogType.Error);
+                CameraStatusText.Text = $"切换摄像头失败: {ex.Message}";
+                CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
+                ShowCameraErrorNotification($"⚠️ 切换摄像头失败\n{ex.Message}");
             }
         }
 

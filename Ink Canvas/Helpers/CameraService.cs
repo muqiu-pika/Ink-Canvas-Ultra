@@ -119,21 +119,110 @@ namespace Ink_Canvas.Helpers
                 CurrentCamera = AvailableCameras[cameraIndex];
                 _videoSource = new VideoCaptureDevice(CurrentCamera.MonikerString);
 
+                // 检查摄像头是否被占用
+                if (!CheckCameraAvailability(CurrentCamera.MonikerString))
+                {
+                    ErrorOccurred?.Invoke(this, "摄像头被占用");
+                    return false;
+                }
+
                 // 设置视频源事件处理
                 _videoSource.NewFrame += VideoSource_NewFrame;
 
                 // 启动视频源
                 _videoSource.Start();
 
+                // 检查是否成功启动
+                if (!_videoSource.IsRunning)
+                {
+                    ErrorOccurred?.Invoke(this, "摄像头无法启动，可能已被其他程序占用");
+                    return false;
+                }
+
                 _isCapturing = true;
                 LogHelper.WriteLogToFile($"开始摄像头预览: {CurrentCamera.Name}");
                 return true;
+            }
+            catch (System.Runtime.InteropServices.COMException comEx)
+            {
+                string errorMessage = GetCameraErrorMessage(comEx);
+                LogHelper.WriteLogToFile($"启动摄像头预览失败 (COM): {comEx.Message}", LogHelper.LogType.Error);
+                ErrorOccurred?.Invoke(this, errorMessage);
+                return false;
+            }
+            catch (InvalidOperationException opEx)
+            {
+                LogHelper.WriteLogToFile($"启动摄像头预览失败 (操作): {opEx.Message}", LogHelper.LogType.Error);
+                ErrorOccurred?.Invoke(this, "摄像头操作失败，请检查摄像头是否被其他程序占用");
+                return false;
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"启动摄像头预览失败: {ex.Message}", LogHelper.LogType.Error);
                 ErrorOccurred?.Invoke(this, $"启动摄像头预览失败: {ex.Message}");
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// 检查摄像头是否可用（未被占用）
+        /// </summary>
+        private bool CheckCameraAvailability(string monikerString)
+        {
+            VideoCaptureDevice tempDevice = null;
+            try
+            {
+                // 尝试创建一个临时的VideoCaptureDevice来检查可用性
+                tempDevice = new VideoCaptureDevice(monikerString);
+                // 如果创建设备失败，会抛出异常
+                return tempDevice != null;
+            }
+            catch
+            {
+                return false;
+            }
+            finally
+            {
+                // 清理资源
+                if (tempDevice != null)
+                {
+                    try
+                    {
+                        if (tempDevice.IsRunning)
+                        {
+                            tempDevice.SignalToStop();
+                            tempDevice.WaitForStop();
+                        }
+                    }
+                    catch { }
+                }
+            }
+        }
+
+        /// <summary>
+        /// 获取摄像头错误信息
+        /// </summary>
+        private string GetCameraErrorMessage(System.Runtime.InteropServices.COMException ex)
+        {
+            // 根据错误代码返回友好的错误信息
+            uint errorCode = (uint)ex.HResult;
+            switch (errorCode)
+            {
+                case 0x8007001F: // ERROR_GEN_FAILURE
+                    return "摄像头连接失败，请检查摄像头是否正确插入";
+                case 0x800700AA: // ERROR_BUSY
+                case 0x800700B7: // ERROR_ALREADY_EXISTS
+                    return "摄像头被占用，请关闭其他正在使用摄像头的程序";
+                case 0x80070490: // ERROR_NOT_FOUND
+                    return "未找到摄像头设备，请检查摄像头是否已连接";
+                case 0x80004005: // E_FAIL
+                    return "摄像头初始化失败，请尝试重新插拔摄像头";
+                default:
+                    if (ex.Message.Contains("占用") || ex.Message.Contains("in use") || ex.Message.Contains("busy"))
+                        return "摄像头被占用，请关闭其他正在使用摄像头的程序";
+                    if (ex.Message.Contains("找不到") || ex.Message.Contains("not found") || ex.Message.Contains("disconnected"))
+                        return "未找到摄像头设备，请检查摄像头是否已连接";
+                    return $"摄像头错误: {ex.Message}";
             }
         }
 
