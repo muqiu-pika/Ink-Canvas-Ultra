@@ -407,15 +407,8 @@ namespace Ink_Canvas
                 PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
                 PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
 
-                // 使用非阻塞延迟代替Thread.Sleep
-                Task.Run(async () =>
-                {
-                    await Task.Delay(100);
-                    Application.Current.Dispatcher.Invoke(() =>
-                    {
-                        ViewboxFloatingBarMarginAnimation();
-                    });
-                });
+                // 进入白板模式时直接隐藏浮动栏
+                ViewboxFloatingBar.Visibility = Visibility.Collapsed;
 
                 // 进入白板模式时，只更新白板按钮状态，不更新浮动栏按钮
                 if (BoardPen.Opacity == 1)
@@ -688,6 +681,7 @@ namespace Ink_Canvas
                 await Dispatcher.InvokeAsync(() => ViewboxFloatingBarMarginAnimation());
                 return;
             }
+
             double MarginFromEdge;
             if (isFloatingBarFolded)
             {
@@ -724,13 +718,41 @@ namespace Ink_Canvas
                 }
                 IntPtr windowHandle = new WindowInteropHelper(this).Handle;
                 System.Windows.Forms.Screen screen = System.Windows.Forms.Screen.FromHandle(windowHandle);
-                var workingArea = screen.WorkingArea;
-                double workLeft = workingArea.Left / dpiScaleX;
-                double workTop = workingArea.Top / dpiScaleY;
-                double workWidth = workingArea.Width / dpiScaleX;
-                double workHeight = workingArea.Height / dpiScaleY;
-                pos.X = workLeft + (workWidth - ViewboxFloatingBar.ActualWidth * ViewboxFloatingBarScaleTransform.ScaleX) / 2;
-                pos.Y = workTop + workHeight - MarginFromEdge * ((ViewboxFloatingBarScaleTransform.ScaleY == 1) ? 1 : 0.9);
+
+                // 使用屏幕Bounds而不是WorkingArea，与community-beta版本一致
+                double screenWidth = screen.Bounds.Width / dpiScaleX;
+                double screenHeight = screen.Bounds.Height / dpiScaleY;
+
+                // 使用更可靠的方法获取浮动栏宽度
+                double baseWidth = ViewboxFloatingBar.ActualWidth;
+
+                // 如果ActualWidth为0，尝试使用DesiredSize
+                if (baseWidth <= 0)
+                {
+                    baseWidth = ViewboxFloatingBar.DesiredSize.Width;
+                }
+
+                // 如果仍然为0，使用RenderSize
+                if (baseWidth <= 0)
+                {
+                    baseWidth = ViewboxFloatingBar.RenderSize.Width;
+                }
+
+                // 如果所有方法都失败，使用一个基于内容的估算值
+                if (baseWidth <= 0)
+                {
+                    // 根据浮动栏内容估算宽度
+                    baseWidth = 200; // 最小宽度
+                    LogHelper.WriteLogToFile($"浮动栏宽度无法获取，使用估算值: {baseWidth}");
+                }
+
+                double floatingBarWidth = baseWidth * ViewboxFloatingBarScaleTransform.ScaleX;
+
+                // 水平居中计算，与community-beta版本一致
+                pos.X = (screenWidth - floatingBarWidth) / 2;
+
+                // Y坐标计算，与community-beta版本一致
+                pos.Y = screenHeight - MarginFromEdge * ViewboxFloatingBarScaleTransform.ScaleY;
 
                 if (MarginFromEdge != -60)
                 {
@@ -768,7 +790,7 @@ namespace Ink_Canvas
                 {
                     Duration = TimeSpan.FromSeconds(0.5),
                     From = ViewboxFloatingBar.Margin,
-                    To = new Thickness(pos.X, pos.Y, -2000, -200),
+                    To = new Thickness(pos.X, pos.Y, 0, -20),
                     EasingFunction = new CircleEase()
                 };
                 ViewboxFloatingBar.BeginAnimation(FrameworkElement.MarginProperty, marginAnimation);
@@ -778,7 +800,7 @@ namespace Ink_Canvas
 
             await Dispatcher.InvokeAsync(() =>
             {
-                ViewboxFloatingBar.Margin = new Thickness(pos.X, pos.Y, -2000, -200);
+                ViewboxFloatingBar.Margin = new Thickness(pos.X, pos.Y, 0, -20);
                 // 确保浮动栏可见时始终保持在最顶层
                 if (ViewboxFloatingBar.Visibility == Visibility.Visible)
                 {
