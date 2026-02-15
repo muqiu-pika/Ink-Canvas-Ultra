@@ -697,6 +697,9 @@ namespace Ink_Canvas
             }
             if (MarginFromEdge == 60) MarginFromEdge = 55;
             MarginFromEdge *= (Settings.Appearance.FloatingBarScale / 100);
+            
+            Point newPos = new Point();
+            
             await Dispatcher.InvokeAsync(() =>
             {
                 if (Topmost == false)
@@ -749,48 +752,40 @@ namespace Ink_Canvas
                 double floatingBarWidth = baseWidth * ViewboxFloatingBarScaleTransform.ScaleX;
 
                 // 水平居中计算，与community-beta版本一致
-                pos.X = (screenWidth - floatingBarWidth) / 2;
+                newPos.X = (screenWidth - floatingBarWidth) / 2;
 
                 // Y坐标计算，与community-beta版本一致
-                pos.Y = screenHeight - MarginFromEdge * ViewboxFloatingBarScaleTransform.ScaleY;
+                newPos.Y = screenHeight - MarginFromEdge * ViewboxFloatingBarScaleTransform.ScaleY;
 
                 if (MarginFromEdge != -60)
                 {
                     if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
                     {
-                        if (pointPPT.X != -1 || pointPPT.Y != -1)
-                        {
-                            if (Math.Abs(pointPPT.Y - pos.Y) > 50)
-                            {
-                                pos = pointPPT;
-                            }
-                            else
-                            {
-                                pointPPT = pos;
-                            }
-                        }
+                        pointPPT = newPos;
                     }
                     else
                     {
-                        if (pointDesktop.X != -1 || pointDesktop.Y != -1)
-                        {
-                            if (Math.Abs(pointDesktop.Y - pos.Y) > 50)
-                            {
-                                pos = pointDesktop;
-                            }
-                            else
-                            {
-                                pointDesktop = pos;
-                            }
-                        }
+                        pointDesktop = newPos;
                     }
+                }
+
+                // 设置一个合理的起始位置，然后播放平滑动画
+                // 如果浮动栏之前是隐藏状态，从屏幕底部开始动画
+                Thickness fromMargin;
+                if (ViewboxFloatingBar.Visibility != Visibility.Visible)
+                {
+                    fromMargin = new Thickness(newPos.X, SystemParameters.WorkArea.Height + 100, 0, -20);
+                }
+                else
+                {
+                    fromMargin = ViewboxFloatingBar.Margin;
                 }
 
                 ThicknessAnimation marginAnimation = new ThicknessAnimation
                 {
                     Duration = TimeSpan.FromSeconds(0.5),
-                    From = ViewboxFloatingBar.Margin,
-                    To = new Thickness(pos.X, pos.Y, 0, -20),
+                    From = fromMargin,
+                    To = new Thickness(newPos.X, newPos.Y, 0, -20),
                     EasingFunction = new CircleEase()
                 };
                 ViewboxFloatingBar.BeginAnimation(FrameworkElement.MarginProperty, marginAnimation);
@@ -800,7 +795,8 @@ namespace Ink_Canvas
 
             await Dispatcher.InvokeAsync(() =>
             {
-                ViewboxFloatingBar.Margin = new Thickness(pos.X, pos.Y, 0, -20);
+                ViewboxFloatingBar.Margin = new Thickness(newPos.X, newPos.Y, 0, -20);
+                pos = newPos;
                 // 确保浮动栏可见时始终保持在最顶层
                 if (ViewboxFloatingBar.Visibility == Visibility.Visible)
                 {
@@ -875,15 +871,19 @@ namespace Ink_Canvas
             if (!isFloatingBarFolded)
             {
                 HideSubPanels("cursor", true);
-                await Task.Delay(50);
+                // 避免在从白板模式切换过来时重复调用动画，因为 ImageBlackboard_Click 中已经调用过了
+                if (currentMode == 0 && !(isDisplayingOrHidingBlackboard))
+                {
+                    await Task.Delay(50);
 
-                if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
-                {
-                    ViewboxFloatingBarMarginAnimation();
-                }
-                else
-                {
-                    ViewboxFloatingBarMarginAnimation();
+                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
+                    {
+                        ViewboxFloatingBarMarginAnimation();
+                    }
+                    else
+                    {
+                        ViewboxFloatingBarMarginAnimation();
+                    }
                 }
             }
         }

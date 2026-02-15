@@ -196,37 +196,39 @@ namespace Ink_Canvas
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    if (_isCameraMode && CameraPreviewImage != null && frame != null)
+                    try
                     {
-                        try
+                        if (_isCameraMode && CameraPreviewImage != null && frame != null)
                         {
                             // 验证帧的有效性
                             if (frame.Width <= 0 || frame.Height <= 0)
                                 return;
 
                             // 创建新的位图，避免Clone的问题
-                            var clonedFrame = new Bitmap(frame.Width, frame.Height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
-                            using (var graphics = Graphics.FromImage(clonedFrame))
+                            using (var clonedFrame = new Bitmap(frame.Width, frame.Height, System.Drawing.Imaging.PixelFormat.Format24bppRgb))
                             {
-                                graphics.DrawImage(frame, 0, 0);
-                            }
+                                using (var graphics = Graphics.FromImage(clonedFrame))
+                                {
+                                    graphics.DrawImage(frame, 0, 0);
+                                }
 
-                            var bitmapSource = ConvertBitmapToBitmapSource(clonedFrame);
-                            if (bitmapSource != null)
-                            {
-                                CameraPreviewImage.Source = bitmapSource;
-                                // 更新状态为已连接（绿色）
-                                CameraStatusText.Text = "✓ 摄像头已连接";
-                                CameraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(100, 255, 100));
+                                var bitmapSource = ConvertBitmapToBitmapSource(clonedFrame);
+                                if (bitmapSource != null)
+                                {
+                                    CameraPreviewImage.Source = bitmapSource;
+                                    CameraStatusText.Text = "✓ 摄像头已连接";
+                                    CameraStatusText.Foreground = new SolidColorBrush(Color.FromRgb(100, 255, 100));
+                                }
                             }
-
-                            // 释放临时位图
-                            clonedFrame.Dispose();
                         }
-                        catch (Exception frameEx)
-                        {
-                            LogHelper.WriteLogToFile($"处理摄像头帧时出错: {frameEx.Message}", LogHelper.LogType.Error);
-                        }
+                    }
+                    catch (Exception frameEx)
+                    {
+                        LogHelper.WriteLogToFile($"处理摄像头帧时出错: {frameEx.Message}", LogHelper.LogType.Error);
+                    }
+                    finally
+                    {
+                        frame?.Dispose();
                     }
                 }));
             }

@@ -28,7 +28,7 @@ namespace Ink_Canvas.Helpers
                     Version remote = new Version(remoteVersion);
                     if (remote > local)
                     {
-                        LogHelper.WriteLogToFile("AutoUpdate | New version Availble: " + remoteVersion);
+                        LogHelper.WriteLogToFile("AutoUpdate | New version Available: " + remoteVersion);
                         return remoteVersion;
                     }
                     else return null;
@@ -52,6 +52,7 @@ namespace Ink_Canvas.Helpers
             {
                 try
                 {
+                    client.Timeout = TimeSpan.FromSeconds(15);
                     HttpResponseMessage response = await client.GetAsync(fileUrl);
                     response.EnsureSuccessStatusCode();
 
@@ -109,6 +110,7 @@ namespace Ink_Canvas.Helpers
             {
                 try
                 {
+                    client.Timeout = TimeSpan.FromSeconds(15);
                     HttpResponseMessage response = await client.GetAsync(fileUrl);
                     response.EnsureSuccessStatusCode();
 
@@ -166,10 +168,6 @@ namespace Ink_Canvas.Helpers
                 string InstallCommand = $"\"{setupFilePath}\" /SILENT";
                 if (isInSilence) InstallCommand += " /VERYSILENT";
                 ExecuteCommandLine(InstallCommand);
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    Application.Current.Shutdown();
-                });
             }
             catch (Exception ex)
             {

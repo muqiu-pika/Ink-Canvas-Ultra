@@ -48,10 +48,10 @@ namespace Ink_Canvas
         {
             try
             {
-                if (TimeMachineHistories[CurrentWhiteboardIndex] == null) return; //防止白板打开后不居中
                 if (isBackupMain)
                 {
-                    timeMachine.ImportTimeMachineHistory(TimeMachineHistories[0]);
+                    if (TimeMachineHistories[0] == null) return;
+                    if (!timeMachine.ImportTimeMachineHistory(TimeMachineHistories[0])) return;
                     foreach (var item in TimeMachineHistories[0])
                     {
                         ApplyHistoryToCanvas(item);
@@ -59,7 +59,8 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    timeMachine.ImportTimeMachineHistory(TimeMachineHistories[CurrentWhiteboardIndex]);
+                    if (TimeMachineHistories[CurrentWhiteboardIndex] == null) return; //防止白板打开后不居中
+                    if (!timeMachine.ImportTimeMachineHistory(TimeMachineHistories[CurrentWhiteboardIndex])) return;
                     foreach (var item in TimeMachineHistories[CurrentWhiteboardIndex])
                     {
                         ApplyHistoryToCanvas(item);

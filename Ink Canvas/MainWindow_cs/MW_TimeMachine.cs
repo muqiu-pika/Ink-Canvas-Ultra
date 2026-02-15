@@ -63,6 +63,11 @@ namespace Ink_Canvas
 
         private void ApplyHistoryToCanvas(TimeMachineHistory item)
         {
+            if (item == null)
+            {
+                _currentCommitType = CommitReason.UserInput;
+                return;
+            }
             _currentCommitType = CommitReason.CodeInput;
             if (item.CommitType == TimeMachineHistoryType.UserInput)
             {

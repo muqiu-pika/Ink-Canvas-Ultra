@@ -37,8 +37,8 @@ namespace Ink_Canvas.Helpers
 
             AnalysisAlternate analysisAlternate = null;
             int strokesCount = strokes.Count;
-            var sfsaf = analyzer.Analyze();
-            if (sfsaf.Successful)
+            var analysisResult = analyzer.Analyze();
+            if (analysisResult.Successful)
             {
                 var alternates = analyzer.GetAlternates();
                 if (alternates.Count > 0)
@@ -49,8 +49,8 @@ namespace Ink_Canvas.Helpers
                     {
                         analyzer.RemoveStroke(strokes[strokes.Count - strokesCount]);
                         strokesCount--;
-                        sfsaf = analyzer.Analyze();
-                        if (sfsaf.Successful)
+                        analysisResult = analyzer.Analyze();
+                        if (analysisResult.Successful)
                         {
                             alternates = analyzer.GetAlternates();
                         }

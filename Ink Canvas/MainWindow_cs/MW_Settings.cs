@@ -656,8 +656,13 @@ namespace Ink_Canvas
         private void ComboBoxAutoDelSavedFilesDaysThreshold_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             if (!isLoaded) return;
-            Settings.Automation.AutoDelSavedFilesDaysThreshold = int.Parse(((ComboBoxItem)ComboBoxAutoDelSavedFilesDaysThreshold.SelectedItem).Content.ToString());
-            SaveSettingsToFile();
+            if (ComboBoxAutoDelSavedFilesDaysThreshold.SelectedItem is ComboBoxItem item
+                && item.Content != null
+                && int.TryParse(item.Content.ToString(), out int days))
+            {
+                Settings.Automation.AutoDelSavedFilesDaysThreshold = days;
+                SaveSettingsToFile();
+            }
         }
 
         private void ToggleSwitchAutoSaveScreenShotInPowerPoint_Toggled(object sender, RoutedEventArgs e)
@@ -887,7 +892,10 @@ namespace Ink_Canvas
                 isLoaded = true;
                 ToggleSwitchRunAtStartup.IsOn = true;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"MW_Settings | Error reading touch multiplier range: {ex.Message}", LogHelper.LogType.Error);
+            }
             ShowNotificationAsync("设置已重置为默认推荐设置~");
         }
 
@@ -902,7 +910,10 @@ namespace Ink_Canvas
                 };
                 wizard.Show();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"MW_Settings | Error opening initial setup: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         private async void SpecialVersionResetToSuggestion_Click()
@@ -920,7 +931,10 @@ namespace Ink_Canvas
                 LoadSettings();
                 isLoaded = true;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"MW_Settings | Error resetting settings: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         #endregion
@@ -975,7 +989,10 @@ namespace Ink_Canvas
                     touchMultiplierMax = TouchMultiplierSlider.Maximum;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"MW_Settings | Error resetting settings: {ex.Message}", LogHelper.LogType.Error);
+            }
             double recommendedClamped = Math.Max(touchMultiplierMin, Math.Min(touchMultiplierMax, recommended));
 
             // 新增：提示并自动调整相关参数
@@ -1007,20 +1024,26 @@ namespace Ink_Canvas
                         NibModeBoundsWidthEraserSizeSlider.Value = Settings.Advanced.NibModeBoundsWidthEraserSize;
                         FingerModeBoundsWidthEraserSizeSlider.Value = Settings.Advanced.FingerModeBoundsWidthEraserSize;
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile($"MW_Settings | Error applying touch multiplier settings: {ex.Message}", LogHelper.LogType.Error);
+                    }
 
                     SaveSettingsToFile();
                     MessageBox.Show("已应用推荐设置并调整相关参数。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"MW_Settings | Error calculating touch multiplier: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         private void NibModeBoundsWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             if (!isLoaded) return;
             Settings.Advanced.NibModeBoundsWidth = (int)e.NewValue;
-            BoundsWidth = Settings.Startup.IsEnableNibMode ? BoundsWidth = Settings.Advanced.NibModeBoundsWidth : BoundsWidth = Settings.Advanced.FingerModeBoundsWidth;
+            BoundsWidth = Settings.Startup.IsEnableNibMode ? Settings.Advanced.NibModeBoundsWidth : Settings.Advanced.FingerModeBoundsWidth;
             SaveSettingsToFile();
         }
 
@@ -1028,7 +1051,7 @@ namespace Ink_Canvas
         {
             if (!isLoaded) return;
             Settings.Advanced.FingerModeBoundsWidth = (int)e.NewValue;
-            BoundsWidth = Settings.Startup.IsEnableNibMode ? BoundsWidth = Settings.Advanced.NibModeBoundsWidth : BoundsWidth = Settings.Advanced.FingerModeBoundsWidth;
+            BoundsWidth = Settings.Startup.IsEnableNibMode ? Settings.Advanced.NibModeBoundsWidth : Settings.Advanced.FingerModeBoundsWidth;
             SaveSettingsToFile();
         }
 
@@ -1168,7 +1191,10 @@ namespace Ink_Canvas
             {
                 File.WriteAllText(App.RootPath + settingsFileName, text);
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"MW_Settings | Error saving settings: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         private void SCManipulationBoundaryFeedback(object sender, ManipulationBoundaryFeedbackEventArgs e)

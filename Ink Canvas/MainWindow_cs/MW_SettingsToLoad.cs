@@ -4,6 +4,7 @@ using OSVersionExtension;
 using System;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
 using System.Windows.Media;
 using File = System.IO.File;
@@ -704,7 +705,24 @@ namespace Ink_Canvas
 
                 AutoSavedStrokesLocation.Text = Settings.Automation.AutoSavedStrokesLocation;
                 ToggleSwitchAutoDelSavedFiles.IsOn = Settings.Automation.AutoDelSavedFiles;
-                ComboBoxAutoDelSavedFilesDaysThreshold.Text = Settings.Automation.AutoDelSavedFilesDaysThreshold.ToString();
+                string thresholdText = Settings.Automation.AutoDelSavedFilesDaysThreshold.ToString();
+                ComboBoxItem matchedItem = null;
+                foreach (var entry in ComboBoxAutoDelSavedFilesDaysThreshold.Items)
+                {
+                    if (entry is ComboBoxItem item && item.Content != null && item.Content.ToString() == thresholdText)
+                    {
+                        matchedItem = item;
+                        break;
+                    }
+                }
+                if (matchedItem != null)
+                {
+                    ComboBoxAutoDelSavedFilesDaysThreshold.SelectedItem = matchedItem;
+                }
+                else
+                {
+                    ComboBoxAutoDelSavedFilesDaysThreshold.Text = thresholdText;
+                }
             }
             else
             {

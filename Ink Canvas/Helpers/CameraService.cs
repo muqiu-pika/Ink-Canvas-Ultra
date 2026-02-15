@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Linq;
+using System.Threading;
 using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 
@@ -172,10 +173,10 @@ namespace Ink_Canvas.Helpers
             VideoCaptureDevice tempDevice = null;
             try
             {
-                // 尝试创建一个临时的VideoCaptureDevice来检查可用性
                 tempDevice = new VideoCaptureDevice(monikerString);
-                // 如果创建设备失败，会抛出异常
-                return tempDevice != null;
+                tempDevice.Start();
+                Thread.Sleep(100);
+                return tempDevice.IsRunning;
             }
             catch
             {
@@ -194,7 +195,10 @@ namespace Ink_Canvas.Helpers
                             tempDevice.WaitForStop();
                         }
                     }
-                    catch { }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile($"CameraService | Error stopping camera: {ex.Message}", LogHelper.LogType.Error);
+                    }
                 }
             }
         }
@@ -401,9 +405,17 @@ namespace Ink_Canvas.Helpers
                 }
 
                 // 在UI线程中触发事件
+                Bitmap frameSnapshot = null;
+                lock (_frameLock)
+                {
+                    if (_currentFrame != null)
+                    {
+                        frameSnapshot = (Bitmap)_currentFrame.Clone();
+                    }
+                }
                 _dispatcher.BeginInvoke(new Action(() =>
                 {
-                    FrameReceived?.Invoke(this, _currentFrame);
+                    FrameReceived?.Invoke(this, frameSnapshot);
                 }));
             }
             catch (Exception ex)

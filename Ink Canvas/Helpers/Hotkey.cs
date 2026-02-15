@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -71,10 +71,16 @@ namespace Ink_Canvas
         /// <param name="callBack">回调函数</param> 
         public static void UnRegist(IntPtr hWnd, HotKeyCallBackHanlder callBack)
         {
+            List<int> removeIds = new List<int>();
             foreach (KeyValuePair<int, HotKeyCallBackHanlder> var in keymap)
             {
                 if (var.Value == callBack)
-                    UnregisterHotKey(hWnd, var.Key);
+                    removeIds.Add(var.Key);
+            }
+            foreach (var id in removeIds)
+            {
+                UnregisterHotKey(hWnd, id);
+                keymap.Remove(id);
             }
         }
 

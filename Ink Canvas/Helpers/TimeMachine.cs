@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Ink;
@@ -87,6 +87,7 @@ namespace Ink_Canvas.Helpers
 
         public TimeMachineHistory Undo()
         {
+            if (_currentIndex < 0) return null;
             var item = _currentStrokeHistory[_currentIndex];
             item.StrokeHasBeenCleared = !item.StrokeHasBeenCleared;
             _currentIndex--;
@@ -96,6 +97,7 @@ namespace Ink_Canvas.Helpers
 
         public TimeMachineHistory Redo()
         {
+            if (_currentIndex >= _currentStrokeHistory.Count - 1) return null;
             var item = _currentStrokeHistory[++_currentIndex];
             item.StrokeHasBeenCleared = !item.StrokeHasBeenCleared;
             NotifyUndoRedoState();
@@ -110,6 +112,7 @@ namespace Ink_Canvas.Helpers
 
         public bool ImportTimeMachineHistory(TimeMachineHistory[] sourceHistory)
         {
+            if (sourceHistory == null) return false;
             _currentStrokeHistory.Clear();
             _currentStrokeHistory.AddRange(sourceHistory);
             _currentIndex = _currentStrokeHistory.Count - 1;
