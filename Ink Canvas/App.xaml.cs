@@ -72,6 +72,21 @@ namespace Ink_Canvas
             try
             {
                 string exePath = Assembly.GetExecutingAssembly().Location;
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    try { exePath = Process.GetCurrentProcess()?.MainModule?.FileName; } catch { }
+                }
+                if (string.IsNullOrEmpty(exePath))
+                {
+                    try
+                    {
+                        var args0 = Environment.GetCommandLineArgs();
+                        if (args0 != null && args0.Length > 0) exePath = args0[0];
+                    }
+                    catch { }
+                }
+                if (string.IsNullOrEmpty(exePath)) return;
+
                 string args = (StartArgs != null && StartArgs.Length > 0) ? string.Join(" ", StartArgs) : string.Empty;
                 // 使用 -m 允许新进程在旧进程尚未释放互斥量时启动，避免重启失败
                 if (!string.IsNullOrEmpty(args)) args += " ";

@@ -415,7 +415,14 @@ namespace Ink_Canvas.Helpers
                 }
                 _dispatcher.BeginInvoke(new Action(() =>
                 {
-                    FrameReceived?.Invoke(this, frameSnapshot);
+                    try
+                    {
+                        FrameReceived?.Invoke(this, frameSnapshot);
+                    }
+                    finally
+                    {
+                        frameSnapshot?.Dispose();
+                    }
                 }));
             }
             catch (Exception ex)

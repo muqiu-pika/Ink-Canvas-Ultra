@@ -35,6 +35,23 @@ namespace Ink_Canvas
             {
                 LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
             }
+
+            if (Settings == null) Settings = new Settings();
+            if (Settings.Advanced == null) Settings.Advanced = new Advanced();
+            if (Settings.Appearance == null) Settings.Appearance = new Appearance();
+            if (Settings.Automation == null) Settings.Automation = new Automation();
+            if (string.IsNullOrWhiteSpace(Settings.Automation.AutoSavedStrokesLocation))
+            {
+                Settings.Automation.AutoSavedStrokesLocation = @"D:\Ink Canvas";
+            }
+            if (Settings.PowerPointSettings == null) Settings.PowerPointSettings = new PowerPointSettings();
+            if (Settings.Canvas == null) Settings.Canvas = new Canvas();
+            if (Settings.Gesture == null) Settings.Gesture = new Gesture();
+            if (Settings.InkToShape == null) Settings.InkToShape = new InkToShape();
+            if (Settings.Startup == null) Settings.Startup = new Startup();
+            if (Settings.RandSettings == null) Settings.RandSettings = new RandSettings();
+            if (Settings.Camera == null) Settings.Camera = new CameraSettings();
+
             // Startup
             if (isStartup)
             {

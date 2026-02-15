@@ -111,19 +111,30 @@ namespace Ink_Canvas
         // 保存PPT截图
         private void SavePPTScreenshot(string fileName)
         {
-            var bitmap = GetScreenshotBitmap();
-            string savePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - PPT Screenshots";
+            var basePath = Settings?.Automation?.AutoSavedStrokesLocation;
+            if (string.IsNullOrWhiteSpace(basePath)) basePath = @"D:\Ink Canvas";
+
+            string folderPath = Path.Combine(basePath, "Auto Saved - PPT Screenshots");
             if (Settings.Automation.IsSaveScreenshotsInDateFolders)
             {
-                savePath += @"\" + DateTime.Now.ToString("yyyy-MM-dd");
+                folderPath = Path.Combine(folderPath, DateTime.Now.ToString("yyyy-MM-dd"));
             }
+
             if (fileName == null) fileName = DateTime.Now.ToString("u").Replace(":", "-");
-            savePath += @"\" + fileName + ".png";
-            if (!Directory.Exists(Path.GetDirectoryName(savePath)))
+            fileName = SanitizeFileName(fileName);
+
+            string savePath = Path.Combine(folderPath, fileName + ".png");
+
+            var saveDir = Path.GetDirectoryName(savePath);
+            if (!string.IsNullOrEmpty(saveDir) && !Directory.Exists(saveDir))
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(savePath));
+                Directory.CreateDirectory(saveDir);
             }
-            bitmap.Save(savePath, ImageFormat.Png);
+
+            using (var bitmap = GetScreenshotBitmap())
+            {
+                bitmap.Save(savePath, ImageFormat.Png);
+            }
             if (Settings.Automation.IsAutoSaveStrokesAtScreenshot)
             {
                 SaveInkCanvasFile(false, false);
@@ -140,6 +151,18 @@ namespace Ink_Canvas
                 memoryGraphics.CopyFromScreen(rc.X, rc.Y, 0, 0, rc.Size, CopyPixelOperation.SourceCopy);
             }
             return bitmap;
+        }
+
+        private static string SanitizeFileName(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return string.Empty;
+            var invalidChars = Path.GetInvalidFileNameChars();
+            var result = name.Replace('\\', '-').Replace('/', '-');
+            foreach (var ch in invalidChars)
+            {
+                result = result.Replace(ch, '-');
+            }
+            return result.Trim();
         }
     }
 }

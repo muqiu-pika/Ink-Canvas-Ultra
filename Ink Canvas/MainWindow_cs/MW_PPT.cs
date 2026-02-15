@@ -251,7 +251,11 @@ namespace Ink_Canvas
                         {
                             _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
                             {
-                                string folderPath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + presentation.Name + "_" + presentation.Slides.Count;
+                                string safePresentationName = SanitizePathSegment(presentation.Name);
+                                string folderPath = System.IO.Path.Combine(
+                                    Settings.Automation.AutoSavedStrokesLocation,
+                                    "Auto Saved - Presentations",
+                                    safePresentationName + "_" + presentation.Slides.Count);
                                 try
                                 {
                                     if (File.Exists(folderPath + "/Position"))
@@ -479,10 +483,15 @@ namespace Ink_Canvas
                 //检查是否有已有墨迹，并加载
                 if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
                 {
-                    if (Directory.Exists(Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + Wn.Presentation.Name + "_" + Wn.Presentation.Slides.Count))
+                    string safePresentationName = SanitizePathSegment(Wn.Presentation.Name);
+                    string folderPath = System.IO.Path.Combine(
+                        Settings.Automation.AutoSavedStrokesLocation,
+                        "Auto Saved - Presentations",
+                        safePresentationName + "_" + Wn.Presentation.Slides.Count);
+                    if (Directory.Exists(folderPath))
                     {
                         LogHelper.WriteLogToFile("Found saved strokes", LogHelper.LogType.Trace);
-                        var directory = new DirectoryInfo(Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + Wn.Presentation.Name + "_" + Wn.Presentation.Slides.Count);
+                        var directory = new DirectoryInfo(folderPath);
                         FileInfo[] files = directory.GetFiles();
                         int count = 0;
                         foreach (FileInfo file in files)
@@ -611,7 +620,11 @@ namespace Ink_Canvas
             isEnteredSlideShowEndEvent = true;
             if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
             {
-                string folderPath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + Pres.Name + "_" + Pres.Slides.Count;
+                string safePresentationName = SanitizePathSegment(Pres.Name);
+                string folderPath = System.IO.Path.Combine(
+                    Settings.Automation.AutoSavedStrokesLocation,
+                    "Auto Saved - Presentations",
+                    safePresentationName + "_" + Pres.Slides.Count);
                 if (!Directory.Exists(folderPath))
                 {
                     Directory.CreateDirectory(folderPath);
@@ -810,6 +823,19 @@ namespace Ink_Canvas
         }
 
         private bool _isPptClickingBtnTurned = false;
+
+        private static string SanitizePathSegment(string name)
+        {
+            if (string.IsNullOrEmpty(name)) return string.Empty;
+            var invalidChars = System.IO.Path.GetInvalidFileNameChars();
+            var result = name;
+            foreach (var ch in invalidChars)
+            {
+                result = result.Replace(ch, '_');
+            }
+            result = result.Replace('\\', '_').Replace('/', '_');
+            return result.Trim();
+        }
 
         private void BtnPPTSlidesUp_Click(object sender, RoutedEventArgs e)
         {

@@ -476,16 +476,61 @@ namespace Ink_Canvas
 
         private void ExtractUrlFiles(ZipArchive archive, string outputDirectory)
         {
+            if (archive == null) return;
+            if (string.IsNullOrWhiteSpace(outputDirectory)) return;
+
+            string baseDirectoryFullPath;
+            try
+            {
+                baseDirectoryFullPath = Path.GetFullPath(outputDirectory);
+            }
+            catch
+            {
+                return;
+            }
+
+            if (!baseDirectoryFullPath.EndsWith(Path.DirectorySeparatorChar.ToString()) &&
+                !baseDirectoryFullPath.EndsWith(Path.AltDirectorySeparatorChar.ToString()))
+            {
+                baseDirectoryFullPath += Path.DirectorySeparatorChar;
+            }
+
+            try
+            {
+                if (!Directory.Exists(outputDirectory))
+                {
+                    Directory.CreateDirectory(outputDirectory);
+                }
+            }
+            catch
+            {
+                return;
+            }
+
             foreach (var entry in archive.Entries)
             {
                 if (entry.FullName.StartsWith("File Dependency/", StringComparison.OrdinalIgnoreCase))
                 {
                     if (!string.IsNullOrEmpty(entry.Name))
                     {
-                        string fileName = Path.Combine(outputDirectory, entry.FullName);
+                        string combinedPath = Path.Combine(outputDirectory, entry.FullName);
+                        string fileName;
+                        try
+                        {
+                            fileName = Path.GetFullPath(combinedPath);
+                        }
+                        catch
+                        {
+                            continue;
+                        }
+
+                        if (!fileName.StartsWith(baseDirectoryFullPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
 
                         string directoryPath = Path.GetDirectoryName(fileName);
-                        if (!Directory.Exists(directoryPath))
+                        if (!string.IsNullOrEmpty(directoryPath) && !Directory.Exists(directoryPath))
                         {
                             Directory.CreateDirectory(directoryPath);
                         }
