@@ -192,8 +192,7 @@
                                         <CheckBox x:Name="CheckBoxInkToShapeTriangle" Content="启用三角形识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxInkToShapeTriangle_Click" />
                                         <CheckBox x:Name="CheckBoxLineEndpointSnapping" Content="端点吸附" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxLineEndpointSnapping_Click" />
                                         <CheckBox x:Name="CheckBoxInkToShapeRectangle" Content="启用四边形识别" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxInkToShapeRectangle_Click" />
-                                        <CheckBox x:Name="CheckBoxNoFakePressureTriangle" Content="三角形使用等粗线" Margin="0,2,0,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxNoFakePressureTriangle_Click" />
-                                        <CheckBox x:Name="CheckBoxNoFakePressureRectangle" Content="矩形使用等粗线" Margin="0,2,12,2" Foreground="{DynamicResource PopupWindowForeground}" Click="CheckBoxNoFakePressureRectangle_Click" />
+
                                     </UniformGrid>
                                 </StackPanel>
                             </StackPanel>

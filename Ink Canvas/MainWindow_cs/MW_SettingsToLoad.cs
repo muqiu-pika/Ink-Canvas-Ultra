@@ -129,8 +129,7 @@ namespace Ink_Canvas
                 ToggleSwitchEnableInkToShape.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
                 ToggleSwitchEnableTriangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeTriangle;
                 ToggleSwitchEnableRectangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeRectangle;
-                ToggleSwitchNoFakePressureRectangle.IsOn = Settings.InkToShape.IsInkToShapeNoFakePressureRectangle;
-                ToggleSwitchNoFakePressureTriangle.IsOn = Settings.InkToShape.IsInkToShapeNoFakePressureTriangle;
+
                 LineStraightenSensitivitySlider.Value = Settings.InkToShape.LineStraightenSensitivity;
             }
             if (Settings.Canvas != null)

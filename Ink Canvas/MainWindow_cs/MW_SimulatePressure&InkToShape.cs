@@ -652,48 +652,18 @@ namespace Ink_Canvas
         public StylusPointCollection GenerateFakePressureTriangle(StylusPointCollection points)
         {
             var result = new StylusPointCollection();
-            bool noFake = Settings.InkToShape.IsInkToShapeNoFakePressureTriangle;
-            StylusPoint P(double x, double y, float pressure) => noFake ? new StylusPoint(x, y) : new StylusPoint(x, y, pressure);
-
-            result.Add(P(points[0].X, points[0].Y, 0.4f));
-            var c01 = GetCenterPoint(points[0], points[1]);
-            result.Add(P(c01.X, c01.Y, 0.8f));
-            result.Add(P(points[1].X, points[1].Y, 0.4f));
-            result.Add(P(points[1].X, points[1].Y, 0.4f));
-            var c12 = GetCenterPoint(points[1], points[2]);
-            result.Add(P(c12.X, c12.Y, 0.8f));
-            result.Add(P(points[2].X, points[2].Y, 0.4f));
-            result.Add(P(points[2].X, points[2].Y, 0.4f));
-            var c20 = GetCenterPoint(points[2], points[0]);
-            result.Add(P(c20.X, c20.Y, 0.8f));
-            result.Add(P(points[0].X, points[0].Y, 0.4f));
+            // 仅使用等粗线（非压感）
+            result.Add(new StylusPoint(points[0].X, points[0].Y));
+            result.Add(new StylusPoint(points[1].X, points[1].Y));
+            result.Add(new StylusPoint(points[2].X, points[2].Y));
+            result.Add(new StylusPoint(points[0].X, points[0].Y));
             return result;
         }
 
         public StylusPointCollection GenerateFakePressureRectangle(StylusPointCollection points)
         {
-            if (Settings.InkToShape.IsInkToShapeNoFakePressureRectangle)
-            {
-                return points;
-            }
-            var newPoint = new StylusPointCollection();
-            newPoint.Add(new StylusPoint(points[0].X, points[0].Y, (float)0.4));
-            var cPoint = GetCenterPoint(points[0], points[1]);
-            newPoint.Add(new StylusPoint(cPoint.X, cPoint.Y, (float)0.8));
-            newPoint.Add(new StylusPoint(points[1].X, points[1].Y, (float)0.4));
-            newPoint.Add(new StylusPoint(points[1].X, points[1].Y, (float)0.4));
-            cPoint = GetCenterPoint(points[1], points[2]);
-            newPoint.Add(new StylusPoint(cPoint.X, cPoint.Y, (float)0.8));
-            newPoint.Add(new StylusPoint(points[2].X, points[2].Y, (float)0.4));
-            newPoint.Add(new StylusPoint(points[2].X, points[2].Y, (float)0.4));
-            cPoint = GetCenterPoint(points[2], points[3]);
-            newPoint.Add(new StylusPoint(cPoint.X, cPoint.Y, (float)0.8));
-            newPoint.Add(new StylusPoint(points[3].X, points[3].Y, (float)0.4));
-            newPoint.Add(new StylusPoint(points[3].X, points[3].Y, (float)0.4));
-            cPoint = GetCenterPoint(points[3], points[0]);
-            newPoint.Add(new StylusPoint(cPoint.X, cPoint.Y, (float)0.8));
-            newPoint.Add(new StylusPoint(points[0].X, points[0].Y, (float)0.4));
-            return newPoint;
+            // 仅使用等粗线（非压感）
+            return points;
         }
 
         public Point GetCenterPoint(Point point1, Point point2)

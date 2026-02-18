@@ -1154,20 +1154,6 @@ namespace Ink_Canvas
             SaveSettingsToFile();
         }
 
-        private void ToggleSwitchNoFakePressureRectangle_Toggled(object sender, RoutedEventArgs e)
-        {
-            if (!isLoaded) return;
-            Settings.InkToShape.IsInkToShapeNoFakePressureRectangle = ToggleSwitchNoFakePressureRectangle.IsOn;
-            SaveSettingsToFile();
-        }
-
-        private void ToggleSwitchNoFakePressureTriangle_Toggled(object sender, RoutedEventArgs e)
-        {
-            if (!isLoaded) return;
-            Settings.InkToShape.IsInkToShapeNoFakePressureTriangle = ToggleSwitchNoFakePressureTriangle.IsOn;
-            SaveSettingsToFile();
-        }
-
         private void ToggleSwitchEnableTriangleRecognition_Toggled(object sender, RoutedEventArgs e)
         {
             if (!isLoaded) return;

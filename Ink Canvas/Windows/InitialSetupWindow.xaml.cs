@@ -105,8 +105,7 @@ namespace Ink_Canvas
                     CheckBoxEnableInkToShape.IsChecked = inkToShape.IsInkToShapeEnabled;
                     CheckBoxInkToShapeTriangle.IsChecked = inkToShape.IsInkToShapeTriangle;
                     CheckBoxInkToShapeRectangle.IsChecked = inkToShape.IsInkToShapeRectangle;
-                    CheckBoxNoFakePressureTriangle.IsChecked = inkToShape.IsInkToShapeNoFakePressureTriangle;
-                    CheckBoxNoFakePressureRectangle.IsChecked = inkToShape.IsInkToShapeNoFakePressureRectangle;
+
                 }
                 if (canvas != null)
                 {
@@ -222,8 +221,7 @@ namespace Ink_Canvas
                     MainWindow.Settings.InkToShape.IsInkToShapeEnabled = CheckBoxEnableInkToShape.IsChecked == true;
                     MainWindow.Settings.InkToShape.IsInkToShapeTriangle = CheckBoxInkToShapeTriangle.IsChecked == true;
                     MainWindow.Settings.InkToShape.IsInkToShapeRectangle = CheckBoxInkToShapeRectangle.IsChecked == true;
-                    MainWindow.Settings.InkToShape.IsInkToShapeNoFakePressureTriangle = CheckBoxNoFakePressureTriangle.IsChecked == true;
-                    MainWindow.Settings.InkToShape.IsInkToShapeNoFakePressureRectangle = CheckBoxNoFakePressureRectangle.IsChecked == true;
+
                 }
                 if (MainWindow.Settings.Canvas != null)
                 {
@@ -901,34 +899,6 @@ namespace Ink_Canvas
                 if (MainWindow.Settings?.InkToShape != null)
                 {
                     MainWindow.Settings.InkToShape.IsInkToShapeRectangle = CheckBoxInkToShapeRectangle.IsChecked == true;
-                    MainWindow.SaveSettingsToFile();
-                    _mainWindow?.ReloadSettingsFromSettingsObject();
-                }
-            }
-            catch { }
-        }
-
-        private void CheckBoxNoFakePressureTriangle_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (MainWindow.Settings?.InkToShape != null)
-                {
-                    MainWindow.Settings.InkToShape.IsInkToShapeNoFakePressureTriangle = CheckBoxNoFakePressureTriangle.IsChecked == true;
-                    MainWindow.SaveSettingsToFile();
-                    _mainWindow?.ReloadSettingsFromSettingsObject();
-                }
-            }
-            catch { }
-        }
-
-        private void CheckBoxNoFakePressureRectangle_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (MainWindow.Settings?.InkToShape != null)
-                {
-                    MainWindow.Settings.InkToShape.IsInkToShapeNoFakePressureRectangle = CheckBoxNoFakePressureRectangle.IsChecked == true;
                     MainWindow.SaveSettingsToFile();
                     _mainWindow?.ReloadSettingsFromSettingsObject();
                 }

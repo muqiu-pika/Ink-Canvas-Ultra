@@ -3681,26 +3681,7 @@
                                         Value="15" />
                                     <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=LineEndpointSnappingThresholdSlider, StringFormat={}{0:F0}}" />
                                 </StackPanel>
-                                <ikw:SimpleStackPanel Orientation="Horizontal">
-                                    <ikw:SimpleStackPanel Width="50">
-                                        <ui:ToggleSwitch
-                                            Name="ToggleSwitchNoFakePressureRectangle"
-                                            OffContent="关"
-                                            OnContent="开"
-                                            Toggled="ToggleSwitchNoFakePressureRectangle_Toggled" />
-                                    </ikw:SimpleStackPanel>
-                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="矩形使用等粗线" />
-                                </ikw:SimpleStackPanel>
-                                <ikw:SimpleStackPanel Orientation="Horizontal">
-                                    <ikw:SimpleStackPanel Width="50">
-                                        <ui:ToggleSwitch
-                                            Name="ToggleSwitchNoFakePressureTriangle"
-                                            OffContent="关"
-                                            OnContent="开"
-                                            Toggled="ToggleSwitchNoFakePressureTriangle_Toggled" />
-                                    </ikw:SimpleStackPanel>
-                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="三角形使用等粗线" />
-                                </ikw:SimpleStackPanel>
+
                             </ikw:SimpleStackPanel>
                         </GroupBox>
                         <GroupBox Name="GroupBoxAppearanceNewUI">
