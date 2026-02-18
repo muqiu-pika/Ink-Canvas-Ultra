@@ -43,6 +43,9 @@ namespace Ink_Canvas
             }
         }
 
+        /// <summary>
+        /// 多点触摸模式下的触摸按下事件处理
+        /// </summary>
         private void MainWindow_TouchDown(object sender, TouchEventArgs e)
         {
             if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint
@@ -52,11 +55,12 @@ namespace Ink_Canvas
             if (!isHidingSubPanelsWhenInking)
             {
                 isHidingSubPanelsWhenInking = true;
-                HideSubPanels(); // 书写时自动隐藏二级菜单
+                HideSubPanels();
             }
 
             double boundWidth = e.GetTouchPoint(null).Bounds.Width;
-            if ((Settings.Advanced.TouchMultiplier != 0 || !Settings.Advanced.IsSpecialScreen) //启用特殊屏幕且触摸倍数为 0 时禁用橡皮
+            // 启用特殊屏幕且触摸倍数为 0 时禁用橡皮
+            if ((Settings.Advanced.TouchMultiplier != 0 || !Settings.Advanced.IsSpecialScreen)
                 && (boundWidth > BoundsWidth))
             {
                 if (drawingShapeMode == 0 && forceEraser) return;
@@ -92,36 +96,45 @@ namespace Ink_Canvas
             TouchDownPointsList[e.StylusDevice.Id] = InkCanvasEditingMode.None;
         }
 
+        /// <summary>
+        /// 触摸抬起事件处理 - 将预览笔迹添加到画布
+        /// </summary>
         private async void MainWindow_StylusUp(object sender, StylusEventArgs e)
         {
             try
             {
                 if (e.StylusDevice.TabletDevice.Type == TabletDeviceType.Stylus)
                 {
-                    // 数位板 TabletDeviceType.Stylus
+                    // 数位板模式不处理
                 }
                 else
                 {
                     try
                     {
-                        // 触摸屏 TabletDeviceType.Touch 
+                        // 触摸屏模式处理
                         var visual = GetStrokeVisual(e.StylusDevice.Id);
-                        inkCanvas.Strokes.Add(visual.StrokeCollection);
-                        await Task.Delay(5); // 避免渲染墨迹完成前预览墨迹被删除导致墨迹闪烁
-                        inkCanvas.Children.Remove(GetVisualCanvas(e.StylusDevice.Id));
-                        foreach (var s in visual.StrokeCollection)
+                        var visualCanvas = GetVisualCanvas(e.StylusDevice.Id);
+                        var strokeCollection = visual.StrokeCollection;
+
+                        inkCanvas.Children.Remove(visualCanvas);
+                        await Task.Delay(5);
+
+                        foreach (var s in strokeCollection)
                         {
-                            await Dispatcher.InvokeAsync(() =>
+                            inkCanvas.Strokes.Add(s);
+                        }
+
+                        foreach (var s in strokeCollection)
+                        {
+                            try
                             {
-                                try
-                                {
-                                    inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
-                                }
-                                catch { }
-                            }, DispatcherPriority.Background);
+                                inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
+                            }
+                            catch { }
                         }
                     }
-                    catch(Exception ex) {
+                    catch (Exception ex)
+                    {
                         LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
                     }
                 }
@@ -213,12 +226,15 @@ namespace Ink_Canvas
         bool isLastTouchEraser = false;
         private bool forcePointEraser = true;
 
+        /// <summary>
+        /// 主画布触摸按下事件处理
+        /// </summary>
         private void Main_Grid_TouchDown(object sender, TouchEventArgs e)
         {
             if (!isHidingSubPanelsWhenInking)
             {
                 isHidingSubPanelsWhenInking = true;
-                HideSubPanels(); // 书写时自动隐藏二级菜单
+                HideSubPanels();
             }
 
             if (NeedUpdateIniP())
@@ -231,7 +247,8 @@ namespace Ink_Canvas
             }
             inkCanvas.Opacity = 1;
             double boundsWidth = GetTouchBoundWidth(e);
-            if ((Settings.Advanced.TouchMultiplier != 0 || !Settings.Advanced.IsSpecialScreen) //启用特殊屏幕且触摸倍数为 0 时禁用橡皮
+            // 启用特殊屏幕且触摸倍数为 0 时禁用橡皮
+            if ((Settings.Advanced.TouchMultiplier != 0 || !Settings.Advanced.IsSpecialScreen)
                 && (boundsWidth > BoundsWidth))
             {
                 isLastTouchEraser = true;
@@ -247,7 +264,8 @@ namespace Ink_Canvas
                 else
                 {
                     // 在白板模式下(currentMode == 1)不启用PPT翻页手势控制
-                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && currentMode != 1 && inkCanvas.Strokes.Count == 0 && Settings.PowerPointSettings.IsEnableFingerGestureSlideShowControl && dec.Count <= 1)
+                    // 注意：dec.Count 在 TouchDown 事件中可能还未更新，因此不依赖它做判断
+                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && currentMode != 1 && inkCanvas.Strokes.Count == 0 && Settings.PowerPointSettings.IsEnableFingerGestureSlideShowControl)
                     {
                         isLastTouchEraser = false;
                         inkCanvas.EditingMode = InkCanvasEditingMode.GestureOnly;
@@ -269,33 +287,40 @@ namespace Ink_Canvas
             }
         }
 
+        /// <summary>
+        /// 获取触摸边界宽度
+        /// </summary>
         public double GetTouchBoundWidth(TouchEventArgs e)
         {
             var args = e.GetTouchPoint(null).Bounds;
             if (!Settings.Advanced.IsQuadIR) return args.Width;
-            else return Math.Sqrt(args.Width * args.Height); //四边红外
+            // 四边红外屏幕使用宽高几何平均
+            else return Math.Sqrt(args.Width * args.Height);
         }
 
-        //记录触摸设备ID
         private List<int> dec = new List<int>();
-        //中心点
         Point centerPoint;
         InkCanvasEditingMode lastInkCanvasEditingMode = InkCanvasEditingMode.Ink;
         bool isSingleFingerDragMode = false;
         enum TwoFingerGestureType { None, Translate, Scale, Rotate }
         TwoFingerGestureType twoFingerGestureType = TwoFingerGestureType.None;
-        double translateDeadzone = 5.0; // 增大死区减少抖动
-        double pinchDeadzone = 0.03;   // 增大死区减少抖动
-        double rotateDeadzone = 2.0;   // 增大死区减少抖动
+
+        // 手势死区配置
+        double translateDeadzone = 5.0;
+        double pinchDeadzone = 0.03;
+        double rotateDeadzone = 2.0;
         Vector translateAccum = new Vector(0, 0);
-        double translateApplyThreshold = 2.0; // 增大应用阈值减少抖动
-        
+        double translateApplyThreshold = 2.0;
+
         // 手势平滑处理
-        private const int gestureSmoothingWindow = 8; // 增大窗口大小，提高快速缩放时的平滑效果
-        private Queue<Vector> scaleHistory = new Queue<Vector>(); // 缩放历史改为Vector类型
+        private const int gestureSmoothingWindow = 8;
+        private Queue<Vector> scaleHistory = new Queue<Vector>();
         private Queue<double> rotateHistory = new Queue<double>();
         private Queue<Vector> translateHistory = new Queue<Vector>();
 
+        /// <summary>
+        /// 重置触摸状态
+        /// </summary>
         private void ResetTouchState()
         {
             dec.Clear();
@@ -309,8 +334,7 @@ namespace Ink_Canvas
             {
                 inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
             }
-            
-            // 重置手势平滑历史
+
             scaleHistory.Clear();
             rotateHistory.Clear();
             translateHistory.Clear();

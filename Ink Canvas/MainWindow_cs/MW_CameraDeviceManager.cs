@@ -17,18 +17,18 @@ namespace Ink_Canvas.MainWindow_cs
         private VideoCaptureDevice currentVideoDevice;
         private readonly MainWindow mainWindow;
         private string selectedDeviceName;
-        // 自动同步设备选中状态时，用于抑制选中事件处理逻辑
         private bool suppressSelectionHandlers = false;
         private DateTime lastFrameTime = DateTime.MinValue;
         private readonly object frameLock = new object();
         private Bitmap currentFrame;
-        public const double MinFrameIntervalMs = 33; // ~30fps
+        public const double MinFrameIntervalMs = 33;
         public event Action<Bitmap> OnNewFrameProcessed;
-        
-        // 摄像头设备与页码的关联字典
+
         private readonly Dictionary<string, int> cameraPageMapping = new Dictionary<string, int>();
 
-        // 获取板幕布侧栏的前景色画刷（优先从窗口资源，其次应用资源）
+        /// <summary>
+        /// 获取板幕布侧栏的前景色画刷
+        /// </summary>
         private System.Windows.Media.Brush GetBoardBarForegroundBrush()
         {
             try
@@ -265,21 +265,12 @@ namespace Ink_Canvas.MainWindow_cs
             return selectedDeviceName;
         }
 
-        // 获取当前页码
+        /// <summary>
+        /// 获取当前页码
+        /// </summary>
         private int GetCurrentPageIndex()
         {
-            int currentPage = 1;
-            mainWindow.Dispatcher.Invoke(new Action(() =>
-            {
-                // 通过反射或其他方式获取当前页码
-                // 这里假设MainWindow有CurrentWhiteboardIndex属性
-                var field = mainWindow.GetType().GetField("CurrentWhiteboardIndex", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-                if (field != null)
-                {
-                    currentPage = (int)field.GetValue(mainWindow);
-                }
-            }));
-            return currentPage;
+            return mainWindow.GetCurrentPageIndex();
         }
 
         public void BindCurrentCameraToPage(int pageIndex)
@@ -295,7 +286,9 @@ namespace Ink_Canvas.MainWindow_cs
             }
         }
 
-        // 跳转到指定页码（统一走主窗口逻辑，确保侧栏状态与照片显示同步）
+        /// <summary>
+        /// 跳转到指定页码
+        /// </summary>
         private void SwitchToPage(int pageIndex)
         {
             mainWindow.Dispatcher.BeginInvoke(new Action(() =>
@@ -306,7 +299,7 @@ namespace Ink_Canvas.MainWindow_cs
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"通过主窗口切换到页码 {pageIndex} 失败: {ex.Message}");
+                    Console.WriteLine($"切换到页码 {pageIndex} 失败: {ex.Message}");
                 }
             }));
         }

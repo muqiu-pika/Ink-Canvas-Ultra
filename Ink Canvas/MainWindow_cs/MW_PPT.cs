@@ -713,8 +713,7 @@ namespace Ink_Canvas
                     timeMachine.ClearStrokeHistory();
 
                     bool restored = false;
-                    
-                    // 尝试从备份的笔迹集合恢复
+
                     if (_desktopStrokesBackupStrokes != null && _desktopStrokesBackupStrokes.Count > 0)
                     {
                         try
@@ -728,8 +727,7 @@ namespace Ink_Canvas
                             LogHelper.WriteLogToFile("Failed to restore desktop strokes from backup strokes: " + ex.Message, LogHelper.LogType.Error);
                         }
                     }
-                    
-                    // 如果从笔迹集合恢复失败，尝试从流中恢复
+
                     if (!restored && _desktopStrokesBackup != null && _desktopStrokesBackup.Length > 0)
                     {
                         try
@@ -748,8 +746,7 @@ namespace Ink_Canvas
                             LogHelper.WriteLogToFile("Failed to restore desktop strokes from backup stream: " + ex.Message, LogHelper.LogType.Error);
                         }
                     }
-                    
-                    // 清理备份资源
+
                     _desktopStrokesBackupStrokes = null;
                     _desktopStrokesBackup?.Dispose();
                     _desktopStrokesBackup = null;

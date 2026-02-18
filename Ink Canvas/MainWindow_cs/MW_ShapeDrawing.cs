@@ -17,7 +17,6 @@ namespace Ink_Canvas
     {
         #region Floating Bar Control
 
-        // 浮动栏图形按钮点击事件
         private void ImageDrawShape_Click(object sender, RoutedEventArgs e)
         {
             if (BorderDrawShape.Visibility == Visibility.Visible)
@@ -30,7 +29,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 白板模式图形按钮点击事件 - 独立处理，不影响浮动栏
         private void BoardImageDrawShape_Click(object sender, RoutedEventArgs e)
         {
             if (BoardBorderDrawShape.Visibility == Visibility.Visible)
@@ -46,7 +44,7 @@ namespace Ink_Canvas
         #endregion Floating Bar Control
 
         int drawingShapeMode = 0;
-        bool isLongPressSelected = false; // 用于存是否是“选中”状态，便于后期抬笔后不做切换到笔的处理
+        bool isLongPressSelected = false;
 
         #region Buttons
 

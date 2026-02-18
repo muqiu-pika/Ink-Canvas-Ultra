@@ -10,6 +10,9 @@ namespace Ink_Canvas
 {
     public partial class MainWindow : Window
     {
+        /// <summary>
+        /// 统一媒体插入按钮点击事件
+        /// </summary>
         private async void BtnMediaInsertUnified_Click(object sender, RoutedEventArgs e)
         {
             OpenFileDialog openFileDialog = new OpenFileDialog();
@@ -55,11 +58,27 @@ namespace Ink_Canvas
 
                         mediaElement.LoadedBehavior = MediaState.Manual;
                         mediaElement.UnloadedBehavior = MediaState.Manual;
-                    mediaElement.Loaded += (_, args) =>
-                    {
-                        // 所有模式导入后自动播放
-                        mediaElement.Play();
-                    };
+
+                        mediaElement.Loaded += (_, args) =>
+                        {
+                            try
+                            {
+                                if (mediaElement != null && inkCanvas.Children.Contains(mediaElement))
+                                {
+                                    mediaElement.Play();
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"视频自动播放失败: {ex.Message}");
+                            }
+                        };
+
+                        mediaElement.MediaFailed += (_, args) =>
+                        {
+                            Console.WriteLine($"媒体加载失败: {args.ErrorException?.Message}");
+                            MessageBox.Show("视频文件加载失败，请检查文件格式是否支持。", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        };
 
                         timeMachine.CommitElementInsertHistory(mediaElement);
                     }

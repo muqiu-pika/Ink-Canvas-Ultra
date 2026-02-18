@@ -12,13 +12,14 @@ namespace Ink_Canvas
         MediaElement selectedMediaElement = null;
         DispatcherTimer videoTimer;
         bool isVideoSeeking = false;
-        // 使用 Fluent 字体标准 Play/Pause 图标编码
-        readonly string PlayGlyph = "\ue768";  // Play
-        readonly string PauseGlyph = "\ue769"; // Pause
+        readonly string PlayGlyph = "\ue768";
+        readonly string PauseGlyph = "\ue769";
 
+        /// <summary>
+        /// 视频选择变化事件处理
+        /// </summary>
         private void InkCanvas_VideoSelectionChanged(object sender, EventArgs e)
         {
-            // 查找当前选择中的第一个视频元素
             selectedMediaElement = null;
             try
             {
@@ -36,24 +37,28 @@ namespace Ink_Canvas
 
             if (selectedMediaElement != null)
             {
-                // 初始化滑块值
                 try
                 {
-                    SliderVideoVolume.Value = selectedMediaElement.Volume * 100;
-                    if (selectedMediaElement.NaturalDuration.HasTimeSpan)
+                    if (SliderVideoVolume != null)
                     {
-                        SliderVideoProgress.Maximum = selectedMediaElement.NaturalDuration.TimeSpan.TotalSeconds;
-                        SliderVideoProgress.Value = selectedMediaElement.Position.TotalSeconds;
-                        UpdateVideoProgressTuning();
+                        SliderVideoVolume.Value = selectedMediaElement.Volume * 100;
                     }
-                    else
+                    if (SliderVideoProgress != null)
                     {
-                        SliderVideoProgress.Maximum = 100;
+                        if (selectedMediaElement.NaturalDuration.HasTimeSpan)
+                        {
+                            SliderVideoProgress.Maximum = selectedMediaElement.NaturalDuration.TimeSpan.TotalSeconds;
+                            SliderVideoProgress.Value = selectedMediaElement.Position.TotalSeconds;
+                            UpdateVideoProgressTuning();
+                        }
+                        else
+                        {
+                            SliderVideoProgress.Maximum = 100;
+                        }
                     }
                 }
                 catch { }
 
-                // 事件绑定用于适配时长与结束逻辑
                 try
                 {
                     selectedMediaElement.MediaOpened -= SelectedMediaElement_MediaOpened;
@@ -63,7 +68,6 @@ namespace Ink_Canvas
                 }
                 catch { }
 
-                // 初始图标：尽量判断当前是否在播放，否则默认显示播放图标
                 try
                 {
                     if (selectedMediaElement.CanPause &&

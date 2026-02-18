@@ -119,7 +119,6 @@ namespace Ink_Canvas
                     mediaElement.UnloadedBehavior = MediaState.Manual;
                     mediaElement.Loaded += (_, args) =>
                     {
-                        // 所有模式导入后自动播放
                         mediaElement.Play();
                     };
 

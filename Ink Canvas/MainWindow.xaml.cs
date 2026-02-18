@@ -31,28 +31,25 @@ namespace Ink_Canvas
 
         public MainWindow()
         {
-            /*
-                处于画板模式内：Topmost == false / currentMode != 0
-                处于 PPT 放映内：BtnPPTSlideShowEnd.Visibility
-            */
             InitializeComponent();
-            // 将视频控制条嵌入到 BorderStrokeSelectionControl 内部容器，统一显示与随动
+
+            // 将视频控制条嵌入到 BorderStrokeSelectionControl 内部容器
             try
             {
-				if (VideoControlContainer != null && BorderVideoSelectionControl != null)
-				{
-					if (BorderVideoSelectionControl.Parent is Panel parentPanel)
-					{
-						parentPanel.Children.Remove(BorderVideoSelectionControl);
-					}
-					VideoControlContainer.Children.Add(BorderVideoSelectionControl);
-					BorderVideoSelectionControl.Margin = new Thickness(0, 4, 0, 0);
-					BorderVideoSelectionControl.HorizontalAlignment = HorizontalAlignment.Stretch;
-					BorderVideoSelectionControl.VerticalAlignment = VerticalAlignment.Top;
-				}
+                if (VideoControlContainer != null && BorderVideoSelectionControl != null)
+                {
+                    if (BorderVideoSelectionControl.Parent is Panel parentPanel)
+                    {
+                        parentPanel.Children.Remove(BorderVideoSelectionControl);
+                    }
+                    VideoControlContainer.Children.Add(BorderVideoSelectionControl);
+                    BorderVideoSelectionControl.Margin = new Thickness(0, 4, 0, 0);
+                    BorderVideoSelectionControl.HorizontalAlignment = HorizontalAlignment.Stretch;
+                    BorderVideoSelectionControl.VerticalAlignment = VerticalAlignment.Top;
+                }
             }
             catch { }
-            // 绑定额外的选择事件以管理视频控制条（与 BorderStrokeSelectionControl 相同方式）
+
             try { inkCanvas.SelectionChanged += InkCanvas_VideoSelectionChanged; } catch { }
 
             BlackboardLeftSide.Visibility = Visibility.Collapsed;
@@ -126,10 +123,11 @@ namespace Ink_Canvas
             this.SizeChanged += MainWindow_SizeChanged;
         }
 
-        // 窗口大小变化事件处理
+        /// <summary>
+        /// 窗口大小变化事件处理
+        /// </summary>
         private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // 如果视频展台侧栏可见，重新计算照片区域高度
             if (VideoPresenterSidebar.Visibility == Visibility.Visible)
             {
                 AutoCalculatePhotoAreaHeight();
@@ -141,7 +139,7 @@ namespace Ink_Canvas
         #region Ink Canvas Functions
 
         DrawingAttributes drawingAttributes;
-		private void LoadPenCanvas()
+        private void loadPenCanvas()
         {
             try
             {
@@ -221,7 +219,7 @@ namespace Ink_Canvas
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-			LoadPenCanvas();
+            loadPenCanvas();
             //加载设置
             LoadSettings(true);
             if (Environment.Is64BitProcess)
@@ -1628,28 +1626,22 @@ namespace Ink_Canvas
             }
         }
 
-        // 摄像头画面更新定时器事件
+        /// <summary>
+        /// 摄像头画面更新定时器事件
+        /// </summary>
         private async void CameraFrameTimer_Tick(object sender, EventArgs e)
         {
             if (cameraDeviceManager == null) return;
 
+            Bitmap frame = null;
             try
             {
-                var frame = cameraDeviceManager.GetFrameCopy();
-                if (frame != null && currentCameraImage != null)
-                {
-                    await UpdateCameraFrameAsync(frame);
-                    frame.Dispose();
-                    return;
-                }
-
-                // 如果currentCameraImage为null，尝试在画布上查找摄像头画面元素
                 if (currentCameraImage == null)
                 {
                     foreach (var child in inkCanvas.Children)
                     {
-                        if (child is System.Windows.Controls.Image image && 
-                            image.Name != null && 
+                        if (child is System.Windows.Controls.Image image &&
+                            image.Name != null &&
                             image.Name.StartsWith("camera_"))
                         {
                             currentCameraImage = image;
@@ -1658,7 +1650,6 @@ namespace Ink_Canvas
                     }
                 }
 
-                // 如果仍然没有找到摄像头画面元素，停止定时器
                 if (currentCameraImage == null)
                 {
                     cameraFrameTimer?.Stop();
@@ -1666,16 +1657,18 @@ namespace Ink_Canvas
                 }
 
                 frame = cameraDeviceManager.GetFrameCopy();
-                if (frame != null)
+                if (frame != null && currentCameraImage != null)
                 {
                     await UpdateCameraFrameAsync(frame);
-                    frame.Dispose();
                 }
             }
             catch (Exception ex)
             {
-                // 静默处理定时器更新错误
                 Console.WriteLine($"摄像头画面定时器更新失败: {ex.Message}");
+            }
+            finally
+            {
+                frame?.Dispose();
             }
         }
 

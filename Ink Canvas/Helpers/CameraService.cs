@@ -19,8 +19,7 @@ namespace Ink_Canvas.Helpers
         private readonly object _frameLock = new object();
         private Dispatcher _dispatcher;
 
-        // 新增属性
-        private int _rotationAngle = 0; // 0=0度，1=90度，2=180度，3=270度
+        private int _rotationAngle = 0;
         private int _resolutionWidth = 640;
         private int _resolutionHeight = 480;
 
@@ -31,7 +30,6 @@ namespace Ink_Canvas.Helpers
         public List<FilterInfo> AvailableCameras { get; private set; }
         public FilterInfo CurrentCamera { get; private set; }
 
-        // 新增属性
         public int RotationAngle
         {
             get => _rotationAngle;
