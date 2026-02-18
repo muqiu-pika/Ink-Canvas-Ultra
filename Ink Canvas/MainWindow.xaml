@@ -2710,7 +2710,7 @@
                                                         Height="45"
                                                         Padding="0"
                                                         BorderThickness="0"
-                                                        Click="OperatingGuideWindowIcon_Click">
+                                                        Click="BtnExit_Click">
                                                         <ikw:SimpleStackPanel
                                                             Width="40"
                                                             Height="40"
@@ -2721,10 +2721,10 @@
                                                                 Margin="0,4,0,1"
                                                                 FontFamily="{StaticResource FluentIconFontFamily}"
                                                                 Foreground="{DynamicResource BoardBarForeground}"
-                                                                Glyph="&#xe82d;" />
+                                                                Glyph="&#xe7e8;" />
                                                             <Label
                                                                 HorizontalAlignment="Center"
-                                                                Content="指南"
+                                                                Content="关闭"
                                                                 FontSize="10"
                                                                 Foreground="{DynamicResource BoardBarForeground}" />
                                                         </ikw:SimpleStackPanel>
@@ -3166,7 +3166,31 @@
                                         Orientation="Horizontal"
                                         Spacing="5">
                                         <Button
-                                            Width="365"
+                                            Width="180"
+                                            Height="40"
+                                            Click="OperatingGuideWindowIcon_Click"
+                                            FontWeight="Bold">
+                                            <ikw:SimpleStackPanel
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Orientation="Horizontal"
+                                                Spacing="0">
+                                                <ui:FontIcon
+                                                    Margin="0,1,4,0"
+                                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                                    FontSize="16"
+                                                    Foreground="{DynamicResource SettingsPageForeground}"
+                                                    Glyph="&#xe82d;" />
+                                                <Label
+                                                    VerticalAlignment="Center"
+                                                    FontSize="15"
+                                                    FontWeight="Bold">
+                                                    指南
+                                                </Label>
+                                            </ikw:SimpleStackPanel>
+                                        </Button>
+                                        <Button
+                                            Width="180"
                                             Height="40"
                                             Click="BtnOpenInitialSetup_Click"
                                             FontWeight="Bold">
@@ -7149,7 +7173,7 @@
                                                     Height="45"
                                                     Padding="0"
                                                     BorderThickness="0"
-                                                    Click="OperatingGuideWindowIcon_Click">
+                                                    Click="BtnExit_Click">
                                                     <ikw:SimpleStackPanel
                                                         Width="40"
                                                         Height="40"
@@ -7160,10 +7184,10 @@
                                                             Margin="0,4,0,1"
                                                             FontFamily="{StaticResource FluentIconFontFamily}"
                                                             Foreground="{DynamicResource FloatBarForeground}"
-                                                            Glyph="&#xe82d;" />
+                                                            Glyph="&#xe7e8;" />
                                                         <Label
                                                             HorizontalAlignment="Center"
-                                                            Content="指南"
+                                                            Content="退出"
                                                             FontSize="10"
                                                             Foreground="{DynamicResource FloatBarForeground}" />
                                                     </ikw:SimpleStackPanel>

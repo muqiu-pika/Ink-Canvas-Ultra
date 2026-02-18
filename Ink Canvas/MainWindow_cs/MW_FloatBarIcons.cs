@@ -682,21 +682,16 @@ namespace Ink_Canvas
                 return;
             }
 
-            double MarginFromEdge;
+            double MarginFromEdge = Settings.Appearance.FloatingBarBottomMargin;
             if (isFloatingBarFolded)
             {
-                MarginFromEdge = -60;
+                MarginFromEdge = -100;
             }
             else if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible || Topmost == false)
             {
                 MarginFromEdge = 60;
             }
-            else
-            {
-                MarginFromEdge = Settings.Appearance.FloatingBarBottomMargin;
-            }
-            if (MarginFromEdge == 60) MarginFromEdge = 55;
-            MarginFromEdge *= (Settings.Appearance.FloatingBarScale / 100);
+            MarginFromEdge = MarginFromEdge * (Settings.Appearance.FloatingBarScale / 100);
             
             Point newPos = new Point();
             
@@ -754,18 +749,49 @@ namespace Ink_Canvas
                 // 水平居中计算，与community-beta版本一致
                 newPos.X = (screenWidth - floatingBarWidth) / 2;
 
-                // Y坐标计算，与community-beta版本一致
-                newPos.Y = screenHeight - MarginFromEdge * ViewboxFloatingBarScaleTransform.ScaleY;
+                // Y坐标计算，与Artistry版本一致
+                newPos.Y = screenHeight - MarginFromEdge * ((ViewboxFloatingBarScaleTransform.ScaleY == 1) ? 1 : 0.9);
 
+                // 自动吸附功能：如果之前保存的位置偏离较大（说明用户移动过），恢复到之前的位置
                 if (MarginFromEdge != -60)
                 {
                     if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
                     {
-                        pointPPT = newPos;
+                        if (pointPPT.X != -1 || pointPPT.Y != -1)
+                        {
+                            // 检查Y坐标偏离是否超过50像素，如果偏离大则使用之前保存的位置
+                            if (Math.Abs(pointPPT.Y - newPos.Y) > 50)
+                            {
+                                newPos = pointPPT;
+                            }
+                            else
+                            {
+                                pointPPT = newPos;
+                            }
+                        }
+                        else
+                        {
+                            pointPPT = newPos;
+                        }
                     }
                     else
                     {
-                        pointDesktop = newPos;
+                        if (pointDesktop.X != -1 || pointDesktop.Y != -1)
+                        {
+                            // 检查Y坐标偏离是否超过50像素，如果偏离大则使用之前保存的位置
+                            if (Math.Abs(pointDesktop.Y - newPos.Y) > 50)
+                            {
+                                newPos = pointDesktop;
+                            }
+                            else
+                            {
+                                pointDesktop = newPos;
+                            }
+                        }
+                        else
+                        {
+                            pointDesktop = newPos;
+                        }
                     }
                 }
 
@@ -785,7 +811,7 @@ namespace Ink_Canvas
                 {
                     Duration = TimeSpan.FromSeconds(0.5),
                     From = fromMargin,
-                    To = new Thickness(newPos.X, newPos.Y, 0, -20),
+                    To = new Thickness(newPos.X, newPos.Y, -2000, -200),
                     EasingFunction = new CircleEase()
                 };
                 ViewboxFloatingBar.BeginAnimation(FrameworkElement.MarginProperty, marginAnimation);
@@ -795,10 +821,15 @@ namespace Ink_Canvas
 
             await Dispatcher.InvokeAsync(() =>
             {
-                ViewboxFloatingBar.Margin = new Thickness(newPos.X, newPos.Y, 0, -20);
+                ViewboxFloatingBar.Margin = new Thickness(newPos.X, newPos.Y, -2000, -200);
                 pos = newPos;
+                // 折叠时隐藏浮动栏
+                if (isFloatingBarFolded)
+                {
+                    ViewboxFloatingBar.Visibility = Visibility.Hidden;
+                }
                 // 确保浮动栏可见时始终保持在最顶层
-                if (ViewboxFloatingBar.Visibility == Visibility.Visible)
+                else if (ViewboxFloatingBar.Visibility == Visibility.Visible)
                 {
                     Topmost = true;
                     ViewboxFloatingBar.Visibility = Visibility.Visible;
