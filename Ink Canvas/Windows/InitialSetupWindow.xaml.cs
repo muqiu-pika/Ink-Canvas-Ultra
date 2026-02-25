@@ -7,6 +7,8 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using System.Windows.Media;
+using System.Globalization;
+using System.Windows.Ink;
 
 namespace Ink_Canvas
 {
@@ -341,37 +343,147 @@ namespace Ink_Canvas
             try { _mainWindow?.SetAutoUpdateWithSilenceEnabled(CheckBoxIsAutoUpdateWithSilence.IsChecked == true); } catch { }
         }
 
-        private void BorderCalculateMultiplier_TouchDown(object sender, TouchEventArgs e)
+        private void InkCanvasTraceTest_PreviewTouchDown(object sender, TouchEventArgs e)
         {
             try
             {
                 var args = e.GetTouchPoint(null).Bounds;
                 double value = (MainWindow.Settings?.Advanced?.IsQuadIR == true) ? Math.Sqrt(args.Width * args.Height) : args.Width;
                 double recommended = 5 / (value * 1.1);
-                double min = SliderTouchMultiplier.Minimum, max = SliderTouchMultiplier.Maximum;
-                double recommendedClamped = Math.Max(min, Math.Min(max, recommended));
-
+                double recommendedClamped = Math.Max(SliderTouchMultiplier.Minimum, Math.Min(SliderTouchMultiplier.Maximum, recommended));
                 TextBlockShowCalculatedMultiplierWizard.Text = recommended.ToString("F2");
-
-                var result = MessageBox.Show($"检测到推荐触摸倍数为 {recommended:F2}。\n\n是否启用特殊屏幕并自动调整相关参数？", "应用推荐设置", MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (result == MessageBoxResult.Yes)
-                {
-                    if (MainWindow.Settings?.Advanced != null)
-                    {
-                        MainWindow.Settings.Advanced.IsSpecialScreen = true;
-                        MainWindow.Settings.Advanced.TouchMultiplier = recommendedClamped;
-                        MainWindow.Settings.Advanced.NibModeBoundsWidthThresholdValue = 2.5;
-                        MainWindow.Settings.Advanced.FingerModeBoundsWidthThresholdValue = 2.5;
-                        MainWindow.Settings.Advanced.NibModeBoundsWidthEraserSize = 0.8;
-                        MainWindow.Settings.Advanced.FingerModeBoundsWidthEraserSize = 0.8;
-                    }
-                    CheckBoxIsSpecialScreen.IsChecked = true;
-                    SliderTouchMultiplier.Value = recommendedClamped;
-                    MainWindow.SaveSettingsToFile();
-                    MessageBox.Show("已应用推荐设置并调整相关参数。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
             }
             catch { }
+        }
+
+        private void InkCanvasAreaEraserTest_Loaded(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 清空笔迹，不显示任何文字
+                InkCanvasAreaEraserTest.Strokes.Clear();
+                InkCanvasAreaEraserTest.EraserShape = new EllipseStylusShape(2, 2);
+            }
+            catch { }
+        }
+
+        private void DrawStroke(InkCanvas canvas, params Point[] points)
+        {
+             // Deprecated, replaced by text geometry generation
+        }
+
+        private void InkCanvasAreaEraserTest_PreviewTouchDown(object sender, TouchEventArgs e)
+        {
+             ProcessAreaEraserInput(e);
+        }
+
+        private void InkCanvasAreaEraserTest_PreviewTouchMove(object sender, TouchEventArgs e)
+        {
+             ProcessAreaEraserInput(e);
+        }
+
+        private void ProcessAreaEraserInput(TouchEventArgs e)
+        {
+            try
+            {
+                var touchPoint = e.GetTouchPoint(InkCanvasAreaEraserTest);
+                var bounds = touchPoint.Bounds;
+                
+                // 1. 完全模拟软件中的面积擦行为：使用 EraseByPoint 且 EraserShape 等于接触面积
+                // 注意：WPF InkCanvas 的 EraseByPoint 模式会擦除 EraserShape 覆盖的任何笔迹部分
+                // 这正是“面积擦”的效果 (Spatial Eraser)
+                
+                // 使用宽高的最大值作为直径，或者直接用椭圆
+                double width = bounds.Width;
+                double height = bounds.Height;
+                
+                // 最小限制，避免看不见
+                if (width < 2) width = 2;
+                if (height < 2) height = 2;
+
+                InkCanvasAreaEraserTest.EraserShape = new EllipseStylusShape(width, height);
+                InkCanvasAreaEraserTest.EditingMode = InkCanvasEditingMode.EraseByPoint;
+
+                // 更新视觉反馈圆圈
+                if (AreaEraserCursor != null)
+                {
+                    AreaEraserCursor.Width = width;
+                    AreaEraserCursor.Height = height;
+                    // 使用 Margin 进行定位 (Grid 中 HorizontalAlignment="Left" VerticalAlignment="Top")
+                    AreaEraserCursor.Margin = new Thickness(touchPoint.Position.X - width / 2, touchPoint.Position.Y - height / 2, 0, 0);
+                    AreaEraserCursor.Visibility = Visibility.Visible;
+                }
+
+                // 2. 只有当确实在进行擦除操作时，才进行后续的倍数计算和提示
+                // 避免仅仅是点击一下就触发复杂的逻辑
+                
+                // 计算用于显示的 value (原始输入宽度)
+                double value = (MainWindow.Settings?.Advanced?.IsQuadIR == true) ? Math.Sqrt(bounds.Width * bounds.Height) : bounds.Width;
+
+                // 实时更新推荐值文本
+                double recommendedMultiplier = 45.0 / (value * 1.1);
+                TextBlockShowAreaEraserResult.Text = $"检测: {value:F2}, 推荐倍数: {recommendedMultiplier:F2}";
+            }
+            catch { }
+        }
+
+        private void InkCanvasAreaEraserTest_PreviewTouchUp(object sender, TouchEventArgs e)
+        {
+            try
+            {
+                 // 隐藏视觉反馈圆圈
+                 if (AreaEraserCursor != null)
+                 {
+                     AreaEraserCursor.Visibility = Visibility.Collapsed;
+                 }
+
+                 var args = e.GetTouchPoint(null).Bounds;
+                 double value = (MainWindow.Settings?.Advanced?.IsQuadIR == true) ? Math.Sqrt(args.Width * args.Height) : args.Width;
+                 
+                 // 只有当看起来像是有意的大面积接触时才弹窗 (比如 > 5)
+                 if (value > 5)
+                 {
+                    // 重新计算推荐值 (逻辑同上)
+                    double recommendedMultiplier = 45.0 / (value * 1.1);
+                    double minMult = SliderTouchMultiplier.Minimum;
+                    double maxMult = SliderTouchMultiplier.Maximum;
+                    double recommendedMultiplierClamped = Math.Max(minMult, Math.Min(maxMult, recommendedMultiplier));
+                    
+                    double currentBoundsWidth = MainWindow.Settings.Startup.IsEnableNibMode
+                        ? MainWindow.Settings.Advanced.NibModeBoundsWidth
+                        : MainWindow.Settings.Advanced.FingerModeBoundsWidth;
+                    
+                    double recommendedThreshold = (value / currentBoundsWidth) * 0.7;
+                    if (recommendedThreshold < 1.1) recommendedThreshold = 1.1;
+                    if (recommendedThreshold > 10) recommendedThreshold = 10;
+
+                    var result = MessageBox.Show($"检测到面积擦输入宽度: {value:F2}\n\n推荐设置：\n- 触摸倍数: {recommendedMultiplier:F2} (适配面积擦)\n- 擦除阈值: {recommendedThreshold:F2} (区分线条擦与面积擦)\n\n是否应用这些设置？", "面积擦校准", MessageBoxButton.YesNo, MessageBoxImage.Question);
+
+                    if (result == MessageBoxResult.Yes)
+                    {
+                        if (MainWindow.Settings?.Advanced != null)
+                        {
+                            MainWindow.Settings.Advanced.IsSpecialScreen = true;
+                            MainWindow.Settings.Advanced.TouchMultiplier = recommendedMultiplierClamped;
+                            MainWindow.Settings.Advanced.NibModeBoundsWidthThresholdValue = recommendedThreshold;
+                            MainWindow.Settings.Advanced.FingerModeBoundsWidthThresholdValue = recommendedThreshold;
+                            MainWindow.Settings.Advanced.NibModeBoundsWidthEraserSize = 1.0;
+                            MainWindow.Settings.Advanced.FingerModeBoundsWidthEraserSize = 1.0;
+                        }
+
+                        CheckBoxIsSpecialScreen.IsChecked = true;
+                        SliderTouchMultiplier.Value = recommendedMultiplierClamped;
+                        MainWindow.SaveSettingsToFile();
+
+                        MessageBox.Show("已应用面积擦校准设置。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                        
+                        // 恢复 "Hello" 笔迹以便再次测试
+                        InkCanvasAreaEraserTest.Strokes.Clear();
+                        InkCanvasAreaEraserTest_Loaded(null, null);
+                    }
+                 }
+            }
+            catch {}
         }
 
         private void ShowStepGrid(Grid grid, bool isVisible)

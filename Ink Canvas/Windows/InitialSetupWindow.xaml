@@ -386,7 +386,7 @@
                                             FontSize="12"
                                             Foreground="{DynamicResource PopupWindowForeground}"
                                             Opacity="0.7"
-                                            Text="在下方区域内触摸以估计倍数" />
+                                            Text="触摸/书写轨迹测试（下方区域内触摸以估计倍数）" />
                                             <Border
                                             x:Name="BorderCalculateMultiplierWizard"
                                             Height="48"
@@ -394,10 +394,54 @@
                                             Background="{DynamicResource PopupWindowBackground}"
                                             BorderBrush="{DynamicResource PopupWindowBorderBrush}"
                                             BorderThickness="2"
-                                            CornerRadius="4"
-                                            TouchDown="BorderCalculateMultiplier_TouchDown" />
+                                            CornerRadius="4">
+                                                <InkCanvas 
+                                                x:Name="InkCanvasTraceTest" 
+                                                Background="Transparent" 
+                                                PreviewTouchDown="InkCanvasTraceTest_PreviewTouchDown"
+                                                EditingMode="Ink" />
+                                            </Border>
                                             <TextBlock
                                             x:Name="TextBlockShowCalculatedMultiplierWizard"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource PopupWindowForeground}" />
+                                        </StackPanel>
+
+                                        <StackPanel Margin="0,10,0,0">
+                                            <TextBlock
+                                            FontSize="12"
+                                            Foreground="{DynamicResource PopupWindowForeground}"
+                                            Opacity="0.7"
+                                            Text="面积擦检测：请用笔尾或手背在框内擦拭以检测接触面积" />
+                                            <Border
+                                            x:Name="BorderAreaEraserCalibrationWizard"
+                                            Height="60"
+                                            Margin="0,4,10,0"
+                                            Background="{DynamicResource PopupWindowBackground}"
+                                            BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                                            BorderThickness="2"
+                                            CornerRadius="4">
+                                                <Grid>
+                                                    <InkCanvas 
+                                                    x:Name="InkCanvasAreaEraserTest" 
+                                                    Background="Transparent" 
+                                                    PreviewTouchDown="InkCanvasAreaEraserTest_PreviewTouchDown" 
+                                                    PreviewTouchMove="InkCanvasAreaEraserTest_PreviewTouchMove"
+                                                    PreviewTouchUp="InkCanvasAreaEraserTest_PreviewTouchUp"
+                                                    Loaded="InkCanvasAreaEraserTest_Loaded" />
+                                                    <Ellipse 
+                                                    x:Name="AreaEraserCursor" 
+                                                    Visibility="Collapsed" 
+                                                    IsHitTestVisible="False" 
+                                                    Stroke="{DynamicResource PopupWindowForeground}"
+                                                    StrokeThickness="1"
+                                                    Fill="Transparent"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"/>
+                                                </Grid>
+                                            </Border>
+                                            <TextBlock
+                                            x:Name="TextBlockShowAreaEraserResult"
                                             FontSize="12"
                                             Foreground="{DynamicResource PopupWindowForeground}" />
                                         </StackPanel>

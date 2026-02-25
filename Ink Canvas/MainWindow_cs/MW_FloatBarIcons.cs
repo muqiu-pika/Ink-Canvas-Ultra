@@ -724,13 +724,17 @@ namespace Ink_Canvas
                 // 使用更可靠的方法获取浮动栏宽度
                 double baseWidth = ViewboxFloatingBar.ActualWidth;
 
-                // 如果ActualWidth为0，尝试使用DesiredSize
+                // 如果ActualWidth为0，尝试强制测量
                 if (baseWidth <= 0)
                 {
+                    // 强制测量以获取准确尺寸
+                    double heightConstraint = ViewboxFloatingBar.Height;
+                    if (double.IsNaN(heightConstraint) || heightConstraint <= 0) heightConstraint = 50;
+                    ViewboxFloatingBar.Measure(new Size(double.PositiveInfinity, heightConstraint));
                     baseWidth = ViewboxFloatingBar.DesiredSize.Width;
                 }
 
-                // 如果仍然为0，使用RenderSize
+                // 如果仍然为0，尝试使用RenderSize
                 if (baseWidth <= 0)
                 {
                     baseWidth = ViewboxFloatingBar.RenderSize.Width;
