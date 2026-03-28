@@ -412,7 +412,7 @@
                                             FontSize="12"
                                             Foreground="{DynamicResource PopupWindowForeground}"
                                             Opacity="0.7"
-                                            Text="面积擦检测：请用笔尾或手背在框内擦拭以检测接触面积" />
+                                            Text="面积擦检测：请用笔尾或手背在框内滑动" />
                                             <Border
                                             x:Name="BorderAreaEraserCalibrationWizard"
                                             Height="60"
@@ -422,6 +422,17 @@
                                             BorderThickness="2"
                                             CornerRadius="4">
                                                 <Grid>
+                                                    <Ellipse 
+                                                    x:Name="AreaEraserCursor" 
+                                                    Width="20"
+                                                    Height="20"
+                                                    Visibility="Collapsed" 
+                                                    IsHitTestVisible="False" 
+                                                    Stroke="Black"
+                                                    StrokeThickness="1"
+                                                    Fill="#50808080"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"/>
                                                     <InkCanvas 
                                                     x:Name="InkCanvasAreaEraserTest" 
                                                     Background="Transparent" 
@@ -429,21 +440,8 @@
                                                     PreviewTouchMove="InkCanvasAreaEraserTest_PreviewTouchMove"
                                                     PreviewTouchUp="InkCanvasAreaEraserTest_PreviewTouchUp"
                                                     Loaded="InkCanvasAreaEraserTest_Loaded" />
-                                                    <Ellipse 
-                                                    x:Name="AreaEraserCursor" 
-                                                    Visibility="Collapsed" 
-                                                    IsHitTestVisible="False" 
-                                                    Stroke="{DynamicResource PopupWindowForeground}"
-                                                    StrokeThickness="1"
-                                                    Fill="Transparent"
-                                                    HorizontalAlignment="Left"
-                                                    VerticalAlignment="Top"/>
                                                 </Grid>
                                             </Border>
-                                            <TextBlock
-                                            x:Name="TextBlockShowAreaEraserResult"
-                                            FontSize="12"
-                                            Foreground="{DynamicResource PopupWindowForeground}" />
                                         </StackPanel>
                                     </StackPanel>
 

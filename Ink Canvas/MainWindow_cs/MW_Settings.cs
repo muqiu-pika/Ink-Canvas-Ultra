@@ -239,14 +239,11 @@ namespace Ink_Canvas
 
         private void ApplyScaling()
         {
-            // Apply Floating Bar Scale
-            // Divide by 100 to convert percentage to scale factor
+            Settings.Appearance.FloatingBarScale = NormalizeFloatingBarScale(Settings.Appearance.FloatingBarScale);
             double floatingBarScaleFactor = Settings.Appearance.FloatingBarScale / 100.0;
             ViewboxFloatingBarScaleTransform.ScaleX = floatingBarScaleFactor;
             ViewboxFloatingBarScaleTransform.ScaleY = floatingBarScaleFactor;
 
-            // Apply Blackboard Scale
-            // Divide by 100 to convert percentage to scale factor
             double blackboardScaleFactor = Settings.Appearance.BlackboardScale / 100.0;
             ViewboxBlackboardLeftSideScaleTransform.ScaleX = blackboardScaleFactor;
             ViewboxBlackboardLeftSideScaleTransform.ScaleY = blackboardScaleFactor;

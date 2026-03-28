@@ -13,6 +13,32 @@ namespace Ink_Canvas
 {
     public partial class MainWindow : Window
     {
+        private double NormalizeFloatingBarScale(double value)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0)
+            {
+                value = 100;
+            }
+            else if (value <= 3)
+            {
+                value *= 100;
+            }
+
+            double min = SliderFloatingBarScale?.Minimum > 0 ? SliderFloatingBarScale.Minimum : 50;
+            double max = SliderFloatingBarScale?.Maximum > 0 ? SliderFloatingBarScale.Maximum : 150;
+
+            if (value < min)
+            {
+                value = min;
+            }
+            else if (value > max)
+            {
+                value = max;
+            }
+
+            return value;
+        }
+
         private void LoadSettings(bool isStartup = false)
         {
             try
@@ -51,6 +77,10 @@ namespace Ink_Canvas
             if (Settings.Startup == null) Settings.Startup = new Startup();
             if (Settings.RandSettings == null) Settings.RandSettings = new RandSettings();
             if (Settings.Camera == null) Settings.Camera = new CameraSettings();
+
+            double normalizedFloatingBarScale = NormalizeFloatingBarScale(Settings.Appearance.FloatingBarScale);
+            bool floatingBarScaleWasNormalized = Math.Abs(Settings.Appearance.FloatingBarScale - normalizedFloatingBarScale) > double.Epsilon;
+            Settings.Appearance.FloatingBarScale = normalizedFloatingBarScale;
 
             // Startup
             if (isStartup)
@@ -745,6 +775,11 @@ namespace Ink_Canvas
                 Settings.Automation = new Automation();
             }
             ViewboxFloatingBarMarginAnimation();
+
+            if (floatingBarScaleWasNormalized)
+            {
+                SaveSettingsToFile();
+            }
         }
 
         /// <summary>

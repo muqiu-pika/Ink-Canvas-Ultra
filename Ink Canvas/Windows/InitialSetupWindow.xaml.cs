@@ -360,7 +360,7 @@ namespace Ink_Canvas
         {
             try
             {
-                // 清空笔迹，不显示任何文字
+                // 清空笔迹，只显示面积擦圆形范围
                 InkCanvasAreaEraserTest.Strokes.Clear();
                 InkCanvasAreaEraserTest.EraserShape = new EllipseStylusShape(2, 2);
             }
@@ -404,7 +404,7 @@ namespace Ink_Canvas
                 InkCanvasAreaEraserTest.EraserShape = new EllipseStylusShape(width, height);
                 InkCanvasAreaEraserTest.EditingMode = InkCanvasEditingMode.EraseByPoint;
 
-                // 更新视觉反馈圆圈
+                // 更新视觉反馈圆圈 - 显示面积擦范围
                 if (AreaEraserCursor != null)
                 {
                     AreaEraserCursor.Width = width;
@@ -413,16 +413,6 @@ namespace Ink_Canvas
                     AreaEraserCursor.Margin = new Thickness(touchPoint.Position.X - width / 2, touchPoint.Position.Y - height / 2, 0, 0);
                     AreaEraserCursor.Visibility = Visibility.Visible;
                 }
-
-                // 2. 只有当确实在进行擦除操作时，才进行后续的倍数计算和提示
-                // 避免仅仅是点击一下就触发复杂的逻辑
-                
-                // 计算用于显示的 value (原始输入宽度)
-                double value = (MainWindow.Settings?.Advanced?.IsQuadIR == true) ? Math.Sqrt(bounds.Width * bounds.Height) : bounds.Width;
-
-                // 实时更新推荐值文本
-                double recommendedMultiplier = 45.0 / (value * 1.1);
-                TextBlockShowAreaEraserResult.Text = $"检测: {value:F2}, 推荐倍数: {recommendedMultiplier:F2}";
             }
             catch { }
         }
@@ -477,9 +467,8 @@ namespace Ink_Canvas
 
                         MessageBox.Show("已应用面积擦校准设置。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
                         
-                        // 恢复 "Hello" 笔迹以便再次测试
+                        // 清空笔迹以便再次测试
                         InkCanvasAreaEraserTest.Strokes.Clear();
-                        InkCanvasAreaEraserTest_Loaded(null, null);
                     }
                  }
             }
