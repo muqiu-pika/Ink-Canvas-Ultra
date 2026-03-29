@@ -282,6 +282,13 @@ namespace Ink_Canvas
                     MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash = CheckBoxIsEnableSilentRestartOnCrash.IsChecked == true;
                 }
 
+                // 注册 URI 协议
+                try
+                {
+                    App.RegisterUriScheme();
+                }
+                catch { }
+
                 // 标记首次向导已完成
                 if (MainWindow.Settings.Startup != null)
                 {

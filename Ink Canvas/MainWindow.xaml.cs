@@ -248,6 +248,57 @@ namespace Ink_Canvas
 
             // 首次安装引导
             TryShowInitialSetupWizard();
+
+            // 注册 URI 协议（确保协议已注册）
+            try
+            {
+                App.RegisterUriScheme();
+            }
+            catch { }
+
+            // 处理启动模式
+            HandleStartupMode();
+        }
+
+        private async void HandleStartupMode()
+        {
+            try
+            {
+                await Task.Delay(500); // 等待界面完全加载
+
+                switch (App.CurrentStartupMode)
+                {
+                    case App.StartupMode.Whiteboard:
+                        // 进入白板模式
+                        ImageBlackboard_Click(null, null);
+                        break;
+
+                    case App.StartupMode.Camera:
+                        // 打开视频展台侧栏
+                        if (VideoPresenterSidebar.Visibility != Visibility.Visible)
+                        {
+                            BtnVideoPresenter_Click(null, null);
+                        }
+                        break;
+
+                    case App.StartupMode.WhiteboardAndCamera:
+                        // 进入白板模式
+                        ImageBlackboard_Click(null, null);
+                        
+                        await Task.Delay(300); // 等待白板模式切换完成
+                        
+                        // 打开视频展台侧栏
+                        if (VideoPresenterSidebar.Visibility != Visibility.Visible)
+                        {
+                            BtnVideoPresenter_Click(null, null);
+                        }
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"HandleStartupMode failed: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
