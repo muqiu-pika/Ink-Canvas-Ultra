@@ -689,8 +689,8 @@ namespace Ink_Canvas
             }
             else if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
             {
-                // PPT 放映模式：固定为 60px
-                MarginFromEdge = 60;
+                // PPT 放映模式：固定为 0px
+                MarginFromEdge = 0;
             }
             else if (Topmost == false)
             {
