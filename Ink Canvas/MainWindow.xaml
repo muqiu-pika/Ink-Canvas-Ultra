@@ -3802,7 +3802,7 @@
                                             Maximum="200"
                                             Minimum="0"
                                             ValueChanged="SliderFloatingBarBottomMargin_ValueChanged"
-                                            Value="100" />
+                                            Value="50" />
                                         <TextBlock
                                             Width="35"
                                             Margin="10,0,0,8"
@@ -3812,7 +3812,7 @@
                                             Text="{Binding Value, ElementName=SliderFloatingBarBottomMargin, StringFormat={}{0:F0}}" />
                                     </StackPanel>
                                     <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
-                                        <Button Margin="0,0,5,0" Padding="20,4" Click="BtnSetFloatingBarMargin_Click" Content="重置为 100" Tag="100" />
+                                        <Button Margin="0,0,5,0" Padding="20,4" Click="BtnSetFloatingBarMargin_Click" Content="重置为 50" Tag="50" />
                                     </StackPanel>
                                 </ikw:SimpleStackPanel>
 

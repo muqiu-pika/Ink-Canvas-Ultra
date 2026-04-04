@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net472</TargetFramework>
+    <TargetFramework>net481</TargetFramework>
     <RuntimeIdentifiers>win;win-x86;win-x64;win-arm64;win7;win7-x86;win7-x64</RuntimeIdentifiers>
     <OutputType>WinExe</OutputType>
     <GenerateAssemblyInfo>False</GenerateAssemblyInfo>
@@ -149,9 +149,9 @@
     <Resource Include="Resources\\DeveloperAvatars\\muqiu.png" />
   </ItemGroup>
   <ItemGroup>
-    <BootstrapperPackage Include=".NETFramework,Version=v4.7.2">
+    <BootstrapperPackage Include=".NETFramework,Version=v4.8.1">
       <Visible>False</Visible>
-      <ProductName>Microsoft .NET Framework 4.7.2 %28x86 and x64%29</ProductName>
+      <ProductName>Microsoft .NET Framework 4.8.1 %28x86 and x64%29</ProductName>
       <Install>true</Install>
     </BootstrapperPackage>
   </ItemGroup>
