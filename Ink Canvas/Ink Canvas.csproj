@@ -56,14 +56,7 @@
 			<HintPath>.\IAWinFX.dll</HintPath>
 		</Reference>
 		<Reference Include="netstandard" />
-		<Reference Include="Windows">
-			<HintPath>Windows.WinMD</HintPath>
-			<IsWinMDFile>true</IsWinMDFile>
-		</Reference>
-		<Reference Include="Windows.Foundation.UniversalApiContract">
-			<HintPath>Windows.Foundation.UniversalApiContract.winmd</HintPath>
-			<IsWinMDFile>true</IsWinMDFile>
-		</Reference>
+
 	</ItemGroup>
 	<ItemGroup>
 		<PackageReference Include="AForge" Version="2.2.5" />
@@ -110,15 +103,7 @@
 			<Isolated>False</Isolated>
 			<EmbedInteropTypes>True</EmbedInteropTypes>
 		</COMReference>
-		<COMReference Include="VBIDE">
-			<Guid>{0002E157-0000-0000-C000-000000000046}</Guid>
-			<VersionMajor>5</VersionMajor>
-			<VersionMinor>3</VersionMinor>
-			<Lcid>0</Lcid>
-			<WrapperTool>primary</WrapperTool>
-			<Isolated>False</Isolated>
-			<EmbedInteropTypes>True</EmbedInteropTypes>
-		</COMReference>
+
 	</ItemGroup>
 	<ItemGroup>
 		<WCFMetadata Include="Connected Services\" />
@@ -163,11 +148,11 @@
 	    <LastGenOutput>Settings.Designer.cs</LastGenOutput>
 	  </None>
 	</ItemGroup>
-	<Target Name="CreateVideoPresenterShortcut" AfterTargets="Build">
+	<Target Name="CreateVideoPresenterShortcut" AfterTargets="Build" Condition="'$(CI)' != 'true'">
 		<PropertyGroup>
 			<VideoPresenterShortcutPath>$(TargetDir)Ink Canvas Ultra - 视频展台模式.lnk</VideoPresenterShortcutPath>
 		</PropertyGroup>
-		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut('$(VideoPresenterShortcutPath)'); $shortcut.TargetPath = '$(TargetPath)'; $shortcut.Arguments = '--video-presenter'; $shortcut.WorkingDirectory = '$(TargetDir)'; $shortcut.IconLocation = '$(TargetPath),0'; $shortcut.Save();&quot;" />
+		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut('$(VideoPresenterShortcutPath)'); $shortcut.TargetPath = '$(TargetPath)'; $shortcut.Arguments = '--video-presenter'; $shortcut.WorkingDirectory = '$(TargetDir)'; $shortcut.IconLocation = '$(TargetPath),0'; $shortcut.Save();&quot;" ContinueOnError="true" />
 	</Target>
 </Project>
 
