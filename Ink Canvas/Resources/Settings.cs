@@ -147,7 +147,7 @@ namespace Ink_Canvas
         public double BlackboardScale { get; set; } = 80.0;
 
         [JsonProperty("floatingBarBottomMargin")]
-        public double FloatingBarBottomMargin { get; set; } = 100.0;
+        public double FloatingBarBottomMargin { get; set; } = 50.0;
 
         [JsonProperty("isTransparentButtonBackground")]
         public bool IsTransparentButtonBackground { get; set; } = true;

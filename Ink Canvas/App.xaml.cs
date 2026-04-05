@@ -9,6 +9,7 @@ using System.Reflection;
 using System.Text;
 using System.Windows;
 using MessageBox = System.Windows.MessageBox;
+using Microsoft.Win32;
 
 namespace Ink_Canvas
 {
@@ -25,6 +26,16 @@ namespace Ink_Canvas
 
         public static string[] StartArgs = null;
         public static string RootPath = Environment.GetEnvironmentVariable("APPDATA") + "\\Ink Canvas\\";
+
+        public enum StartupMode
+        {
+            Normal,
+            Whiteboard,
+            Camera,
+            WhiteboardAndCamera
+        }
+
+        public static StartupMode CurrentStartupMode = StartupMode.Normal;
 
         public App()
         {
@@ -129,6 +140,83 @@ namespace Ink_Canvas
             }
 
             StartArgs = e.Args;
+
+            // 解析命令行参数
+            ParseCommandLineArgs(e.Args);
+        }
+
+        private void ParseCommandLineArgs(string[] args)
+        {
+            if (args == null || args.Length == 0) return;
+
+            foreach (string arg in args)
+            {
+                string lowerArg = arg.ToLower();
+                
+                // 处理 URI 格式：inkcanvasultra://xxx
+                if (lowerArg.StartsWith("inkcanvasultra://"))
+                {
+                    string path = lowerArg.Substring("inkcanvasultra://".Length);
+                    if (path.StartsWith("whiteboard"))
+                    {
+                        if (path.Contains("camera"))
+                        {
+                            CurrentStartupMode = StartupMode.WhiteboardAndCamera;
+                        }
+                        else
+                        {
+                            CurrentStartupMode = StartupMode.Whiteboard;
+                        }
+                    }
+                    else if (path.StartsWith("camera") || path.StartsWith("video-presenter"))
+                    {
+                        CurrentStartupMode = StartupMode.Camera;
+                    }
+                    continue;
+                }
+                
+                // 处理命令行参数格式
+                if (lowerArg == "--whiteboard" || lowerArg == "-w" || lowerArg == "--whiteboard-mode")
+                {
+                    CurrentStartupMode = StartupMode.Whiteboard;
+                }
+                else if (lowerArg == "--camera" || lowerArg == "-c" || lowerArg == "--video-presenter")
+                {
+                    CurrentStartupMode = StartupMode.Camera;
+                }
+                else if (lowerArg == "--whiteboard-camera" || lowerArg == "--whiteboard-and-camera")
+                {
+                    CurrentStartupMode = StartupMode.WhiteboardAndCamera;
+                }
+            }
+        }
+
+        public static void RegisterUriScheme()
+        {
+            try
+            {
+                string exePath = Process.GetCurrentProcess().MainModule.FileName;
+                string protocolName = "inkcanvasultra";
+
+                using (RegistryKey key = Registry.ClassesRoot.CreateSubKey(protocolName))
+                {
+                    key.SetValue("", "URL:Ink Canvas Ultra Protocol");
+                    key.SetValue("URL Protocol", "");
+
+                    using (RegistryKey shellKey = key.CreateSubKey("shell"))
+                    using (RegistryKey openKey = shellKey.CreateSubKey("open"))
+                    using (RegistryKey commandKey = openKey.CreateSubKey("command"))
+                    {
+                        commandKey.SetValue("", $"\"{exePath}\" \"%1\"");
+                    }
+                }
+
+                LogHelper.NewLog("URI scheme registered successfully: inkcanvasultra://");
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"Failed to register URI scheme: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         private bool TryNotifyExistingInstance()

@@ -43,6 +43,11 @@ jobs:
         msbuild -t:restore /p:GitFlow="Github Action"
         msbuild -target:"Ink Canvas" /p:Configuration=Release /p:Platform="Any CPU" /p:GitFlow="Github Action"
         
+    # 创建视频展台快捷方式
+    - name: Create Video Presenter Shortcut
+      run: |
+        powershell -ExecutionPolicy Bypass -File Create-Shortcut.ps1
+        
     # 上传编译成品
     - name: Upload to artifact
       uses: actions/upload-artifact@v4

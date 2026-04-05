@@ -689,19 +689,26 @@ namespace Ink_Canvas
             {
                 MarginFromEdge = -100;
             }
-            else if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible || Topmost == false)
+            else if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
             {
-                MarginFromEdge = 60;
+                // PPT 放映模式：固定为 0px
+                MarginFromEdge = 0;
             }
-            MarginFromEdge = MarginFromEdge * (Settings.Appearance.FloatingBarScale / 100);
+            else if (Topmost == false)
+            {
+                // 黑板模式：设置为 -60（隐藏到屏幕外）
+                MarginFromEdge = -60;
+            }
             
             Point newPos = new Point();
             
             await Dispatcher.InvokeAsync(() =>
             {
-                if (Topmost == false)
+                // 黑板模式下需要特殊处理
+                if (Topmost == false && BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
                 {
                     MarginFromEdge = -60;
+                    ViewboxFloatingBar.Visibility = Visibility.Hidden;
                 }
                 else
                 {
@@ -751,12 +758,14 @@ namespace Ink_Canvas
                 }
 
                 double floatingBarWidth = baseWidth * ViewboxFloatingBarScaleTransform.ScaleX;
-
-                // 水平居中计算，与community-beta版本一致
+                double floatingBarHeight = ViewboxFloatingBar.Height * ViewboxFloatingBarScaleTransform.ScaleY;
+                
+                // 水平居中计算，与 community-beta 版本一致
                 newPos.X = (screenWidth - floatingBarWidth) / 2;
-
-                // Y坐标计算，与Artistry版本一致
-                newPos.Y = screenHeight - MarginFromEdge * ((ViewboxFloatingBarScaleTransform.ScaleY == 1) ? 1 : 0.9);
+                
+                // Y 坐标计算，使用固定的底部边距，不随缩放比例变化
+                // 需要减去浮动栏的实际渲染高度，确保底部边距是从浮动栏底部到屏幕底部的距离
+                newPos.Y = screenHeight - MarginFromEdge - floatingBarHeight;
 
                 // 自动吸附功能：如果之前保存的位置偏离较大（说明用户移动过），恢复到之前的位置
                 if (MarginFromEdge != -60)
