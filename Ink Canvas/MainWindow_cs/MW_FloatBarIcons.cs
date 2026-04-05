@@ -392,8 +392,8 @@ namespace Ink_Canvas
 
             if (inkCanvas.EditingMode == InkCanvasEditingMode.Select) PenIcon_Click(null, null);
 
-            // 折叠视频展台侧栏
-            if (VideoPresenterSidebar != null && VideoPresenterSidebar.Visibility == Visibility.Visible)
+            if (VideoPresenterSidebar != null && VideoPresenterSidebar.Visibility == Visibility.Visible
+                && (currentMode != 0 || !shouldLaunchIntoVideoPresenterMode))
             {
                 VideoPresenterSidebar.Visibility = Visibility.Collapsed;
             }
@@ -503,6 +503,8 @@ namespace Ink_Canvas
             }
 
             BtnSwitch_Click(null, null);
+
+            CompletePendingVideoPresenterActivation();
 
             if (currentMode == 0 && inkCanvas.Strokes.Count == 0 && BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
             {

@@ -5,8 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.IO.Pipes;
 using System.Linq;
 using System.Reflection;
+using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -32,6 +35,7 @@ namespace Ink_Canvas
         public MainWindow()
         {
             InitializeComponent();
+            InitializeStartupModes();
 
             // 将视频控制条嵌入到 BorderStrokeSelectionControl 内部容器
             try
@@ -216,6 +220,153 @@ namespace Ink_Canvas
         // 照片页面管理相关字段
         private Dictionary<string, int> photoPageMapping = new Dictionary<string, int>(); // 记录照片时间戳与页码的关联
         private System.Windows.Controls.Image currentPhotoImage; // 当前显示的照片元素
+        private bool shouldLaunchIntoVideoPresenterMode;
+        private bool hasAppliedVideoPresenterStartupMode;
+        private bool shouldOpenVideoPresenterAfterBoardSwitch;
+        private CancellationTokenSource singleInstanceCommandServerCancellationTokenSource;
+        private Task singleInstanceCommandServerTask;
+
+        private void InitializeStartupModes()
+        {
+            shouldLaunchIntoVideoPresenterMode = HasStartArgument(
+                App.VideoPresenterLaunchArgument,
+                "/video-presenter",
+                "-video-presenter",
+                "-vp",
+                "/vp");
+        }
+
+        private bool HasStartArgument(params string[] argumentNames)
+        {
+            if (App.StartArgs == null || argumentNames == null || argumentNames.Length == 0) return false;
+            return App.StartArgs.Any(arg =>
+                !string.IsNullOrWhiteSpace(arg) &&
+                argumentNames.Any(argumentName => string.Equals(arg, argumentName, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        private void ShowVideoPresenterSidebar()
+        {
+            if (VideoPresenterSidebar == null) return;
+            VideoPresenterSidebar.Visibility = Visibility.Visible;
+            cameraDeviceManager?.RefreshCameraDevices();
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                try
+                {
+                    AutoCalculatePhotoAreaHeight();
+                }
+                catch { }
+            }), DispatcherPriority.Background);
+        }
+
+        private void ActivateCurrentWindow()
+        {
+            try
+            {
+                if (WindowState == WindowState.Minimized)
+                {
+                    WindowState = WindowState.Normal;
+                }
+                Show();
+                Activate();
+                WindowFocusHelper.EnsureWindowFocus(this);
+            }
+            catch { }
+        }
+
+        private void ActivateVideoPresenterMode()
+        {
+            shouldLaunchIntoVideoPresenterMode = true;
+            shouldOpenVideoPresenterAfterBoardSwitch = true;
+            ActivateCurrentWindow();
+
+            if (currentMode != 1)
+            {
+                ImageBlackboard_Click(null, null);
+                return;
+            }
+
+            CompletePendingVideoPresenterActivation();
+        }
+
+        private void CompletePendingVideoPresenterActivation()
+        {
+            if (!shouldOpenVideoPresenterAfterBoardSwitch || currentMode != 1) return;
+
+            shouldOpenVideoPresenterAfterBoardSwitch = false;
+            Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                await Task.Delay(150);
+                ShowVideoPresenterSidebar();
+                ActivateCurrentWindow();
+            }), DispatcherPriority.Background);
+        }
+
+        private void StartSingleInstanceCommandServer()
+        {
+            if (singleInstanceCommandServerTask != null) return;
+
+            singleInstanceCommandServerCancellationTokenSource = new CancellationTokenSource();
+            singleInstanceCommandServerTask = Task.Run(() => ListenForSingleInstanceCommandsAsync(singleInstanceCommandServerCancellationTokenSource.Token));
+        }
+
+        private void StopSingleInstanceCommandServer()
+        {
+            try
+            {
+                singleInstanceCommandServerCancellationTokenSource?.Cancel();
+            }
+            catch { }
+        }
+
+        private async Task ListenForSingleInstanceCommandsAsync(CancellationToken cancellationToken)
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                NamedPipeServerStream pipeServer = null;
+                try
+                {
+                    pipeServer = new NamedPipeServerStream(App.SingleInstancePipeName, PipeDirection.In, 1, PipeTransmissionMode.Byte, PipeOptions.Asynchronous);
+                    await pipeServer.WaitForConnectionAsync(cancellationToken);
+
+                    using (pipeServer)
+                    using (var reader = new StreamReader(pipeServer, Encoding.UTF8))
+                    {
+                        string command = await reader.ReadToEndAsync();
+                        if (string.IsNullOrWhiteSpace(command)) continue;
+
+                        await Dispatcher.BeginInvoke(new Action(() => HandleSingleInstanceCommand(command.Trim())));
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    try { pipeServer?.Dispose(); } catch { }
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    try { pipeServer?.Dispose(); } catch { }
+                    LogHelper.WriteLogToFile("Single instance command server error | " + ex, LogHelper.LogType.Error);
+                }
+            }
+        }
+
+        private void HandleSingleInstanceCommand(string command)
+        {
+            ActivateCurrentWindow();
+
+            if (string.Equals(command, App.ActivateVideoPresenterCommand, StringComparison.OrdinalIgnoreCase))
+            {
+                ActivateVideoPresenterMode();
+            }
+        }
+
+        private void ApplyStartupModes()
+        {
+            if (!shouldLaunchIntoVideoPresenterMode || hasAppliedVideoPresenterStartupMode) return;
+            hasAppliedVideoPresenterStartupMode = true;
+            ActivateVideoPresenterMode();
+        }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
@@ -237,6 +388,7 @@ namespace Ink_Canvas
             InitializeCameraDeviceManager();
             
             isLoaded = true;
+            StartSingleInstanceCommandServer();
             RegisterGlobalHotkeys();
             timerFixFloatingBarZOrder?.Start();
 
@@ -248,57 +400,7 @@ namespace Ink_Canvas
 
             // 首次安装引导
             TryShowInitialSetupWizard();
-
-            // 注册 URI 协议（确保协议已注册）
-            try
-            {
-                App.RegisterUriScheme();
-            }
-            catch { }
-
-            // 处理启动模式
-            HandleStartupMode();
-        }
-
-        private async void HandleStartupMode()
-        {
-            try
-            {
-                await Task.Delay(500); // 等待界面完全加载
-
-                switch (App.CurrentStartupMode)
-                {
-                    case App.StartupMode.Whiteboard:
-                        // 进入白板模式
-                        ImageBlackboard_Click(null, null);
-                        break;
-
-                    case App.StartupMode.Camera:
-                        // 打开视频展台侧栏
-                        if (VideoPresenterSidebar.Visibility != Visibility.Visible)
-                        {
-                            BtnVideoPresenter_Click(null, null);
-                        }
-                        break;
-
-                    case App.StartupMode.WhiteboardAndCamera:
-                        // 进入白板模式
-                        ImageBlackboard_Click(null, null);
-                        
-                        await Task.Delay(300); // 等待白板模式切换完成
-                        
-                        // 打开视频展台侧栏
-                        if (VideoPresenterSidebar.Visibility != Visibility.Visible)
-                        {
-                            BtnVideoPresenter_Click(null, null);
-                        }
-                        break;
-                }
-            }
-            catch (Exception ex)
-            {
-                LogHelper.WriteLogToFile($"HandleStartupMode failed: {ex.Message}", LogHelper.LogType.Error);
-            }
+            ApplyStartupModes();
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -328,6 +430,7 @@ namespace Ink_Canvas
         {
             LogHelper.WriteLogToFile("Ink Canvas closed", LogHelper.LogType.Event);
             try { timerFixFloatingBarZOrder?.Stop(); } catch { }
+            StopSingleInstanceCommandServer();
             // 移除摄像头画面
             RemoveCameraFrame();
             // 清理摄像头资源
@@ -528,11 +631,7 @@ namespace Ink_Canvas
             }
             else
             {
-                VideoPresenterSidebar.Visibility = Visibility.Visible;
-                // 当打开侧栏时自动刷新设备列表（设备选择功能保持不变）
-                cameraDeviceManager?.RefreshCameraDevices();
-                // 自动计算照片显示区域高度
-                AutoCalculatePhotoAreaHeight();
+                ShowVideoPresenterSidebar();
             }
         }
 

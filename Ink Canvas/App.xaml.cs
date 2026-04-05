@@ -3,8 +3,10 @@ using iNKORE.UI.WPF.Modern.Controls;
 using System;
 using System.Linq;
 using System.IO;
+using System.IO.Pipes;
 using System.Diagnostics;
 using System.Reflection;
+using System.Text;
 using System.Windows;
 using MessageBox = System.Windows.MessageBox;
 using Microsoft.Win32;
@@ -16,6 +18,10 @@ namespace Ink_Canvas
     /// </summary>
     public partial class App : Application
     {
+        public const string VideoPresenterLaunchArgument = "--video-presenter";
+        public const string SingleInstancePipeName = "Ink_Canvas_Ultra_CommandPipe";
+        public const string ActivateVideoPresenterCommand = "activate-video-presenter";
+
         System.Threading.Mutex mutex;
 
         public static string[] StartArgs = null;
@@ -123,6 +129,11 @@ namespace Ink_Canvas
             if (!ret && !e.Args.Contains("-m")) //-m multiple
             {
                 LogHelper.NewLog("Detected existing instance");
+                if (IsVideoPresenterLaunchRequested(e.Args) && TryNotifyExistingInstance())
+                {
+                    LogHelper.NewLog("Ink Canvas activation request sent to existing instance");
+                    Environment.Exit(0);
+                }
                 MessageBox.Show("已有一个程序实例正在运行");
                 LogHelper.NewLog("Ink Canvas automatically closed");
                 Environment.Exit(0);
@@ -206,6 +217,33 @@ namespace Ink_Canvas
             {
                 LogHelper.WriteLogToFile($"Failed to register URI scheme: {ex.Message}", LogHelper.LogType.Error);
             }
+        }
+
+        private bool TryNotifyExistingInstance()
+        {
+            try
+            {
+                using (var client = new NamedPipeClientStream(".", SingleInstancePipeName, PipeDirection.Out))
+                {
+                    client.Connect(1500);
+                    using (var writer = new StreamWriter(client, Encoding.UTF8, 1024, true))
+                    {
+                        writer.Write(ActivateVideoPresenterCommand);
+                        writer.Flush();
+                    }
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.NewLog("Failed to notify existing instance | " + ex);
+                return false;
+            }
+        }
+
+        private bool IsVideoPresenterLaunchRequested(string[] args)
+        {
+            return args != null && args.Any(arg => string.Equals(arg, VideoPresenterLaunchArgument, StringComparison.OrdinalIgnoreCase));
         }
 
         private void ScrollViewer_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
