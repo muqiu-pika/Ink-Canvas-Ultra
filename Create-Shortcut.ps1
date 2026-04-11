@@ -23,7 +23,7 @@ if (-not (Test-Path $ExePath)) {
 }
 
 $WshShell = New-Object -ComObject WScript.Shell
-$ShortcutPath = Join-Path $OutputDir "Ink Canvas Ultra - 视频展台.lnk"
+$ShortcutPath = Join-Path $OutputDir "视频展台.lnk"
 
 Write-Host "Creating shortcut at: $ShortcutPath"
 
@@ -31,7 +31,7 @@ $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
 $Shortcut.TargetPath = $ExePath
 $Shortcut.Arguments = "--whiteboard-camera"
 $Shortcut.WorkingDirectory = Split-Path -Parent $ExePath
-$Shortcut.Description = "Ink Canvas Ultra - 视频展台模式"
+$Shortcut.Description = "视频展台模式"
 $Shortcut.IconLocation = $ExePath
 $Shortcut.Save()
 
