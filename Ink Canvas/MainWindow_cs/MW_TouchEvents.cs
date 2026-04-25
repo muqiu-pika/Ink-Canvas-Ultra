@@ -351,6 +351,16 @@ namespace Ink_Canvas
 
                 //记录第一根手指点击时的 StrokeCollection
                 lastTouchDownStrokeCollection = inkCanvas.Strokes.Clone();
+                
+                // 初始化停顿检测变量
+                if (Settings.Canvas.StopTimingStraighten)
+                {
+                    _stopTimingPoint = touchPoint.Position;
+                    _stopTiming = DateTime.Now;
+                    _stopTimingDisable = false;
+                    _stopTimingPoints.Clear();
+                    _stopTimingPoints.Add(_stopTimingPoint);
+                }
             }
             //设备两个及两个以上，将画笔功能关闭
             if (dec.Count > 1 || isSingleFingerDragMode || !Settings.Gesture.IsEnableTwoFingerGesture)

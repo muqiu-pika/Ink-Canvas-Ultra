@@ -3681,6 +3681,38 @@
                                         Value="15" />
                                     <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=LineEndpointSnappingThresholdSlider, StringFormat={}{0:F0}}" />
                                 </StackPanel>
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+                                    <ikw:SimpleStackPanel Width="50">
+                                        <ui:ToggleSwitch
+                                            Name="ToggleSwitchStopTimingStraighten"
+                                            OffContent="关"
+                                            OnContent="开"
+                                            Toggled="ToggleSwitchStopTimingStraighten_Toggled" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource SettingsPageForeground}" Text="停顿强制拉直" />
+                                </ikw:SimpleStackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider
+                                        x:Name="StopTimingThresholdMsSlider"
+                                        Width="330"
+                                        ui:ControlHelper.Header="停顿时间阈值(ms)"
+                                        Maximum="2000"
+                                        Minimum="100"
+                                        ValueChanged="StopTimingThresholdMsSlider_ValueChanged"
+                                        Value="600" />
+                                    <TextBlock Width="50" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=StopTimingThresholdMsSlider, StringFormat={}{0:F0}}" />
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <Slider
+                                        x:Name="StopTimingErrorSlider"
+                                        Width="330"
+                                        ui:ControlHelper.Header="停顿容差"
+                                        Maximum="30"
+                                        Minimum="1"
+                                        ValueChanged="StopTimingErrorSlider_ValueChanged"
+                                        Value="5" />
+                                    <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=StopTimingErrorSlider, StringFormat={}{0:F0}}" />
+                                </StackPanel>
 
                             </ikw:SimpleStackPanel>
                         </GroupBox>

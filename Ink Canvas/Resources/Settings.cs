@@ -61,6 +61,13 @@ namespace Ink_Canvas
         public bool LineEndpointSnapping { get; set; } = true;
         [JsonProperty("lineEndpointSnappingThreshold")]
         public int LineEndpointSnappingThreshold { get; set; } = 15;
+        
+        [JsonProperty("stopTimingStraighten")]
+        public bool StopTimingStraighten { get; set; } = true;
+        [JsonProperty("stopTimingThresholdMs")]
+        public int StopTimingThresholdMs { get; set; } = 600;
+        [JsonProperty("stopTimingError")]
+        public double StopTimingError { get; set; } = 5.0;
     }
 
     public enum OptionalOperation

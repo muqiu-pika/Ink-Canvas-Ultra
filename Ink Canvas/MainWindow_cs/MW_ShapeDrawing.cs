@@ -517,6 +517,41 @@ namespace Ink_Canvas
 
         private void MouseTouchMove(Point endP)
         {
+            // 停顿检测逻辑
+            if (Settings.Canvas.StopTimingStraighten && !_stopTimingDisable)
+            {
+                _stopTimingPoints.Add(endP);
+                
+                double distance = Math.Sqrt(
+                    (endP.X - _stopTimingPoint.X) * (endP.X - _stopTimingPoint.X) + 
+                    (endP.Y - _stopTimingPoint.Y) * (endP.Y - _stopTimingPoint.Y));
+                
+                if (distance > Settings.Canvas.StopTimingError)
+                {
+                    _stopTimingPoint = endP;
+                    _stopTiming = DateTime.Now;
+                }
+                else if ((DateTime.Now - _stopTiming).TotalMilliseconds >= Settings.Canvas.StopTimingThresholdMs)
+                {
+                    // 停顿时间达到阈值，触发拉直
+                    if (_stopTimingPoints.Count >= 2)
+                    {
+                        Point startPoint = _stopTimingPoints[0];
+                        Point endPoint = _stopTimingPoints[_stopTimingPoints.Count - 1];
+                        
+                        double lineLength = Math.Sqrt(
+                            (endPoint.X - startPoint.X) * (endPoint.X - startPoint.X) + 
+                            (endPoint.Y - startPoint.Y) * (endPoint.Y - startPoint.Y));
+                        
+                        // 检查最小长度要求
+                        if (lineLength >= Settings.Canvas.AutoStraightenLineThreshold)
+                        {
+                            _stopTimingTriggered = true;
+                        }
+                    }
+                }
+            }
+            
             List<System.Windows.Point> pointList;
             StylusPointCollection point;
             Stroke stroke;
@@ -1488,6 +1523,15 @@ namespace Ink_Canvas
             if (NeedUpdateIniP())
             {
                 iniP = e.GetPosition(inkCanvas);
+            }
+            // 初始化停顿检测变量
+            if (Settings.Canvas.StopTimingStraighten)
+            {
+                _stopTimingPoint = e.GetPosition(inkCanvas);
+                _stopTiming = DateTime.Now;
+                _stopTimingDisable = false;
+                _stopTimingPoints.Clear();
+                _stopTimingPoints.Add(_stopTimingPoint);
             }
         }
 

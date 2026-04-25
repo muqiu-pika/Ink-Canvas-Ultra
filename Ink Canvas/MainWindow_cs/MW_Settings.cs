@@ -1151,6 +1151,27 @@ namespace Ink_Canvas
             SaveSettingsToFile();
         }
 
+        private void ToggleSwitchStopTimingStraighten_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+            Settings.Canvas.StopTimingStraighten = ToggleSwitchStopTimingStraighten.IsOn;
+            SaveSettingsToFile();
+        }
+
+        private void StopTimingThresholdMsSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded) return;
+            Settings.Canvas.StopTimingThresholdMs = (int)e.NewValue;
+            SaveSettingsToFile();
+        }
+
+        private void StopTimingErrorSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded) return;
+            Settings.Canvas.StopTimingError = e.NewValue;
+            SaveSettingsToFile();
+        }
+
         private void ToggleSwitchEnableTriangleRecognition_Toggled(object sender, RoutedEventArgs e)
         {
             if (!isLoaded) return;

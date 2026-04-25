@@ -168,6 +168,9 @@ namespace Ink_Canvas
                 AutoStraightenLineThresholdSlider.Value = Settings.Canvas.AutoStraightenLineThreshold;
                 ToggleSwitchLineEndpointSnapping.IsOn = Settings.Canvas.LineEndpointSnapping;
                 LineEndpointSnappingThresholdSlider.Value = Settings.Canvas.LineEndpointSnappingThreshold;
+                ToggleSwitchStopTimingStraighten.IsOn = Settings.Canvas.StopTimingStraighten;
+                StopTimingThresholdMsSlider.Value = Settings.Canvas.StopTimingThresholdMs;
+                StopTimingErrorSlider.Value = Settings.Canvas.StopTimingError;
             }
             // Appearance
             if (Settings.Appearance != null)
