@@ -241,6 +241,14 @@ namespace Ink_Canvas
             {
                 iniP = e.GetTouchPoint(inkCanvas).Position;
             }
+            if (Settings.Canvas.StopTimingStraighten)
+            {
+                _stopTimingPoint = iniP;
+                _stopTiming = DateTime.Now;
+                _stopTimingDisable = false;
+                _stopTimingPoints.Clear();
+                _stopTimingPoints.Add(_stopTimingPoint);
+            }
             if (drawingShapeMode == 9 && isFirstTouchCuboid == false)
             {
                 MouseTouchMove(iniP);
