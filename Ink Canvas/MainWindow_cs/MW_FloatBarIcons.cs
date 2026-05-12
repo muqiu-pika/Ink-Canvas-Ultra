@@ -1170,6 +1170,71 @@ namespace Ink_Canvas
             }
         }
 
+        private void SettingsNav_SelectionChanged(iNKORE.UI.WPF.Modern.Controls.NavigationView sender, iNKORE.UI.WPF.Modern.Controls.NavigationViewSelectionChangedEventArgs args)
+        {
+            if (args.SelectedItem is iNKORE.UI.WPF.Modern.Controls.NavigationViewItem item && item.Tag is string tag)
+            {
+                FrameworkElement target = null;
+                switch (tag)
+                {
+                    case "Overview":
+                        target = SettingsSection_Overview;
+                        break;
+                    case "Startup":
+                        target = SettingsSection_Startup;
+                        break;
+                    case "Board":
+                        target = SettingsSection_Board;
+                        break;
+                    case "Gesture":
+                        target = SettingsSection_Gesture;
+                        break;
+                    case "InkRecognition":
+                        target = GroupBoxInkRecognition;
+                        break;
+                    case "Appearance":
+                        target = SettingsSection_Appearance;
+                        break;
+                    case "PPT":
+                        target = SettingsSection_PPT;
+                        break;
+                    case "Advanced":
+                        target = SettingsSection_Advanced;
+                        break;
+                    case "Auto":
+                        target = SettingsSection_Auto;
+                        break;
+                    case "About":
+                        target = SettingsSection_About;
+                        break;
+                }
+
+                if (target != null)
+                {
+                    var transform = target.TransformToVisual(SettingsScrollViewer);
+                    var offset = transform.Transform(new Point(0, 0));
+                    var targetOffset = Math.Max(0, SettingsScrollViewer.VerticalOffset + offset.Y - 80);
+                    AnimateScrollTo(targetOffset);
+                }
+            }
+        }
+
+        private async void AnimateScrollTo(double targetOffset)
+        {
+            double startOffset = SettingsScrollViewer.VerticalOffset;
+            double distance = targetOffset - startOffset;
+            if (Math.Abs(distance) < 1) return;
+
+            int steps = 20;
+            for (int i = 1; i <= steps; i++)
+            {
+                double progress = (double)i / steps;
+                double easedProgress = 1.0 - Math.Pow(1.0 - progress, 3);
+                SettingsScrollViewer.ScrollToVerticalOffset(startOffset + distance * easedProgress);
+                await Task.Delay(12);
+            }
+        }
+
         bool forceEraser = false;
 
 

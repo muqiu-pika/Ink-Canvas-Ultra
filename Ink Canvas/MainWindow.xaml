@@ -3055,7 +3055,7 @@
         <!--  // 设置界面 //  -->
         <Border
             Name="BorderSettings"
-            Width="440"
+            Width="680"
             Margin="0,150,0,350"
             HorizontalAlignment="Center"
             Background="{DynamicResource SettingsPageBackground}"
@@ -3063,14 +3063,91 @@
             BorderThickness="1"
             CornerRadius="5"
             Visibility="Visible">
-            <Grid>
+            <ui:NavigationView
+                x:Name="SettingsNavigationView"
+                PaneDisplayMode="Left"
+                OpenPaneLength="180"
+                CompactPaneLength="48"
+                IsBackButtonVisible="Collapsed"
+                IsSettingsVisible="False"
+                IsPaneToggleButtonVisible="False"
+                SelectionChanged="SettingsNav_SelectionChanged"
+                AlwaysShowHeader="False">
+                <ui:NavigationView.PaneHeader>
+                    <TextBlock
+                        Margin="16,12,0,8"
+                        FontSize="12"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                        Text="导航" />
+                </ui:NavigationView.PaneHeader>
+                <ui:NavigationView.MenuItems>
+                    <ui:NavigationViewItem Content="概览" Tag="Overview">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xE80F;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItemSeparator />
+                    <ui:NavigationViewItemHeader Content="设置项" />
+                    <ui:NavigationViewItem Content="启动" Tag="Startup">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xE7B8;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="画板" Tag="Board">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xEE56;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="手势" Tag="Gesture">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xEDA5;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="墨迹识别" Tag="InkRecognition">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xE787;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="外观" Tag="Appearance">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xE771;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="PPT" Tag="PPT">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xE8B9;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="高级" Tag="Advanced">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xE81E;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                    <ui:NavigationViewItem Content="自动" Tag="Auto">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xEC4A;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                </ui:NavigationView.MenuItems>
+                <ui:NavigationView.FooterMenuItems>
+                    <ui:NavigationViewItem Content="关于" Tag="About">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontSize="16" Glyph="&#xE946;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+                </ui:NavigationView.FooterMenuItems>
+                <!-- 右侧内容区域 -->
+                <Grid>
                 <ui:ScrollViewerEx
+                    x:Name="SettingsScrollViewer"
                     Margin="0,60,0,50"
                     ManipulationBoundaryFeedback="SCManipulationBoundaryFeedback"
                     PanningMode="VerticalOnly"
                     VerticalScrollBarVisibility="Auto">
                     <StackPanel Margin="20,20,20,20">
                         <Border
+                            x:Name="SettingsSection_Overview"
                             Height="140"
                             Margin="0,0,0,15"
                             BorderBrush="{DynamicResource SettingsPageBorderBrush}"
@@ -3217,7 +3294,7 @@
                                 </ikw:SimpleStackPanel>
                             </ikw:SimpleStackPanel>
                         </Border>
-                        <GroupBox>
+                        <GroupBox x:Name="SettingsSection_Startup">
                             <GroupBox.Header>
                                 <TextBlock
                                     FontSize="26"
@@ -3415,7 +3492,7 @@
                                 </ikw:SimpleStackPanel>
                             </ikw:SimpleStackPanel>
                         </GroupBox>
-                        <GroupBox>
+                        <GroupBox x:Name="SettingsSection_Board">
                             <GroupBox.Header>
                                 <TextBlock
                                     FontSize="26"
@@ -3515,7 +3592,7 @@
                                     TextWrapping="Wrap" />
                             </ikw:SimpleStackPanel>
                         </GroupBox>
-                        <GroupBox>
+                        <GroupBox x:Name="SettingsSection_Gesture">
                             <GroupBox.Header>
                                 <TextBlock
                                     FontSize="26"
@@ -3716,7 +3793,7 @@
 
                             </ikw:SimpleStackPanel>
                         </GroupBox>
-                        <GroupBox Name="GroupBoxAppearanceNewUI">
+                        <GroupBox x:Name="SettingsSection_Appearance">
                             <GroupBox.Header>
                                 <TextBlock
                                     FontSize="26"
@@ -3918,7 +3995,7 @@
                                 </ikw:SimpleStackPanel>
                             </ikw:SimpleStackPanel>
                         </GroupBox>
-                        <GroupBox>
+                        <GroupBox x:Name="SettingsSection_PPT">
                             <GroupBox.Header>
                                 <TextBlock
                                     FontSize="26"
@@ -4199,7 +4276,7 @@
                             </ikw:SimpleStackPanel>
 
                         </GroupBox>
-                        <GroupBox>
+                        <GroupBox x:Name="SettingsSection_Advanced">
                             <GroupBox.Header>
                                 <TextBlock
                                     FontSize="26"
@@ -4574,7 +4651,7 @@
                                 </ikw:SimpleStackPanel>
                             </ikw:SimpleStackPanel>
                         </GroupBox>
-                        <GroupBox>
+                        <GroupBox x:Name="SettingsSection_Auto">
                             <GroupBox.Header>
                                 <TextBlock
                                     FontSize="26"
@@ -4994,7 +5071,7 @@
                                 </ikw:SimpleStackPanel>
                             </ikw:SimpleStackPanel>
                         </GroupBox>
-                        <GroupBox>
+                        <GroupBox x:Name="SettingsSection_About">
                             <GroupBox.Header>
                                 <TextBlock
                                     FontSize="26"
@@ -5295,6 +5372,7 @@
                         Content="关闭" />
                 </Grid>
             </Grid>
+            </ui:NavigationView>
         </Border>
         <!--  // 通知弹窗 //  -->
         <Grid
