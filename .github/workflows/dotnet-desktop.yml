@@ -48,9 +48,20 @@ jobs:
       run: |
         powershell -ExecutionPolicy Bypass -File Create-Shortcut.ps1
         
+    # 提取版本号
+    - name: Extract version
+      id: version
+      run: |
+        $csproj = "Ink Canvas\Ink Canvas.csproj"
+        [xml]$project = Get-Content $csproj
+        $appVersion = $project.Project.PropertyGroup.ApplicationVersion
+        $version = $appVersion -replace '\.%\w+$', ''
+        Write-Output "Extracted version: $version"
+        "version=$version" >> $env:GITHUB_OUTPUT
+
     # 上传编译成品
     - name: Upload to artifact
       uses: actions/upload-artifact@v7
       with:
-        name: Ink Canvas Ultra
+        name: Ink.Canvas.Ultra.V${{ steps.version.outputs.version }}
         path: Ink Canvas/bin/Release
