@@ -1,0 +1,38 @@
+﻿<UserControl
+    x:Class="Ink_Canvas.MW_Notifications"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:Controls="http://schemas.microsoft.com/netfx/2009/xaml/presentation"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
+    xmlns:local="clr-namespace:Ink_Canvas"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+    mc:Ignorable="d">
+    <Grid>
+        <!--  // 通知弹窗 //  -->
+        <Grid
+            Name="GridNotifications"
+            Margin="0,110"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Bottom"
+            Visibility="Collapsed">
+            <Border
+                MaxHeight="200"
+                Padding="20,10"
+                Background="White"
+                BorderBrush="Black"
+                BorderThickness="1.5"
+                CornerRadius="10"
+                Opacity="0.95">
+                <TextBlock
+                    Name="TextBlockNotice"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontSize="16"
+                    Text="测试文本" />
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>
+

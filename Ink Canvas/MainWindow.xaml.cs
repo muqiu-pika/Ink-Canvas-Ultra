@@ -884,7 +884,8 @@ namespace Ink_Canvas
         {
             try
             {
-                if (!(FindName("CapturedPhotosStackPanel") is StackPanel capturedPhotosStackPanel)) return;
+                object capturedPhotosStackPanelObject = CapturedPhotosStackPanel;
+                if (!(capturedPhotosStackPanelObject is StackPanel capturedPhotosStackPanel)) return;
 
                 capturedPhotosStackPanel.Children.Clear();
 
@@ -1114,11 +1115,16 @@ namespace Ink_Canvas
                     try
                     {
                         if (VideoPresenterSidebar.ActualHeight <= 0) return;
+                        object capturedPhotosScrollViewerObject = CapturedPhotosScrollViewer;
+                        object capturedPhotosBorderObject = CapturedPhotosBorder;
+                        object capturedPhotosTitleTextBlockObject = CapturedPhotosTitleTextBlock;
 
-                        if (!(FindName("CapturedPhotosScrollViewer") is ScrollViewer capturedPhotosScrollViewer) ||
-                            !(FindName("CapturedPhotosBorder") is Border capturedPhotosBorder) ||
-                            !(FindName("CapturedPhotosTitleTextBlock") is TextBlock capturedPhotosTitleTextBlock))
+                        if (!(capturedPhotosScrollViewerObject is ScrollViewer capturedPhotosScrollViewer) ||
+                            !(capturedPhotosBorderObject is Border capturedPhotosBorder) ||
+                            !(capturedPhotosTitleTextBlockObject is TextBlock capturedPhotosTitleTextBlock))
+                        {
                             return;
+                        }
 
                         double borderInnerHeight = capturedPhotosBorder.ActualHeight
                                                    - capturedPhotosBorder.Padding.Top
@@ -1168,7 +1174,8 @@ namespace Ink_Canvas
             UpdateCapturePhotoButtonState();
             try
             {
-                if (FindName("CheckBoxEnablePhotoCorrection") is ToggleButton cb)
+                object checkBoxEnablePhotoCorrectionObject = CheckBoxEnablePhotoCorrection;
+                if (checkBoxEnablePhotoCorrectionObject is ToggleButton cb)
                     cb.IsChecked = Settings.Automation.IsEnablePhotoCorrection;
             }
             catch { }
