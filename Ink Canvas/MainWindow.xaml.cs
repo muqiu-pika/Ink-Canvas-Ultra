@@ -19,6 +19,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Drawing;
 using System.Windows.Threading;
+using System.Windows.Interop;
 using File = System.IO.File;
 using MessageBox = System.Windows.MessageBox;
 using Ink_Canvas.MainWindow_cs;
@@ -225,6 +226,9 @@ namespace Ink_Canvas
         private bool shouldOpenVideoPresenterAfterBoardSwitch;
         private CancellationTokenSource singleInstanceCommandServerCancellationTokenSource;
         private Task singleInstanceCommandServerTask;
+        private HwndSource inputDeviceMessageSource;
+        private bool isInputDeviceRecoveryScheduled;
+        private const int WM_DEVICECHANGE = 0x0219;
 
         private void InitializeStartupModes()
         {
@@ -368,6 +372,97 @@ namespace Ink_Canvas
             ActivateVideoPresenterMode();
         }
 
+        private void HookInputDeviceNotifications()
+        {
+            if (inputDeviceMessageSource != null) return;
+
+            try
+            {
+                var interopHelper = new WindowInteropHelper(this);
+                if (interopHelper.Handle == IntPtr.Zero) return;
+
+                inputDeviceMessageSource = HwndSource.FromHwnd(interopHelper.Handle);
+                inputDeviceMessageSource?.AddHook(MainWindowWndProc);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Hook input device notifications failed | " + ex, LogHelper.LogType.Error);
+            }
+        }
+
+        private void UnhookInputDeviceNotifications()
+        {
+            if (inputDeviceMessageSource == null) return;
+
+            try
+            {
+                inputDeviceMessageSource.RemoveHook(MainWindowWndProc);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Unhook input device notifications failed | " + ex, LogHelper.LogType.Error);
+            }
+            finally
+            {
+                inputDeviceMessageSource = null;
+            }
+        }
+
+        private IntPtr MainWindowWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            if (msg == WM_DEVICECHANGE)
+            {
+                ScheduleInputDeviceRecovery();
+            }
+
+            return IntPtr.Zero;
+        }
+
+        private void ScheduleInputDeviceRecovery()
+        {
+            if (!isLoaded || isInputDeviceRecoveryScheduled) return;
+
+            isInputDeviceRecoveryScheduled = true;
+            Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                try
+                {
+                    // 稍作延迟，等待系统先完成设备增删事件广播。
+                    await Task.Delay(150);
+                    RecoverFromInputDeviceChange();
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile("Input device recovery scheduling failed | " + ex, LogHelper.LogType.Error);
+                }
+                finally
+                {
+                    isInputDeviceRecoveryScheduled = false;
+                }
+            }), DispatcherPriority.Background);
+        }
+
+        private void RecoverFromInputDeviceChange()
+        {
+            try
+            {
+                ResetTouchState();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Reset touch state after device change failed | " + ex, LogHelper.LogType.Error);
+            }
+
+            try
+            {
+                TouchLockFix.ReRegisterTouchWindow(this);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Re-register touch window after device change failed | " + ex, LogHelper.LogType.Error);
+            }
+        }
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             loadPenCanvas();
@@ -391,6 +486,7 @@ namespace Ink_Canvas
             StartSingleInstanceCommandServer();
             RegisterGlobalHotkeys();
             timerFixFloatingBarZOrder?.Start();
+            HookInputDeviceNotifications();
 
             // 注册触摸窗口以确保触摸事件正常工作
             TouchLockFix.ReRegisterTouchWindow(this);
@@ -430,6 +526,7 @@ namespace Ink_Canvas
         {
             LogHelper.WriteLogToFile("Ink Canvas closed", LogHelper.LogType.Event);
             try { timerFixFloatingBarZOrder?.Stop(); } catch { }
+            UnhookInputDeviceNotifications();
             StopSingleInstanceCommandServer();
             // 移除摄像头画面
             RemoveCameraFrame();

@@ -93,7 +93,9 @@ namespace Ink_Canvas
                 || inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke
                 || inkCanvas.EditingMode == InkCanvasEditingMode.Select) return;
 
-            TouchDownPointsList[e.StylusDevice.Id] = InkCanvasEditingMode.None;
+            int stylusDeviceId = e.StylusDevice.Id;
+            TouchDownPointsList[stylusDeviceId] = InkCanvasEditingMode.None;
+            StylusPreviewModeByDeviceId[stylusDeviceId] = ShouldHandleStylusInputAsPreview(e);
         }
 
         /// <summary>
@@ -101,74 +103,65 @@ namespace Ink_Canvas
         /// </summary>
         private async void MainWindow_StylusUp(object sender, StylusEventArgs e)
         {
+            int stylusDeviceId = e.StylusDevice.Id;
             try
             {
-                if (e.StylusDevice.TabletDevice.Type == TabletDeviceType.Stylus)
+                if (!ShouldHandleStylusPreview(stylusDeviceId))
                 {
-                    // 数位板模式不处理
+                    return;
                 }
-                else
+
+                try
                 {
-                    try
-                    {
-                        // 触摸屏模式处理
-                        var visual = GetStrokeVisual(e.StylusDevice.Id);
-                        var visualCanvas = GetVisualCanvas(e.StylusDevice.Id);
-                        var strokeCollection = visual.StrokeCollection;
+                    // 触摸屏模式处理
+                    if (!StrokeVisualList.TryGetValue(stylusDeviceId, out var visual)) return;
 
+                    var visualCanvas = GetVisualCanvas(stylusDeviceId);
+                    var strokeCollection = visual.StrokeCollection;
+
+                    if (visualCanvas != null)
+                    {
                         inkCanvas.Children.Remove(visualCanvas);
-                        await Task.Delay(5);
-
-                        foreach (var s in strokeCollection)
-                        {
-                            inkCanvas.Strokes.Add(s);
-                        }
-
-                        foreach (var s in strokeCollection)
-                        {
-                            try
-                            {
-                                inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
-                            }
-                            catch { }
-                        }
                     }
-                    catch (Exception ex)
+                    await Task.Delay(5);
+
+                    foreach (var s in strokeCollection)
                     {
-                        LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
+                        inkCanvas.Strokes.Add(s);
                     }
+
+                    foreach (var s in strokeCollection)
+                    {
+                        try
+                        {
+                            inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
+                        }
+                        catch { }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
                 }
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
             }
-            try
+            finally
             {
-                StrokeVisualList.Remove(e.StylusDevice.Id);
-                VisualCanvasList.Remove(e.StylusDevice.Id);
-                TouchDownPointsList.Remove(e.StylusDevice.Id);
-                if (StrokeVisualList.Count == 0 || VisualCanvasList.Count == 0 || TouchDownPointsList.Count == 0)
-                {
-                    StrokeVisualList.Clear();
-                    VisualCanvasList.Clear();
-                    TouchDownPointsList.Clear();
-                }
+                CleanupTrackedStylus(stylusDeviceId);
             }
-            catch { }
         }
 
         private void MainWindow_StylusMove(object sender, StylusEventArgs e)
         {
             try
             {
-                if (GetTouchDownPointsList(e.StylusDevice.Id) != InkCanvasEditingMode.None) return;
-                try
-                {
-                    if (e.StylusDevice.StylusButtons[1].StylusButtonState == StylusButtonState.Down) return;
-                }
-                catch { }
-                var strokeVisual = GetStrokeVisual(e.StylusDevice.Id);
+                int stylusDeviceId = e.StylusDevice.Id;
+                if (!ShouldHandleStylusPreview(stylusDeviceId)) return;
+                if (GetTouchDownPointsList(stylusDeviceId) != InkCanvasEditingMode.None) return;
+                var strokeVisual = GetStrokeVisual(stylusDeviceId);
                 var stylusPointCollection = e.GetStylusPoints(inkCanvas);
                 foreach (var stylusPoint in stylusPointCollection)
                 {
@@ -214,9 +207,55 @@ namespace Ink_Canvas
             return inkCanvas.EditingMode;
         }
 
+        private bool ShouldHandleStylusInputAsPreview(StylusEventArgs e)
+        {
+            try
+            {
+                return e?.StylusDevice?.TabletDevice?.Type != TabletDeviceType.Stylus;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private bool ShouldHandleStylusPreview(int id)
+        {
+            return StylusPreviewModeByDeviceId.TryGetValue(id, out bool shouldHandle) && shouldHandle;
+        }
+
+        private void CleanupTrackedStylus(int stylusDeviceId)
+        {
+            try
+            {
+                if (VisualCanvasList.TryGetValue(stylusDeviceId, out var visualCanvas) && visualCanvas != null)
+                {
+                    inkCanvas.Children.Remove(visualCanvas);
+                }
+            }
+            catch { }
+
+            StrokeVisualList.Remove(stylusDeviceId);
+            VisualCanvasList.Remove(stylusDeviceId);
+            TouchDownPointsList.Remove(stylusDeviceId);
+            StylusPreviewModeByDeviceId.Remove(stylusDeviceId);
+
+            if (StrokeVisualList.Count == 0
+                && VisualCanvasList.Count == 0
+                && TouchDownPointsList.Count == 0
+                && StylusPreviewModeByDeviceId.Count == 0)
+            {
+                StrokeVisualList.Clear();
+                VisualCanvasList.Clear();
+                TouchDownPointsList.Clear();
+                StylusPreviewModeByDeviceId.Clear();
+            }
+        }
+
         private Dictionary<int, InkCanvasEditingMode> TouchDownPointsList { get; } = new Dictionary<int, InkCanvasEditingMode>();
         private Dictionary<int, StrokeVisual> StrokeVisualList { get; } = new Dictionary<int, StrokeVisual>();
         private Dictionary<int, VisualCanvas> VisualCanvasList { get; } = new Dictionary<int, VisualCanvas>();
+        private Dictionary<int, bool> StylusPreviewModeByDeviceId { get; } = new Dictionary<int, bool>();
 
         #endregion
 
@@ -332,9 +371,17 @@ namespace Ink_Canvas
         private void ResetTouchState()
         {
             dec.Clear();
+            foreach (var visualCanvas in VisualCanvasList.Values.ToList())
+            {
+                if (visualCanvas != null)
+                {
+                    inkCanvas.Children.Remove(visualCanvas);
+                }
+            }
             TouchDownPointsList.Clear();
             StrokeVisualList.Clear();
             VisualCanvasList.Clear();
+            StylusPreviewModeByDeviceId.Clear();
             twoFingerGestureType = TwoFingerGestureType.None;
             translateAccum = new Vector(0, 0);
             inkCanvas.Opacity = 1;
