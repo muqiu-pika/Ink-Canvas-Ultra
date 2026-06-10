@@ -215,12 +215,12 @@
                             <TextBlock Text="旋转:" Foreground="White" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
                             <Button Name="RotateLeftButton" Content="⟲" Width="30" Height="30" Margin="2,0" 
                                    Background="#4b5563" Foreground="White" BorderThickness="0" 
-                                   Click="RotateLeftButton_Click" FontSize="10" FontWeight="10"/>
+                                   Click="RotateLeftButton_Click" FontSize="10"/>
                             <TextBlock Name="RotationAngleText" Text="0°" Foreground="White" VerticalAlignment="Center" 
                                       Margin="4,0" FontSize="12" MinWidth="30" TextAlignment="Center"/>
                             <Button Name="RotateRightButton" Content="⟳" Width="30" Height="30" Margin="2,0" 
                                    Background="#4b5563" Foreground="White" BorderThickness="0" 
-                                   Click="RotateRightButton_Click" FontSize="10" FontWeight="10"/>
+                                   Click="RotateRightButton_Click" FontSize="10"/>
                         </StackPanel>
                         
                         <!-- 分隔线 -->

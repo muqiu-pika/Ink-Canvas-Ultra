@@ -991,6 +991,12 @@ namespace Ink_Canvas
                     var photoButton = CreatePhotoButton(photo);
                     capturedPhotosStackPanel.Children.Add(photoButton);
                 }
+
+                // 根据照片数量控制清除按钮的可见性
+                if (BtnClearAllContent != null)
+                {
+                    BtnClearAllContent.Visibility = capturedPhotos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+                }
             }
             catch (Exception ex)
             {
@@ -1366,6 +1372,116 @@ namespace Ink_Canvas
             }
         }
         
+        // 清除所有内容按钮点击事件
+        public void BtnClearAllContent_Click(object sender, RoutedEventArgs e)
+        {
+            var notificationWindow = new YesOrNoNotificationWindow(
+                "确定要清除所有白板内容吗？此操作不可恢复。",
+                yesAction: () =>
+                {
+                    try
+                    {
+                        ClearAllWhiteboardContent();
+                        ShowNotificationAsync("所有内容已清除", true);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile($"清除所有内容失败: {ex.Message}", LogHelper.LogType.Error);
+                        MessageBox.Show($"清除内容时发生错误: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    }
+                },
+                noAction: () => { });
+
+            notificationWindow.Show();
+        }
+
+        /// <summary>
+        /// 清除所有白板内容，恢复至初始默认状态
+        /// </summary>
+        private void ClearAllWhiteboardContent()
+        {
+            // 1. 清除摄像头设备选中状态并停止摄像头
+            try
+            {
+                cameraDeviceManager?.ClearDeviceSelection();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"清除摄像头设备选中状态失败: {ex.Message}");
+            }
+
+            // 2. 停止摄像头画面定时器
+            cameraFrameTimer?.Stop();
+
+            // 3. 清除所有页面的墨迹历史
+            for (int i = 0; i < TimeMachineHistories.Length; i++)
+            {
+                TimeMachineHistories[i] = null;
+            }
+
+            // 4. 清除时间机器的当前历史
+            timeMachine?.ClearStrokeHistory();
+
+            // 5. 清除当前画布上的所有墨迹和元素
+            _currentCommitType = CommitReason.ClearingCanvas;
+            inkCanvas.Strokes.Clear();
+            inkCanvas.Children.Clear();
+            _currentCommitType = CommitReason.UserInput;
+
+            // 6. 重置页面计数到初始状态
+            CurrentWhiteboardIndex = 1;
+            WhiteboardTotalCount = 1;
+
+            // 7. 设置第一页为空白页面
+            TimeMachineHistories[1] = new TimeMachineHistory[0];
+
+            // 8. 清除照片列表和页面映射
+            capturedPhotos.Clear();
+            photoPageMapping.Clear();
+            selectedPhotoTimestamp = null;
+
+            // 9. 清除摄像头画面映射和引用
+            cameraFramesByPage.Clear();
+            currentCameraImage = null;
+            currentPhotoImage = null;
+
+            // 10. 恢复默认画笔状态（如果在白板模式下），不展开墨迹选项面板
+            if (currentMode == 1)
+            {
+                try
+                {
+                    loadPenCanvas();
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                    drawingShapeMode = 0;
+                    forceEraser = false;
+                    forcePointEraser = false;
+                    InkCanvas_EditingModeChanged(inkCanvas, null);
+                    CancelSingleFingerDragMode();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"恢复默认画笔状态失败: {ex.Message}");
+                }
+            }
+
+            // 12. 更新所有UI显示
+            UpdateCapturedPhotosDisplay();
+            UpdateIndexInfoDisplay();
+            UpdateCapturePhotoButtonState();
+
+            // 13. 确保导航至第一页并恢复页面内容
+            try
+            {
+                RestoreStrokes(false);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"恢复第一页内容失败: {ex.Message}");
+            }
+
+            Console.WriteLine("所有白板内容已清除并恢复至默认状态");
+        }
+
         // 检测当前页面是否有照片
         public bool HasPhotoOnCurrentPage()
         {

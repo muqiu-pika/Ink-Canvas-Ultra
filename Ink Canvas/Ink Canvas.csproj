@@ -5,6 +5,7 @@
 		<OutputType>WinExe</OutputType>
 		<GenerateAssemblyInfo>False</GenerateAssemblyInfo>
 		<AssemblyName>Ink Canvas Ultra</AssemblyName>
+		<PackageId>InkCanvasUltra</PackageId>
 		<UseWindowsForms>true</UseWindowsForms>
 		<UseWPF>true</UseWPF>
 		<ImportWindowsDesktopTargets>true</ImportWindowsDesktopTargets>

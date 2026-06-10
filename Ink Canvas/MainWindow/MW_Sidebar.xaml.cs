@@ -67,5 +67,10 @@ namespace Ink_Canvas
         {
             InvokeMainWindowHandler(nameof(UnFoldFloatingBar_MouseUp), sender, e);
         }
+
+        private void BtnClearAllContent_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BtnClearAllContent_Click), sender, e);
+        }
     }
 }

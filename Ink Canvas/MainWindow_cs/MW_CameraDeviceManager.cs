@@ -586,6 +586,39 @@ namespace Ink_Canvas.MainWindow_cs
             }));
         }
 
+        /// <summary>
+        /// 清除摄像头设备选中状态，停止摄像头并取消UI选中
+        /// </summary>
+        public void ClearDeviceSelection()
+        {
+            // 停止摄像头
+            StopCamera();
+            
+            // 清空选中状态
+            selectedDeviceName = "";
+            
+            // 在UI线程上取消所有RadioButton的选中状态
+            mainWindow.Dispatcher.BeginInvoke(new Action(() =>
+            {
+                suppressSelectionHandlers = true;
+                var stackPanel = mainWindow.CameraDevicesStackPanel;
+                if (stackPanel != null)
+                {
+                    foreach (var child in stackPanel.Children)
+                    {
+                        if (child is RadioButton rb)
+                        {
+                            rb.IsChecked = false;
+                        }
+                    }
+                }
+                suppressSelectionHandlers = false;
+                
+                // 更新拍照按钮状态
+                mainWindow.UpdateCapturePhotoButtonState();
+            }));
+        }
+
         public void Dispose()
         {
             StopCamera();

@@ -307,5 +307,6 @@ namespace Ink_Canvas
         private dynamic CheckBoxEnablePhotoCorrection => FindXamlPart(MWSidebarHost, nameof(CheckBoxEnablePhotoCorrection));
         private dynamic BtnCapturePhoto => FindXamlPart(MWSidebarHost, nameof(BtnCapturePhoto));
         private dynamic BtnRotateImage => FindXamlPart(MWSidebarHost, nameof(BtnRotateImage));
+        private dynamic BtnClearAllContent => FindXamlPart(MWSidebarHost, nameof(BtnClearAllContent));
     }
 }
