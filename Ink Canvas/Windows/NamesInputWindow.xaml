@@ -11,26 +11,60 @@
     Height="500"
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
-    ui:WindowHelper.UseModernWindowStyle="True"
+    ui:WindowHelper.UseModernWindowStyle="False"
     Closing="Window_Closing"
     Loaded="Window_Loaded"
     Topmost="True"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
+    <Border
+        Margin="10"
+        Padding="20"
+        Background="{DynamicResource PopupWindowBackground}"
+        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12">
     <Grid>
-        <Label Margin="10" Content="请在下方输入名单，每行一人（建议直接粘贴表格姓名列）" Foreground="{DynamicResource PopupWindowForeground}" />
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        
+        <!-- 头部标题栏 -->
+        <Grid Grid.Row="0" Margin="0,0,0,15">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock
+                    Margin="0,0,8,0"
+                    FontSize="26"
+                    FontWeight="SemiBold"
+                    Foreground="{DynamicResource PopupWindowForeground}"
+                    Text="名单导入" />
+                <Border
+                    Padding="6,2"
+                    Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                    CornerRadius="4">
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
+                        Text="抽奖" Height="18" />
+                </Border>
+            </StackPanel>
+        </Grid>
+        
         <TextBox
+            Grid.Row="1"
             Name="TextBoxNames"
-            Margin="10,40,10,50"
+            Margin="0,0,0,15"
             AcceptsReturn="True"
             Foreground="{DynamicResource PopupWindowForeground}"
             VerticalScrollBarVisibility="Auto" />
         <Button
+            Grid.Row="2"
             Width="100"
-            Margin="10"
             HorizontalAlignment="Right"
-            VerticalAlignment="Bottom"
             Click="Button_Click"
             Content="关闭" />
     </Grid>
+    </Border>
 </Window>

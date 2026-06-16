@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using System.Windows;
 
 namespace Ink_Canvas
@@ -8,7 +8,7 @@ namespace Ink_Canvas
         private Point GetMatrixTransformCenterPoint(Point gestureOperationCenterPoint, FrameworkElement fe)
         {
             Point canvasCenterPoint = new Point(fe.ActualWidth / 2, fe.ActualHeight / 2);
-            if (!isLoaded) return canvasCenterPoint;
+            if (!isLoaded || _isLoadingSettings) return canvasCenterPoint;
             if (Settings.Gesture.MatrixTransformCenterPoint == MatrixTransformCenterPointOptions.CanvasCenterPoint)
             {
                 return canvasCenterPoint;

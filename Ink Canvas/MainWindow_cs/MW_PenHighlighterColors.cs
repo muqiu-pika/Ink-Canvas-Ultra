@@ -1,4 +1,4 @@
-﻿using System.Windows;
+using System.Windows;
 using System.Windows.Controls;
 
 namespace Ink_Canvas
@@ -7,7 +7,7 @@ namespace Ink_Canvas
     {
         private void InkAlphaSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (!isLoaded) return;
+            if (!isLoaded || _isLoadingSettings) return;
             if (sender == BoardInkAlphaSlider) InkAlphaSlider.Value = ((Slider)sender).Value;
             if (sender == InkAlphaSlider) BoardInkAlphaSlider.Value = ((Slider)sender).Value;
             drawingAttributes.Height = 20;

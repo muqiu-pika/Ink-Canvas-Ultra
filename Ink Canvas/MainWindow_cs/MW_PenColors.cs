@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using System;
 using System.Collections.Generic;
 using System.Windows;
@@ -14,7 +14,7 @@ namespace Ink_Canvas
 
         private void InkWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (!isLoaded) return;
+            if (!isLoaded || _isLoadingSettings) return;
             if (sender == BoardInkWidthSlider) InkWidthSlider.Value = ((Slider)sender).Value;
             if (sender == InkWidthSlider) BoardInkWidthSlider.Value = ((Slider)sender).Value;
             Settings.Canvas.InkWidth = ((Slider)sender).Value / 2;

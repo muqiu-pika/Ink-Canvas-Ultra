@@ -9,16 +9,22 @@ using iNKORE.UI.WPF.Modern;
 
 namespace Ink_Canvas
 {
-    public partial class MW_Settings : UserControl
+    public partial class MW_Settings : Window
     {
         public MW_Settings()
         {
             InitializeComponent();
+            Loaded += SettingsWindow_Loaded;
+        }
+
+        private void SettingsWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler("LoadSettings", false);
         }
 
         private void InvokeMainWindowHandler(string handlerName, params object[] args)
         {
-            var window = Window.GetWindow(this) as MainWindow;
+            var window = Owner as MainWindow;
             if (window == null)
             {
                 return;
@@ -115,7 +121,7 @@ namespace Ink_Canvas
 
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
-            InvokeMainWindowHandler(nameof(BtnSettings_Click), sender, e);
+            Close();
         }
 
         private void ComboBoxAutoDelSavedFilesDaysThreshold_SelectionChanged(object sender, SelectionChangedEventArgs e)

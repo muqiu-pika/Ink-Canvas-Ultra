@@ -1,5 +1,6 @@
 using Ink_Canvas.Helpers;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -156,7 +157,7 @@ namespace Ink_Canvas
             PenPalette.Visibility = Visibility.Collapsed;
             BoardPenPalette.Visibility = Visibility.Collapsed;
             BoardDeleteIcon.Visibility = Visibility.Collapsed;
-            BorderSettings.Visibility = Visibility.Collapsed;
+            BoardDeleteIcon.Visibility = Visibility.Collapsed;
         }
 
         private async void HideSubPanels(String mode = null, bool autoAlignCenter = false, bool isFromBoard = false)
@@ -166,7 +167,6 @@ namespace Ink_Canvas
             AnimationsHelper.HideWithSlideAndFade(PenPalette);
             AnimationsHelper.HideWithSlideAndFade(BoardPenPalette);
             AnimationsHelper.HideWithSlideAndFade(BoardDeleteIcon);
-            AnimationsHelper.HideWithSlideAndFade(BorderSettings, 0.5);
             AnimationsHelper.HideWithSlideAndFade(TwoFingerGestureBorder);
             AnimationsHelper.HideWithSlideAndFade(BoardTwoFingerGestureBorder);
             if (ToggleSwitchDrawShapeBorderAutoHide.IsOn)
@@ -497,7 +497,9 @@ namespace Ink_Canvas
                     ToggleSwitchEnableTwoFingerZoom.IsOn = false;
                     ToggleSwitchEnableTwoFingerRotation.IsOn = false;
                     ToggleSwitchEnableMultiTouchMode.IsOn = false;
-                    ToggleSwitchEnableTwoFingerRotationOnSelection.IsOn = true;
+                    if (ToggleSwitchEnableTwoFingerRotationOnSelection != null)
+                        ToggleSwitchEnableTwoFingerRotationOnSelection.IsOn = true;
+                    Settings.Gesture.IsEnableTwoFingerRotationOnSelection = true;
                     isInMultiTouchMode = false;
                 }
             }
@@ -1094,7 +1096,7 @@ namespace Ink_Canvas
 
         private void Element_IsEnabledChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (!isLoaded) return;
+            if (!isLoaded || _isLoadingSettings) return;
             try
             {
                 if (sender is Button button)
@@ -1160,14 +1162,18 @@ namespace Ink_Canvas
 
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
-            if (BorderSettings.Visibility == Visibility.Visible)
+            var existing = System.Windows.Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
+            if (existing != null)
             {
-                AnimationsHelper.HideWithSlideAndFade(BorderSettings, 0.5);
+                existing.Activate();
+                return;
             }
-            else
+
+            var settingsWindow = new MW_Settings
             {
-                AnimationsHelper.ShowWithSlideFromBottomAndFade(BorderSettings, 0.5);
-            }
+                Owner = this
+            };
+            settingsWindow.Show();
         }
 
         private void SettingsNav_SelectionChanged(iNKORE.UI.WPF.Modern.Controls.NavigationView sender, iNKORE.UI.WPF.Modern.Controls.NavigationViewSelectionChangedEventArgs args)

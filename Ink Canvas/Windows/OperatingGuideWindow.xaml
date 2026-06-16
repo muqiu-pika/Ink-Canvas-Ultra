@@ -13,19 +13,45 @@
     MinWidth="500"
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
-    ui:WindowHelper.UseModernWindowStyle="True"
+    ui:WindowHelper.UseModernWindowStyle="False"
     Topmost="True"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
     <Border
         Margin="10"
-        Padding="20,20,0,0"
+        Padding="20"
         Background="{DynamicResource PopupWindowBackground}"
         BorderBrush="{DynamicResource PopupWindowBorderBrush}"
         BorderThickness="1"
-        CornerRadius="10">
-
+        CornerRadius="12">
         <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            
+            <!-- 头部标题栏 -->
+            <Grid Grid.Row="0" Margin="0,0,0,20">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock
+                        Margin="0,0,8,0"
+                        FontSize="26"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource PopupWindowForeground}"
+                        Text="使用指南" />
+                    <Border
+                        Padding="6,2"
+                        Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                        CornerRadius="4">
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
+                            Text="帮助文档" Height="18" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+            
+            <Grid Grid.Row="1">
             <Border
                 Width="64"
                 Height="15"
@@ -438,6 +464,7 @@
                     </Viewbox>
                 </Border>
             </ikw:SimpleStackPanel>
+            </Grid>
         </Grid>
     </Border>
 </Window>

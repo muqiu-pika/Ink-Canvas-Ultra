@@ -62,15 +62,12 @@ namespace Ink_Canvas
             BlackboardRightSide.Visibility = Visibility.Collapsed;
 
             BorderTools.Visibility = Visibility.Collapsed;
-            BorderSettings.Visibility = Visibility.Collapsed;
 
             BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
             PPTNavigationBottomLeft.Visibility = Visibility.Collapsed;
             PPTNavigationBottomRight.Visibility = Visibility.Collapsed;
             PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
             PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
-
-            BorderSettings.Margin = new Thickness(0, 150, 0, 150);
 
             TwoFingerGestureBorder.Visibility = Visibility.Collapsed;
             BoardTwoFingerGestureBorder.Visibility = Visibility.Collapsed;
@@ -212,6 +209,7 @@ namespace Ink_Canvas
         public static Settings Settings = new Settings();
         public static string settingsFileName = "Settings.json";
         bool isLoaded = false;
+        bool _isLoadingSettings = false;
 
         // 拍照功能相关字段
         private ObservableCollection<CapturedImage> capturedPhotos = new ObservableCollection<CapturedImage>();
@@ -468,7 +466,7 @@ namespace Ink_Canvas
             loadPenCanvas();
             //加载设置
             LoadSettings(true);
-            if (Environment.Is64BitProcess)
+            if (Environment.Is64BitProcess && GroupBoxInkRecognition != null)
             {
                 GroupBoxInkRecognition.Visibility = Visibility.Collapsed;
             }
@@ -476,7 +474,8 @@ namespace Ink_Canvas
             ThemeManager.Current.ApplicationTheme = ApplicationTheme.Light;
             SystemEvents_UserPreferenceChanged(null, null);
 
-            AppVersionTextBlock.Text = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+            if (AppVersionTextBlock != null)
+                AppVersionTextBlock.Text = Assembly.GetExecutingAssembly().GetName().Version.ToString();
             LogHelper.WriteLogToFile("Ink Canvas Loaded", LogHelper.LogType.Event);
             
             // 初始化摄像头设备管理器

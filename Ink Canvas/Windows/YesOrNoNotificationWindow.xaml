@@ -9,56 +9,116 @@
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="演示文档设置 - Ink Canvas Ultra"
     Width="450"
-    Height="160"
+    Height="220"
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
-    ui:WindowHelper.UseModernWindowStyle="True"
+    ui:WindowHelper.UseModernWindowStyle="False"
     Closed="Window_Closed"
     ResizeMode="NoResize"
     Topmost="True"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
-    <Grid Background="{DynamicResource FloatBarBackground}">
-        <Grid Margin="10">
-            <Grid.RowDefinitions>
-                <RowDefinition />
-                <RowDefinition Height="35" />
-            </Grid.RowDefinitions>
-            <Viewbox Height="30" Margin="10" HorizontalAlignment="Left">
+    <Border
+        Margin="10"
+        Padding="20"
+        Background="{DynamicResource PopupWindowBackground}"
+        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- 头部标题栏 -->
+        <Grid Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <ui:FontIcon
-                    Width="30"
-                    Height="22"
+                    Width="28"
+                    Height="28"
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center"
                     FontFamily="{StaticResource FluentIconFontFamily}"
-                    FontSize="20"
-                    Foreground="{DynamicResource FloatBarForeground}"
-                    Glyph="&#xe786;" />
-            </Viewbox>
-            <TextBlock
-                Name="Label"
-                Margin="60,0,10,0"
-                VerticalAlignment="Center"
-                Foreground="{DynamicResource FloatBarForeground}"
-                Text="检测到此演示文档中包含隐藏的幻灯片，是否取消隐藏？"
-                TextWrapping="Wrap" />
-            <ikw:SimpleStackPanel Grid.Row="1"
-                HorizontalAlignment="Right"
-                VerticalAlignment="Bottom"
-                Orientation="Horizontal"
-                Spacing="10">
-                <Button
-                    Width="100"
-                    Margin="0"
-                    Click="ButtonYes_Click"
-                    Content="是"
-                    Foreground="White">
-                    <Button.Resources>
-                        <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundKey}" Color="#15803d" />
-                        <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPointerOverKey}" Color="#166534" />
-                        <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPressedKey}" Color="#306534" />
-                    </Button.Resources>
-                </Button>
-                <Button Width="100" Margin="0" Click="ButtonNo_Click" Content="否" />
-            </ikw:SimpleStackPanel>
+                    FontSize="24"
+                    Foreground="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                    Glyph="&#xE7BA;" />
+                <TextBlock
+                    Margin="0,0,8,0"
+                    FontSize="26"
+                    FontWeight="SemiBold"
+                    Foreground="{DynamicResource PopupWindowForeground}"
+                    Text="演示文档设置" />
+                <Border
+                    Padding="6,2"
+                    Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                    CornerRadius="4">
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
+                        Text="提示" Height="18" />
+                </Border>
+            </StackPanel>
         </Grid>
+
+        <!-- 内容区 -->
+        <Grid Grid.Row="1" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Border
+                Width="48"
+                Height="48"
+                Margin="0,0,16,0"
+                VerticalAlignment="Center"
+                Background="#FFF7ED"
+                CornerRadius="24">
+                <ui:FontIcon
+                    Width="24"
+                    Height="24"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    FontFamily="{StaticResource FluentIconFontFamily}"
+                    FontSize="22"
+                    Foreground="#D97706"
+                    Glyph="&#xe786;" />
+            </Border>
+            <TextBlock
+                Grid.Column="1"
+                Name="Label"
+                VerticalAlignment="Center"
+                Foreground="{DynamicResource PopupWindowForeground}"
+                FontSize="15"
+                Text="检测到此演示文档中包含隐藏的幻灯片，是否取消隐藏？"
+                TextWrapping="Wrap"
+                LineHeight="24" />
+        </Grid>
+
+        <!-- 底部按钮区 -->
+        <ikw:SimpleStackPanel Grid.Row="2"
+            HorizontalAlignment="Right"
+            Orientation="Horizontal"
+            Spacing="10">
+            <Button
+                Width="110"
+                Padding="0,6"
+                Click="ButtonYes_Click"
+                Content="是"
+                Foreground="White">
+                <Button.Resources>
+                    <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundKey}" Color="#15803d" />
+                    <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPointerOverKey}" Color="#166534" />
+                    <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPressedKey}" Color="#306534" />
+                </Button.Resources>
+            </Button>
+            <Button
+                Width="110"
+                Padding="0,6"
+                Click="ButtonNo_Click"
+                Content="否" />
+        </ikw:SimpleStackPanel>
     </Grid>
+    </Border>
 </Window>

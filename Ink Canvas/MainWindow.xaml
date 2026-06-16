@@ -298,8 +298,6 @@
 
         <local:MW_Board x:Name="MWBoardHost" Visibility="{Binding ElementName=GridBackgroundCoverHolder, Path=Visibility}" />
 
-        <local:MW_Settings x:Name="MWSettingsHost" />
-
         <local:MW_Notifications x:Name="MWNotificationsHost" />
 
         <local:MW_PPT x:Name="MWPPTHost" />

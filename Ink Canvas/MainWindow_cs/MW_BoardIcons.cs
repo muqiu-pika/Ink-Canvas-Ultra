@@ -12,7 +12,7 @@ namespace Ink_Canvas
     {
         private void BoardChangeBackgroundColorBtn_Click(object sender, RoutedEventArgs e)
         {
-            if (!isLoaded) return;
+            if (!isLoaded || _isLoadingSettings) return;
             Settings.Canvas.UsingWhiteboard = !Settings.Canvas.UsingWhiteboard;
             SaveSettingsToFile();
             if (Settings.Canvas.UsingWhiteboard)

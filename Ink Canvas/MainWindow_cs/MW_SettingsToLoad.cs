@@ -24,8 +24,13 @@ namespace Ink_Canvas
                 value *= 100;
             }
 
-            double min = SliderFloatingBarScale?.Minimum > 0 ? SliderFloatingBarScale.Minimum : 50;
-            double max = SliderFloatingBarScale?.Maximum > 0 ? SliderFloatingBarScale.Maximum : 150;
+            double min = 50;
+            double max = 150;
+            if (SliderFloatingBarScale != null)
+            {
+                min = SliderFloatingBarScale.Minimum > 0 ? SliderFloatingBarScale.Minimum : 50;
+                max = SliderFloatingBarScale.Maximum > 0 ? SliderFloatingBarScale.Maximum : 150;
+            }
 
             if (value < min)
             {
@@ -41,6 +46,9 @@ namespace Ink_Canvas
 
         private void LoadSettings(bool isStartup = false)
         {
+            _isLoadingSettings = true;
+            try
+            {
             try
             {
                 if (File.Exists(App.RootPath + settingsFileName))
@@ -87,10 +95,82 @@ namespace Ink_Canvas
             {
                 CursorIcon_Click(null, null);
             }
-            try
+            // 始终运行：更新浮动栏/黑板宿主中的外观元素（无论设置窗口是否打开）
+            if (Settings.Appearance != null)
             {
-                if (File.Exists(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\Ink Canvas Annotation.lnk"))
+                // 浮动栏文字显示
+                if (Settings.Appearance.IsEnableDisPlayFloatBarText)
                 {
+                    FloatBarSelectIconTextBlock.Visibility = Visibility.Visible;
+                    Icon_Pen.Height = 22;
+                    Icon_Eraser1.Height = 22;
+                    Icon_Eraser2.Height = 22;
+                    Icon_Eraser2.Margin = new Thickness(5, -22, 0, -8);
+                    Icon_EraserByStrokes1.Height = 22;
+                    Icon_EraserByStrokes2.Height = 22;
+                    Icon_EraserByStrokes2.Margin = new Thickness(12, -22, 0, -8);
+                    Icon_Select1.Height = 22;
+                    Icon_Select2.Height = 22;
+                    Icon_Select2.Margin = new Thickness(6, -18, 0, -8);
+                    Icon_Undo.Margin = new Thickness(0, 1.5, 0, -1.5);
+                    Icon_Redo.Margin = new Thickness(0, 1.5, 0, -1.5);
+                }
+                else
+                {
+                    FloatBarSelectIconTextBlock.Visibility = Visibility.Collapsed;
+                    Icon_Pen.Height = 32;
+                    Icon_Eraser1.Height = 32;
+                    Icon_Eraser2.Height = 32;
+                    Icon_Eraser2.Margin = new Thickness(5, -32, 0, -8);
+                    Icon_EraserByStrokes1.Height = 32;
+                    Icon_EraserByStrokes2.Height = 32;
+                    Icon_EraserByStrokes2.Margin = new Thickness(12, -32, 0, -8);
+                    Icon_Select1.Height = 32;
+                    Icon_Select2.Height = 32;
+                    Icon_Select2.Margin = new Thickness(6, -28, 0, -8);
+                    Icon_Undo.Margin = new Thickness(0);
+                    Icon_Redo.Margin = new Thickness(0);
+                }
+                // Nib Mode Toggler 可见性
+                if (Settings.Appearance.IsEnableDisPlayNibModeToggler)
+                {
+                    NibModeSimpleStackPanel.Visibility = Visibility.Visible;
+                    BoardNibModeSimpleStackPanel.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    NibModeSimpleStackPanel.Visibility = Visibility.Collapsed;
+                    BoardNibModeSimpleStackPanel.Visibility = Visibility.Collapsed;
+                }
+                SystemEvents_UserPreferenceChanged(null, null);
+                // 浮动栏彩色背景
+                if (Settings.Appearance.IsColorfulViewboxFloatingBar)
+                {
+                    var gradientBrush = new LinearGradientBrush
+                    {
+                        StartPoint = new Point(0, 0),
+                        EndPoint = new Point(1, 1),
+                        GradientStops = new GradientStopCollection
+                        {
+                            new GradientStop(Color.FromArgb(0x95, 0x80, 0xB0, 0xFF), 0),
+                            new GradientStop(Color.FromArgb(0x95, 0xC0, 0xFF, 0xC0), 1)
+                        }
+                    };
+                    EnableTwoFingerGestureBorder.Background = gradientBrush;
+                    BorderFloatingBarMainControls.Background = gradientBrush;
+                    BorderFloatingBarMoveControls.Background = gradientBrush;
+                    BtnPPTSlideShowEnd.Background = gradientBrush;
+                }
+                ApplyScaling();
+                ApplyVideoPresenterSidebarPosition();
+            }
+            // 以下设置 UI 控件填充仅在设置窗口打开时执行
+            if (SettingsWindow != null)
+            {
+                try
+                {
+                    if (File.Exists(Environment.GetFolderPath(Environment.SpecialFolder.Startup) + "\\Ink Canvas Annotation.lnk"))
+                    {
                     StartAutomaticallyDel("Ink Canvas Annotation");
                     StartAutomaticallyCreate("Ink Canvas Ultra");
                     ToggleSwitchRunAtStartup.IsOn = true;
@@ -777,11 +857,18 @@ namespace Ink_Canvas
             {
                 Settings.Automation = new Automation();
             }
+            } // end if (SettingsWindow != null) - 设置 UI 填充结束
+
             ViewboxFloatingBarMarginAnimation();
 
             if (floatingBarScaleWasNormalized)
             {
                 SaveSettingsToFile();
+            }
+            }
+            finally
+            {
+                _isLoadingSettings = false;
             }
         }
 

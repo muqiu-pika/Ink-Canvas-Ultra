@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using iNKORE.UI.WPF.Modern;
 using System;
 using System.Windows;
@@ -36,7 +36,7 @@ namespace Ink_Canvas
 
         private void ComboBoxTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (!isLoaded) return;
+            if (!isLoaded || _isLoadingSettings) return;
             Settings.Appearance.Theme = ComboBoxTheme.SelectedIndex;
             SystemEvents_UserPreferenceChanged(null, null);
             SaveSettingsToFile();

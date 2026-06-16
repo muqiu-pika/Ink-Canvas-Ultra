@@ -12,7 +12,7 @@
     Height="390"
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
-    ui:WindowHelper.UseModernWindowStyle="True"
+    ui:WindowHelper.UseModernWindowStyle="False"
     Closed="Window_Closed"
     Loaded="Window_Loaded"
     ResizeMode="NoResize"
@@ -20,33 +20,110 @@
     Topmost="True"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
+    <Border
+        Margin="10"
+        Padding="20"
+        Background="{DynamicResource PopupWindowBackground}"
+        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12">
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="50" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <RowDefinition Height="60" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        <Label Margin="20,0" Content="Ink Canvas 画板功能更新！" FontSize="26" />
-        <!-- 移除所有更新日志相关的显示内容 -->
-        <Grid Grid.Row="1" Margin="20" VerticalAlignment="Center" HorizontalAlignment="Center">
-            <TextBlock FontSize="16" Text="新版本已发布，点击下方按钮查看完整更新日志" TextWrapping="Wrap" TextAlignment="Center" />
+
+        <!-- 头部标题栏 -->
+        <Grid Grid.Row="0" Margin="0,0,0,20">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <ui:FontIcon
+                    Width="28"
+                    Height="28"
+                    Margin="0,0,10,0"
+                    VerticalAlignment="Center"
+                    FontFamily="{StaticResource FluentIconFontFamily}"
+                    FontSize="24"
+                    Foreground="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                    Glyph="&#xE8BD;" />
+                <TextBlock
+                    Margin="0,0,8,0"
+                    FontSize="26"
+                    FontWeight="SemiBold"
+                    Foreground="{DynamicResource PopupWindowForeground}"
+                    Text="Ink Canvas 画板功能更新" />
+                <Border
+                    Padding="6,2"
+                    Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                    CornerRadius="4">
+                    <TextBlock
+                        FontSize="13"
+                        Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
+                        Text="版本更新" Height="18" />
+                </Border>
+            </StackPanel>
         </Grid>
-        <Label Grid.Row="3"
-            Name="LabelVersion"
-            Margin="20,0"
-            VerticalContentAlignment="Center"
-            FontSize="12" />
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+
+        <!-- 中间内容区 -->
+        <Grid Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <StackPanel HorizontalAlignment="Center">
+                <Border
+                    Width="64"
+                    Height="64"
+                    Margin="0,0,0,16"
+                    HorizontalAlignment="Center"
+                    Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                    CornerRadius="32"
+                    Opacity="0.9">
+                    <ui:FontIcon
+                        Width="32"
+                        Height="32"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        FontFamily="{StaticResource FluentIconFontFamily}"
+                        FontSize="28"
+                        Foreground="White"
+                        Glyph="&#xE8BD;" />
+                </Border>
+                <TextBlock
+                    HorizontalAlignment="Center"
+                    FontSize="16"
+                    Foreground="{DynamicResource PopupWindowForeground}"
+                    Text="新版本已发布，点击下方按钮查看完整更新日志"
+                    TextAlignment="Center"
+                    TextWrapping="Wrap" />
+                <TextBlock
+                    Name="LabelVersion"
+                    Margin="0,8,0,0"
+                    HorizontalAlignment="Center"
+                    FontSize="12"
+                    Foreground="{DynamicResource PopupWindowForeground}"
+                    Opacity="0.6" />
+            </StackPanel>
+        </Grid>
+
+        <!-- 底部按钮区 -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Button
                 Width="150"
-                Margin="10"
+                Margin="10,0"
+                Padding="0,6"
                 Click="Button_IgnoreUpdate"
                 Content="忽略查看" />
             <Button
                 Width="150"
-                Margin="10"
+                Margin="10,0"
+                Padding="0,6"
                 Click="Button_Click"
-                Content="查看更新日志" />
+                Content="查看更新日志"
+                Foreground="White">
+                <Button.Resources>
+                    <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundKey}" Color="#0066BF" />
+                    <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPointerOverKey}" Color="#005AA0" />
+                    <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPressedKey}" Color="#004D8A" />
+                </Button.Resources>
+            </Button>
         </StackPanel>
     </Grid>
+    </Border>
 </Window>
