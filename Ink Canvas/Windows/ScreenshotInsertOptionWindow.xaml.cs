@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace Ink_Canvas.Windows
+namespace Ink_Canvas
 {
     /// <summary>
     /// ScreenshotInsertOptionWindow.xaml 的交互逻辑

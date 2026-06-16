@@ -111,7 +111,7 @@ namespace Ink_Canvas
                         }));
                         await Task.Delay(100);
                         
-                        var optionWindow = new Windows.ScreenshotInsertOptionWindow();
+                        var optionWindow = new ScreenshotInsertOptionWindow();
                         optionWindow.Owner = this;
                         
                         // 显示对话框
@@ -127,7 +127,7 @@ namespace Ink_Canvas
                         {
                             switch (optionWindow.SelectedOption)
                             {
-                                case Windows.ScreenshotInsertOptionWindow.InsertOption.InsertToCanvas:
+                                case ScreenshotInsertOptionWindow.InsertOption.InsertToCanvas:
                                     // 插入到截图时所处的画板模式
                                     if (screenshotBitmapSource != null)
                                     {
@@ -140,7 +140,7 @@ namespace Ink_Canvas
                                     }
                                     break;
 
-                                case Windows.ScreenshotInsertOptionWindow.InsertOption.InsertToBoard:
+                                case ScreenshotInsertOptionWindow.InsertOption.InsertToBoard:
                                     // 插入到白板照片列表
                                     if (screenshotBitmapSource != null)
                                     {

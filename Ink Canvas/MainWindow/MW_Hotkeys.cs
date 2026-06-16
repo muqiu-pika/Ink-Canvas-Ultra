@@ -116,7 +116,7 @@ namespace Ink_Canvas
         {
             try
             {
-                var optionWindow = new Windows.ScreenshotInsertOptionWindow();
+                var optionWindow = new ScreenshotInsertOptionWindow();
                 optionWindow.Owner = this;
 
                 bool? result = optionWindow.ShowDialog();
@@ -125,10 +125,10 @@ namespace Ink_Canvas
                 {
                     switch (optionWindow.SelectedOption)
                     {
-                        case Windows.ScreenshotInsertOptionWindow.InsertOption.InsertToCanvas:
+                        case ScreenshotInsertOptionWindow.InsertOption.InsertToCanvas:
                             await InsertImageSourceToCanvas(imageSource, pasteMode, pasteWhiteboardIndex);
                             break;
-                        case Windows.ScreenshotInsertOptionWindow.InsertOption.InsertToBoard:
+                        case ScreenshotInsertOptionWindow.InsertOption.InsertToBoard:
                             await InsertImageSourceToBoard(imageSource);
                             break;
                     }

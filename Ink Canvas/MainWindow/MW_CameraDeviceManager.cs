@@ -9,7 +9,7 @@ using AForge.Video.DirectShow;
 using System.Windows.Threading;
 using System.Drawing;
 
-namespace Ink_Canvas.MainWindow_cs
+namespace Ink_Canvas
 {
     public class CameraDeviceManager
     {

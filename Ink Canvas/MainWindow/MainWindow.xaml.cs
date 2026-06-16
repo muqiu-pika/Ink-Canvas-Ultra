@@ -22,7 +22,6 @@ using System.Windows.Threading;
 using System.Windows.Interop;
 using File = System.IO.File;
 using MessageBox = System.Windows.MessageBox;
-using Ink_Canvas.MainWindow_cs;
 using AForge.Imaging;
 using AForge.Imaging.Filters;
 using AForge.Math.Geometry;

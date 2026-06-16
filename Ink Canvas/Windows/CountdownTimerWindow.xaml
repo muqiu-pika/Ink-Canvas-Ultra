@@ -6,7 +6,7 @@
     xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
     xmlns:local="clr-namespace:Ink_Canvas"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:processbars="clr-namespace:Ink_Canvas.ProcessBars"
+    xmlns:processbars="clr-namespace:Ink_Canvas"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="计时器 - Ink Canvas Ultra"
     Width="1100"
