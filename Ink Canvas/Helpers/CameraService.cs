@@ -498,25 +498,6 @@ namespace Ink_Canvas.Helpers
             return resized;
         }
 
-        /// <summary>
-        /// 调整图像大小
-        /// </summary>
-        private Bitmap ResizeImage(Bitmap source, int width, int height)
-        {
-            if (source.Width == width && source.Height == height)
-                return new Bitmap(source);
-
-            var resized = new Bitmap(width, height, PixelFormat.Format24bppRgb);
-            using (var graphics = Graphics.FromImage(resized))
-            {
-                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-                graphics.DrawImage(source, 0, 0, width, height);
-            }
-            return resized;
-        }
-
         public void Dispose()
         {
             StopPreview();

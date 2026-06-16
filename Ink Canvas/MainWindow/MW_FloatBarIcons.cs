@@ -152,11 +152,9 @@ namespace Ink_Canvas
         private void HideSubPanelsImmediately()
         {
             BorderTools.Visibility = Visibility.Collapsed;
-            BorderTools.Visibility = Visibility.Collapsed;
             BoardBorderTools.Visibility = Visibility.Collapsed;
             PenPalette.Visibility = Visibility.Collapsed;
             BoardPenPalette.Visibility = Visibility.Collapsed;
-            BoardDeleteIcon.Visibility = Visibility.Collapsed;
             BoardDeleteIcon.Visibility = Visibility.Collapsed;
         }
 

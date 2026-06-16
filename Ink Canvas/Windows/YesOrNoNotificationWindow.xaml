@@ -7,16 +7,17 @@
     xmlns:local="clr-namespace:Ink_Canvas"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
-    Title="演示文档设置 - Ink Canvas Ultra"
+    Title="确认操作 - Ink Canvas Ultra"
     Width="450"
-    Height="220"
+    Height="Auto"
+    SizeToContent="Height"
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
     ui:WindowHelper.UseModernWindowStyle="False"
     Closed="Window_Closed"
     ResizeMode="NoResize"
     Topmost="True"
-    WindowStartupLocation="CenterScreen"
+    WindowStartupLocation="CenterOwner"
     mc:Ignorable="d">
     <Border
         Margin="10"
@@ -28,7 +29,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
@@ -49,7 +50,7 @@
                     FontSize="26"
                     FontWeight="SemiBold"
                     Foreground="{DynamicResource PopupWindowForeground}"
-                    Text="演示文档设置" />
+                    Text="确认操作" />
                 <Border
                     Padding="6,2"
                     Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
@@ -63,7 +64,7 @@
         </Grid>
 
         <!-- 内容区 -->
-        <Grid Grid.Row="1" Margin="0,0,0,8">
+        <Grid Grid.Row="1" Margin="0,0,0,16">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />

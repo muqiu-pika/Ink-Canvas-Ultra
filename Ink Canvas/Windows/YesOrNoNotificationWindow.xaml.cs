@@ -1,4 +1,4 @@
-﻿using iNKORE.UI.WPF.Modern;
+using iNKORE.UI.WPF.Modern;
 using System;
 using System.Windows;
 
@@ -26,6 +26,9 @@ namespace Ink_Canvas
                 {
                     ThemeManager.SetRequestedTheme(this, ElementTheme.Dark);
                 }
+
+                // 设置所有者窗口，确保对话框始终显示在主窗口之上
+                this.Owner = mainWindow;
             }
         }
 

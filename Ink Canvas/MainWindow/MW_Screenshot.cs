@@ -11,25 +11,13 @@ namespace Ink_Canvas
 {
     public partial class MainWindow : Window
     {
-        private void SaveScreenShot(bool isHideNotification, string fileName = null)
+        private void SaveScreenshot(bool isHideNotification, string fileName = null)
         {
             var savePath = Settings.Automation.IsSaveScreenshotsInDateFolders
                 ? GetDateFolderPath(fileName)
                 : GetDefaultFolderPath();
 
             CaptureAndSaveScreenshot(savePath, isHideNotification);
-
-            if (Settings.Automation.IsAutoSaveStrokesAtScreenshot)
-                SaveInkCanvasFile(false, false);
-        }
-
-        internal void SaveScreenShotToDesktop()
-        {
-            var desktopPath = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory),
-                $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png");
-
-            CaptureAndSaveScreenshot(desktopPath, false);
 
             if (Settings.Automation.IsAutoSaveStrokesAtScreenshot)
                 SaveInkCanvasFile(false, false);
@@ -100,12 +88,6 @@ namespace Ink_Canvas
             return Path.Combine(
                 screenshotsFolder,
                 $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png");
-        }
-
-        // 保存截图（供外部调用）
-        private void SaveScreenshot(bool isHideNotification, string fileName = null)
-        {
-            SaveScreenShot(isHideNotification, fileName);
         }
 
         // 保存PPT截图

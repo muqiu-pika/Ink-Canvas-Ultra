@@ -2069,23 +2069,10 @@
 
                                 </ikw:SimpleStackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <ikw:SimpleStackPanel Orientation="Horizontal">
 
@@ -2163,23 +2150,10 @@
 
                                     TextWrapping="Wrap" />
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <ikw:SimpleStackPanel Orientation="Horizontal">
 
@@ -2631,23 +2605,10 @@
 
                                 </ikw:SimpleStackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <TextBlock
 
@@ -2697,23 +2658,10 @@
 
                                 </ikw:SimpleStackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <TextBlock
 
@@ -2803,23 +2751,10 @@
 
                                 </StackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <TextBlock
 
@@ -2909,23 +2844,10 @@
 
                                 </StackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <TextBlock
 
@@ -3015,23 +2937,10 @@
 
                                 </StackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <TextBlock
 
@@ -3073,23 +2982,10 @@
 
                                 </ikw:SimpleStackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <ikw:SimpleStackPanel HorizontalAlignment="Left" Orientation="Horizontal">
 
@@ -3625,23 +3521,10 @@
 
                                 </ikw:SimpleStackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <ikw:SimpleStackPanel HorizontalAlignment="Left" Orientation="Horizontal">
 
@@ -3719,23 +3602,10 @@
 
                                 </ikw:SimpleStackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <ikw:SimpleStackPanel HorizontalAlignment="Left" Orientation="Horizontal">
 
@@ -3839,23 +3709,10 @@
 
                                 </ikw:SimpleStackPanel>
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,4"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="400"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
                                 <!--
 
@@ -4245,23 +4102,10 @@
 
 
 
-                                <Line
-
+                                <Border
+                                    Height="1"
                                     Margin="0,4,0,0"
-
-                                    HorizontalAlignment="Center"
-
-                                    Stroke="{DynamicResource PopupWindowBorderBrush}"
-
-                                    StrokeThickness="1"
-
-                                    X1="0"
-
-                                    X2="350"
-
-                                    Y1="0"
-
-                                    Y2="0" />
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
 
 
 
