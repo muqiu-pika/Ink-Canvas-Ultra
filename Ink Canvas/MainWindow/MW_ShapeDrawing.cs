@@ -484,6 +484,7 @@ namespace Ink_Canvas
             isFirstTouchTetrahedron = true;
             TetrahedronFrontTriangleIniP = new Point();
             TetrahedronFrontTriangleEndP = new Point();
+            TetrahedronEdgeStrokeCollection = null;
             inkCanvas.EditingMode = InkCanvasEditingMode.None;
             inkCanvas.IsManipulationEnabled = true;
             CancelSingleFingerDragMode();
@@ -1032,6 +1033,14 @@ namespace Ink_Canvas
                         inkCanvas.Strokes.Remove(lastTempStrokeCollection);
                     }
                     catch { }
+                    // 第二步首次移动时，lastTempStrokeCollection 与渐近线笔画为同一对象，
+                    // 需要将渐近线重新添加到画布，以便后续 MouseUp 能正确移除
+                    if (drawMultiStepShapeCurrentStep == 1
+                        && lastTempStrokeCollection == drawMultiStepShapeSpecialStrokeCollection
+                        && drawMultiStepShapeSpecialStrokeCollection != null)
+                    {
+                        inkCanvas.Strokes.Add(drawMultiStepShapeSpecialStrokeCollection);
+                    }
                     lastTempStrokeCollection = strokes;
                     inkCanvas.Strokes.Add(strokes);
 
@@ -1339,7 +1348,7 @@ namespace Ink_Canvas
                     _currentCommitType = CommitReason.ShapeDrawing;
                     if (isFirstTouchTetrahedron)
                     {
-                        // 第一步：画正面三角形（底边水平，顶点居中向上）
+                        // 第一步：画底部三角形（底边水平，顶点居中向上）
                         // 分开画三条边方便后期单独擦除
                         Point triBottomLeft = new Point(Math.Min(iniP.X, endP.X), Math.Max(iniP.Y, endP.Y));
                         Point triBottomRight = new Point(Math.Max(iniP.X, endP.X), Math.Max(iniP.Y, endP.Y));
@@ -1360,33 +1369,29 @@ namespace Ink_Canvas
                     }
                     else
                     {
-                        // 第二步：根据深度偏移绘制后顶点及三条棱
-                        // 深度方向：向右上偏移（与长方体一致）
-                        double dTetra = TetrahedronFrontTriangleIniP.Y - endP.Y;
-                        if (dTetra < 0) dTetra = -dTetra;
-                        Point frontBottomLeft = TetrahedronFrontTriangleIniP;
-                        Point frontBottomRight = TetrahedronFrontTriangleEndP;
-                        Point frontTop = TetrahedronFrontTriangleTopP;
-                        // 后顶点（从前顶点向右上偏移）
-                        Point backTop = new Point(frontTop.X + dTetra, frontTop.Y - dTetra);
+                        // 第二步：根据鼠标位置确定顶部顶点（顶点跟随鼠标）
+                        Point baseBottomLeft = TetrahedronFrontTriangleIniP;
+                        Point baseBottomRight = TetrahedronFrontTriangleEndP;
+                        Point baseTop = TetrahedronFrontTriangleTopP;
+                        Point apex = endP;
 
-                        // 三条从前顶点到后顶点的棱（实线，可见）
-                        strokes.Add(GenerateLineStroke(frontTop, backTop));
-                        strokes.Add(GenerateLineStroke(frontBottomLeft, backTop));
-                        strokes.Add(GenerateLineStroke(frontBottomRight, backTop));
-
-                        // 底边后段（虚线，表示隐藏边）—— 这里指后顶点投影到底边的部分
-                        // 为体现立体感，画一条从后顶点垂直向下的虚线到前底边延长线
-                        Point backBottomProj = new Point(backTop.X, frontBottomLeft.Y);
-                        strokes.Add(GenerateDashedLineStrokeCollection(backTop, backBottomProj));
+                        // 三条从顶点到底面的棱（实线）
+                        StrokeCollection edgeStrokes = new StrokeCollection();
+                        edgeStrokes.Add(GenerateLineStroke(baseBottomLeft, apex));
+                        edgeStrokes.Add(GenerateLineStroke(baseBottomRight, apex));
+                        edgeStrokes.Add(GenerateLineStroke(baseTop, apex));
 
                         try
                         {
-                            inkCanvas.Strokes.Remove(lastTempStrokeCollection);
+                            if (TetrahedronEdgeStrokeCollection != null)
+                            {
+                                inkCanvas.Strokes.Remove(TetrahedronEdgeStrokeCollection);
+                            }
                         }
                         catch { }
-                        lastTempStrokeCollection = strokes;
-                        inkCanvas.Strokes.Add(strokes);
+
+                        TetrahedronEdgeStrokeCollection = edgeStrokes;
+                        inkCanvas.Strokes.Add(edgeStrokes);
                     }
 
                     break;
@@ -1402,6 +1407,7 @@ namespace Ink_Canvas
         Point TetrahedronFrontTriangleEndP = new Point();
         Point TetrahedronFrontTriangleTopP = new Point();
         StrokeCollection TetrahedronStrokeCollection = null;
+        StrokeCollection TetrahedronEdgeStrokeCollection = null;
 
         private void Main_Grid_TouchUp(object sender, TouchEventArgs e)
         {
@@ -1692,7 +1698,7 @@ namespace Ink_Canvas
                     drawMultiStepShapeCurrentStep = 0;
                     if (drawMultiStepShapeSpecialStrokeCollection != null)
                     {
-                        bool opFlag = false;
+                        var opFlag = false;
                         switch (Settings.Canvas.HyperbolaAsymptoteOption)
                         {
                             case OptionalOperation.Yes:
@@ -1702,12 +1708,22 @@ namespace Ink_Canvas
                                 opFlag = false;
                                 break;
                             case OptionalOperation.Ask:
-                                opFlag = MessageBox.Show("是否移除渐近线？", "Ink Canvas", MessageBoxButton.YesNo) != MessageBoxResult.Yes;
+                                opFlag = MessageBox.Show("是否移除渐近线？", "Ink Canvas", MessageBoxButton.YesNo) !=
+                                         MessageBoxResult.Yes;
                                 break;
-                        };
+                        }
+
                         if (!opFlag)
                         {
                             inkCanvas.Strokes.Remove(drawMultiStepShapeSpecialStrokeCollection);
+                        }
+                        else
+                        {
+                            // 保留渐近线时，将其加入 lastTempStrokeCollection 以便一起提交到时间机器，避免撤回 BUG
+                            if (lastTempStrokeCollection != null)
+                            {
+                                lastTempStrokeCollection.Add(drawMultiStepShapeSpecialStrokeCollection);
+                            }
                         }
                     }
                     BtnPen_Click(null, null); //画完还原到笔模式
@@ -1726,7 +1742,10 @@ namespace Ink_Canvas
                 {
                     if (TetrahedronStrokeCollection == null) TetrahedronStrokeCollection = new StrokeCollection();
                     isFirstTouchTetrahedron = false;
-                    TetrahedronStrokeCollection.Add(lastTempStrokeCollection);
+                    if (lastTempStrokeCollection != null)
+                    {
+                        TetrahedronStrokeCollection.Add(lastTempStrokeCollection);
+                    }
                 }
                 else
                 {
@@ -1740,7 +1759,20 @@ namespace Ink_Canvas
 
                     if (_currentCommitType == CommitReason.ShapeDrawing)
                     {
-                        TetrahedronStrokeCollection.Add(lastTempStrokeCollection);
+                        if (TetrahedronStrokeCollection == null) TetrahedronStrokeCollection = new StrokeCollection();
+
+                        if (lastTempStrokeCollection != null)
+                        {
+                            TetrahedronStrokeCollection.Add(lastTempStrokeCollection);
+                        }
+
+                        // 添加三条棱
+                        if (TetrahedronEdgeStrokeCollection != null)
+                        {
+                            TetrahedronStrokeCollection.Add(TetrahedronEdgeStrokeCollection);
+                            TetrahedronEdgeStrokeCollection = null;
+                        }
+
                         _currentCommitType = CommitReason.UserInput;
                         timeMachine.CommitStrokeUserInputHistory(TetrahedronStrokeCollection);
                         TetrahedronStrokeCollection = null;
