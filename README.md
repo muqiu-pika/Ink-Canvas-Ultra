@@ -23,16 +23,18 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 ## 📁 目录结构
 
-本项目（c:\Users\muqiu\Desktop\board\ica）包含以下主要内容：
+本项目包含以下主要内容：
 
 - **Ink Canvas/**: 主程序源代码目录
+  - **MainWindow/**: 主窗口相关代码（XAML + partial class，含 29 个 partial class 文件）
+  - **Windows/**: 独立功能窗口（更新日志、倒计时、截图等 10 个窗口）
   - **Helpers/**: 辅助功能类库
-  - **MainWindow_cs/**: 主窗口相关代码文件
+  - **Models/**: 数据模型
   - **Resources/**: 图标、样式等资源文件
-  - **Windows/**: 各种功能窗口
+  - **Properties/**: 项目属性
 - **Images/**: 应用程序图标和截图
-- **.github/**: GitHub相关配置文件和工作流
-- **LICENSE**: GPLv3开源许可证
+- **.github/**: GitHub 相关配置文件和工作流
+- **LICENSE**: GPLv3 开源许可证
 - **README.md**: 项目说明文档
 - **Manual.md**: 详细使用手册
 
@@ -61,6 +63,11 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 - 自动保存墨迹和截图
 - 墨迹回放功能
 - 多指手势操作
+- 视频展台模式（支持通过快捷方式直接进入）
+- 视频展台侧栏一键清除所有白板内容
+- 停顿拉直功能
+- 面积擦范围检测
+- 自动更新与版本管理
 
 ## 🛠️ 技术特点
 
@@ -69,6 +76,8 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 - **智能识别**: 支持墨迹自动识别转换为规范图形
 - **统一体验**: 幻灯片和白板模式下操作习惯一致
 - **扩展性**: 支持多页白板、缩放、旋转等高级功能
+- **模块化架构**: MainWindow 已拆分为 29 个 partial class，便于维护和扩展
+- **CI/CD**: 通过 GitHub Actions 自动构建并附加版本号
 
 ## 💡 使用提示
 
@@ -106,3 +115,15 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
     功能需求：https://github.com/muqiu-pika/Ink-Canvas-Ultra/labels/enhancement/new 
 
     错误报告：https://github.com/muqiu-pika/Ink-Canvas-Ultra/labels/bug/new
+
+## 📦 下载与安装
+
+- 前往 [Releases 页面](https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/latest) 下载最新版本的压缩包
+- 解压后运行 "Ink Canvas Ultra.exe" 即可
+- 如需使用视频展台模式，可通过附带的"视频展台"快捷方式启动，或使用命令行参数 `--video-presenter`
+
+## 🔄 版本信息
+
+当前版本：**V7.0.2**
+
+完整更新日志请访问：https://doc.muqiu.eu.org/article/changelog/
