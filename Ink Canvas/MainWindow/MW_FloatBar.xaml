@@ -2193,11 +2193,9 @@
 
                                                         Margin="0,11.5,2.5,9.5"
 
-                                                        MouseUp="BtnDrawCuboid_Click"
+                                                        MouseUp="BtnDrawTetrahedron_Click"
 
-                                                        Source="{DynamicResource DrawShapeImageSource.Tetrahedron}"
-
-                                                        Visibility="Collapsed" />
+                                                        Source="{DynamicResource DrawShapeImageSource.Tetrahedron}" />
 
                                                 </ikw:SimpleStackPanel>
 

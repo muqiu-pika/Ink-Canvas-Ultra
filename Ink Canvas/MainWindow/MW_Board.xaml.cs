@@ -183,6 +183,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BtnDrawCuboid_Click), sender, e);
         }
 
+        private void BtnDrawTetrahedron_Click(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BtnDrawTetrahedron_Click), sender, e);
+        }
+
         private void BtnDrawCylinder_Click(object sender, MouseButtonEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BtnDrawCylinder_Click), sender, e);

@@ -476,6 +476,20 @@ namespace Ink_Canvas
             DrawShapePromptToPen();
         }
 
+        private async void BtnDrawTetrahedron_Click(object sender, MouseButtonEventArgs e)
+        {
+            await CheckIsDrawingShapesInMultiTouchMode();
+            forceEraser = true;
+            drawingShapeMode = 26;
+            isFirstTouchTetrahedron = true;
+            TetrahedronFrontTriangleIniP = new Point();
+            TetrahedronFrontTriangleEndP = new Point();
+            inkCanvas.EditingMode = InkCanvasEditingMode.None;
+            inkCanvas.IsManipulationEnabled = true;
+            CancelSingleFingerDragMode();
+            DrawShapePromptToPen();
+        }
+
         #endregion
 
         private void inkCanvas_TouchMove(object sender, TouchEventArgs e)
@@ -1321,12 +1335,73 @@ namespace Ink_Canvas
                     }
 
                     break;
+                case 26:
+                    _currentCommitType = CommitReason.ShapeDrawing;
+                    if (isFirstTouchTetrahedron)
+                    {
+                        // 第一步：画正面三角形（底边水平，顶点居中向上）
+                        // 分开画三条边方便后期单独擦除
+                        Point triBottomLeft = new Point(Math.Min(iniP.X, endP.X), Math.Max(iniP.Y, endP.Y));
+                        Point triBottomRight = new Point(Math.Max(iniP.X, endP.X), Math.Max(iniP.Y, endP.Y));
+                        Point triTop = new Point((triBottomLeft.X + triBottomRight.X) / 2, Math.Min(iniP.Y, endP.Y));
+                        strokes.Add(GenerateLineStroke(triBottomLeft, triBottomRight));
+                        strokes.Add(GenerateLineStroke(triBottomLeft, triTop));
+                        strokes.Add(GenerateLineStroke(triBottomRight, triTop));
+                        try
+                        {
+                            inkCanvas.Strokes.Remove(lastTempStrokeCollection);
+                        }
+                        catch { }
+                        lastTempStrokeCollection = strokes;
+                        inkCanvas.Strokes.Add(strokes);
+                        TetrahedronFrontTriangleIniP = triBottomLeft;
+                        TetrahedronFrontTriangleEndP = triBottomRight;
+                        TetrahedronFrontTriangleTopP = triTop;
+                    }
+                    else
+                    {
+                        // 第二步：根据深度偏移绘制后顶点及三条棱
+                        // 深度方向：向右上偏移（与长方体一致）
+                        double dTetra = TetrahedronFrontTriangleIniP.Y - endP.Y;
+                        if (dTetra < 0) dTetra = -dTetra;
+                        Point frontBottomLeft = TetrahedronFrontTriangleIniP;
+                        Point frontBottomRight = TetrahedronFrontTriangleEndP;
+                        Point frontTop = TetrahedronFrontTriangleTopP;
+                        // 后顶点（从前顶点向右上偏移）
+                        Point backTop = new Point(frontTop.X + dTetra, frontTop.Y - dTetra);
+
+                        // 三条从前顶点到后顶点的棱（实线，可见）
+                        strokes.Add(GenerateLineStroke(frontTop, backTop));
+                        strokes.Add(GenerateLineStroke(frontBottomLeft, backTop));
+                        strokes.Add(GenerateLineStroke(frontBottomRight, backTop));
+
+                        // 底边后段（虚线，表示隐藏边）—— 这里指后顶点投影到底边的部分
+                        // 为体现立体感，画一条从后顶点垂直向下的虚线到前底边延长线
+                        Point backBottomProj = new Point(backTop.X, frontBottomLeft.Y);
+                        strokes.Add(GenerateDashedLineStrokeCollection(backTop, backBottomProj));
+
+                        try
+                        {
+                            inkCanvas.Strokes.Remove(lastTempStrokeCollection);
+                        }
+                        catch { }
+                        lastTempStrokeCollection = strokes;
+                        inkCanvas.Strokes.Add(strokes);
+                    }
+
+                    break;
             }
         }
 
         bool isFirstTouchCuboid = true;
         Point CuboidFrontRectIniP = new Point();
         Point CuboidFrontRectEndP = new Point();
+
+        bool isFirstTouchTetrahedron = true;
+        Point TetrahedronFrontTriangleIniP = new Point();
+        Point TetrahedronFrontTriangleEndP = new Point();
+        Point TetrahedronFrontTriangleTopP = new Point();
+        StrokeCollection TetrahedronStrokeCollection = null;
 
         private void Main_Grid_TouchUp(object sender, TouchEventArgs e)
         {
@@ -1558,7 +1633,7 @@ namespace Ink_Canvas
                     lastIsInMultiTouchMode = false;
                 }
             }
-            if (drawingShapeMode != 9 && drawingShapeMode != 0 && drawingShapeMode != 24 && drawingShapeMode != 25)
+            if (drawingShapeMode != 9 && drawingShapeMode != 0 && drawingShapeMode != 24 && drawingShapeMode != 25 && drawingShapeMode != 26)
             {
                 if (isLongPressSelected)
                 {
@@ -1645,6 +1720,33 @@ namespace Ink_Canvas
 
                 }
             }
+            if (drawingShapeMode == 26)
+            {
+                if (isFirstTouchTetrahedron)
+                {
+                    if (TetrahedronStrokeCollection == null) TetrahedronStrokeCollection = new StrokeCollection();
+                    isFirstTouchTetrahedron = false;
+                    TetrahedronStrokeCollection.Add(lastTempStrokeCollection);
+                }
+                else
+                {
+                    BtnPen_Click(null, null); //画完还原到笔模式
+
+                    if (lastIsInMultiTouchMode)
+                    {
+                        ToggleSwitchEnableMultiTouchMode.IsOn = true;
+                        lastIsInMultiTouchMode = false;
+                    }
+
+                    if (_currentCommitType == CommitReason.ShapeDrawing)
+                    {
+                        TetrahedronStrokeCollection.Add(lastTempStrokeCollection);
+                        _currentCommitType = CommitReason.UserInput;
+                        timeMachine.CommitStrokeUserInputHistory(TetrahedronStrokeCollection);
+                        TetrahedronStrokeCollection = null;
+                    }
+                }
+            }
             isMouseDown = false;
             if (ReplacedStroke != null || AddedStroke != null)
             {
@@ -1652,7 +1754,7 @@ namespace Ink_Canvas
                 AddedStroke = null;
                 ReplacedStroke = null;
             }
-            if (_currentCommitType == CommitReason.ShapeDrawing && drawingShapeMode != 9)
+            if (_currentCommitType == CommitReason.ShapeDrawing && drawingShapeMode != 9 && drawingShapeMode != 26)
             {
                 _currentCommitType = CommitReason.UserInput;
                 StrokeCollection collection = null;
@@ -1707,6 +1809,10 @@ namespace Ink_Canvas
             if (drawingShapeMode == 24 || drawingShapeMode == 25)
             {
                 if (drawMultiStepShapeCurrentStep == 1) return false;
+            }
+            if (drawingShapeMode == 26)
+            {
+                if (!isFirstTouchTetrahedron) return false;
             }
             return true;
         }

@@ -1,4 +1,4 @@
-﻿<UserControl
+<UserControl
     x:Class="Ink_Canvas.MW_Board"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -2918,11 +2918,9 @@
 
                                                     Margin="0,11.5,2.5,9.5"
 
-                                                    MouseUp="BtnDrawCuboid_Click"
+                                                    MouseUp="BtnDrawTetrahedron_Click"
 
-                                                    Source="{DynamicResource BoardDrawShapeImageSource.Tetrahedron}"
-
-                                                    Visibility="Collapsed" />
+                                                    Source="{DynamicResource BoardDrawShapeImageSource.Tetrahedron}" />
 
                                             </ikw:SimpleStackPanel>
 

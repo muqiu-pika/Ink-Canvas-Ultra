@@ -1,4 +1,4 @@
-﻿<Window
+<Window
     x:Class="Ink_Canvas.MW_Settings"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -63,7 +63,7 @@
 
                 PaneDisplayMode="Left"
 
-                OpenPaneLength="180"
+                OpenPaneLength="200"
 
                 CompactPaneLength="48"
 
@@ -71,7 +71,7 @@
 
                 IsSettingsVisible="False"
 
-                IsPaneToggleButtonVisible="False"
+                IsPaneToggleButtonVisible="True"
 
                 SelectionChanged="SettingsNav_SelectionChanged"
 
