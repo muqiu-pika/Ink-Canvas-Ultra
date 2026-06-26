@@ -9,9 +9,9 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     Title="设置 - Ink Canvas Ultra"
-    Width="900"
-    Height="620"
-    MinWidth="700"
+    Width="960"
+    Height="680"
+    MinWidth="600"
     MinHeight="500"
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
@@ -56,153 +56,129 @@
 
             <!-- 主内容区 -->
             <ui:NavigationView
-
                 Grid.Row="1"
-
                 x:Name="SettingsNavigationView"
-
                 PaneDisplayMode="Left"
-
-                OpenPaneLength="200"
-
+                OpenPaneLength="220"
                 CompactPaneLength="48"
-
                 IsBackButtonVisible="Collapsed"
-
                 IsSettingsVisible="False"
-
                 IsPaneToggleButtonVisible="True"
-
+                IsFooterSeparatorVisible="True"
                 SelectionChanged="SettingsNav_SelectionChanged"
-
-                AlwaysShowHeader="False">
+                AlwaysShowHeader="False"
+                ScrollViewer.VerticalScrollBarVisibility="Auto"
+                ScrollViewer.HorizontalScrollBarVisibility="Disabled">
 
                 <ui:NavigationView.PaneHeader>
-
-                    <TextBlock
-
-                        Margin="16,12,0,8"
-
-                        FontSize="12"
-
-                        FontWeight="SemiBold"
-
-                        Foreground="{DynamicResource SettingsPageAnnotationForeground}"
-
-                        Text="导航" />
-
+                    <Border Height="40" Margin="0,4,0,0">
+                        <TextBlock
+                            Margin="16,0,0,0"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            FontWeight="SemiBold"
+                            Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                            Text="导航" />
+                    </Border>
                 </ui:NavigationView.PaneHeader>
 
                 <ui:NavigationView.MenuItems>
-
-                    <ui:NavigationViewItem Content="概览" Tag="Overview">
-
+                    <ui:NavigationViewItem
+                        Content="概览"
+                        Tag="Overview"
+                        ToolTipService.ToolTip="概览">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xE80F;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE80F;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
                     <ui:NavigationViewItemSeparator />
 
                     <ui:NavigationViewItemHeader Content="设置项" />
 
-                    <ui:NavigationViewItem Content="启动" Tag="Startup">
-
+                    <ui:NavigationViewItem
+                        Content="启动"
+                        Tag="Startup"
+                        ToolTipService.ToolTip="启动设置">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xE7B8;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE8FC;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
-                    <ui:NavigationViewItem Content="画板" Tag="Board">
-
+                    <ui:NavigationViewItem
+                        Content="画板"
+                        Tag="Board"
+                        ToolTipService.ToolTip="画板设置">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xEE56;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE70F;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
-                    <ui:NavigationViewItem Content="手势" Tag="Gesture">
-
+                    <ui:NavigationViewItem
+                        Content="手势"
+                        Tag="Gesture"
+                        ToolTipService.ToolTip="手势设置">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xEDA5;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE8A5;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
-                    <ui:NavigationViewItem Content="墨迹识别" Tag="InkRecognition">
-
+                    <ui:NavigationViewItem
+                        Content="墨迹识别"
+                        Tag="InkRecognition"
+                        ToolTipService.ToolTip="墨迹识别设置">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xE787;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE76C;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
-                    <ui:NavigationViewItem Content="外观" Tag="Appearance">
-
+                    <ui:NavigationViewItem
+                        Content="外观"
+                        Tag="Appearance"
+                        ToolTipService.ToolTip="外观设置">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xE771;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE771;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
-                    <ui:NavigationViewItem Content="PPT" Tag="PPT">
-
+                    <ui:NavigationViewItem
+                        Content="PPT"
+                        Tag="PPT"
+                        ToolTipService.ToolTip="PPT 设置">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xE8B9;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE8B9;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
-                    <ui:NavigationViewItem Content="高级" Tag="Advanced">
-
+                    <ui:NavigationViewItem
+                        Content="高级"
+                        Tag="Advanced"
+                        ToolTipService.ToolTip="高级设置">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xE81E;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE81E;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
-                    <ui:NavigationViewItem Content="自动" Tag="Auto">
-
+                    <ui:NavigationViewItem
+                        Content="自动"
+                        Tag="Auto"
+                        ToolTipService.ToolTip="自动化设置">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xEC4A;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE895;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
 
                 </ui:NavigationView.MenuItems>
 
                 <ui:NavigationView.FooterMenuItems>
-
-                    <ui:NavigationViewItem Content="关于" Tag="About">
-
+                    <ui:NavigationViewItem
+                        Content="关于"
+                        Tag="About"
+                        ToolTipService.ToolTip="关于 Ink Canvas Ultra">
                         <ui:NavigationViewItem.Icon>
-
-                            <ui:FontIcon FontSize="16" Glyph="&#xE946;" />
-
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE946;" />
                         </ui:NavigationViewItem.Icon>
-
                     </ui:NavigationViewItem>
-
                 </ui:NavigationView.FooterMenuItems>
 
                 <!-- 右侧内容区域 -->

@@ -20,6 +20,8 @@ namespace Ink_Canvas
         private void SettingsWindow_Loaded(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler("LoadSettings", false);
+            if (AppVersionTextBlock != null)
+                AppVersionTextBlock.Text = Assembly.GetExecutingAssembly().GetName().Version.ToString();
         }
 
         private void InvokeMainWindowHandler(string handlerName, params object[] args)
