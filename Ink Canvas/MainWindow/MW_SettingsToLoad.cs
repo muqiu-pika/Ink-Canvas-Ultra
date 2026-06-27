@@ -51,11 +51,26 @@ namespace Ink_Canvas
             {
             try
             {
-                if (File.Exists(App.RootPath + settingsFileName))
+                // 优先从用户数据目录（始终可写）读取
+                string userFile = App.UserDataPath + settingsFileName;
+                string legacyFile = App.RootPath + settingsFileName;
+                string targetFile = null;
+
+                if (File.Exists(userFile))
+                {
+                    targetFile = userFile;
+                }
+                else if (File.Exists(legacyFile))
+                {
+                    // 用户数据目录不存在设置文件时回退到 exe 目录（兼容旧版本/便携模式）
+                    targetFile = legacyFile;
+                }
+
+                if (targetFile != null)
                 {
                     try
                     {
-                        string text = File.ReadAllText(App.RootPath + settingsFileName);
+                        string text = File.ReadAllText(targetFile);
                         Settings = JsonConvert.DeserializeObject<Settings>(text);
                     }
                     catch { }
@@ -604,6 +619,9 @@ namespace Ink_Canvas
                     inkCanvas.ForceCursor = false;
                 }
 
+                // 同步"上传照片时压缩画质"开关，避免重启后 UI 始终为关
+                ToggleSwitchCompressPicturesUploaded.IsOn = Settings.Canvas.IsCompressPicturesUploaded;
+
                 ComboBoxPenStyle.SelectedIndex = Settings.Canvas.InkStyle;
                 BoardComboBoxPenStyle.SelectedIndex = Settings.Canvas.InkStyle;
 
@@ -709,6 +727,8 @@ namespace Ink_Canvas
                 {
                     ToggleSwitchAutoFoldInEasiNote.IsOn = false;
                 }
+                // 同步"进入希沃白板时忽略桌面批注"开关，避免重启后 UI 与实际设置不一致
+                ToggleSwitchAutoFoldInEasiNoteIgnoreDesktopAnno.IsOn = Settings.Automation.IsAutoFoldInEasiNoteIgnoreDesktopAnno;
                 if (Settings.Automation.IsAutoFoldInEasiCamera)
                 {
                     ToggleSwitchAutoFoldInEasiCamera.IsOn = true;

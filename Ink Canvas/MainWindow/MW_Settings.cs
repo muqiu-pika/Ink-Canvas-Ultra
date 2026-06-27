@@ -10,6 +10,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
 using File = System.IO.File;
+using Directory = System.IO.Directory;
 
 namespace Ink_Canvas
 {
@@ -1205,13 +1206,31 @@ namespace Ink_Canvas
         public static void SaveSettingsToFile()
         {
             string text = JsonConvert.SerializeObject(Settings, Formatting.Indented);
+
+            // 优先写入用户数据目录（始终可写，避免安装到 Program Files 时静默保存失败）
+            string userFile = App.UserDataPath + settingsFileName;
             try
             {
-                File.WriteAllText(App.RootPath + settingsFileName, text);
+                if (!Directory.Exists(App.UserDataPath))
+                {
+                    try { Directory.CreateDirectory(App.UserDataPath); } catch { }
+                }
+                File.WriteAllText(userFile, text);
             }
             catch (Exception ex)
             {
-                LogHelper.WriteLogToFile($"MW_Settings | Error saving settings: {ex.Message}", LogHelper.LogType.Error);
+                LogHelper.WriteLogToFile($"MW_Settings | Error saving settings to user data path: {ex.Message}", LogHelper.LogType.Error);
+
+                // 回退尝试写入 exe 目录（兼容便携模式 / 旧版本行为）
+                string legacyFile = App.RootPath + settingsFileName;
+                try
+                {
+                    File.WriteAllText(legacyFile, text);
+                }
+                catch (Exception ex2)
+                {
+                    LogHelper.WriteLogToFile($"MW_Settings | Error saving settings to legacy path: {ex2.Message}", LogHelper.LogType.Error);
+                }
             }
         }
 

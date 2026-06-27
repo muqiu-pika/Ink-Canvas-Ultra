@@ -27,6 +27,61 @@ namespace Ink_Canvas
         public static string[] StartArgs = null;
         public static string RootPath = Environment.GetEnvironmentVariable("APPDATA") + "\\Ink Canvas\\";
 
+        /// <summary>
+        /// 用户数据目录（始终可写），用于存放 Settings.json 等需要持久化的用户数据。
+        /// 即使程序被安装到 Program Files 等需要管理员权限才能写入的目录，
+        /// 该路径仍然可由当前用户写入，避免设置静默保存失败的问题。
+        /// </summary>
+        public static string UserDataPath = Environment.GetEnvironmentVariable("APPDATA") + "\\Ink Canvas\\";
+        private static bool _userDataPathInitialized = false;
+
+        /// <summary>
+        /// 初始化 UserDataPath 并在首次启动时把旧版本遗留在 exe 目录下的 Settings.json 迁移过来。
+        /// 必须在 App_Startup 中 RootPath 被重新赋值之后调用。
+        /// </summary>
+        public static void InitializeUserDataPath()
+        {
+            if (_userDataPathInitialized) return;
+            _userDataPathInitialized = true;
+            try
+            {
+                if (!Directory.Exists(UserDataPath))
+                {
+                    Directory.CreateDirectory(UserDataPath);
+                }
+
+                string legacySettings = RootPath + "Settings.json";
+                string newUserSettings = UserDataPath + "Settings.json";
+                // 仅当新位置不存在、旧位置存在且二者路径不同时迁移，避免覆盖新位置已有的设置
+                if (!File.Exists(newUserSettings)
+                    && File.Exists(legacySettings)
+                    && !string.Equals(
+                        System.IO.Path.GetFullPath(legacySettings).TrimEnd('\\'),
+                        System.IO.Path.GetFullPath(newUserSettings).TrimEnd('\\'),
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    try
+                    {
+                        File.Copy(legacySettings, newUserSettings, false);
+                        LogHelper.NewLog("Migrated Settings.json from exe directory to user data directory: "
+                                         + newUserSettings);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile(
+                            "Failed to migrate Settings.json: " + ex.Message,
+                            LogHelper.LogType.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile(
+                    "InitializeUserDataPath failed: " + ex.Message,
+                    LogHelper.LogType.Error);
+            }
+        }
+
         public enum StartupMode
         {
             Normal,
@@ -121,6 +176,9 @@ namespace Ink_Canvas
         void App_Startup(object sender, StartupEventArgs e)
         {
             /*if (!StoreHelper.IsStoreApp) */RootPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase;
+
+            // RootPath 已就绪，初始化用户数据目录（含旧设置迁移）
+            InitializeUserDataPath();
 
             LogHelper.NewLog(string.Format("Ink Canvas Starting (Version: {0})", Assembly.GetExecutingAssembly().GetName().Version.ToString()));
 

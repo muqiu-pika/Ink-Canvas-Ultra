@@ -42,8 +42,12 @@ WizardStyle=modern
 Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "chinese"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
 
+[CustomMessages]
+english.automaticallyDoApps=Automatically configure the applications
+chinese.automaticallyDoApps=自动配置应用程序
+
 [Tasks]
-Name: automaticallyDoApps; Description: Automatically do the applications
+Name: automaticallyDoApps; Description: "{cm:automaticallyDoApps}"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: checkablealone
 //Flags: unchecked
 
