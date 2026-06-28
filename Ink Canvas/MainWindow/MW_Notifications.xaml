@@ -10,28 +10,50 @@
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     mc:Ignorable="d">
     <Grid>
-        <!--  // 通知弹窗 //  -->
-        <Grid
-            Name="GridNotifications"
-            Margin="0,110"
-            HorizontalAlignment="Center"
-            VerticalAlignment="Bottom"
-            Visibility="Collapsed">
-            <Border
-                MaxHeight="200"
-                Padding="20,10"
-                Background="White"
-                BorderBrush="Black"
-                BorderThickness="1.5"
-                CornerRadius="10"
-                Opacity="0.95">
-                <TextBlock
-                    Name="TextBlockNotice"
-                    HorizontalAlignment="Center"
-                    VerticalAlignment="Center"
-                    FontSize="16"
-                    Text="测试文本" />
-            </Border>
+        <!--  // 通知弹窗 //  -->
+
+        <Grid
+
+            Name="GridNotifications"
+
+            Margin="0,110"
+
+            HorizontalAlignment="Center"
+
+            VerticalAlignment="Bottom"
+
+            Visibility="Collapsed">
+
+            <Border
+
+                MaxHeight="200"
+
+                Padding="20,10"
+
+                Background="White"
+
+                BorderBrush="Black"
+
+                BorderThickness="1.5"
+
+                CornerRadius="10"
+
+                Opacity="0.95">
+
+                <TextBlock
+
+                    Name="TextBlockNotice"
+
+                    HorizontalAlignment="Center"
+
+                    VerticalAlignment="Center"
+
+                    FontSize="16"
+
+                    Text="测试文本" />
+
+            </Border>
+
         </Grid>
     </Grid>
 </UserControl>

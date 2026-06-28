@@ -44,9 +44,10 @@ jobs:
         msbuild -target:"Ink Canvas" /p:Configuration=Release /p:Platform="Any CPU" /p:GitFlow="Github Action"
         
     # 创建视频展台快捷方式
+    # 使用 pwsh (PowerShell 7) 以 UTF-8 读取脚本，避免 Windows PowerShell 5.1 将中文文件名解析成乱码
     - name: Create Video Presenter Shortcut
       run: |
-        powershell -ExecutionPolicy Bypass -File Create-Shortcut.ps1
+        pwsh -ExecutionPolicy Bypass -File Create-Shortcut.ps1
         
     # 提取版本号
     - name: Extract version
@@ -63,5 +64,5 @@ jobs:
     - name: Upload to artifact
       uses: actions/upload-artifact@v7
       with:
-        name: Ink.Canvas.Ultra.V${{ steps.version.outputs.version }}
+        name: Ink.Canvas.Ultra.V.${{ steps.version.outputs.version }}
         path: Ink Canvas/bin/Release

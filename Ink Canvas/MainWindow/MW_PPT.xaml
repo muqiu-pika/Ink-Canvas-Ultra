@@ -10,357 +10,708 @@
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     mc:Ignorable="d">
     <Grid>
-        <!--  // PPT 翻页按钮 //  -->
-        <Viewbox
-            x:Name="PPTNavigationBottomLeft"
-            Height="40"
-            Margin="2,0,0,2"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Bottom"
-            Visibility="Visible">
-            <Border
-                Background="{DynamicResource FloatBarBackground}"
-                BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="6"
-                Opacity="0.4">
-                <ikw:SimpleStackPanel Orientation="Horizontal">
-                    <Border
-                        Width="40"
-                        Height="40"
-                        Background="Transparent"
-                        CornerRadius="5 5 0 0"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="GridPPTControlPrevious_MouseUp">
-                        <ui:FontIcon
-                            Width="26"
-                            Height="26"
-                            FontFamily="{StaticResource FluentIconFontFamily}"
-                            Foreground="{DynamicResource FloatBarForeground}"
-                            Glyph="&#xedd5;" />
-                    </Border>
-                    <Border
-                        x:Name="PptNavigationBottomBtn"
-                        Width="40"
-                        Height="38"
-                        Background="Transparent"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="PPTNavigationBtn_Click"
-                        Visibility="Visible">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1" />
-                                <ColumnDefinition Width="36" />
-                                <ColumnDefinition Width="1" />
-                            </Grid.ColumnDefinitions>
-                            <Line
-                                Grid.Column="0"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Stroke="{DynamicResource FloatBarForeground}"
-                                StrokeThickness="1"
-                                X1="0"
-                                X2="0"
-                                Y1="0"
-                                Y2="25" />
-                            <TextBlock
-                                x:Name="PptNavigationTextBlockBottom"
-                                Grid.Column="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="9"
-                                Foreground="{DynamicResource FloatBarForeground}"
-                                Text="0/0" />
-                            <Line
-                                Grid.Column="2"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Stroke="{DynamicResource FloatBarForeground}"
-                                StrokeThickness="1"
-                                X1="0"
-                                X2="0"
-                                Y1="0"
-                                Y2="25" />
-                        </Grid>
-                    </Border>
-                    <Border
-                        Width="40"
-                        Height="40"
-                        Background="Transparent"
-                        CornerRadius="0 0 5 5"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="GridPPTControlNext_MouseUp">
-                        <ui:FontIcon
-                            Width="26"
-                            Height="26"
-                            FontFamily="{StaticResource FluentIconFontFamily}"
-                            Foreground="{DynamicResource FloatBarForeground}"
-                            Glyph="&#xedd6;" />
-                    </Border>
-                </ikw:SimpleStackPanel>
-            </Border>
-        </Viewbox>
-        <Viewbox
-            x:Name="PPTNavigationBottomRight"
-            Height="40"
-            Margin="2,0,0,2"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Bottom"
-            Visibility="Visible">
-            <Border
-                Background="{DynamicResource FloatBarBackground}"
-                BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="6"
-                Opacity="0.4">
-                <ikw:SimpleStackPanel Orientation="Horizontal">
-                    <Border
-                        Width="40"
-                        Height="40"
-                        Background="Transparent"
-                        CornerRadius="5 5 0 0"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="GridPPTControlPrevious_MouseUp">
-                        <ui:FontIcon
-                            Width="26"
-                            Height="26"
-                            FontFamily="{StaticResource FluentIconFontFamily}"
-                            Foreground="{DynamicResource FloatBarForeground}"
-                            Glyph="&#xedd5;" />
-                    </Border>
-                    <Border
-                        Width="40"
-                        Height="38"
-                        Background="Transparent"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="PPTNavigationBtn_Click"
-                        Visibility="{Binding ElementName=PptNavigationBottomBtn, Path=Visibility}">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1" />
-                                <ColumnDefinition Width="36" />
-                                <ColumnDefinition Width="1" />
-                            </Grid.ColumnDefinitions>
-                            <Line
-                                Grid.Column="0"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Stroke="{DynamicResource FloatBarForeground}"
-                                StrokeThickness="1"
-                                X1="0"
-                                X2="0"
-                                Y1="0"
-                                Y2="25" />
-                            <TextBlock
-                                Grid.Column="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="9"
-                                Foreground="{DynamicResource FloatBarForeground}"
-                                Text="{Binding ElementName=PptNavigationTextBlockBottom, Path=Text}" />
-                            <Line
-                                Grid.Column="2"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Stroke="{DynamicResource FloatBarForeground}"
-                                StrokeThickness="1"
-                                X1="0"
-                                X2="0"
-                                Y1="0"
-                                Y2="25" />
-                        </Grid>
-                    </Border>
-                    <Border
-                        Width="40"
-                        Height="40"
-                        Background="Transparent"
-                        CornerRadius="0 0 5 5"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="GridPPTControlNext_MouseUp">
-                        <ui:FontIcon
-                            Width="26"
-                            Height="26"
-                            FontFamily="{StaticResource FluentIconFontFamily}"
-                            Foreground="{DynamicResource FloatBarForeground}"
-                            Glyph="&#xedd6;" />
-                    </Border>
-                </ikw:SimpleStackPanel>
-            </Border>
-        </Viewbox>
-        <Viewbox
-            x:Name="PPTNavigationSidesLeft"
-            Width="40"
-            Margin="6,0,0,0"
-            HorizontalAlignment="Left"
-            VerticalAlignment="Center"
-            Visibility="Visible">
-            <Border
-                Background="{DynamicResource FloatBarBackground}"
-                BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="6"
-                Opacity="0.4">
-                <ikw:SimpleStackPanel Orientation="Vertical">
-                    <Border
-                        Width="40"
-                        Height="40"
-                        Background="Transparent"
-                        CornerRadius="5 5 0 0"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="GridPPTControlPrevious_MouseUp">
-                        <ui:FontIcon
-                            Width="26"
-                            Height="26"
-                            FontFamily="{StaticResource FluentIconFontFamily}"
-                            Foreground="{DynamicResource FloatBarForeground}"
-                            Glyph="&#xedd7;" />
-                    </Border>
-                    <Border
-                        x:Name="PptNavigationSidesBtn"
-                        Width="40"
-                        Height="38"
-                        Background="Transparent"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="PPTNavigationBtn_Click"
-                        Visibility="Visible">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="1" />
-                                <RowDefinition Height="36" />
-                                <RowDefinition Height="1" />
-                            </Grid.RowDefinitions>
-                            <Line
-                                Grid.Row="0"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Stroke="{DynamicResource FloatBarForeground}"
-                                StrokeThickness="1"
-                                X1="0"
-                                X2="25"
-                                Y1="0"
-                                Y2="0" />
-                            <TextBlock
-                                Grid.Row="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="9"
-                                Foreground="{DynamicResource FloatBarForeground}"
-                                Text="{Binding ElementName=PptNavigationTextBlockBottom, Path=Text}" />
-                            <Line
-                                Grid.Row="2"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Stroke="{DynamicResource FloatBarForeground}"
-                                StrokeThickness="1"
-                                X1="0"
-                                X2="25"
-                                Y1="0"
-                                Y2="0" />
-                        </Grid>
-                    </Border>
-                    <Border
-                        Width="40"
-                        Height="40"
-                        Background="Transparent"
-                        CornerRadius="0 0 5 5"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="GridPPTControlNext_MouseUp">
-                        <ui:FontIcon
-                            Width="26"
-                            Height="26"
-                            FontFamily="{StaticResource FluentIconFontFamily}"
-                            Foreground="{DynamicResource FloatBarForeground}"
-                            Glyph="&#xedd8;" />
-                    </Border>
-                </ikw:SimpleStackPanel>
-            </Border>
-        </Viewbox>
-        <Viewbox
-            x:Name="PPTNavigationSidesRight"
-            Width="40"
-            Margin="0,0,6,0"
-            HorizontalAlignment="Right"
-            VerticalAlignment="Center"
-            Visibility="Visible">
-            <Border
-                Background="{DynamicResource FloatBarBackground}"
-                BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="6"
-                Opacity="0.4">
-                <ikw:SimpleStackPanel Orientation="Vertical">
-                    <Border
-                        Width="40"
-                        Height="40"
-                        Background="Transparent"
-                        CornerRadius="5 5 0 0"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="GridPPTControlPrevious_MouseUp">
-                        <ui:FontIcon
-                            Width="26"
-                            Height="26"
-                            FontFamily="{StaticResource FluentIconFontFamily}"
-                            Foreground="{DynamicResource FloatBarForeground}"
-                            Glyph="&#xedd7;" />
-                    </Border>
-                    <Border
-                        Width="40"
-                        Height="38"
-                        Background="Transparent"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="PPTNavigationBtn_Click"
-                        Visibility="{Binding ElementName=PptNavigationSidesBtn, Path=Visibility}">
-                        <Grid>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="1" />
-                                <RowDefinition Height="36" />
-                                <RowDefinition Height="1" />
-                            </Grid.RowDefinitions>
-                            <Line
-                                Grid.Row="0"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Stroke="{DynamicResource FloatBarForeground}"
-                                StrokeThickness="1"
-                                X1="0"
-                                X2="25"
-                                Y1="0"
-                                Y2="0" />
-                            <TextBlock
-                                Grid.Row="1"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                FontSize="9"
-                                Foreground="{DynamicResource FloatBarForeground}"
-                                Text="{Binding ElementName=PptNavigationTextBlockBottom, Path=Text}" />
-                            <Line
-                                Grid.Row="2"
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Stroke="{DynamicResource FloatBarForeground}"
-                                StrokeThickness="1"
-                                X1="0"
-                                X2="25"
-                                Y1="0"
-                                Y2="0" />
-                        </Grid>
-                    </Border>
-                    <Border
-                        Width="40"
-                        Height="40"
-                        Background="Transparent"
-                        CornerRadius="0 0 5 5"
-                        MouseDown="Border_MouseDown"
-                        MouseUp="GridPPTControlNext_MouseUp">
-                        <ui:FontIcon
-                            Width="26"
-                            Height="26"
-                            FontFamily="{StaticResource FluentIconFontFamily}"
-                            Foreground="{DynamicResource FloatBarForeground}"
-                            Glyph="&#xedd8;" />
-                    </Border>
-                </ikw:SimpleStackPanel>
-            </Border>
+        <!--  // PPT 翻页按钮 //  -->
+
+        <Viewbox
+
+            x:Name="PPTNavigationBottomLeft"
+
+            Height="40"
+
+            Margin="2,0,0,2"
+
+            HorizontalAlignment="Left"
+
+            VerticalAlignment="Bottom"
+
+            Visibility="Visible">
+
+            <Border
+
+                Background="{DynamicResource FloatBarBackground}"
+
+                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+
+                BorderThickness="1"
+
+                CornerRadius="6"
+
+                Opacity="0.4">
+
+                <ikw:SimpleStackPanel Orientation="Horizontal">
+
+                    <Border
+
+                        Width="40"
+
+                        Height="40"
+
+                        Background="Transparent"
+
+                        CornerRadius="5 5 0 0"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="GridPPTControlPrevious_MouseUp">
+
+                        <ui:FontIcon
+
+                            Width="26"
+
+                            Height="26"
+
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+
+                            Foreground="{DynamicResource FloatBarForeground}"
+
+                            Glyph="&#xedd5;" />
+
+                    </Border>
+
+                    <Border
+
+                        x:Name="PptNavigationBottomBtn"
+
+                        Width="40"
+
+                        Height="38"
+
+                        Background="Transparent"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="PPTNavigationBtn_Click"
+
+                        Visibility="Visible">
+
+                        <Grid>
+
+                            <Grid.ColumnDefinitions>
+
+                                <ColumnDefinition Width="1" />
+
+                                <ColumnDefinition Width="36" />
+
+                                <ColumnDefinition Width="1" />
+
+                            </Grid.ColumnDefinitions>
+
+                            <Line
+
+                                Grid.Column="0"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                Stroke="{DynamicResource FloatBarForeground}"
+
+                                StrokeThickness="1"
+
+                                X1="0"
+
+                                X2="0"
+
+                                Y1="0"
+
+                                Y2="25" />
+
+                            <TextBlock
+
+                                x:Name="PptNavigationTextBlockBottom"
+
+                                Grid.Column="1"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                FontSize="9"
+
+                                Foreground="{DynamicResource FloatBarForeground}"
+
+                                Text="0/0" />
+
+                            <Line
+
+                                Grid.Column="2"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                Stroke="{DynamicResource FloatBarForeground}"
+
+                                StrokeThickness="1"
+
+                                X1="0"
+
+                                X2="0"
+
+                                Y1="0"
+
+                                Y2="25" />
+
+                        </Grid>
+
+                    </Border>
+
+                    <Border
+
+                        Width="40"
+
+                        Height="40"
+
+                        Background="Transparent"
+
+                        CornerRadius="0 0 5 5"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="GridPPTControlNext_MouseUp">
+
+                        <ui:FontIcon
+
+                            Width="26"
+
+                            Height="26"
+
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+
+                            Foreground="{DynamicResource FloatBarForeground}"
+
+                            Glyph="&#xedd6;" />
+
+                    </Border>
+
+                </ikw:SimpleStackPanel>
+
+            </Border>
+
+        </Viewbox>
+
+        <Viewbox
+
+            x:Name="PPTNavigationBottomRight"
+
+            Height="40"
+
+            Margin="2,0,0,2"
+
+            HorizontalAlignment="Right"
+
+            VerticalAlignment="Bottom"
+
+            Visibility="Visible">
+
+            <Border
+
+                Background="{DynamicResource FloatBarBackground}"
+
+                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+
+                BorderThickness="1"
+
+                CornerRadius="6"
+
+                Opacity="0.4">
+
+                <ikw:SimpleStackPanel Orientation="Horizontal">
+
+                    <Border
+
+                        Width="40"
+
+                        Height="40"
+
+                        Background="Transparent"
+
+                        CornerRadius="5 5 0 0"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="GridPPTControlPrevious_MouseUp">
+
+                        <ui:FontIcon
+
+                            Width="26"
+
+                            Height="26"
+
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+
+                            Foreground="{DynamicResource FloatBarForeground}"
+
+                            Glyph="&#xedd5;" />
+
+                    </Border>
+
+                    <Border
+
+                        Width="40"
+
+                        Height="38"
+
+                        Background="Transparent"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="PPTNavigationBtn_Click"
+
+                        Visibility="{Binding ElementName=PptNavigationBottomBtn, Path=Visibility}">
+
+                        <Grid>
+
+                            <Grid.ColumnDefinitions>
+
+                                <ColumnDefinition Width="1" />
+
+                                <ColumnDefinition Width="36" />
+
+                                <ColumnDefinition Width="1" />
+
+                            </Grid.ColumnDefinitions>
+
+                            <Line
+
+                                Grid.Column="0"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                Stroke="{DynamicResource FloatBarForeground}"
+
+                                StrokeThickness="1"
+
+                                X1="0"
+
+                                X2="0"
+
+                                Y1="0"
+
+                                Y2="25" />
+
+                            <TextBlock
+
+                                Grid.Column="1"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                FontSize="9"
+
+                                Foreground="{DynamicResource FloatBarForeground}"
+
+                                Text="{Binding ElementName=PptNavigationTextBlockBottom, Path=Text}" />
+
+                            <Line
+
+                                Grid.Column="2"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                Stroke="{DynamicResource FloatBarForeground}"
+
+                                StrokeThickness="1"
+
+                                X1="0"
+
+                                X2="0"
+
+                                Y1="0"
+
+                                Y2="25" />
+
+                        </Grid>
+
+                    </Border>
+
+                    <Border
+
+                        Width="40"
+
+                        Height="40"
+
+                        Background="Transparent"
+
+                        CornerRadius="0 0 5 5"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="GridPPTControlNext_MouseUp">
+
+                        <ui:FontIcon
+
+                            Width="26"
+
+                            Height="26"
+
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+
+                            Foreground="{DynamicResource FloatBarForeground}"
+
+                            Glyph="&#xedd6;" />
+
+                    </Border>
+
+                </ikw:SimpleStackPanel>
+
+            </Border>
+
+        </Viewbox>
+
+        <Viewbox
+
+            x:Name="PPTNavigationSidesLeft"
+
+            Width="40"
+
+            Margin="6,0,0,0"
+
+            HorizontalAlignment="Left"
+
+            VerticalAlignment="Center"
+
+            Visibility="Visible">
+
+            <Border
+
+                Background="{DynamicResource FloatBarBackground}"
+
+                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+
+                BorderThickness="1"
+
+                CornerRadius="6"
+
+                Opacity="0.4">
+
+                <ikw:SimpleStackPanel Orientation="Vertical">
+
+                    <Border
+
+                        Width="40"
+
+                        Height="40"
+
+                        Background="Transparent"
+
+                        CornerRadius="5 5 0 0"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="GridPPTControlPrevious_MouseUp">
+
+                        <ui:FontIcon
+
+                            Width="26"
+
+                            Height="26"
+
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+
+                            Foreground="{DynamicResource FloatBarForeground}"
+
+                            Glyph="&#xedd7;" />
+
+                    </Border>
+
+                    <Border
+
+                        x:Name="PptNavigationSidesBtn"
+
+                        Width="40"
+
+                        Height="38"
+
+                        Background="Transparent"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="PPTNavigationBtn_Click"
+
+                        Visibility="Visible">
+
+                        <Grid>
+
+                            <Grid.RowDefinitions>
+
+                                <RowDefinition Height="1" />
+
+                                <RowDefinition Height="36" />
+
+                                <RowDefinition Height="1" />
+
+                            </Grid.RowDefinitions>
+
+                            <Line
+
+                                Grid.Row="0"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                Stroke="{DynamicResource FloatBarForeground}"
+
+                                StrokeThickness="1"
+
+                                X1="0"
+
+                                X2="25"
+
+                                Y1="0"
+
+                                Y2="0" />
+
+                            <TextBlock
+
+                                Grid.Row="1"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                FontSize="9"
+
+                                Foreground="{DynamicResource FloatBarForeground}"
+
+                                Text="{Binding ElementName=PptNavigationTextBlockBottom, Path=Text}" />
+
+                            <Line
+
+                                Grid.Row="2"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                Stroke="{DynamicResource FloatBarForeground}"
+
+                                StrokeThickness="1"
+
+                                X1="0"
+
+                                X2="25"
+
+                                Y1="0"
+
+                                Y2="0" />
+
+                        </Grid>
+
+                    </Border>
+
+                    <Border
+
+                        Width="40"
+
+                        Height="40"
+
+                        Background="Transparent"
+
+                        CornerRadius="0 0 5 5"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="GridPPTControlNext_MouseUp">
+
+                        <ui:FontIcon
+
+                            Width="26"
+
+                            Height="26"
+
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+
+                            Foreground="{DynamicResource FloatBarForeground}"
+
+                            Glyph="&#xedd8;" />
+
+                    </Border>
+
+                </ikw:SimpleStackPanel>
+
+            </Border>
+
+        </Viewbox>
+
+        <Viewbox
+
+            x:Name="PPTNavigationSidesRight"
+
+            Width="40"
+
+            Margin="0,0,6,0"
+
+            HorizontalAlignment="Right"
+
+            VerticalAlignment="Center"
+
+            Visibility="Visible">
+
+            <Border
+
+                Background="{DynamicResource FloatBarBackground}"
+
+                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+
+                BorderThickness="1"
+
+                CornerRadius="6"
+
+                Opacity="0.4">
+
+                <ikw:SimpleStackPanel Orientation="Vertical">
+
+                    <Border
+
+                        Width="40"
+
+                        Height="40"
+
+                        Background="Transparent"
+
+                        CornerRadius="5 5 0 0"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="GridPPTControlPrevious_MouseUp">
+
+                        <ui:FontIcon
+
+                            Width="26"
+
+                            Height="26"
+
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+
+                            Foreground="{DynamicResource FloatBarForeground}"
+
+                            Glyph="&#xedd7;" />
+
+                    </Border>
+
+                    <Border
+
+                        Width="40"
+
+                        Height="38"
+
+                        Background="Transparent"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="PPTNavigationBtn_Click"
+
+                        Visibility="{Binding ElementName=PptNavigationSidesBtn, Path=Visibility}">
+
+                        <Grid>
+
+                            <Grid.RowDefinitions>
+
+                                <RowDefinition Height="1" />
+
+                                <RowDefinition Height="36" />
+
+                                <RowDefinition Height="1" />
+
+                            </Grid.RowDefinitions>
+
+                            <Line
+
+                                Grid.Row="0"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                Stroke="{DynamicResource FloatBarForeground}"
+
+                                StrokeThickness="1"
+
+                                X1="0"
+
+                                X2="25"
+
+                                Y1="0"
+
+                                Y2="0" />
+
+                            <TextBlock
+
+                                Grid.Row="1"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                FontSize="9"
+
+                                Foreground="{DynamicResource FloatBarForeground}"
+
+                                Text="{Binding ElementName=PptNavigationTextBlockBottom, Path=Text}" />
+
+                            <Line
+
+                                Grid.Row="2"
+
+                                HorizontalAlignment="Center"
+
+                                VerticalAlignment="Center"
+
+                                Stroke="{DynamicResource FloatBarForeground}"
+
+                                StrokeThickness="1"
+
+                                X1="0"
+
+                                X2="25"
+
+                                Y1="0"
+
+                                Y2="0" />
+
+                        </Grid>
+
+                    </Border>
+
+                    <Border
+
+                        Width="40"
+
+                        Height="40"
+
+                        Background="Transparent"
+
+                        CornerRadius="0 0 5 5"
+
+                        MouseDown="Border_MouseDown"
+
+                        MouseUp="GridPPTControlNext_MouseUp">
+
+                        <ui:FontIcon
+
+                            Width="26"
+
+                            Height="26"
+
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+
+                            Foreground="{DynamicResource FloatBarForeground}"
+
+                            Glyph="&#xedd8;" />
+
+                    </Border>
+
+                </ikw:SimpleStackPanel>
+
+            </Border>
+
         </Viewbox>
     </Grid>
 </UserControl>
