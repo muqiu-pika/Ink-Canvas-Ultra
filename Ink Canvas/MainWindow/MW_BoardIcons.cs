@@ -23,7 +23,8 @@ namespace Ink_Canvas
             {
                 if (inkColor == 0) lastBoardInkColor = 5;
             }
-            ComboBoxTheme_SelectionChanged(null, null);
+            // 直接触发主题刷新，避免依赖 ComboBoxTheme（设置窗口未打开时为 null 导致闪退）
+            SystemEvents_UserPreferenceChanged(null, null);
             CheckColorTheme(true);
             if (BoardPen.Opacity == 1)
             {
