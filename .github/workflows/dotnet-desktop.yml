@@ -45,9 +45,12 @@ jobs:
         
     # 创建视频展台快捷方式
     # 使用 pwsh (PowerShell 7) 以 UTF-8 读取脚本，避免 Windows PowerShell 5.1 将中文文件名解析成乱码
+    # 传入输出目录和 exe 路径，因为 PostBuild 事件在 CI=true 时不执行
     - name: Create Video Presenter Shortcut
       run: |
-        pwsh -ExecutionPolicy Bypass -File Create-Shortcut.ps1
+        $outputDir = Join-Path $env:GITHUB_WORKSPACE "Ink Canvas\bin\Release"
+        $exePath = Join-Path $outputDir "Ink Canvas Ultra.exe"
+        & pwsh -ExecutionPolicy Bypass -File Create-Shortcut.ps1 -OutputDir "$outputDir" -ExePath "$exePath"
         
     # 提取版本号
     - name: Extract version
@@ -55,8 +58,11 @@ jobs:
       run: |
         $csproj = "Ink Canvas\Ink Canvas.csproj"
         [xml]$project = Get-Content $csproj
-        $appVersion = $project.Project.PropertyGroup.ApplicationVersion
-        $version = $appVersion -replace '\.%\w+$', ''
+        # csproj 中存在多个 PropertyGroup，.ApplicationVersion 返回数组，
+        # 只有一个 PropertyGroup 包含 ApplicationVersion，其余为 $null，
+        # 取第一个非空值，避免数组转字符串时出现多余空格
+        $appVersion = ($project.Project.PropertyGroup.ApplicationVersion | Where-Object { $_ } | Select-Object -First 1)
+        $version = ($appVersion -replace '\.%\w+$', '').Trim()
         Write-Output "Extracted version: $version"
         "version=$version" >> $env:GITHUB_OUTPUT
 
