@@ -1,4 +1,4 @@
-﻿param(
+param(
     [string]$OutputDir = "",
     [string]$ExePath = ""
 )
@@ -29,16 +29,17 @@ if (Test-Path $TempShortcutPath) {
 }
 
 $Shortcut = $WshShell.CreateShortcut($TempShortcutPath)
-$Shortcut.TargetPath = $ExePath
+# 使用相对路径，使快捷方式在任意位置都能正确找到同目录下的 exe
+$Shortcut.TargetPath = "Ink Canvas Ultra.exe"
 $Shortcut.Arguments = "--video-presenter"
-$Shortcut.WorkingDirectory = $OutputDir
+$Shortcut.WorkingDirectory = ""
 $Shortcut.Description = "视频展台模式"
-$Shortcut.IconLocation = "$ExePath,0"
+$Shortcut.IconLocation = "Ink Canvas Ultra.exe,0"
 $Shortcut.Save()
 
 [System.IO.File]::Move($TempShortcutPath, $ShortcutPath)
 
 Write-Host "Shortcut created: $ShortcutPath"
-Write-Host "  Target: $ExePath"
+Write-Host "  Target: Ink Canvas Ultra.exe (relative, same folder as shortcut)"
 Write-Host "  Arguments: --video-presenter"
-Write-Host "  WorkingDir: $OutputDir"
+Write-Host "  WorkingDir: (relative, same folder as shortcut)"
