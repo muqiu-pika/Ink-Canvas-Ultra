@@ -71,12 +71,12 @@ namespace ShellShortcut {
     }
 
     public static class Creator {
-        public static void Create(string lnkPath, string targetAbsPath, string args, string iconRelName, int iconIndex) {
+        public static void Create(string lnkPath, string targetAbsPath, string args, string iconPath, int iconIndex) {
             IShellLinkW link = (IShellLinkW)new CShellLink();
             link.SetPath(targetAbsPath);
             link.SetArguments(args);
             link.SetDescription("视频展台模式");
-            link.SetIconLocation(targetAbsPath, iconIndex);
+            link.SetIconLocation(iconPath, iconIndex);
             link.SetWorkingDirectory("");
             link.SetShowCmd(1);
             link.SetRelativePath(lnkPath, 0);
