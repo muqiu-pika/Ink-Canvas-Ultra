@@ -149,12 +149,12 @@
 	    <LastGenOutput>Settings.Designer.cs</LastGenOutput>
 	  </None>
 	</ItemGroup>
-	<Target Name="CreateVideoPresenterShortcut" AfterTargets="Build" Condition="'$(CI)' != 'true'">
+	<Target Name="CreateVideoPresenterLauncher" AfterTargets="Build" Condition="'$(CI)' != 'true'">
 		<PropertyGroup>
-			<VideoPresenterShortcutScript>$(ProjectDir)..\Create-Shortcut.ps1</VideoPresenterShortcutScript>
+			<VideoPresenterLauncherScript>$(ProjectDir)..\Create-VideoPresenterLauncher.ps1</VideoPresenterLauncherScript>
 			<VideoPresenterOutputDir>$(TargetDir)</VideoPresenterOutputDir>
 		</PropertyGroup>
-		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(VideoPresenterShortcutScript)&quot; -OutputDir &quot;$(VideoPresenterOutputDir)&quot; -ExePath &quot;$(TargetPath)&quot;" ContinueOnError="true" />
+		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(VideoPresenterLauncherScript)&quot; -OutputDir &quot;$(VideoPresenterOutputDir)&quot;" ContinueOnError="true" />
 	</Target>
 </Project>
 
