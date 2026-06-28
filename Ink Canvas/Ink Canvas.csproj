@@ -151,9 +151,10 @@
 	</ItemGroup>
 	<Target Name="CreateVideoPresenterShortcut" AfterTargets="Build" Condition="'$(CI)' != 'true'">
 		<PropertyGroup>
-			<VideoPresenterShortcutPath>$(TargetDir)视频展台.lnk</VideoPresenterShortcutPath>
+			<VideoPresenterShortcutScript>$(ProjectDir)..\Create-Shortcut.ps1</VideoPresenterShortcutScript>
+			<VideoPresenterOutputDir>$(TargetDir)</VideoPresenterOutputDir>
 		</PropertyGroup>
-		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -Command &quot;$shell = New-Object -ComObject WScript.Shell; $shortcut = $shell.CreateShortcut('$(VideoPresenterShortcutPath)'); $shortcut.TargetPath = 'Ink Canvas Ultra.exe'; $shortcut.Arguments = '--video-presenter'; $shortcut.WorkingDirectory = ''; $shortcut.IconLocation = 'Ink Canvas Ultra.exe,0'; $shortcut.Save();&quot;" ContinueOnError="true" />
+		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(VideoPresenterShortcutScript)&quot; -OutputDir &quot;$(VideoPresenterOutputDir)&quot; -ExePath &quot;$(TargetPath)&quot;" ContinueOnError="true" />
 	</Target>
 </Project>
 
