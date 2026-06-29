@@ -431,7 +431,7 @@
 
                                                     FontWeight="Bold">
 
-                                                    指南
+                                                    快捷键指南
 
                                                 </Label>
 
@@ -469,7 +469,7 @@
 
                                                     Foreground="{DynamicResource PopupWindowForeground}"
 
-                                                    Glyph="&#xE7C3;" />
+                                                    Glyph="&#xE82F;" />
 
                                                 <Label
 

@@ -7,7 +7,7 @@
     xmlns:local="clr-namespace:Ink_Canvas"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
-    Title="Ink Canvas Ultra 使用指南"
+    Title="Ink Canvas Ultra 快捷键指南"
     Width="700"
     Height="600"
     MinWidth="500"
@@ -38,7 +38,7 @@
                         FontSize="26"
                         FontWeight="SemiBold"
                         Foreground="{DynamicResource PopupWindowForeground}"
-                        Text="使用指南" />
+                        Text="快捷键指南" />
                     <Border
                         Padding="6,2"
                         Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
@@ -52,21 +52,8 @@
             </Grid>
             
             <Grid Grid.Row="1">
-            <Border
-                Width="64"
-                Height="15"
-                Margin="0,0,0,5"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Bottom"
-                Background="{DynamicResource PopupWindowBackground}"
-                BorderBrush="{DynamicResource PopupWindowBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="8"
-                MouseMove="WindowDragMove"
-                Visibility="Visible" />
             <Grid>
                 <ScrollViewer
-                    Margin="0,0,0,30"
                     ui:ThemeManager.RequestedTheme="Light"
                     ManipulationBoundaryFeedback="SCManipulationBoundaryFeedback"
                     PanningMode="VerticalFirst"

@@ -23,6 +23,7 @@ namespace Ink_Canvas
             Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.Q, HotKey_QuitDrawMode);
             Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.B, HotKey_Board);
             Hotkey.Regist(this, HotkeyModifiers.MOD_CONTROL | HotkeyModifiers.MOD_SHIFT, Key.V, HotKey_Paste);
+            Hotkey.Regist(this, HotkeyModifiers.MOD_CONTROL, Key.Q, HotKey_Exit);
         }
 
         private void HotKey_ExitPPTSlideShow()
@@ -65,6 +66,11 @@ namespace Ink_Canvas
         private void HotKey_Board()
         {
             ImageBlackboard_Click(null, null);
+        }
+
+        private void HotKey_Exit()
+        {
+            BtnExit_Click(null, null);
         }
 
         private async void HotKey_Paste()

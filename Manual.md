@@ -1,11 +1,12 @@
-# Ink Canvas Ultra 使用说明
+# Ink Canvas Ultra 快捷键指南
 
 ## 目录
 [一、介绍](#intro)  
-[二、用法](#usage)  
-[三、技巧](#skill)  
-[四、感谢](#thank)  
-[五、图片](#pictu)
+[二、快捷键](#hotkeys)  
+[三、用法](#usage)  
+[四、技巧](#skill)  
+[五、感谢](#thank)  
+[六、图片](#pictu)
 ## Ink Canvas Ultra 是什么? <span id='intro'></span>
 Ink Canvas Ultra 画板是一款轻量级画板软件，其针对希沃白板设备进行了特别优化，与预装的"希沃白板 5"软件相比，启动速度大幅度提升（提升5-10 倍），系统资源占用更小，使用体验更佳。  
 
@@ -52,6 +53,26 @@ Ink Canvas Ultra 画板是一款轻量级画板软件，其针对希沃白板设
 * **幻灯片自动保存墨迹**：默认保存至 `文档\Ink Canvas Strokes`
 * **墨迹回放**：从头自动书写一遍屏中墨迹
 
+
+## 快捷键 <span id='hotkeys'></span>
+
+| 快捷键 | 功能 |
+|--------|------|
+| `Ctrl + Z` | 撤销 |
+| `Ctrl + Y` | 重做 |
+| `Ctrl + E` | 清屏 |
+| `Ctrl + V` | 粘贴剪贴板图片（放映/白板模式下） |
+| `Ctrl + Shift + V` | 全局粘贴 |
+| `Ctrl + Q` | 退出软件 |
+| `Alt + C` | 截屏 |
+| `Alt + V` | 显示/隐藏 笑脸右侧工具栏 |
+| `Alt + D` | 切换至批注模式 / 显示或关闭调色板 |
+| `Alt + Q` | 退出批注模式 |
+| `Alt + B` | 进入/退出 画板 |
+| `Alt + S` | 切换至选择模式 |
+| `Alt + E` | 切换至面积擦/墨迹擦功能 |
+| `Alt + L` | 切换至单次直线绘制功能 |
+| `Shift + Esc` | 退出 PPT 放映 |
 
 ## 用法 <span id='usage'></span>
 ### 画笔设置
