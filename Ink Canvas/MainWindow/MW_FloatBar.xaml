@@ -113,7 +113,19 @@
 
                             Foreground="{DynamicResource FloatBarForeground}"
 
-                            Glyph="&#xe76e;" />
+                            Glyph="&#xe76e;"
+
+                            ToolTipService.InitialShowDelay="200">
+                            <ToolTipService.ToolTip>
+                                <ToolTip>
+                                    <TextBlock>
+                                        <Run Text="左键：折叠浮动栏" />
+                                        <LineBreak />
+                                        <Run Text="左键拖动：移动浮动栏" />
+                                    </TextBlock>
+                                </ToolTip>
+                            </ToolTipService.ToolTip>
+                        </ui:FontIcon>
 
                         <ui:FontIcon
 
@@ -173,6 +185,8 @@
 
                             BorderThickness="0"
 
+                            ToolTip="鼠标"
+
                             Click="CursorIcon_Click">
 
                             <ikw:SimpleStackPanel
@@ -226,6 +240,8 @@
                             Padding="0"
 
                             BorderThickness="0"
+
+                            ToolTip="画笔"
 
                             Click="PenIcon_Click">
 
@@ -284,6 +300,8 @@
                             Padding="0"
 
                             BorderThickness="0"
+
+                            ToolTip="清空画布"
 
                             Click="SymbolIconDelete_MouseUp">
 
@@ -1405,6 +1423,8 @@
 
                                 BorderThickness="0"
 
+                                ToolTip="清空并切换鼠标"
+
                                 Click="CursorWithDelIcon_Click">
 
                                 <ikw:SimpleStackPanel
@@ -1476,6 +1496,8 @@
                                 Padding="0"
 
                                 BorderThickness="0"
+
+                                ToolTip="圆形橡皮擦"
 
                                 Click="EraserIcon_Click">
 
@@ -1551,6 +1573,8 @@
 
                                 BorderThickness="0"
 
+                                ToolTip="墨迹橡皮擦"
+
                                 Click="EraserIconByStrokes_Click">
 
                                 <ikw:SimpleStackPanel
@@ -1625,6 +1649,8 @@
 
                                 BorderThickness="0"
 
+                                ToolTip="选择"
+
                                 Click="SymbolIconSelect_Click">
 
                                 <ikw:SimpleStackPanel
@@ -1698,6 +1724,8 @@
                                 Padding="0"
 
                                 BorderThickness="0"
+
+                                ToolTip="绘制图形"
 
                                 Click="ImageDrawShape_Click">
 
@@ -2221,6 +2249,8 @@
 
                                 BorderThickness="0"
 
+                                ToolTip="插入媒体"
+
                                 Click="BtnMediaInsertUnified_Click">
 
                                 <ikw:SimpleStackPanel
@@ -2272,6 +2302,8 @@
                                 Padding="0"
 
                                 BorderThickness="0"
+
+                                ToolTip="撤销"
 
                                 Click="SymbolIconUndo_Click">
 
@@ -2336,6 +2368,8 @@
                                 Padding="0"
 
                                 BorderThickness="0"
+
+                                ToolTip="重做"
 
                                 Click="SymbolIconRedo_Click">
 
@@ -2409,6 +2443,8 @@
 
                                 BorderThickness="0"
 
+                                ToolTip="画板"
+
                                 Click="ImageBlackboard_Click">
 
                                 <Border
@@ -2475,6 +2511,8 @@
 
                                 BorderThickness="0"
 
+                                ToolTip="工具"
+
                                 Click="SymbolIconTools_Click">
 
                                 <ikw:SimpleStackPanel
@@ -2528,6 +2566,8 @@
                                 Padding="0"
 
                                 BorderThickness="0"
+
+                                ToolTip="隐藏工具栏"
 
                                 Click="FoldFloatingBar_Click">
 
@@ -2635,6 +2675,8 @@
 
                                                     BorderThickness="0"
 
+                                                    ToolTip="倒计时"
+
                                                     Click="ImageCountdownTimer_Click">
 
                                                     <ikw:SimpleStackPanel
@@ -2683,6 +2725,8 @@
 
                                                     BorderThickness="0"
 
+                                                    ToolTip="随机抽选"
+
                                                     Click="SymbolIconRand_Click">
 
                                                     <ikw:SimpleStackPanel
@@ -2730,6 +2774,8 @@
                                                     Padding="0"
 
                                                     BorderThickness="0"
+
+                                                    ToolTip="随机选人"
 
                                                     Click="SymbolIconRandOne_Click">
 
@@ -2817,6 +2863,8 @@
 
                                                     BorderThickness="0"
 
+                                                    ToolTip="保存墨迹"
+
                                                     Click="SymbolIconSaveStrokes_Click">
 
                                                     <ikw:SimpleStackPanel
@@ -2865,6 +2913,8 @@
 
                                                     BorderThickness="0"
 
+                                                    ToolTip="打开墨迹"
+
                                                     Click="SymbolIconOpenInkCanvasFile_Click">
 
                                                     <ikw:SimpleStackPanel
@@ -2912,6 +2962,8 @@
                                                     Padding="0"
 
                                                     BorderThickness="0"
+
+                                                    ToolTip="播放墨迹"
 
                                                     Click="GridInkReplayButton_Click">
 
@@ -2965,6 +3017,8 @@
 
                                                     BorderThickness="0"
 
+                                                    ToolTip="截屏"
+
                                                     Click="SymbolIconScreenshot_Click">
 
                                                     <ikw:SimpleStackPanel
@@ -3013,6 +3067,8 @@
 
                                                     BorderThickness="0"
 
+                                                    ToolTip="退出"
+
                                                     Click="BtnExit_Click">
 
                                                     <ikw:SimpleStackPanel
@@ -3060,6 +3116,8 @@
                                                     Padding="0"
 
                                                     BorderThickness="0"
+
+                                                    ToolTip="设置"
 
                                                     Click="SymbolIconSettings_Click">
 

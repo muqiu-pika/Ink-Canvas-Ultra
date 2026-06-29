@@ -120,7 +120,7 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 - 前往 [Releases 页面](https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/latest) 下载最新版本的压缩包
 - 解压后运行 "Ink Canvas Ultra.exe" 即可
-- 如需使用视频展台模式，可通过附带的"视频展台"快捷方式启动，或使用命令行参数 `--video-presenter`
+- 如需使用视频展台模式，可通过附带的"视频展台.vbs"启动，或使用命令行参数 `--video-presenter`
 
 ## 🔄 版本信息
 
