@@ -42,6 +42,8 @@ namespace Ink_Canvas
             {
                 BoardEraserByStrokes.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
             }
+            // 刷新方格纸颜色
+            RefreshGridPaper();
         }
 
         // 白板模式画笔按钮点击事件 - 独立处理，不影响浮动栏按钮

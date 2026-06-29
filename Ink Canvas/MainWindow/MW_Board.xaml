@@ -886,7 +886,9 @@
 
                             BorderThickness="0"
 
-                            Click="BoardChangeBackgroundColorBtn_Click">
+                            Click="BoardChangeBackgroundColorBtn_Click"
+
+                            PreviewMouseRightButtonDown="BoardCanvasBtn_PreviewMouseRightButtonDown">
 
                             <Border
 
@@ -937,6 +939,257 @@
                             </Border>
 
                         </Button>
+
+                        <!-- 画布右键弹出：方格纸开关 -->
+                        <Grid Width="0" Margin="0,0,0,5">
+
+                            <Viewbox
+
+                                Name="BoardGridPaperBorder"
+
+                                Height="200"
+
+                                Margin="-119,-204,-71,0"
+
+                                VerticalAlignment="Top"
+
+                                Visibility="Collapsed">
+
+                                <Border
+
+                                    Width="149"
+
+                                    Height="165"
+
+                                    Background="{DynamicResource BoardBarBackground}"
+
+                                    BorderBrush="{DynamicResource BoardBarBorderBrush}"
+
+                                    BorderThickness="1"
+
+                                    CornerRadius="5">
+
+                                    <ikw:SimpleStackPanel>
+
+                                        <Border
+
+                                            Margin="-1,-1,-1,0"
+
+                                            Padding="15,5"
+
+                                            Background="{DynamicResource BoardBarTitleBackground}"
+
+                                            BorderBrush="{DynamicResource BoardBarBorderBrush}"
+
+                                            BorderThickness="1"
+
+                                            CornerRadius="5,5,0,0">
+
+                                            <TextBlock
+
+                                                FontSize="11"
+
+                                                FontWeight="Bold"
+
+                                                Foreground="{DynamicResource BoardBarForeground}"
+
+                                                Text="方格纸"
+
+                                                TextAlignment="Left" />
+
+                                        </Border>
+
+                                        <ikw:SimpleStackPanel Margin="10,4,10,0" Spacing="-2.5">
+
+                                            <ikw:SimpleStackPanel
+
+                                                HorizontalAlignment="Center"
+
+                                                VerticalAlignment="Center"
+
+                                                Orientation="Horizontal"
+
+                                                Spacing="8">
+
+                                                <ui:FontIcon
+
+                                                    Width="20"
+
+                                                    Height="20"
+
+                                                    Margin="0,4,0,2"
+
+                                                    FontFamily="{StaticResource FluentIconFontFamily}"
+
+                                                    FontSize="16"
+
+                                                    Foreground="{DynamicResource BoardBarForeground}"
+
+                                                    Glyph="&#xe80a;" />
+
+                                                <Label
+
+                                                    VerticalAlignment="Center"
+
+                                                    Content="显示方格"
+
+                                                    FontSize="12"
+
+                                                    Foreground="{DynamicResource BoardBarForeground}" />
+
+                                                <Viewbox Width="36" Height="25">
+
+                                                    <ui:ToggleSwitch
+
+                                                        Name="BoardToggleSwitchGridPaper"
+
+                                                        Width="42"
+
+                                                        MinWidth="0"
+
+                                                        ui:ThemeManager.RequestedTheme="{DynamicResource BoardTheme}"
+
+                                                        IsOn="False"
+
+                                                        OffContent=""
+
+                                                        OnContent=""
+
+                                                        Toggled="ToggleSwitchGridPaper_Toggled" />
+
+                                                </Viewbox>
+
+                                            </ikw:SimpleStackPanel>
+
+                                            <ikw:SimpleStackPanel Margin="0,2,0,0">
+
+                                                <TextBlock
+
+                                                    FontSize="10"
+
+                                                    Foreground="{DynamicResource BoardBarForeground}"
+
+                                                    Text="水平间距"
+
+                                                    Margin="0,0,0,2" />
+
+                                                <Grid>
+
+                                                    <Grid.ColumnDefinitions>
+
+                                                        <ColumnDefinition Width="*" />
+
+                                                        <ColumnDefinition Width="Auto" />
+
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Slider
+
+                                                        Name="BoardGridSpacingXSlider"
+
+                                                        Grid.Column="0"
+
+                                                        ui:ThemeManager.RequestedTheme="{DynamicResource BoardTheme}"
+
+                                                        IsSnapToTickEnabled="True"
+
+                                                        Maximum="80"
+
+                                                        Minimum="10"
+
+                                                        TickFrequency="5"
+
+                                                        TickPlacement="None"
+
+                                                        ValueChanged="GridSpacingXSlider_ValueChanged"
+
+                                                        Value="30" />
+
+                                                    <TextBlock
+
+                                                        Grid.Column="1"
+
+                                                        Margin="6,0,0,0"
+
+                                                        VerticalAlignment="Center"
+
+                                                        FontSize="10"
+
+                                                        Foreground="{DynamicResource BoardBarForeground}"
+
+                                                        Text="{Binding ElementName=BoardGridSpacingXSlider, Path=Value, Mode=OneWay}" />
+
+                                                </Grid>
+
+                                                <TextBlock
+
+                                                    FontSize="10"
+
+                                                    Foreground="{DynamicResource BoardBarForeground}"
+
+                                                    Text="垂直间距"
+
+                                                    Margin="0,4,0,2" />
+
+                                                <Grid>
+
+                                                    <Grid.ColumnDefinitions>
+
+                                                        <ColumnDefinition Width="*" />
+
+                                                        <ColumnDefinition Width="Auto" />
+
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <Slider
+
+                                                        Name="BoardGridSpacingYSlider"
+
+                                                        Grid.Column="0"
+
+                                                        ui:ThemeManager.RequestedTheme="{DynamicResource BoardTheme}"
+
+                                                        IsSnapToTickEnabled="True"
+
+                                                        Maximum="80"
+
+                                                        Minimum="10"
+
+                                                        TickFrequency="5"
+
+                                                        TickPlacement="None"
+
+                                                        ValueChanged="GridSpacingYSlider_ValueChanged"
+
+                                                        Value="30" />
+
+                                                    <TextBlock
+
+                                                        Grid.Column="1"
+
+                                                        Margin="6,0,0,0"
+
+                                                        VerticalAlignment="Center"
+
+                                                        FontSize="10"
+
+                                                        Foreground="{DynamicResource BoardBarForeground}"
+
+                                                        Text="{Binding ElementName=BoardGridSpacingYSlider, Path=Value, Mode=OneWay}" />
+
+                                                </Grid>
+
+                                            </ikw:SimpleStackPanel>
+
+                                        </ikw:SimpleStackPanel>
+
+                                    </ikw:SimpleStackPanel>
+
+                                </Border>
+
+                            </Viewbox>
+
+                        </Grid>
 
                         <Button
 

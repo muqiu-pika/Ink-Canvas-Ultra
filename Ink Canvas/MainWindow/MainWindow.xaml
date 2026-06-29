@@ -66,11 +66,11 @@
 
             <ResourceDictionary.MergedDictionaries>
 
-                <ResourceDictionary Source="/Resources/BoardDrawShapeImageDictionary.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Ink Canvas Ultra;component/Resources/BoardDrawShapeImageDictionary.xaml" />
 
-                <ResourceDictionary Source="/Resources/DrawShapeImageDictionary.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Ink Canvas Ultra;component/Resources/DrawShapeImageDictionary.xaml" />
 
-                <ResourceDictionary Source="/Resources/IconImageDictionary.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/Ink Canvas Ultra;component/Resources/IconImageDictionary.xaml" />
 
             </ResourceDictionary.MergedDictionaries>
 
@@ -243,6 +243,9 @@
                 Background="#1F1F1F"
 
                 Visibility="Collapsed" />
+
+            <!-- 方格纸背景层 -->
+            <Canvas Name="GridPaperCanvas" IsHitTestVisible="False" Visibility="Collapsed" />
 
         </Grid>
 

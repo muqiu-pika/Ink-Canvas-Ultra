@@ -66,7 +66,7 @@
                             </Setter>
                         </Style>
                         <ResourceDictionary.MergedDictionaries>
-                            <ResourceDictionary Source="/Resources/DrawShapeImageDictionary.xaml" />
+                            <ResourceDictionary Source="pack://application:,,,/Ink Canvas Ultra;component/Resources/DrawShapeImageDictionary.xaml" />
                         </ResourceDictionary.MergedDictionaries>
                     </ResourceDictionary>
                 </ikw:SimpleStackPanel.Resources>

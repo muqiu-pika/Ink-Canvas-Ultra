@@ -38,6 +38,26 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BoardChangeBackgroundColorBtn_Click), sender, e);
         }
 
+        private void BoardCanvasBtn_PreviewMouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BoardCanvasBtn_PreviewMouseRightButtonDown), sender, e);
+        }
+
+        private void ToggleSwitchGridPaper_Toggled(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ToggleSwitchGridPaper_Toggled), sender, e);
+        }
+
+        private void GridSpacingXSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(GridSpacingXSlider_ValueChanged), sender, e);
+        }
+
+        private void GridSpacingYSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(GridSpacingYSlider_ValueChanged), sender, e);
+        }
+
         private void BoardEraserIconByStrokes_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BoardEraserIconByStrokes_Click), sender, e);

@@ -43,6 +43,11 @@ namespace Ink_Canvas
         private dynamic ViewboxBlackboardCenterSideScaleTransform => FindXamlPart(MWBoardHost, nameof(ViewboxBlackboardCenterSideScaleTransform));
         private dynamic BlackboardCenterSide => FindXamlPart(MWBoardHost, nameof(BlackboardCenterSide));
         private dynamic BoardTwoFingerGestureBorder => FindXamlPart(MWBoardHost, nameof(BoardTwoFingerGestureBorder));
+        private dynamic BoardGridPaperBorder => FindXamlPart(MWBoardHost, nameof(BoardGridPaperBorder));
+        private dynamic BoardToggleSwitchGridPaper => FindXamlPart(MWBoardHost, nameof(BoardToggleSwitchGridPaper));
+        private dynamic BoardGridSpacingSlider => FindXamlPart(MWBoardHost, nameof(BoardGridSpacingSlider));
+        private dynamic BoardGridSpacingXSlider => FindXamlPart(MWBoardHost, nameof(BoardGridSpacingXSlider));
+        private dynamic BoardGridSpacingYSlider => FindXamlPart(MWBoardHost, nameof(BoardGridSpacingYSlider));
         private dynamic BoardToggleSwitchEnableMultiTouchMode => FindXamlPart(MWBoardHost, nameof(BoardToggleSwitchEnableMultiTouchMode));
         private dynamic BoardTwoFingerGestureSimpleStackPanel => FindXamlPart(MWBoardHost, nameof(BoardTwoFingerGestureSimpleStackPanel));
         private dynamic BoardToggleSwitchEnableTwoFingerTranslate => FindXamlPart(MWBoardHost, nameof(BoardToggleSwitchEnableTwoFingerTranslate));
