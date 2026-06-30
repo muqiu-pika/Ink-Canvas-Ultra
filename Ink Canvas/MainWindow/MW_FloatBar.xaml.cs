@@ -55,6 +55,26 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(SymbolIconEmoji_MouseUp), sender, e);
         }
 
+        private void SymbolIconEmoji_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SymbolIconEmoji_PreviewMouseRightButtonDown), sender, e);
+        }
+
+        private void SymbolIconEmoji_PreviewTouchDown(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SymbolIconEmoji_PreviewTouchDown), sender, e);
+        }
+
+        private void SymbolIconEmoji_PreviewTouchMove(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SymbolIconEmoji_PreviewTouchMove), sender, e);
+        }
+
+        private void SymbolIconEmoji_PreviewTouchUp(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SymbolIconEmoji_PreviewTouchUp), sender, e);
+        }
+
         private void BtnColorBlack_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BtnColorBlack_Click), sender, e);

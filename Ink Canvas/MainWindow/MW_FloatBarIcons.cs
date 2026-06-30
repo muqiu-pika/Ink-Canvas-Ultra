@@ -105,8 +105,71 @@ namespace Ink_Canvas
             }
         }
 
+        void GridForFloatingBarDraging_TouchMove(object sender, TouchEventArgs e)
+        {
+            if (!_emojiBtnTouchMoved) return;
+
+            var currentPos = e.GetTouchPoint(null).Position;
+            double deltaX = currentPos.X - _emojiBtnTouchLastPos.X;
+            double deltaY = currentPos.Y - _emojiBtnTouchLastPos.Y;
+            double xPos = ViewboxFloatingBar.Margin.Left + deltaX;
+            double yPos = ViewboxFloatingBar.Margin.Top + deltaY;
+            ViewboxFloatingBar.Margin = new Thickness(xPos, yPos, -2000, -200);
+
+            _emojiBtnTouchLastPos = currentPos;
+
+            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
+            {
+                pointPPT = new Point(xPos, yPos);
+            }
+            else
+            {
+                pointDesktop = new Point(xPos, yPos);
+            }
+
+            e.Handled = true;
+        }
+
+        void GridForFloatingBarDraging_TouchUp(object sender, TouchEventArgs e)
+        {
+            if (!_emojiBtnTouchMoved) return;
+
+            _emojiBtnTouchMoved = false;
+            _isEmojiBtnTouchActive = false;
+            _emojiBtnTouchHandled = true;
+
+            // 释放触摸捕获
+            e.TouchDevice.Capture(null);
+
+            // 隐藏快捷按钮窗口
+            if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
+            {
+                AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+            }
+
+            // 恢复拖动效果
+            GridForFloatingBarDraging.Visibility = Visibility.Collapsed;
+            SymbolIconEmoji1.Width = 28;
+            SymbolIconEmoji2.Width = 0;
+            Topmost = true;
+
+            e.Handled = true;
+        }
+
         void SymbolIconEmoji_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            // 只响应左键，右键由 PreviewMouseRightButtonDown 处理
+            if (e.ChangedButton != MouseButton.Left) return;
+
+            // 如果当前正在处理触屏操作，则忽略提升的鼠标事件
+            if (_isEmojiBtnTouchActive) return;
+
+            // 隐藏快捷按钮窗口
+            if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
+            {
+                AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+            }
+
             if (isViewboxFloatingBarMarginAnimationRunning)
             {
                 ViewboxFloatingBar.BeginAnimation(FrameworkElement.MarginProperty, null);
@@ -124,7 +187,31 @@ namespace Ink_Canvas
 
         void SymbolIconEmoji_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            // 只响应左键，右键由 PreviewMouseRightButtonDown 处理
+            if (e.ChangedButton != MouseButton.Left) return;
+
+            // 如果该鼠标事件来自触屏提升，则忽略
+            if (_emojiBtnTouchHandled)
+            {
+                _emojiBtnTouchHandled = false;
+                isDragDropInEffect = false;
+                return;
+            }
+
             isDragDropInEffect = false;
+
+            // 如果长按已触发，则不执行点击操作
+            if (_emojiBtnLongPressFired)
+            {
+                _emojiBtnLongPressFired = false;
+                return;
+            }
+
+            // 隐藏快捷按钮窗口
+            if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
+            {
+                AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+            }
 
             if (e is null || Math.Abs(downPos.X - e.GetPosition(null).X) <= 10 && Math.Abs(downPos.Y - e.GetPosition(null).Y) <= 10)
             {
@@ -147,11 +234,231 @@ namespace Ink_Canvas
             Topmost = true;
         }
 
+        // 笑脸按钮右键/长按快捷菜单相关字段
+        private DispatcherTimer _emojiBtnLongPressTimer;
+        private bool _isEmojiBtnTouchActive = false;
+        private bool _emojiBtnLongPressFired = false;
+        private bool _emojiBtnTouchMoved = false;
+        private bool _emojiBtnTouchHandled = false;
+        private Point _emojiBtnTouchDownPos;
+        private Point _emojiBtnTouchLastPos;
+        private const int EmojiBtnLongPressDurationMs = 800;
+        private const int EmojiBtnTouchMoveThreshold = 10;
+
+        /// <summary>
+        /// 笑脸按钮右键按下事件 - 显示快捷菜单
+        /// </summary>
+        void SymbolIconEmoji_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (BorderQuickActions == null) return;
+
+            // 切换弹窗显示状态
+            if (BorderQuickActions.Visibility == Visibility.Visible)
+            {
+                AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+            }
+            else
+            {
+                AnimationsHelper.ShowWithSlideFromBottomAndFade(BorderQuickActions);
+            }
+
+            e.Handled = true;
+        }
+
+        /// <summary>
+        /// 笑脸按钮触摸按下事件 - 启动长按计时器
+        /// </summary>
+        void SymbolIconEmoji_PreviewTouchDown(object sender, TouchEventArgs e)
+        {
+            if (BorderQuickActions == null) return;
+
+            _isEmojiBtnTouchActive = true;
+            _emojiBtnLongPressFired = false;
+            _emojiBtnTouchMoved = false;
+            _emojiBtnTouchHandled = false;
+            // 使用 null 获取屏幕坐标，避免相对元素变化导致坐标跳变
+            _emojiBtnTouchDownPos = e.GetTouchPoint(null).Position;
+            _emojiBtnTouchLastPos = _emojiBtnTouchDownPos;
+
+            // 捕获触摸设备到按钮元素，确保手指移出按钮后仍能接收触摸事件
+            if (sender is IInputElement inputElement)
+            {
+                e.TouchDevice.Capture(inputElement);
+            }
+
+            // 隐藏快捷按钮窗口
+            if (BorderQuickActions.Visibility == Visibility.Visible)
+            {
+                AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+            }
+
+            // 创建并启动长按计时器
+            _emojiBtnLongPressTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(EmojiBtnLongPressDurationMs)
+            };
+            _emojiBtnLongPressTimer.Tick += EmojiBtnLongPressTimer_Tick;
+            _emojiBtnLongPressTimer.Start();
+        }
+
+        /// <summary>
+        /// 笑脸按钮触摸移动事件 - 检测拖动并取消长按
+        /// </summary>
+        void SymbolIconEmoji_PreviewTouchMove(object sender, TouchEventArgs e)
+        {
+            if (!_isEmojiBtnTouchActive || _emojiBtnLongPressFired) return;
+
+            // 使用屏幕坐标，与 TouchDown 一致
+            var currentPos = e.GetTouchPoint(null).Position;
+
+            // 第一次移动超过阈值时，启动拖动
+            if (!_emojiBtnTouchMoved)
+            {
+                if (Math.Abs(currentPos.X - _emojiBtnTouchDownPos.X) > EmojiBtnTouchMoveThreshold ||
+                    Math.Abs(currentPos.Y - _emojiBtnTouchDownPos.Y) > EmojiBtnTouchMoveThreshold)
+                {
+                    _emojiBtnTouchMoved = true;
+                    CancelEmojiBtnLongPress();
+
+                    // 隐藏快捷按钮窗口
+                    if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
+                    {
+                        AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+                    }
+
+                    // 停止可能正在进行的边距动画
+                    if (isViewboxFloatingBarMarginAnimationRunning)
+                    {
+                        ViewboxFloatingBar.BeginAnimation(FrameworkElement.MarginProperty, null);
+                        isViewboxFloatingBarMarginAnimationRunning = false;
+                    }
+
+                    // 开始拖动效果
+                    Topmost = true;
+                    GridForFloatingBarDraging.Visibility = Visibility.Visible;
+                    SymbolIconEmoji1.Width = 0;
+                    SymbolIconEmoji2.Width = 28;
+
+                    // 将触摸捕获转移到全屏拖拽网格，确保后续触摸事件由它处理
+                    e.TouchDevice.Capture(GridForFloatingBarDraging);
+                    e.Handled = true;
+                    return;
+                }
+                else
+                {
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 笑脸按钮触摸抬起事件 - 取消长按计时器
+        /// </summary>
+        void SymbolIconEmoji_PreviewTouchUp(object sender, TouchEventArgs e)
+        {
+            _emojiBtnTouchHandled = true;
+
+            // 释放触摸捕获
+            e.TouchDevice.Capture(null);
+
+            // 如果长按已触发，则只重置标志
+            if (_emojiBtnLongPressFired)
+            {
+                _emojiBtnLongPressFired = false;
+                CancelEmojiBtnLongPress();
+                return;
+            }
+
+            // 如果发生了拖动，则不执行单点操作
+            if (_emojiBtnTouchMoved)
+            {
+                _emojiBtnTouchMoved = false;
+                CancelEmojiBtnLongPress();
+
+                // 隐藏快捷按钮窗口
+                if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
+                {
+                    AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+                }
+
+                // 恢复拖动效果
+                GridForFloatingBarDraging.Visibility = Visibility.Collapsed;
+                SymbolIconEmoji1.Width = 28;
+                SymbolIconEmoji2.Width = 0;
+                Topmost = true;
+                return;
+            }
+
+            // 短按：执行折叠/展开操作
+            CancelEmojiBtnLongPress();
+
+            // 隐藏快捷按钮窗口
+            if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
+            {
+                AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+            }
+            if (BorderFloatingBarMainControls.Visibility == Visibility.Visible)
+            {
+                BorderFloatingBarMainControls.Visibility = Visibility.Collapsed;
+                CheckEnableTwoFingerGestureBtnVisibility(false);
+            }
+            else
+            {
+                BorderFloatingBarMainControls.Visibility = Visibility.Visible;
+                CheckEnableTwoFingerGestureBtnVisibility(true);
+            }
+        }
+
+        /// <summary>
+        /// 长按计时器触发 - 显示快捷菜单
+        /// </summary>
+        private void EmojiBtnLongPressTimer_Tick(object sender, EventArgs e)
+        {
+            // 先停止计时器
+            if (_emojiBtnLongPressTimer != null)
+            {
+                _emojiBtnLongPressTimer.Stop();
+                _emojiBtnLongPressTimer.Tick -= EmojiBtnLongPressTimer_Tick;
+                _emojiBtnLongPressTimer = null;
+            }
+
+            // 如果手指已经移动（正在拖动），则不触发长按
+            if (!_isEmojiBtnTouchActive || _emojiBtnTouchMoved || BorderQuickActions == null) return;
+
+            // 标记长按已触发
+            _emojiBtnLongPressFired = true;
+
+            // 切换弹窗显示状态
+            if (BorderQuickActions.Visibility == Visibility.Visible)
+            {
+                AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
+            }
+            else
+            {
+                AnimationsHelper.ShowWithSlideFromBottomAndFade(BorderQuickActions);
+            }
+        }
+
+        /// <summary>
+        /// 取消长按计时器
+        /// </summary>
+        private void CancelEmojiBtnLongPress()
+        {
+            _isEmojiBtnTouchActive = false;
+            if (_emojiBtnLongPressTimer != null)
+            {
+                _emojiBtnLongPressTimer.Stop();
+                _emojiBtnLongPressTimer.Tick -= EmojiBtnLongPressTimer_Tick;
+                _emojiBtnLongPressTimer = null;
+            }
+        }
+
         #endregion
 
         private void HideSubPanelsImmediately()
         {
             BorderTools.Visibility = Visibility.Collapsed;
+            BorderQuickActions.Visibility = Visibility.Collapsed;
             BoardBorderTools.Visibility = Visibility.Collapsed;
             PenPalette.Visibility = Visibility.Collapsed;
             BoardPenPalette.Visibility = Visibility.Collapsed;
@@ -162,6 +469,7 @@ namespace Ink_Canvas
         private async void HideSubPanels(String mode = null, bool autoAlignCenter = false, bool isFromBoard = false)
         {
             AnimationsHelper.HideWithSlideAndFade(BorderTools);
+            AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
             AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
             AnimationsHelper.HideWithSlideAndFade(PenPalette);
             AnimationsHelper.HideWithSlideAndFade(BoardPenPalette);

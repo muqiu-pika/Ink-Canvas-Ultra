@@ -319,6 +319,10 @@
 
             MouseUp="SymbolIconEmoji_MouseUp"
 
+            TouchMove="GridForFloatingBarDraging_TouchMove"
+
+            TouchUp="GridForFloatingBarDraging_TouchUp"
+
             Visibility="Collapsed" />
 
         <!--  // 墨迹播放 //  -->

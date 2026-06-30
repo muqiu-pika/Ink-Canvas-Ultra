@@ -293,6 +293,7 @@ namespace Ink_Canvas
         private dynamic Icon_Undo => FindXamlPart(MWFloatBarHost, nameof(Icon_Undo));
         private dynamic Icon_Redo => FindXamlPart(MWFloatBarHost, nameof(Icon_Redo));
         private dynamic Fold_Icon => FindXamlPart(MWFloatBarHost, nameof(Fold_Icon));
+        private dynamic BorderQuickActions => FindXamlPart(MWFloatBarHost, nameof(BorderQuickActions));
         private dynamic BorderTools => FindXamlPart(MWFloatBarHost, nameof(BorderTools));
         private dynamic EnableTwoFingerGestureBorder => FindXamlPart(MWFloatBarHost, nameof(EnableTwoFingerGestureBorder));
         private dynamic EnableTwoFingerGestureBtn => FindXamlPart(MWFloatBarHost, nameof(EnableTwoFingerGestureBtn));

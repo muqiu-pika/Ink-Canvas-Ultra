@@ -53,6 +53,9 @@ namespace Ink_Canvas
         [JsonProperty("hyperbolaAsymptoteOption")]
         public OptionalOperation HyperbolaAsymptoteOption { get; set; } = OptionalOperation.Ask;
 
+        [JsonProperty("tetrahedronHeightOption")]
+        public OptionalOperation TetrahedronHeightOption { get; set; } = OptionalOperation.Ask;
+
         [JsonProperty("autoStraightenLine")]
         public bool AutoStraightenLine { get; set; } = true;
         [JsonProperty("autoStraightenLineThreshold")]
