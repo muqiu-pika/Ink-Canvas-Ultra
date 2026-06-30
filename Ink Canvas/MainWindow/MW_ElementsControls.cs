@@ -75,18 +75,19 @@ namespace Ink_Canvas
             }
             return await Dispatcher.InvokeAsync(() =>
             {
-                MediaElement mediaElement = new MediaElement();
-                mediaElement.Source = new Uri(filePath);
                 string timestamp = "media_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff");
-                mediaElement.Name = timestamp;
-                mediaElement.LoadedBehavior = MediaState.Manual;
-                mediaElement.UnloadedBehavior = MediaState.Manual;
-                mediaElement.ScrubbingEnabled = true;
-                mediaElement.IsHitTestVisible = true;
-                mediaElement.Focusable = true;
-
-                mediaElement.Width = 256;
-                mediaElement.Height = 256;
+                MediaElement mediaElement = new MediaElement
+                {
+                    Source = new Uri(filePath),
+                    Name = timestamp,
+                    LoadedBehavior = MediaState.Manual,
+                    UnloadedBehavior = MediaState.Manual,
+                    ScrubbingEnabled = true,
+                    IsHitTestVisible = true,
+                    Focusable = true,
+                    Width = 256,
+                    Height = 256
+                };
 
                 string fileExtension = Path.GetExtension(filePath);
                 string newFilePath = Path.Combine(savePath, mediaElement.Name + fileExtension);

@@ -1,3 +1,4 @@
+#pragma warning disable IDE0130 // 命名空间与文件夹结构不匹配（项目约定使用 Ink_Canvas）
 using System;
 using System.Collections.Generic;
 using System.Linq;

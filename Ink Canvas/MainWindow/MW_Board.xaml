@@ -888,7 +888,11 @@
 
                             Click="BoardChangeBackgroundColorBtn_Click"
 
-                            PreviewMouseRightButtonDown="BoardCanvasBtn_PreviewMouseRightButtonDown">
+                            PreviewMouseRightButtonDown="BoardCanvasBtn_PreviewMouseRightButtonDown"
+
+                            PreviewTouchDown="BoardCanvasBtn_PreviewTouchDown"
+
+                            PreviewTouchUp="BoardCanvasBtn_PreviewTouchUp">
 
                             <Border
 

@@ -156,6 +156,7 @@ namespace Ink_Canvas
             PenPalette.Visibility = Visibility.Collapsed;
             BoardPenPalette.Visibility = Visibility.Collapsed;
             BoardDeleteIcon.Visibility = Visibility.Collapsed;
+            BoardGridPaperBorder.Visibility = Visibility.Collapsed;
         }
 
         private async void HideSubPanels(String mode = null, bool autoAlignCenter = false, bool isFromBoard = false)
@@ -167,6 +168,7 @@ namespace Ink_Canvas
             AnimationsHelper.HideWithSlideAndFade(BoardDeleteIcon);
             AnimationsHelper.HideWithSlideAndFade(TwoFingerGestureBorder);
             AnimationsHelper.HideWithSlideAndFade(BoardTwoFingerGestureBorder);
+            AnimationsHelper.HideWithSlideAndFade(BoardGridPaperBorder);
             if (ToggleSwitchDrawShapeBorderAutoHide.IsOn)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderDrawShape);

@@ -43,6 +43,16 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BoardCanvasBtn_PreviewMouseRightButtonDown), sender, e);
         }
 
+        private void BoardCanvasBtn_PreviewTouchDown(object sender, System.Windows.Input.TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BoardCanvasBtn_PreviewTouchDown), sender, e);
+        }
+
+        private void BoardCanvasBtn_PreviewTouchUp(object sender, System.Windows.Input.TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BoardCanvasBtn_PreviewTouchUp), sender, e);
+        }
+
         private void ToggleSwitchGridPaper_Toggled(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(ToggleSwitchGridPaper_Toggled), sender, e);

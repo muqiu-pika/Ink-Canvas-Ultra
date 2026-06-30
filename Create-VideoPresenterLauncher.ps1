@@ -10,8 +10,8 @@ $ExeName = "Ink Canvas Ultra.exe"
 $ExePath = Join-Path $OutputDir $ExeName
 
 if (-not (Test-Path $ExePath)) {
-    Write-Host "Error: Exe not found at $ExePath"
-    exit 1
+    Write-Host "Warning: Exe not found at $ExePath - skipping launcher creation"
+    exit 0
 }
 
 $utf8 = [System.Text.Encoding]::UTF8

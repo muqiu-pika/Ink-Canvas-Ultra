@@ -12,6 +12,13 @@ namespace Ink_Canvas
     {
         private void BoardChangeBackgroundColorBtn_Click(object sender, RoutedEventArgs e)
         {
+            // 如果长按已触发，则不执行点击操作
+            if (_canvasBtnLongPressFired)
+            {
+                _canvasBtnLongPressFired = false;
+                return;
+            }
+
             if (!isLoaded || _isLoadingSettings) return;
             Settings.Canvas.UsingWhiteboard = !Settings.Canvas.UsingWhiteboard;
             SaveSettingsToFile();
