@@ -24,8 +24,8 @@
 		<UpdatePeriodically>false</UpdatePeriodically>
 		<UpdateRequired>false</UpdateRequired>
 		<MapFileExtensions>true</MapFileExtensions>
-		<ApplicationRevision>3</ApplicationRevision>
-		<ApplicationVersion>7.0.3.%2a</ApplicationVersion>
+		<ApplicationRevision>4</ApplicationRevision>
+		<ApplicationVersion>7.0.4.%2a</ApplicationVersion>
 		<UseApplicationTrust>false</UseApplicationTrust>
 		<BootstrapperEnabled>false</BootstrapperEnabled>
 		<Platforms>AnyCPU;x86</Platforms>
