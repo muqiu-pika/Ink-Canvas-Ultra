@@ -8,6 +8,7 @@ using System.IO;
 using System.IO.Pipes;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -15,6 +16,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Ink;
+using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Drawing;
@@ -226,6 +228,37 @@ namespace Ink_Canvas
         private HwndSource inputDeviceMessageSource;
         private bool isInputDeviceRecoveryScheduled;
         private const int WM_DEVICECHANGE = 0x0219;
+        private const int WM_ACTIVATEAPP = 0x001C;
+        private const int WM_DISPLAYCHANGE = 0x007E;
+        private const int WM_POWERBROADCAST = 0x0218;
+        private IntPtr _devNotifyHandle;
+        private DispatcherTimer _inputWatchdogTimer;
+        private int _lastInputActivityTickCount;
+        private const int InputWatchdogTimeoutMs = 5000;
+        private static readonly Guid GUID_DEVINTERFACE_HID = new Guid("4D1E55B2-F16F-11CF-88CB-001111000030");
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct DEV_BROADCAST_DEVICEINTERFACE
+        {
+            public int dbcc_size;
+            public int dbcc_devicetype;
+            public int dbcc_reserved;
+            public Guid dbcc_classguid;
+            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 255)]
+            public string dbcc_name;
+        }
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        private static extern IntPtr RegisterDeviceNotification(IntPtr hRecipient, IntPtr notificationFilter, int flags);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern bool UnregisterDeviceNotification(IntPtr handle);
+
+        private const int DEVICE_NOTIFY_WINDOW_HANDLE = 0x00000000;
+        private const int DBT_DEVTYP_DEVICEINTERFACE = 0x00000005;
+        private const int DBT_DEVICEARRIVAL = 0x8000;
+        private const int DBT_DEVICEREMOVECOMPLETE = 0x8004;
+        private const int DBT_DEVNODES_CHANGED = 0x0007;
 
         private void InitializeStartupModes()
         {
@@ -380,6 +413,9 @@ namespace Ink_Canvas
 
                 inputDeviceMessageSource = HwndSource.FromHwnd(interopHelper.Handle);
                 inputDeviceMessageSource?.AddHook(MainWindowWndProc);
+
+                RegisterHidDeviceNotification(interopHelper.Handle);
+                StartInputWatchdog();
             }
             catch (Exception ex)
             {
@@ -387,8 +423,121 @@ namespace Ink_Canvas
             }
         }
 
+        private void RegisterHidDeviceNotification(IntPtr hwnd)
+        {
+            try
+            {
+                if (_devNotifyHandle != IntPtr.Zero)
+                {
+                    UnregisterDeviceNotification(_devNotifyHandle);
+                    _devNotifyHandle = IntPtr.Zero;
+                }
+
+                var dbi = new DEV_BROADCAST_DEVICEINTERFACE
+                {
+                    dbcc_size = Marshal.SizeOf(typeof(DEV_BROADCAST_DEVICEINTERFACE)),
+                    dbcc_devicetype = DBT_DEVTYP_DEVICEINTERFACE,
+                    dbcc_reserved = 0,
+                    dbcc_classguid = GUID_DEVINTERFACE_HID,
+                    dbcc_name = null
+                };
+
+                IntPtr buffer = Marshal.AllocHGlobal(dbi.dbcc_size);
+                try
+                {
+                    Marshal.StructureToPtr(dbi, buffer, true);
+                    _devNotifyHandle = RegisterDeviceNotification(hwnd, buffer, DEVICE_NOTIFY_WINDOW_HANDLE);
+                    if (_devNotifyHandle == IntPtr.Zero)
+                    {
+                        LogHelper.WriteLogToFile("RegisterDeviceNotification failed, error: " + Marshal.GetLastWin32Error(), LogHelper.LogType.Warning);
+                    }
+                }
+                finally
+                {
+                    Marshal.FreeHGlobal(buffer);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Register HID device notification failed | " + ex, LogHelper.LogType.Error);
+            }
+        }
+
+        private void StartInputWatchdog()
+        {
+            try
+            {
+                if (_inputWatchdogTimer != null) return;
+
+                _lastInputActivityTickCount = Environment.TickCount;
+                _inputWatchdogTimer = new DispatcherTimer(DispatcherPriority.Background)
+                {
+                    Interval = TimeSpan.FromMilliseconds(2000)
+                };
+                _inputWatchdogTimer.Tick += InputWatchdogTimer_Tick;
+                _inputWatchdogTimer.Start();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Start input watchdog failed | " + ex, LogHelper.LogType.Error);
+            }
+        }
+
+        private void InputWatchdogTimer_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                int now = Environment.TickCount;
+                int elapsed = now - _lastInputActivityTickCount;
+
+                if (isMouseDown && elapsed > InputWatchdogTimeoutMs)
+                {
+                    LogHelper.WriteLogToFile("Input watchdog detected stuck input state (isMouseDown), forcing recovery", LogHelper.LogType.Warning);
+                    ScheduleInputDeviceRecovery();
+                    UpdateInputActivityTimestamp();
+                }
+            }
+            catch { }
+        }
+
+        private void UpdateInputActivityTimestamp()
+        {
+            try
+            {
+                _lastInputActivityTickCount = Environment.TickCount;
+            }
+            catch { }
+        }
+
         private void UnhookInputDeviceNotifications()
         {
+            try
+            {
+                if (_inputWatchdogTimer != null)
+                {
+                    _inputWatchdogTimer.Stop();
+                    _inputWatchdogTimer.Tick -= InputWatchdogTimer_Tick;
+                    _inputWatchdogTimer = null;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Stop input watchdog failed | " + ex, LogHelper.LogType.Error);
+            }
+
+            try
+            {
+                if (_devNotifyHandle != IntPtr.Zero)
+                {
+                    UnregisterDeviceNotification(_devNotifyHandle);
+                    _devNotifyHandle = IntPtr.Zero;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Unregister device notification failed | " + ex, LogHelper.LogType.Error);
+            }
+
             if (inputDeviceMessageSource == null) return;
 
             try
@@ -407,9 +556,28 @@ namespace Ink_Canvas
 
         private IntPtr MainWindowWndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            if (msg == WM_DEVICECHANGE)
+            switch (msg)
             {
-                ScheduleInputDeviceRecovery();
+                case WM_DEVICECHANGE:
+                    int eventType = wParam.ToInt32();
+                    if (eventType == DBT_DEVICEARRIVAL || eventType == DBT_DEVICEREMOVECOMPLETE || eventType == DBT_DEVNODES_CHANGED)
+                    {
+                        ScheduleInputDeviceRecovery();
+                    }
+                    break;
+                case WM_ACTIVATEAPP:
+                    if (wParam == IntPtr.Zero)
+                    {
+                        try { Mouse.Capture(null); Stylus.Capture(null); TouchStack_ClearAllCaptures(); } catch { }
+                    }
+                    else
+                    {
+                        ScheduleInputDeviceRecovery();
+                    }
+                    break;
+                case WM_POWERBROADCAST:
+                    ScheduleInputDeviceRecovery();
+                    break;
             }
 
             return IntPtr.Zero;
@@ -441,6 +609,33 @@ namespace Ink_Canvas
 
         private void RecoverFromInputDeviceChange()
         {
+            LogHelper.WriteLogToFile("Input device change detected, starting recovery...", LogHelper.LogType.Info);
+
+            try
+            {
+                Mouse.Capture(null);
+                TouchStack_ClearAllCaptures();
+                Stylus.Capture(null);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Release input capture failed | " + ex, LogHelper.LogType.Error);
+            }
+
+            try
+            {
+                isMouseDown = false;
+                isInMultiTouchMode = false;
+                isSingleFingerDragMode = false;
+                twoFingerGestureType = TwoFingerGestureType.None;
+                translateAccum = new Vector(0, 0);
+                dec.Clear();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Reset input state flags failed | " + ex, LogHelper.LogType.Error);
+            }
+
             try
             {
                 ResetTouchState();
@@ -452,12 +647,46 @@ namespace Ink_Canvas
 
             try
             {
+                if (inkCanvas != null && !forceEraser)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Reset InkCanvas editing mode failed | " + ex, LogHelper.LogType.Error);
+            }
+
+            try
+            {
                 TouchLockFix.ReRegisterTouchWindow(this);
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile("Re-register touch window after device change failed | " + ex, LogHelper.LogType.Error);
             }
+
+            try
+            {
+                inkCanvas?.Focus();
+            }
+            catch { }
+
+            LogHelper.WriteLogToFile("Input device recovery completed", LogHelper.LogType.Info);
+        }
+
+        private void TouchStack_ClearAllCaptures()
+        {
+            try
+            {
+                if (inkCanvas != null)
+                {
+                    inkCanvas.ReleaseAllTouchCaptures();
+                    inkCanvas.ReleaseMouseCapture();
+                    inkCanvas.ReleaseStylusCapture();
+                }
+            }
+            catch { }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

@@ -94,48 +94,103 @@ namespace Ink_Canvas
 
         public App()
         {
+            InitializeWpfStylusSafetySettings();
             this.Startup += new StartupEventHandler(App_Startup);
             this.DispatcherUnhandledException += App_DispatcherUnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        }
+
+        private static void InitializeWpfStylusSafetySettings()
+        {
+            try
+            {
+                AppContext.SetSwitch("Switch.System.Windows.Input.Stylus.DisableStylusAndTouchSupport", false);
+                AppContext.SetSwitch("Switch.System.Windows.Input.Stylus.EnablePointerSupport", false);
+            }
+            catch { }
+        }
+
+        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            try
+            {
+                if (e.ExceptionObject is Exception ex)
+                {
+                    LogHelper.NewLog("Non-UI thread unhandled exception: " + ex.ToString());
+                }
+                else
+                {
+                    LogHelper.NewLog("Non-UI thread unhandled exception (unknown type)");
+                }
+            }
+            catch { }
         }
 
         private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
         {
             try
             {
-                if (Ink_Canvas.MainWindow.Settings != null && Ink_Canvas.MainWindow.Settings.Advanced != null && Ink_Canvas.MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash)
+                LogHelper.NewLog("UI thread unhandled exception: " + e.Exception?.ToString() ?? "Unknown exception");
+            }
+            catch { }
+
+            bool shouldSilentRestart = false;
+            string autoSavePath = null;
+
+            try
+            {
+                var mw = Application.Current?.MainWindow as Ink_Canvas.MainWindow;
+                if (mw != null)
                 {
-                    try { Ink_Canvas.MainWindow.ShowNewMessage("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", true); } catch { }
-                    try
+                    if (Ink_Canvas.MainWindow.Settings != null && Ink_Canvas.MainWindow.Settings.Advanced != null)
                     {
-                        Application.Current.Dispatcher.Invoke(new Action(() =>
-                        {
-                            try
-                            {
-                                var mw = Application.Current.MainWindow as Ink_Canvas.MainWindow;
-                                mw?.SaveLastSessionSnapshot();
-                            }
-                            catch { }
-                        }));
+                        shouldSilentRestart = Ink_Canvas.MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash;
+                        autoSavePath = Ink_Canvas.MainWindow.Settings.Automation?.AutoSavedStrokesLocation;
                     }
-                    catch { }
-                    try
+
+                    if (shouldSilentRestart)
                     {
-                        var basePath = Ink_Canvas.MainWindow.Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
-                        try { if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath); } catch { }
-                        var reasonPath = basePath + @"\RestartReason.txt";
-                        try { File.WriteAllText(reasonPath, "silent"); } catch { }
+                        try { mw.SaveLastSessionSnapshot(); } catch { }
                     }
-                    catch { }
-                    LogHelper.NewLog(e.Exception.ToString());
-                    RestartApplication();
-                    e.Handled = true;
-                    return;
                 }
             }
             catch { }
 
-            Ink_Canvas.MainWindow.ShowNewMessage("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", true);
-            LogHelper.NewLog(e.Exception.ToString());
+            if (shouldSilentRestart)
+            {
+                try
+                {
+                    if (!string.IsNullOrEmpty(autoSavePath))
+                    {
+                        var basePath = autoSavePath + @"\Auto Saved - Session";
+                        try { if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath); } catch { }
+                        var reasonPath = basePath + @"\RestartReason.txt";
+                        try { File.WriteAllText(reasonPath, "silent"); } catch { }
+                    }
+                }
+                catch { }
+
+                try { RestartApplication(); } catch { }
+                e.Handled = true;
+                return;
+            }
+
+            try
+            {
+                var mw = Application.Current?.MainWindow as Ink_Canvas.MainWindow;
+                if (mw != null)
+                {
+                    Ink_Canvas.MainWindow.ShowNewMessage("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", true);
+                }
+                else
+                {
+                    MessageBox.Show("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", "Ink Canvas", MessageBoxButton.OK, MessageBoxImage.Warning);
+                }
+            }
+            catch
+            {
+                try { MessageBox.Show("抱歉，出现未预期的异常，应用可能运行不稳定。\n建议保存墨迹后重启应用。", "Ink Canvas", MessageBoxButton.OK, MessageBoxImage.Warning); } catch { }
+            }
             e.Handled = true;
         }
 

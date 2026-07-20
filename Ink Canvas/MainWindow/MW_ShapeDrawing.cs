@@ -495,33 +495,38 @@ namespace Ink_Canvas
 
         private void inkCanvas_TouchMove(object sender, TouchEventArgs e)
         {
-            if (isSingleFingerDragMode) return;
-            if (drawingShapeMode != 0)
+            try
             {
-                if (isLastTouchEraser)
+                if (isSingleFingerDragMode) return;
+                if (drawingShapeMode != 0)
                 {
-                    return;
-                }
-                //EraserContainer.Background = null;
-                //ImageEraser.Visibility = Visibility.Visible;
-                if (isWaitUntilNextTouchDown) return;
-                if (dec.Count > 1)
-                {
-                    isWaitUntilNextTouchDown = true;
-                    try
+                    if (isLastTouchEraser)
                     {
-                        inkCanvas.Strokes.Remove(lastTempStroke);
-                        inkCanvas.Strokes.Remove(lastTempStrokeCollection);
+                        return;
                     }
-                    catch { }
-                    return;
+                    if (isWaitUntilNextTouchDown) return;
+                    if (dec.Count > 1)
+                    {
+                        isWaitUntilNextTouchDown = true;
+                        try
+                        {
+                            inkCanvas.Strokes.Remove(lastTempStroke);
+                            inkCanvas.Strokes.Remove(lastTempStrokeCollection);
+                        }
+                        catch { }
+                        return;
+                    }
+                    if (inkCanvas.EditingMode != InkCanvasEditingMode.None)
+                    {
+                        inkCanvas.EditingMode = InkCanvasEditingMode.None;
+                    }
                 }
-                if (inkCanvas.EditingMode != InkCanvasEditingMode.None)
-                {
-                    inkCanvas.EditingMode = InkCanvasEditingMode.None;
-                }
+                MouseTouchMove(e.GetTouchPoint(inkCanvas).Position);
             }
-            MouseTouchMove(e.GetTouchPoint(inkCanvas).Position);
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("inkCanvas_TouchMove error | " + ex, LogHelper.LogType.Error);
+            }
         }
 
         int drawMultiStepShapeCurrentStep = 0; //多笔完成的图形 当前所处在的笔画
@@ -1411,15 +1416,22 @@ namespace Ink_Canvas
 
         private void Main_Grid_TouchUp(object sender, TouchEventArgs e)
         {
-            inkCanvas_MouseUp(sender, null);
-            if (dec.Count == 0)
+            try
             {
-                isWaitUntilNextTouchDown = false;
-                if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && inkCanvas.EditingMode == InkCanvasEditingMode.GestureOnly)
+                inkCanvas_MouseUp(sender, null);
+                if (dec.Count == 0)
                 {
-                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
-                    inkCanvas.Opacity = 1;
+                    isWaitUntilNextTouchDown = false;
+                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && inkCanvas.EditingMode == InkCanvasEditingMode.GestureOnly)
+                    {
+                        inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                        inkCanvas.Opacity = 1;
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("Main_Grid_TouchUp error | " + ex, LogHelper.LogType.Error);
             }
         }
         Stroke lastTempStroke = null;
@@ -1600,33 +1612,50 @@ namespace Ink_Canvas
         bool isMouseDown = false;
         private void inkCanvas_MouseDown(object sender, MouseButtonEventArgs e)
         {
-            isMouseDown = true;
-            if (NeedUpdateIniP())
+            try
             {
-                iniP = e.GetPosition(inkCanvas);
+                UpdateInputActivityTimestamp();
+                isMouseDown = true;
+                if (NeedUpdateIniP())
+                {
+                    iniP = e.GetPosition(inkCanvas);
+                }
+                if (Settings.Canvas.StopTimingStraighten)
+                {
+                    _stopTimingPoint = e.GetPosition(inkCanvas);
+                    _stopTiming = DateTime.Now;
+                    _stopTimingDisable = false;
+                    _stopTimingPoints.Clear();
+                    _stopTimingPoints.Add(_stopTimingPoint);
+                }
             }
-            // 初始化停顿检测变量
-            if (Settings.Canvas.StopTimingStraighten)
+            catch (Exception ex)
             {
-                _stopTimingPoint = e.GetPosition(inkCanvas);
-                _stopTiming = DateTime.Now;
-                _stopTimingDisable = false;
-                _stopTimingPoints.Clear();
-                _stopTimingPoints.Add(_stopTimingPoint);
+                LogHelper.WriteLogToFile("inkCanvas_MouseDown error | " + ex, LogHelper.LogType.Error);
             }
         }
 
         private void inkCanvas_MouseMove(object sender, MouseEventArgs e)
         {
-            if (isMouseDown)
+            try
             {
-                MouseTouchMove(e.GetPosition(inkCanvas));
+                if (isMouseDown)
+                {
+                    MouseTouchMove(e.GetPosition(inkCanvas));
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("inkCanvas_MouseMove error | " + ex, LogHelper.LogType.Error);
             }
         }
 
         private void inkCanvas_MouseUp(object sender, MouseButtonEventArgs e)
         {
-            if (drawingShapeMode == 5)
+            try
+            {
+                UpdateInputActivityTimestamp();
+                if (drawingShapeMode == 5)
             {
                 Circle circle = new Circle(new Point(), 0, lastTempStroke);
                 circle.R = GetDistance(circle.Stroke.StylusPoints[0].ToPoint(), circle.Stroke.StylusPoints[circle.Stroke.StylusPoints.Count / 2].ToPoint()) / 2;
@@ -1779,7 +1808,6 @@ namespace Ink_Canvas
                     }
                 }
             }
-            isMouseDown = false;
             if (ReplacedStroke != null || AddedStroke != null)
             {
                 timeMachine.CommitStrokeEraseHistory(ReplacedStroke, AddedStroke);
@@ -1833,6 +1861,15 @@ namespace Ink_Canvas
                 {
                     item.Value.Clear();
                 }
+            }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("inkCanvas_MouseUp error | " + ex, LogHelper.LogType.Error);
+            }
+            finally
+            {
+                isMouseDown = false;
             }
         }
 
