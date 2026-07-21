@@ -1565,21 +1565,22 @@ namespace Ink_Canvas
                 if (!System.IO.Directory.Exists(PluginDirectory))
                     System.IO.Directory.CreateDirectory(PluginDirectory);
 
-                // 若插件工坊窗口已存在，仅激活已有实例，不重复创建
-                if (PluginWorkshopWindow.HasInstance)
-                {
-                    PluginWorkshopWindow.GetOrCreate(null);
-                    return;
-                }
-
-                // 关闭设置窗口（若有），插件工坊作为独立窗口显示
+                // 无论插件工坊是否已打开，从设置进入时都要关闭设置窗口
                 var settings = SettingsWindow;
                 if (settings != null)
                 {
                     settings.Close();
                 }
 
-                // 创建插件工坊单例；不绑定 Owner，避免设置窗口关闭时被连带关闭
+                if (PluginWorkshopWindow.HasInstance)
+                {
+                    // 已打开：仅激活已有实例并置于最前，不重复创建
+                    // 传入 null 作为 owner，避免重新绑定到已关闭的设置窗口
+                    PluginWorkshopWindow.GetOrCreate(null);
+                    return;
+                }
+
+                // 未打开：创建插件工坊单例；不绑定 Owner，避免设置窗口关闭时被连带关闭
                 var workshop = PluginWorkshopWindow.GetOrCreate(null);
                 workshop.Owner = null;
                 workshop.Show();
