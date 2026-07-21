@@ -106,6 +106,15 @@
                     </ui:NavigationViewItem>
 
                     <ui:NavigationViewItem
+                        Content="插件工坊"
+                        Tag="PluginWorkshop"
+                        ToolTipService.ToolTip="插件工坊 - 管理与安装 plugin">
+                        <ui:NavigationViewItem.Icon>
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE735;" />
+                        </ui:NavigationViewItem.Icon>
+                    </ui:NavigationViewItem>
+
+                    <ui:NavigationViewItem
                         Content="画板"
                         Tag="Board"
                         ToolTipService.ToolTip="画板设置">
@@ -886,6 +895,104 @@
                                         Text="开机运行后收纳到侧边栏" />
 
                                 </ikw:SimpleStackPanel>
+
+                            </ikw:SimpleStackPanel>
+
+                        </GroupBox>
+
+                        <!-- 插件工坊入口 -->
+                        <GroupBox x:Name="SettingsSection_PluginWorkshop">
+
+                            <GroupBox.Header>
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE735;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="插件工坊" />
+                                </ikw:SimpleStackPanel>
+                            </GroupBox.Header>
+
+                            <ikw:SimpleStackPanel Spacing="10">
+
+                                <TextBlock
+                                    FontSize="14"
+                                    Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                                    Text="通过插件工坊浏览、安装、启用或卸载 plugin，以独立模块的形式扩展 Ink Canvas Ultra 的能力。"
+                                    TextWrapping="Wrap" />
+
+                                <Border
+                                    Padding="20,16"
+                                    BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                                    BorderThickness="1"
+                                    CornerRadius="6">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <ikw:SimpleStackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="4">
+                                            <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                                <ui:FontIcon
+                                                    VerticalAlignment="Center"
+                                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                                    FontSize="20"
+                                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                                    Glyph="&#xE735;" />
+                                                <TextBlock
+                                                    VerticalAlignment="Center"
+                                                    FontSize="18"
+                                                    FontWeight="Bold"
+                                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                                    Text="打开插件工坊" />
+                                            </ikw:SimpleStackPanel>
+                                            <TextBlock
+                                                FontSize="12"
+                                                Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                                                Text="点击右侧按钮在新窗口中管理 plugin（已安装 / 可安装 / 从本地安装 .icplugin）。" />
+                                        </ikw:SimpleStackPanel>
+
+                                        <Button
+                                            Grid.Column="1"
+                                            Width="160"
+                                            Height="44"
+                                            VerticalAlignment="Center"
+                                            Click="BtnOpenPluginWorkshop_Click"
+                                            FontWeight="Bold">
+                                            <ikw:SimpleStackPanel
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Orientation="Horizontal"
+                                                Spacing="6">
+                                                <ui:FontIcon
+                                                    VerticalAlignment="Center"
+                                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                                    FontSize="16"
+                                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                                    Glyph="&#xE8A7;" />
+                                                <TextBlock
+                                                    VerticalAlignment="Center"
+                                                    FontSize="14"
+                                                    FontWeight="Bold"
+                                                    Text="进入插件工坊" />
+                                            </ikw:SimpleStackPanel>
+                                        </Button>
+                                    </Grid>
+                                </Border>
+
+                                <TextBlock
+                                    Margin="0,4,0,0"
+                                    FontSize="12"
+                                    Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                                    Text="* plugin 来自第三方开发者，安装前请确认来源可信。启用或卸载 plugin 可能需要重启软件后生效。"
+                                    TextWrapping="Wrap" />
 
                             </ikw:SimpleStackPanel>
 

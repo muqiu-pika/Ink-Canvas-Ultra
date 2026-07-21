@@ -83,6 +83,8 @@ namespace Ink_Canvas.Helpers
                     return "Event";
                 case LogType.Trace:
                     return "Trace";
+                case LogType.Warning:
+                    return "Warning";
                 case LogType.Error:
                     return "Error";
                 default:
@@ -94,6 +96,7 @@ namespace Ink_Canvas.Helpers
         {
             Info,
             Trace,
+            Warning,
             Error,
             Event
         }

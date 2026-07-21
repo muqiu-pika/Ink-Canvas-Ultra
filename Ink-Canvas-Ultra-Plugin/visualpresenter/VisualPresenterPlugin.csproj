@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>VisualPresenterPlugin</AssemblyName>
+    <RootNamespace>Ink_Canvas.Plugins.VisualPresenter</RootNamespace>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Platforms>x64;AnyCPU</Platforms>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
+    <DebugType>embedded</DebugType>
+    <Nullable>disable</Nullable>
+    <LangVersion>7.3</LangVersion>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <OutputPath>bin\</OutputPath>
+    <DocumentationFile>
+    </DocumentationFile>
+  </PropertyGroup>
+
+  <!--
+    开发时请把下面 Include 中的路径替换为本机上 Ink Canvas Ultra.exe 的输出路径。
+    发布时务必把 Include 改回相对路径，避免硬编码本机路径。
+  -->
+  <ItemGroup>
+    <Reference Include="Ink Canvas Ultra">
+      <HintPath>..\..\Ink Canvas\bin\Debug\Ink Canvas Ultra.exe</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AForge" Version="2.2.5" />
+    <PackageReference Include="AForge.Imaging" Version="2.2.5" />
+    <PackageReference Include="AForge.Video" Version="2.2.5" />
+    <PackageReference Include="AForge.Video.DirectShow" Version="2.2.5" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <!--
+    SDK 风格项目默认会递归包含所有 .cs 文件，无需显式声明 Compile 项。
+  -->
+
+  <!--
+    构建后自动把产物 + manifest 复制到主程序 Plugins\visualpresenter\ 目录，
+    便于开发期直接启动主程序调试。
+  -->
+  <Target Name="CopyToHostPlugins" AfterTargets="Build">
+    <PropertyGroup>
+      <PluginDestDir>..\..\Ink Canvas\bin\Debug\Plugins\visualpresenter\</PluginDestDir>
+    </PropertyGroup>
+    <MakeDir Directories="$(PluginDestDir)" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll"
+          DestinationFolder="$(PluginDestDir)" />
+    <Copy SourceFiles="plugin.icplugin"
+          DestinationFolder="$(PluginDestDir)" />
+    <Copy SourceFiles="icon.png"
+          DestinationFolder="$(PluginDestDir)"
+          Condition="Exists('icon.png')" />
+    <Message Text="plugin 已复制到 $(PluginDestDir)" Importance="high" />
+  </Target>
+
+</Project>

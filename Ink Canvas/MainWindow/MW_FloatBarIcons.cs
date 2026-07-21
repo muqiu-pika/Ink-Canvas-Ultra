@@ -1518,6 +1518,9 @@ namespace Ink_Canvas
                     case "Auto":
                         target = SettingsSection_Auto;
                         break;
+                    case "PluginWorkshop":
+                        target = SettingsSection_PluginWorkshop;
+                        break;
                     case "About":
                         target = SettingsSection_About;
                         break;
@@ -1546,6 +1549,45 @@ namespace Ink_Canvas
                 double easedProgress = 1.0 - Math.Pow(1.0 - progress, 3);
                 SettingsScrollViewer.ScrollToVerticalOffset(startOffset + distance * easedProgress);
                 await Task.Delay(12);
+            }
+        }
+
+        // ===== 插件工坊 =====
+
+        // plugin 存放目录（位于程序运行目录下的 Plugins 文件夹）
+        private static string PluginDirectory => App.RootPath + "Plugins\\";
+
+        private void BtnOpenPluginWorkshop_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 确保插件目录存在，便于用户立即使用「打开插件目录」
+                if (!System.IO.Directory.Exists(PluginDirectory))
+                    System.IO.Directory.CreateDirectory(PluginDirectory);
+
+                // 若插件工坊窗口已存在，仅激活已有实例，不重复创建
+                if (PluginWorkshopWindow.HasInstance)
+                {
+                    PluginWorkshopWindow.GetOrCreate(null);
+                    return;
+                }
+
+                // 关闭设置窗口（若有），插件工坊作为独立窗口显示
+                var settings = SettingsWindow;
+                if (settings != null)
+                {
+                    settings.Close();
+                }
+
+                // 创建插件工坊单例；不绑定 Owner，避免设置窗口关闭时被连带关闭
+                var workshop = PluginWorkshopWindow.GetOrCreate(null);
+                workshop.Owner = null;
+                workshop.Show();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"打开插件工坊失败: {ex.Message}", LogHelper.LogType.Error);
+                ShowNotificationAsync("打开插件工坊失败");
             }
         }
 

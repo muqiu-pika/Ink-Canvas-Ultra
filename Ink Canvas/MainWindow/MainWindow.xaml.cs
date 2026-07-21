@@ -121,9 +121,59 @@ namespace Ink_Canvas
             }
 
             CheckColorTheme(true);
-            
+
             // 注册窗口大小变化事件
             this.SizeChanged += MainWindow_SizeChanged;
+
+            // ===== 初始化 plugin 系统 =====
+            InitializePluginSystem();
+        }
+
+        /// <summary>
+        /// 初始化 plugin 系统：创建 PluginHost、加载 Plugins 目录下所有 plugin、
+        /// 注册主程序内建路由处理器、根据已安装的 plugin 显示对应入口按钮。
+        /// </summary>
+        private void InitializePluginSystem()
+        {
+            try
+            {
+                var host = Plugins.PluginHost.Initialize(this);
+
+                // 注册主程序内建路由处理器：video-presenter → 显示视频展台侧栏
+                host.RegisterRouteHandler("video-presenter", (entryPoint, parameter) =>
+                {
+                    try
+                    {
+                        ShowVideoPresenterSidebar();
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile($"video-presenter 路由处理失败: {ex.Message}", LogHelper.LogType.Error);
+                        return false;
+                    }
+                });
+
+                // 扫描并加载所有 plugin
+                host.LoadAll();
+
+                // 根据已安装的 plugin 显示对应入口按钮
+                // 视频展台 plugin 已安装时才显示白板工具栏的「视频展台」按钮
+                if (BtnVideoPresenter != null)
+                {
+                    bool vpInstalled = host.IsRouteAvailable("video-presenter");
+                    BtnVideoPresenter.Visibility = vpInstalled ? Visibility.Visible : Visibility.Collapsed;
+                    LogHelper.WriteLogToFile(
+                        $"视频展台按钮可见性: {(vpInstalled ? "Visible" : "Collapsed")} (plugin installed = {vpInstalled})",
+                        LogHelper.LogType.Info);
+                }
+
+                LogHelper.WriteLogToFile($"plugin 系统初始化完成，已加载 {host.GetAllManifests().Count} 个 plugin", LogHelper.LogType.Event);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"plugin 系统初始化失败: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         /// <summary>
@@ -755,6 +805,8 @@ namespace Ink_Canvas
             try { timerFixFloatingBarZOrder?.Stop(); } catch { }
             UnhookInputDeviceNotifications();
             StopSingleInstanceCommandServer();
+            // 通知所有 plugin 主程序即将退出
+            try { Plugins.PluginHost.Instance?.ShutdownAll(); } catch { }
             // 移除摄像头画面
             RemoveCameraFrame();
             // 清理摄像头资源

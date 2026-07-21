@@ -1,0 +1,304 @@
+<Window
+    x:Class="Ink_Canvas.PluginWorkshopWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:ikw="http://schemas.inkore.net/lib/ui/wpf"
+    xmlns:local="clr-namespace:Ink_Canvas"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+    Title="插件工坊 - Ink Canvas Ultra"
+    Width="900"
+    Height="640"
+    MinWidth="640"
+    MinHeight="480"
+    ui:ThemeManager.RequestedTheme="Light"
+    ui:WindowHelper.SystemBackdropType="Mica"
+    ui:WindowHelper.UseModernWindowStyle="False"
+    WindowStartupLocation="CenterOwner"
+    Topmost="False"
+    mc:Ignorable="d">
+    <Border
+        Margin="10"
+        Padding="20"
+        Background="{DynamicResource PopupWindowBackground}"
+        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+        BorderThickness="1"
+        CornerRadius="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- 头部标题栏 -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <ui:FontIcon
+                        Margin="0,0,10,0"
+                        VerticalAlignment="Center"
+                        FontFamily="{StaticResource FluentIconFontFamily}"
+                        FontSize="24"
+                        Foreground="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                        Glyph="&#xE735;" />
+                    <TextBlock
+                        Margin="0,0,8,0"
+                        FontSize="26"
+                        FontWeight="SemiBold"
+                        Foreground="{DynamicResource PopupWindowForeground}"
+                        Text="插件工坊" />
+                    <Border
+                        Padding="6,2"
+                        Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                        CornerRadius="4">
+                        <TextBlock
+                            FontSize="13"
+                            Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
+                            Text="plugin"
+                            Height="18" />
+                    </Border>
+                </StackPanel>
+            </Grid>
+
+            <!-- 操作工具栏 -->
+            <Border
+                Grid.Row="1"
+                Margin="0,0,0,14"
+                Padding="12,10"
+                BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="6">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ikw:SimpleStackPanel
+                        Grid.Column="0"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="8">
+                        <Button
+                            Width="150"
+                            Height="38"
+                            Click="BtnPluginInstallFromLocal_Click"
+                            FontWeight="Bold">
+                            <ikw:SimpleStackPanel
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="6">
+                                <ui:FontIcon
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                    FontSize="14"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Glyph="&#xE71D;" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="从本地安装" />
+                            </ikw:SimpleStackPanel>
+                        </Button>
+
+                        <Button
+                            Width="110"
+                            Height="38"
+                            Click="BtnPluginRefresh_Click"
+                            FontWeight="Bold">
+                            <ikw:SimpleStackPanel
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="6">
+                                <ui:FontIcon
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                    FontSize="14"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Glyph="&#xE72C;" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="刷新列表" />
+                            </ikw:SimpleStackPanel>
+                        </Button>
+
+                        <Button
+                            Width="130"
+                            Height="38"
+                            Click="BtnPluginOpenFolder_Click"
+                            FontWeight="Bold">
+                            <ikw:SimpleStackPanel
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Orientation="Horizontal"
+                                Spacing="6">
+                                <ui:FontIcon
+                                    VerticalAlignment="Center"
+                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                    FontSize="14"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Glyph="&#xE8DA;" />
+                                <TextBlock
+                                    VerticalAlignment="Center"
+                                    FontSize="14"
+                                    FontWeight="Bold"
+                                    Text="打开插件目录" />
+                            </ikw:SimpleStackPanel>
+                        </Button>
+                    </ikw:SimpleStackPanel>
+
+                    <Border
+                        Grid.Column="1"
+                        Padding="10,4"
+                        VerticalAlignment="Center"
+                        Background="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                        CornerRadius="4">
+                        <TextBlock
+                            x:Name="TextBlockPluginCount"
+                            VerticalAlignment="Center"
+                            FontSize="12"
+                            Foreground="{DynamicResource PopupWindowDarkBlueBorderForeground}"
+                            Text="已安装 plugin：0" />
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- 主内容区 -->
+            <ui:ScrollViewerEx
+                Grid.Row="2"
+                Margin="0,0,0,14"
+                VerticalScrollBarVisibility="Auto"
+                PanningMode="VerticalOnly"
+                ManipulationBoundaryFeedback="SCManipulationBoundaryFeedback">
+                <ikw:SimpleStackPanel Spacing="12">
+
+                    <!-- 已安装 plugin 列表标题 -->
+                    <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="6">
+                        <ui:FontIcon
+                            VerticalAlignment="Center"
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+                            FontSize="16"
+                            Foreground="{DynamicResource PopupWindowForeground}"
+                            Glyph="&#xE943;" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource PopupWindowForeground}"
+                            Text="已安装" />
+                    </ikw:SimpleStackPanel>
+
+                    <!-- 已安装 plugin 列表容器 -->
+                    <Border
+                        MinHeight="100"
+                        Padding="10"
+                        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                        <StackPanel x:Name="PanelInstalledPlugins">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Margin="0,16"
+                                FontSize="13"
+                                Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                                Text="暂无已安装的 plugin" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 在线可安装 plugin 列表标题 -->
+                    <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="6">
+                        <ui:FontIcon
+                            VerticalAlignment="Center"
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+                            FontSize="16"
+                            Foreground="{DynamicResource PopupWindowForeground}"
+                            Glyph="&#xE7BF;" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="16"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource PopupWindowForeground}"
+                            Text="可安装" />
+                    </ikw:SimpleStackPanel>
+
+                    <!-- 在线 plugin 列表容器 -->
+                    <Border
+                        MinHeight="140"
+                        Padding="10"
+                        BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                        BorderThickness="1"
+                        CornerRadius="6">
+                        <StackPanel x:Name="PanelAvailablePlugins">
+                            <TextBlock
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center"
+                                Margin="0,20"
+                                FontSize="13"
+                                Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                                Text="点击「刷新列表」以加载可用 plugin" />
+                        </StackPanel>
+                    </Border>
+
+                    <TextBlock
+                        Margin="0,4,0,0"
+                        FontSize="12"
+                        Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                        Text="* plugin 来自第三方开发者，安装前请确认来源可信。启用或卸载 plugin 可能需要重启软件后生效。"
+                        TextWrapping="Wrap" />
+
+                </ikw:SimpleStackPanel>
+            </ui:ScrollViewerEx>
+
+            <!-- 底部按钮区 -->
+            <Grid Grid.Row="3">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button
+                    Grid.Column="0"
+                    Width="140"
+                    Height="36"
+                    HorizontalAlignment="Left"
+                    Click="BtnBackToSettings_Click">
+                    <ikw:SimpleStackPanel
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="6">
+                        <ui:FontIcon
+                            VerticalAlignment="Center"
+                            FontFamily="{StaticResource FluentIconFontFamily}"
+                            FontSize="14"
+                            Foreground="{DynamicResource PopupWindowForeground}"
+                            Glyph="&#xE72B;" />
+                        <TextBlock
+                            VerticalAlignment="Center"
+                            FontSize="14"
+                            FontWeight="Bold"
+                            Text="返回设置" />
+                    </ikw:SimpleStackPanel>
+                </Button>
+
+                <Button
+                    Grid.Column="2"
+                    Width="120"
+                    Height="36"
+                    HorizontalAlignment="Right"
+                    Click="BtnClose_Click"
+                    Content="关闭" />
+            </Grid>
+
+        </Grid>
+    </Border>
+</Window>

@@ -111,6 +111,7 @@ namespace Ink_Canvas
         private dynamic ViewboxBlackboardRightSideScaleTransform => FindXamlPart(MWBoardHost, nameof(ViewboxBlackboardRightSideScaleTransform));
         private dynamic BlackboardRightSide => FindXamlPart(MWBoardHost, nameof(BlackboardRightSide));
         private dynamic BtnBoardAddPage => FindXamlPart(MWBoardHost, nameof(BtnBoardAddPage));
+        private dynamic BtnVideoPresenter => FindXamlPart(MWBoardHost, nameof(BtnVideoPresenter));
         private dynamic BorderSettings => FindXamlPart(SettingsWindow, nameof(BorderSettings));
         private dynamic SettingsNavigationView => FindXamlPart(SettingsWindow, nameof(SettingsNavigationView));
         private dynamic SettingsScrollViewer => FindXamlPart(SettingsWindow, nameof(SettingsScrollViewer));
@@ -189,6 +190,7 @@ namespace Ink_Canvas
         private dynamic ToggleSwitchIsEnableEdgeGestureUtil => FindXamlPart(SettingsWindow, nameof(ToggleSwitchIsEnableEdgeGestureUtil));
         private dynamic ToggleSwitchIsEnableSilentRestartOnCrash => FindXamlPart(SettingsWindow, nameof(ToggleSwitchIsEnableSilentRestartOnCrash));
         private dynamic SettingsSection_Auto => FindXamlPart(SettingsWindow, nameof(SettingsSection_Auto));
+        private dynamic SettingsSection_PluginWorkshop => FindXamlPart(SettingsWindow, nameof(SettingsSection_PluginWorkshop));
         private dynamic ToggleSwitchAutoFoldInEasiNote => FindXamlPart(SettingsWindow, nameof(ToggleSwitchAutoFoldInEasiNote));
         private dynamic ToggleSwitchAutoFoldInEasiNoteIgnoreDesktopAnno => FindXamlPart(SettingsWindow, nameof(ToggleSwitchAutoFoldInEasiNoteIgnoreDesktopAnno));
         private dynamic ToggleSwitchAutoFoldInEasiCamera => FindXamlPart(SettingsWindow, nameof(ToggleSwitchAutoFoldInEasiCamera));

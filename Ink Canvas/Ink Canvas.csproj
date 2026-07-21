@@ -57,6 +57,7 @@
 			<HintPath>.\IAWinFX.dll</HintPath>
 		</Reference>
 		<Reference Include="netstandard" />
+		<Reference Include="System.IO.Compression.FileSystem" />
 
 	</ItemGroup>
 	<ItemGroup>
@@ -128,6 +129,11 @@
 		<Resource Include="Resources\Icons-png\Desmos.png" />
 		<Resource Include="Resources\Icons-png\EasiCamera.png" />
 		<Resource Include="Resources\Icons-png\penUpright.png" />
+	</ItemGroup>
+	<ItemGroup>
+		<None Include="Plugins\**\*">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
 	</ItemGroup>
 	<ItemGroup>
 		<BootstrapperPackage Include=".NETFramework,Version=v4.7.2">

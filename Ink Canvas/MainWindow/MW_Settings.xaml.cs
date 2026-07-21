@@ -91,6 +91,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BtnOpenInitialSetup_Click), sender, e);
         }
 
+        private void BtnOpenPluginWorkshop_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BtnOpenPluginWorkshop_Click), sender, e);
+        }
+
         private void BtnResetAutoUpdateProxyToGHProxy_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BtnResetAutoUpdateProxyToGHProxy_Click), sender, e);

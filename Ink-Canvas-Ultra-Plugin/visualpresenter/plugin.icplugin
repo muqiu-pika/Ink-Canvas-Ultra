@@ -1,0 +1,22 @@
+{
+    "id": "ink-canvas.visualpresenter",
+    "name": "视频展台",
+    "version": "1.0.0",
+    "author": "Ink Canvas Ultra",
+    "description": "为 Ink Canvas Ultra 提供视频展台能力：摄像头捕获、拍照、实时矫正、设备切换、画面旋转、白板页绑定。",
+    "entryAssembly": "VisualPresenterPlugin.dll",
+    "entryClass": "Ink_Canvas.Plugins.VisualPresenter.VisualPresenterPlugin",
+    "minHostVersion": "7.0.0",
+    "homepage": "https://github.com/InkCanvasUltra/Ink-Canvas-Ultra",
+    "icon": "icon.png",
+    "entryPoints": [
+        {
+            "route": "video-presenter",
+            "placement": "board-toolbar",
+            "label": "视频展台",
+            "glyph": "",
+            "order": 50,
+            "tooltip": "打开视频展台侧栏"
+        }
+    ]
+}

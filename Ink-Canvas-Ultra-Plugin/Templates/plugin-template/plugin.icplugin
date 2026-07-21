@@ -1,0 +1,20 @@
+{
+    "id": "ink-canvas.example",
+    "name": "示例 plugin",
+    "version": "1.0.0",
+    "author": "Your Name",
+    "description": "一个 Ink Canvas Ultra plugin 示例。请把此目录复制为新名称并修改 manifest 中的 id。",
+    "entryAssembly": "ExamplePlugin.dll",
+    "entryClass": "Ink_Canvas.Plugins.Example.ExamplePlugin",
+    "minHostVersion": "7.0.0",
+    "entryPoints": [
+        {
+            "route": "settings:plugin-workshop",
+            "placement": "board-toolbar",
+            "label": "示例",
+            "glyph": "",
+            "order": 100,
+            "tooltip": "示例 plugin 入口按钮"
+        }
+    ]
+}

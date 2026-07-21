@@ -1,4 +1,4 @@
-﻿/Ink Canvas/obj
+/Ink Canvas/obj
 /Ink Canvas/bin
 /.vs
 /BenchmarkSuite1/obj
@@ -9,3 +9,8 @@
 /Ink-Canvas-Ultra-master
 /dist
 /.vscode
+
+# Plugin build artifacts
+**/bin/
+**/obj/
+*.user
