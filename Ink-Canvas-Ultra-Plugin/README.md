@@ -320,7 +320,7 @@ plugin 分发文件使用 `.icplugin` 扩展名（与清单文件 `plugin.icplug
 2. 选择 `.icplugin` 文件
 3. 主程序以文件名（去掉扩展名）作为目标子目录名，计算安装目录 `<RootPath>\Plugins\<fileNameWithoutExt>\`
 4. 若目标目录已存在，弹窗询问是否覆盖（确认后先删除旧目录再解压）
-5. 使用 `System.IO.Compression.ZipFile.ExtractToDirectory` 解压到目标目录
+5. 使用 `System.IO.Compression.ZipFile.ExtractToDirectory` 解压到目标目录（.NET Framework 4.7.2 的重载不支持 overwriteFiles，靠步骤 4 清空目录保证解压成功）
 6. 校验解压后是否包含 `plugin.icplugin` 清单文件；若缺失则删除目标目录并报错
 7. 刷新插件工坊已安装列表（运行时不自动加载新装的 plugin，需重启主程序）
 

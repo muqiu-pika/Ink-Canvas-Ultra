@@ -202,10 +202,12 @@ namespace Ink_Canvas
                 }
 
                 // .icplugin 是 ZIP 格式，使用 System.IO.Compression 解压
+                // 注意：.NET Framework 4.7.2 的 ExtractToDirectory 不支持 overwriteFiles 参数，
+                // 因此覆盖安装时已在上方删除旧目录，这里目标目录必然为空，可直接解压。
                 if (!Directory.Exists(destDir))
                     Directory.CreateDirectory(destDir);
 
-                System.IO.Compression.ZipFile.ExtractToDirectory(sourceFile, destDir, overwriteFiles: true);
+                System.IO.Compression.ZipFile.ExtractToDirectory(sourceFile, destDir);
 
                 // 校验解压后是否包含 plugin.icplugin 清单
                 string manifestPath = Path.Combine(destDir, "plugin.icplugin");
