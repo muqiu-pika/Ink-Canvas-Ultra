@@ -107,6 +107,8 @@ namespace Ink_Canvas
         private dynamic BlackboardRightSide => FindXamlPart(MWBoardHost, nameof(BlackboardRightSide));
         private dynamic BtnBoardAddPage => FindXamlPart(MWBoardHost, nameof(BtnBoardAddPage));
         private dynamic BtnVideoPresenter => FindXamlPart(MWBoardHost, nameof(BtnVideoPresenter));
+        private dynamic IconVideoPresenter => FindXamlPart(MWBoardHost, nameof(IconVideoPresenter));
+        private dynamic TextVideoPresenter => FindXamlPart(MWBoardHost, nameof(TextVideoPresenter));
         private dynamic BorderSettings => FindXamlPart(SettingsWindow, nameof(BorderSettings));
         private dynamic SettingsNavigationView => FindXamlPart(SettingsWindow, nameof(SettingsNavigationView));
         private dynamic SettingsScrollViewer => FindXamlPart(SettingsWindow, nameof(SettingsScrollViewer));
@@ -304,13 +306,15 @@ namespace Ink_Canvas
         private dynamic LeftSidePanel => FindXamlPart(MWSidebarHost, nameof(LeftSidePanel));
         private dynamic RightSidePanel => FindXamlPart(MWSidebarHost, nameof(RightSidePanel));
         private dynamic VideoPresenterSidebar => FindXamlPart(MWSidebarHost, nameof(VideoPresenterSidebar));
+        private dynamic SidebarTitleTextBlock => FindXamlPart(MWSidebarHost, nameof(SidebarTitleTextBlock));
+        private dynamic CameraDeviceBorder => FindXamlPart(MWSidebarHost, nameof(CameraDeviceBorder));
         private dynamic CapturedPhotosBorder => FindXamlPart(MWSidebarHost, nameof(CapturedPhotosBorder));
         private dynamic CapturedPhotosTitleTextBlock => FindXamlPart(MWSidebarHost, nameof(CapturedPhotosTitleTextBlock));
         private dynamic CapturedPhotosScrollViewer => FindXamlPart(MWSidebarHost, nameof(CapturedPhotosScrollViewer));
         private dynamic CapturedPhotosStackPanel => FindXamlPart(MWSidebarHost, nameof(CapturedPhotosStackPanel));
         private dynamic CameraDevicesScrollViewer => FindXamlPart(MWSidebarHost, nameof(CameraDevicesScrollViewer));
         public dynamic CameraDevicesStackPanel => FindXamlPart(MWSidebarHost, nameof(CameraDevicesStackPanel));
-        private dynamic CheckBoxEnablePhotoCorrection => FindXamlPart(MWSidebarHost, nameof(CheckBoxEnablePhotoCorrection));
+        private dynamic BtnInsertMediaInSidebar => FindXamlPart(MWSidebarHost, nameof(BtnInsertMediaInSidebar));
         private dynamic BtnCapturePhoto => FindXamlPart(MWSidebarHost, nameof(BtnCapturePhoto));
         private dynamic BtnRotateImage => FindXamlPart(MWSidebarHost, nameof(BtnRotateImage));
         private dynamic BtnClearAllContent => FindXamlPart(MWSidebarHost, nameof(BtnClearAllContent));

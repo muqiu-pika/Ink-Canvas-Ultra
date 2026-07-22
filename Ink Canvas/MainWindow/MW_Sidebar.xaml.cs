@@ -48,14 +48,9 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BtnRotateImage_Click), sender, e);
         }
 
-        private void CheckBoxEnablePhotoCorrection_Checked(object sender, RoutedEventArgs e)
+        private void BtnInsertMediaInSidebar_Click(object sender, RoutedEventArgs e)
         {
-            InvokeMainWindowHandler(nameof(CheckBoxEnablePhotoCorrection_Checked), sender, e);
-        }
-
-        private void CheckBoxEnablePhotoCorrection_Unchecked(object sender, RoutedEventArgs e)
-        {
-            InvokeMainWindowHandler(nameof(CheckBoxEnablePhotoCorrection_Unchecked), sender, e);
+            InvokeMainWindowHandler(nameof(BtnInsertMediaInSidebar_Click), sender, e);
         }
 
         private void SCManipulationBoundaryFeedback(object sender, ManipulationBoundaryFeedbackEventArgs e)

@@ -28,11 +28,11 @@ namespace Ink_Canvas
                     try
                     {
                         // 已存在实例，激活并前置
+                        // 窗口本身已设置 Topmost=True（与 MainWindow/MW_Settings 一致），
+                        // 因此 Activate() 能让它在 Topmost 窗口堆栈中浮到 MainWindow 之上
                         if (_instance.WindowState == WindowState.Minimized)
                             _instance.WindowState = WindowState.Normal;
                         _instance.Activate();
-                        _instance.Topmost = true;
-                        _instance.Topmost = false;
                         _instance.Focus();
                         return _instance;
                     }

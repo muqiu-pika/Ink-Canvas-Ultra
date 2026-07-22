@@ -3193,80 +3193,6 @@
 
                         <Button
 
-                            Width="60"
-
-                            Height="55"
-
-                            Padding="0"
-
-                            BorderThickness="0"
-
-                            Click="BtnMediaInsertUnified_Click">
-
-                            <Border
-
-                                Width="60"
-
-                                Height="55"
-
-                                Background="{DynamicResource BoardBarBackground}"
-
-                                BorderBrush="{DynamicResource BoardBarBorderBrush}"
-
-                                BorderThickness="0,1,0.25,1">
-
-                                <Grid Margin="5">
-
-                                    <ikw:SimpleStackPanel
-
-                                        Width="28"
-
-                                        Height="28"
-
-                                        HorizontalAlignment="Center"
-
-                                        VerticalAlignment="Top"
-
-                                        Background="Transparent"
-
-                                        Orientation="Horizontal">
-
-                                        <ui:FontIcon
-
-                                            Width="28"
-
-                                            Height="22"
-
-                                            FontFamily="{StaticResource FluentIconFontFamily}"
-
-                                            FontSize="22"
-
-                                            Foreground="{DynamicResource BoardBarForeground}"
-
-                                            Glyph="&#xee71;" />
-
-                                    </ikw:SimpleStackPanel>
-
-                                    <TextBlock
-
-                                        HorizontalAlignment="Center"
-
-                                        VerticalAlignment="Bottom"
-
-                                        FontSize="12"
-
-                                        Foreground="{DynamicResource BoardBarForeground}"
-
-                                        Text="插入媒体" />
-
-                                </Grid>
-
-                            </Border>
-
-                        </Button>
-
-                        <Button
-
                             x:Name="BtnVideoPresenter"
 
                             Width="60"
@@ -3277,7 +3203,7 @@
 
                             BorderThickness="0"
 
-                            Visibility="Collapsed"
+                            Visibility="Visible"
 
                             Click="BtnVideoPresenter_Click">
 
@@ -3311,6 +3237,8 @@
 
                                         <ui:FontIcon
 
+                                            x:Name="IconVideoPresenter"
+
                                             Width="28"
 
                                             Height="22"
@@ -3326,6 +3254,8 @@
                                     </ikw:SimpleStackPanel>
 
                                     <TextBlock
+
+                                        x:Name="TextVideoPresenter"
 
                                         HorizontalAlignment="Center"
 

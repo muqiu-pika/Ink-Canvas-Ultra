@@ -24,9 +24,6 @@ using System.Windows.Threading;
 using System.Windows.Interop;
 using File = System.IO.File;
 using MessageBox = System.Windows.MessageBox;
-using AForge.Imaging;
-using AForge.Imaging.Filters;
-using AForge.Math.Geometry;
 
 namespace Ink_Canvas
 {
@@ -220,18 +217,29 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>PluginListChanged 事件处理：在 UI 线程上刷新入口按钮可见性</summary>
+        /// <summary>PluginListChanged 事件处理：在 UI 线程上刷新入口按钮可见性与侧栏模式</summary>
         private void Host_PluginListChanged(object sender, EventArgs e)
         {
             try
             {
-                Dispatcher.Invoke(() => UpdatePluginBasedButtonVisibility());
+                Dispatcher.Invoke(() =>
+                {
+                    UpdatePluginBasedButtonVisibility();
+                    // 若侧栏已打开，同步刷新其模式
+                    if (VideoPresenterSidebar != null && VideoPresenterSidebar.Visibility == Visibility.Visible)
+                    {
+                        var host = Plugins.PluginHost.Instance;
+                        bool vpAvailable = host != null && host.IsRouteAvailable("video-presenter");
+                        UpdateSidebarMode(vpAvailable);
+                        if (vpAvailable) cameraDeviceManager?.RefreshCameraDevices();
+                    }
+                });
             }
             catch { }
         }
 
         /// <summary>
-        /// 根据已安装/启用的 plugin 动态刷新主程序入口按钮的可见性。
+        /// 根据已安装/启用的 plugin 动态刷新主程序入口按钮的可见性与外观。
         /// 在以下时机调用：
         ///   - InitializePluginSystem 初始化完成时
         ///   - PluginListChanged 事件触发时（插件加载/卸载/启用/禁用/安装）
@@ -243,11 +251,22 @@ namespace Ink_Canvas
                 var host = Plugins.PluginHost.Instance;
                 if (host == null) return;
 
-                // 视频展台按钮：仅当 video-presenter 路由可用（即视频展台 plugin 已安装且启用）时显示
+                // 视频展台按钮：始终显示，但根据插件可用性切换外观
+                //   - 插件可用：图标=摄像头，文本="视频展台"
+                //   - 插件不可用：图标=照片，文本="照片列表"
                 if (BtnVideoPresenter != null)
                 {
+                    BtnVideoPresenter.Visibility = Visibility.Visible;
                     bool vpAvailable = host.IsRouteAvailable("video-presenter");
-                    BtnVideoPresenter.Visibility = vpAvailable ? Visibility.Visible : Visibility.Collapsed;
+                    if (IconVideoPresenter != null)
+                    {
+                        // &#xe714; = 摄像头/视频图标；&#xe8b9; = 照片图标
+                        IconVideoPresenter.Glyph = vpAvailable ? "\ue714" : "\ue8b9";
+                    }
+                    if (TextVideoPresenter != null)
+                    {
+                        TextVideoPresenter.Text = vpAvailable ? "视频展台" : "照片列表";
+                    }
                 }
             }
             catch { }
@@ -409,7 +428,17 @@ namespace Ink_Canvas
         {
             if (VideoPresenterSidebar == null) return;
             VideoPresenterSidebar.Visibility = Visibility.Visible;
-            cameraDeviceManager?.RefreshCameraDevices();
+
+            // 根据视频展台插件是否可用，切换侧栏内容
+            var host = Plugins.PluginHost.Instance;
+            bool vpAvailable = host != null && host.IsRouteAvailable("video-presenter");
+            UpdateSidebarMode(vpAvailable);
+
+            if (vpAvailable)
+            {
+                cameraDeviceManager?.RefreshCameraDevices();
+            }
+
             Dispatcher.BeginInvoke(new Action(() =>
             {
                 try
@@ -418,6 +447,40 @@ namespace Ink_Canvas
                 }
                 catch { }
             }), DispatcherPriority.Background);
+        }
+
+        /// <summary>
+        /// 根据视频展台插件可用性切换侧栏模式。
+        ///   - 插件可用（完整模式）：标题="视频展台"，显示摄像头设备选择区、拍照按钮
+        ///   - 插件不可用（照片列表模式）：标题="照片列表"，隐藏摄像头相关区域，仅保留照片列表+清除+旋转+插入媒体
+        /// 插入媒体按钮始终显示。
+        /// </summary>
+        private void UpdateSidebarMode(bool videoPresenterAvailable)
+        {
+            try
+            {
+                // 标题
+                if (SidebarTitleTextBlock != null)
+                {
+                    SidebarTitleTextBlock.Text = videoPresenterAvailable ? "视频展台" : "照片列表";
+                }
+
+                // 摄像头设备选择区（Row 2）
+                if (CameraDeviceBorder != null)
+                {
+                    CameraDeviceBorder.Visibility = videoPresenterAvailable ? Visibility.Visible : Visibility.Collapsed;
+                }
+
+                // 拍照按钮
+                if (BtnCapturePhoto != null)
+                {
+                    BtnCapturePhoto.Visibility = videoPresenterAvailable ? Visibility.Visible : Visibility.Collapsed;
+                }
+
+                // 插入媒体按钮始终显示（取代原实时矫正开关位置）
+                // 旋转按钮始终保留（对照片列表中的图片也有用）
+            }
+            catch { }
         }
 
         private void ActivateCurrentWindow()
@@ -1103,8 +1166,6 @@ namespace Ink_Canvas
         private Dictionary<int, System.Windows.Controls.Image> cameraFramesByPage = new Dictionary<int, System.Windows.Controls.Image>();
         // 摄像头画面更新定时器
         private DispatcherTimer cameraFrameTimer;
-        private const int CorrectedPaperWidth = 500;
-        private const int CorrectedPaperHeight = 600;
 
         #region Photo Capture Functions
 
@@ -1171,15 +1232,6 @@ namespace Ink_Canvas
                                 frame.RotateFlip(rotateFlipType);
                             }
                             Bitmap toSave = frame;
-                            // 只有在实时校正开关开启时，才进行照片校正
-                            if (Settings.Automation.IsEnablePhotoCorrection && TryDetectPaperCorners(toSave, out List<AForge.IntPoint> corners))
-                            {
-                                var corrected = ApplyPerspectiveCorrection(toSave, corners);
-                                if (corrected != null)
-                                {
-                                    toSave = corrected;
-                                }
-                            }
                             var bitmapImage = ConvertBitmapToBitmapImage(toSave);
                             if (!ReferenceEquals(toSave, frame))
                             {
@@ -1427,6 +1479,41 @@ namespace Ink_Canvas
             };
 
             var contentGrid = new Grid();
+
+            // 视频条目：右上角添加视频标记徽章
+            if (photo.IsVideo)
+            {
+                var badge = new Border
+                {
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Margin = new Thickness(0, 6, 6, 0),
+                    Padding = new Thickness(6, 2, 6, 2),
+                    CornerRadius = new CornerRadius(4),
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xCC, 0xE8, 0x3E, 0x3E))
+                };
+                var badgeContent = new StackPanel { Orientation = Orientation.Horizontal };
+                badgeContent.Children.Add(new TextBlock
+                {
+                    Text = "\uE714",
+                    FontFamily = (System.Windows.Media.FontFamily)Application.Current.TryFindResource("FluentIconFontFamily"),
+                    FontSize = 11,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 3, 0)
+                });
+                badgeContent.Children.Add(new TextBlock
+                {
+                    Text = "视频",
+                    FontSize = 11,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = System.Windows.Media.Brushes.White,
+                    VerticalAlignment = VerticalAlignment.Center
+                });
+                badge.Child = badgeContent;
+                contentGrid.Children.Add(badge);
+            }
+
             contentGrid.Children.Add(image);
             contentGrid.Children.Add(checkOverlay);
 
@@ -1444,7 +1531,24 @@ namespace Ink_Canvas
 
             button.Click += (sender, e) =>
             {
-                // 更新选中状态并刷新侧栏照片样式
+                // 视频条目：点击后通过路由触发视频插入
+                if (photo.IsVideo)
+                {
+                    var host = Plugins.PluginHost.Instance;
+                    if (host == null || !host.IsRouteAvailable("video-insert"))
+                    {
+                        MessageBox.Show("视频控件 plugin 不可用，无法插入视频。请在插件工坊中启用 videocontrols。",
+                            "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                        return;
+                    }
+                    selectedPhotoTimestamp = photo.Timestamp;
+                    UpdateCapturedPhotosDisplay();
+                    host.TriggerRoute("video-insert", photo.VideoFilePath);
+                    Console.WriteLine($"视频已通过路由插入：{photo.VideoFilePath}");
+                    return;
+                }
+
+                // 图片条目：更新选中状态并刷新侧栏照片样式
                 selectedPhotoTimestamp = photo.Timestamp;
                 UpdateCapturedPhotosDisplay();
 
@@ -1631,13 +1735,6 @@ namespace Ink_Canvas
             
             // 设置拍照按钮的初始状态
             UpdateCapturePhotoButtonState();
-            try
-            {
-                object checkBoxEnablePhotoCorrectionObject = CheckBoxEnablePhotoCorrection;
-                if (checkBoxEnablePhotoCorrectionObject is ToggleButton cb)
-                    cb.IsChecked = Settings.Automation.IsEnablePhotoCorrection;
-            }
-            catch { }
         }
 
         // 摄像头控制按钮功能已移除，仅保留设备选择功能
@@ -1709,22 +1806,18 @@ namespace Ink_Canvas
         public void UpdateCapturePhotoButtonState()
         {
             if (BtnCapturePhoto == null) return;
-            
+
             bool hasCameraFrame = HasCameraFrameOnCurrentPage();
             BtnCapturePhoto.IsEnabled = hasCameraFrame;
-            var btnCorrect = FindName("BtnCorrectPhoto") as Button;
-            if (btnCorrect != null) btnCorrect.IsEnabled = hasCameraFrame;
-            
+
             // 根据按钮状态更新视觉样式
             if (hasCameraFrame)
             {
                 BtnCapturePhoto.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.SkyBlue);
-                if (btnCorrect != null) btnCorrect.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.SkyBlue);
             }
             else
             {
                 BtnCapturePhoto.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 160, 160));
-                if (btnCorrect != null) btnCorrect.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(160, 160, 160));
             }
         }
         
@@ -2135,10 +2228,6 @@ namespace Ink_Canvas
                             if (frame != null)
                             {
                                 // 直接在UI线程上执行插入操作
-                                if (Settings.Automation.IsEnablePhotoCorrection)
-                                {
-                                    OverlayPaperEdgesOnFrame(frame);
-                                }
                                 // 转换Bitmap到BitmapImage
                                 var bitmapImage = await Task.Run(() =>
                                 {
@@ -2402,10 +2491,6 @@ namespace Ink_Canvas
         {
             try
             {
-                if (Settings.Automation.IsEnablePhotoCorrection)
-                {
-                    OverlayPaperEdgesOnFrame(frame);
-                }
                 // 转换Bitmap到BitmapImage
                 var bitmapImage = await Task.Run(() =>
                 {
@@ -2463,10 +2548,6 @@ namespace Ink_Canvas
             try
             {
                 if (currentCameraImage == null) return;
-                if (Settings.Automation.IsEnablePhotoCorrection)
-                {
-                    OverlayPaperEdgesOnFrame(frame);
-                }
 
                 // 转换Bitmap到BitmapImage
                 var bitmapImage = await Task.Run(() =>
@@ -2508,311 +2589,99 @@ namespace Ink_Canvas
             }
         }
 
-        private void OverlayPaperEdgesOnFrame(Bitmap frame)
+        /// <summary>侧栏"插入媒体"按钮：导入图片/视频后统一显示在照片列表中</summary>
+        private async void BtnInsertMediaInSidebar_Click(object sender, RoutedEventArgs e)
         {
-            try
+            // 实时检查视频控件 plugin 是否可用
+            var host = Plugins.PluginHost.Instance;
+            bool videoAvailable = host != null && host.IsRouteAvailable("video-insert");
+
+            string filter;
+            if (videoAvailable)
             {
-                if (frame == null) return;
-                int targetWidth = 640;
-                int ow = frame.Width;
-                int oh = frame.Height;
-                double scale = 1.0;
-                Bitmap work = frame;
-                if (ow > targetWidth)
-                {
-                    int nh = (int)Math.Round(oh * (targetWidth / (double)ow));
-                    var resize = new ResizeBilinear(targetWidth, nh);
-                    work = resize.Apply(frame);
-                    scale = (double)ow / targetWidth;
-                }
-                var gray = Grayscale.CommonAlgorithms.BT709.Apply(work);
-                var blur = new GaussianBlur(3, 3);
-                blur.ApplyInPlace(gray);
-                var canny = new CannyEdgeDetector();
-                canny.ApplyInPlace(gray);
-                var dilate = new Dilatation3x3();
-                dilate.ApplyInPlace(gray);
-                var bc = new BlobCounter
-                {
-                    FilterBlobs = true,
-                    MinHeight = 50,
-                    MinWidth = 50,
-                    ObjectsOrder = ObjectsOrder.Size
-                };
-                bc.ProcessImage(gray);
-                var blobs = bc.GetObjectsInformation();
-                var sc = new SimpleShapeChecker();
-                List<AForge.IntPoint> best = null;
-                double bestArea = 0;
-                foreach (var blob in blobs)
-                {
-                    var edgePoints = bc.GetBlobsEdgePoints(blob);
-                    if (edgePoints == null || edgePoints.Count < 4) continue;
-                    if (sc.IsQuadrilateral(edgePoints, out List<AForge.IntPoint> corners))
-                    {
-                        double area = Math.Abs(PolygonArea(corners));
-                        if (area > bestArea)
-                        {
-                            bestArea = area;
-                            best = corners;
-                        }
-                    }
-                }
-                if (best != null)
-                {
-                    var pts = best.Select(p => new System.Drawing.Point((int)Math.Round(p.X * scale), (int)Math.Round(p.Y * scale))).ToList();
-                    pts.Sort((a, b) => a.Y.CompareTo(b.Y));
-                    if (pts[0].X > pts[1].X) { (pts[0], pts[1]) = (pts[1], pts[0]); }
-                    if (pts[2].X > pts[3].X) { (pts[2], pts[3]) = (pts[3], pts[2]); }
-                    using (var g = Graphics.FromImage(frame))
-                    {
-                        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                        using (var pen = new System.Drawing.Pen(System.Drawing.Color.Lime, 3))
-                        {
-                            g.DrawPolygon(pen, pts.ToArray());
-                        }
-                        using (var brush = new System.Drawing.SolidBrush(System.Drawing.Color.Red))
-                        {
-                            foreach (var p in pts)
-                            {
-                                g.FillEllipse(brush, p.X - 6, p.Y - 6, 12, 12);
-                            }
-                        }
-                        using (var font = new System.Drawing.Font(System.Drawing.FontFamily.GenericSansSerif, 18f, System.Drawing.FontStyle.Bold))
-                        using (var labBrush = new System.Drawing.SolidBrush(System.Drawing.Color.Lime))
-                        {
-                            for (int i = 0; i < 4; i++)
-                            {
-                                g.DrawString((i + 1).ToString(), font, labBrush, pts[i]);
-                            }
-                        }
-                    }
-                }
-                if (!ReferenceEquals(work, frame)) work.Dispose();
-                gray.Dispose();
+                filter = "图片/视频 (*.jpg;*.jpeg;*.png;*.bmp;*.mp4;*.avi;*.wmv)|*.jpg;*.jpeg;*.png;*.bmp;*.mp4;*.avi;*.wmv|图片 (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp|视频 (*.mp4;*.avi;*.wmv)|*.mp4;*.avi;*.wmv";
             }
-            catch { }
-        }
-
-        private bool TryDetectPaperCorners(Bitmap frame, out List<AForge.IntPoint> cornersOut)
-        {
-            cornersOut = null;
-            try
+            else
             {
-                if (frame == null) return false;
-                int targetWidth = 640;
-                int ow = frame.Width;
-                int oh = frame.Height;
-                double scale = 1.0;
-                Bitmap work = frame;
-                if (ow > targetWidth)
+                filter = "图片 (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp";
+            }
+
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog { Filter = filter };
+            if (openFileDialog.ShowDialog() != true) return;
+
+            string filePath = openFileDialog.FileName;
+            string ext = (System.IO.Path.GetExtension(filePath) ?? string.Empty).ToLowerInvariant();
+            var imageExts = new HashSet<string> { ".jpg", ".jpeg", ".png", ".bmp" };
+            var videoExts = new HashSet<string> { ".mp4", ".avi", ".wmv" };
+
+            if (imageExts.Contains(ext))
+            {
+                // 图片：加载为 BitmapImage 后加入照片列表
+                try
                 {
-                    int nh = (int)Math.Round(oh * (targetWidth / (double)ow));
-                    var resize = new ResizeBilinear(targetWidth, nh);
-                    work = resize.Apply(frame);
-                    scale = (double)ow / targetWidth;
+                    var bitmap = new BitmapImage();
+                    bitmap.BeginInit();
+                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                    bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
+                    bitmap.EndInit();
+                    bitmap.Freeze();
+
+                    AddImportedImageToPhotoList(bitmap, filePath);
                 }
-                var gray = Grayscale.CommonAlgorithms.BT709.Apply(work);
-                var blur = new GaussianBlur(3, 3);
-                blur.ApplyInPlace(gray);
-                var canny = new CannyEdgeDetector();
-                canny.ApplyInPlace(gray);
-                var dilate = new Dilatation3x3();
-                dilate.ApplyInPlace(gray);
-                var bc = new BlobCounter
+                catch (Exception ex)
                 {
-                    FilterBlobs = true,
-                    MinHeight = 50,
-                    MinWidth = 50,
-                    ObjectsOrder = ObjectsOrder.Size
-                };
-                bc.ProcessImage(gray);
-                var blobs = bc.GetObjectsInformation();
-                var sc = new SimpleShapeChecker();
-                List<AForge.IntPoint> best = null;
-                double bestArea = 0;
-                foreach (var blob in blobs)
-                {
-                    var edgePoints = bc.GetBlobsEdgePoints(blob);
-                    if (edgePoints == null || edgePoints.Count < 4) continue;
-                    if (sc.IsQuadrilateral(edgePoints, out List<AForge.IntPoint> crn))
-                    {
-                        double area = Math.Abs(PolygonArea(crn));
-                        if (area > bestArea)
-                        {
-                            bestArea = area;
-                            best = crn;
-                        }
-                    }
+                    MessageBox.Show($"加载图片失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
-                if (best != null)
+            }
+            else if (videoExts.Contains(ext))
+            {
+                // 视频：检查插件可用性后加入照片列表（带视频标记）
+                if (!videoAvailable)
                 {
-                    var pts = best
-                        .Select(p => new AForge.IntPoint((int)Math.Round(p.X * scale), (int)Math.Round(p.Y * scale)))
-                        .ToList();
-                    pts.Sort((a, b) => a.Y.CompareTo(b.Y));
-                    if (pts[0].X > pts[1].X) { (pts[0], pts[1]) = (pts[1], pts[0]); }
-                    if (pts[2].X > pts[3].X) { (pts[2], pts[3]) = (pts[3], pts[2]); }
-                    cornersOut = pts;
-                    if (!ReferenceEquals(work, frame)) work.Dispose();
-                    gray.Dispose();
-                    return true;
-                }
-                if (!ReferenceEquals(work, frame)) work.Dispose();
-                gray.Dispose();
-                return false;
-            }
-            catch
-            {
-                return false;
-            }
-        }
-
-        private Bitmap ApplyPerspectiveCorrection(Bitmap frame, List<AForge.IntPoint> corners)
-        {
-            try
-            {
-                if (frame == null || corners == null || corners.Count != 4) return null;
-                var tl = corners[0];
-                var tr = corners[1];
-                var bl = corners[2];
-                var br = corners[3];
-
-                double topW = Math.Sqrt((tr.X - tl.X) * (tr.X - tl.X) + (tr.Y - tl.Y) * (tr.Y - tl.Y));
-                double bottomW = Math.Sqrt((br.X - bl.X) * (br.X - bl.X) + (br.Y - bl.Y) * (br.Y - bl.Y));
-                double leftH = Math.Sqrt((bl.X - tl.X) * (bl.X - tl.X) + (bl.Y - tl.Y) * (bl.Y - tl.Y));
-                double rightH = Math.Sqrt((br.X - tr.X) * (br.X - tr.X) + (br.Y - tr.Y) * (br.Y - tr.Y));
-
-                double avgW = (topW + bottomW) / 2.0;
-                double avgH = (leftH + rightH) / 2.0;
-                if (avgH <= 0) avgH = 1;
-                double ratio = avgW / avgH;
-
-                int targetH = CorrectedPaperHeight;
-                int targetW = Math.Max(1, (int)Math.Round(targetH * ratio));
-
-                var orderedCorners = new List<AForge.IntPoint> { tl, tr, br, bl };
-                var qtf = new QuadrilateralTransformation(orderedCorners, targetW, targetH);
-                return qtf.Apply(frame);
-            }
-            catch { return null; }
-        }
-
-        private static double PolygonArea(List<AForge.IntPoint> pts)
-        {
-            int n = pts.Count;
-            if (n < 3) return 0;
-            long sum = 0;
-            for (int i = 0; i < n; i++)
-            {
-                var p = pts[i];
-                var q = pts[(i + 1) % n];
-                sum += (long)p.X * q.Y - (long)p.Y * q.X;
-            }
-            return 0.5 * sum;
-        }
-
-        private void BtnCorrectPhoto_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                if (cameraDeviceManager == null)
-                {
-                    MessageBox.Show("摄像头设备管理器未初始化", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show("未安装视频控件 plugin，无法导入视频。请到插件工坊安装 videocontrols。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
+                AddImportedVideoToPhotoList(filePath);
+            }
+            else
+            {
+                MessageBox.Show("不支持的媒体格式", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Information);
+            }
+        }
 
-                var frame = cameraDeviceManager.GetFrameCopy();
-                if (frame == null)
-                {
-                    MessageBox.Show("未获取到摄像头画面", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-
-                double rotationAngle = 0;
-                if (currentCameraImage != null && currentCameraImage.RenderTransform is TransformGroup tg)
-                {
-                    foreach (var t in tg.Children)
-                    {
-                        if (t is RotateTransform rt)
-                        {
-                            rotationAngle += rt.Angle;
-                        }
-                    }
-                }
-
-                Task.Run(() =>
-                {
-                    try
-                    {
-                        using (frame)
-                        {
-                            if (rotationAngle != 0)
-                            {
-                                System.Drawing.RotateFlipType rotateFlipType = System.Drawing.RotateFlipType.RotateNoneFlipNone;
-                                if (rotationAngle % 360 == 90 || rotationAngle % 360 == -270)
-                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate90FlipNone;
-                                else if (rotationAngle % 360 == 180 || rotationAngle % 360 == -180)
-                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate180FlipNone;
-                                else if (rotationAngle % 360 == 270 || rotationAngle % 360 == -90)
-                                    rotateFlipType = System.Drawing.RotateFlipType.Rotate270FlipNone;
-                                frame.RotateFlip(rotateFlipType);
-                            }
-                            Bitmap toSave = frame;
-                            if (TryDetectPaperCorners(toSave, out List<AForge.IntPoint> corners))
-                            {
-                                var corrected = ApplyPerspectiveCorrection(toSave, corners);
-                                if (corrected != null)
-                                {
-                                    toSave = corrected;
-                                }
-                            }
-                            var bitmapImage = ConvertBitmapToBitmapImage(toSave);
-                            if (!ReferenceEquals(toSave, frame))
-                            {
-                                toSave.Dispose();
-                            }
-                            if (bitmapImage != null)
-                            {
-                                Dispatcher.BeginInvoke(new Action(() =>
-                                {
-                                    AddCapturedPhoto(bitmapImage);
-                                }));
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"矫正拍照处理失败: {ex.Message}");
-                    }
-                });
+        /// <summary>将导入的图片加入照片列表</summary>
+        private void AddImportedImageToPhotoList(BitmapImage bitmap, string filePath)
+        {
+            try
+            {
+                var captured = new CapturedImage(bitmap, filePath);
+                capturedPhotos.Insert(0, captured);
+                UpdateCapturedPhotosDisplay();
+                Console.WriteLine($"图片已导入照片列表：{filePath}");
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"矫正拍照失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                Console.WriteLine($"导入图片到照片列表失败：{ex.Message}");
             }
         }
 
-        private void CheckBoxEnablePhotoCorrection_Checked(object sender, RoutedEventArgs e)
+        /// <summary>将导入的视频加入照片列表（使用占位缩略图 + 视频标记）</summary>
+        private void AddImportedVideoToPhotoList(string videoFilePath)
         {
-            Settings.Automation.IsEnablePhotoCorrection = true;
-            SaveSettingsToFile();
-            // 重新查找摄像头画面元素，确保currentCameraImage不为null
-            FindCurrentCameraImage();
-            // 重新启动摄像头画面更新定时器，确保画面继续更新
-            cameraFrameTimer?.Start();
+            try
+            {
+                var placeholder = CapturedImage.CreateVideoPlaceholderThumbnail();
+                var captured = new CapturedImage(placeholder, videoFilePath, isVideo: true);
+                capturedPhotos.Insert(0, captured);
+                UpdateCapturedPhotosDisplay();
+                Console.WriteLine($"视频已导入照片列表：{videoFilePath}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"导入视频到照片列表失败：{ex.Message}");
+            }
         }
 
-        private void CheckBoxEnablePhotoCorrection_Unchecked(object sender, RoutedEventArgs e)
-        {
-            Settings.Automation.IsEnablePhotoCorrection = false;
-            SaveSettingsToFile();
-            // 重新查找摄像头画面元素，确保currentCameraImage不为null
-            FindCurrentCameraImage();
-            // 重新启动摄像头画面更新定时器，确保画面继续更新
-            cameraFrameTimer?.Start();
-        }
-        
         // 查找当前摄像头画面元素
         private void FindCurrentCameraImage()
         {
