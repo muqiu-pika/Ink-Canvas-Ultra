@@ -5,7 +5,9 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using Ink_Canvas.Helpers;
+using Ink_Canvas.Plugins;
 using Microsoft.Win32;
 
 namespace Ink_Canvas
@@ -48,6 +50,13 @@ namespace Ink_Canvas
                 }
                 _instance.Closed += (s, e) =>
                 {
+                    // 解除 PluginListChanged 订阅
+                    try
+                    {
+                        var host = PluginHost.Instance;
+                        if (host != null) host.PluginListChanged -= _instance.OnPluginListChanged;
+                    }
+                    catch { }
                     lock (_instanceLock) { _instance = null; }
                 };
                 return _instance;
@@ -71,7 +80,24 @@ namespace Ink_Canvas
 
         private void PluginWorkshopWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            // 订阅 PluginHost 的列表变化事件，自动刷新
+            try
+            {
+                var host = PluginHost.Instance;
+                if (host != null)
+                {
+                    host.PluginListChanged += OnPluginListChanged;
+                }
+            }
+            catch { }
+
             RefreshPluginList(silent: true);
+        }
+
+        private void OnPluginListChanged(object sender, EventArgs e)
+        {
+            // 在 UI 线程刷新列表
+            Dispatcher.Invoke(() => RefreshPluginList(silent: true));
         }
 
         private void BtnClose_Click(object sender, RoutedEventArgs e)
@@ -149,7 +175,7 @@ namespace Ink_Canvas
         /// <summary>
         /// 开始安装指定的 .icplugin 文件。
         /// .icplugin 是一个 ZIP 格式的安装包，安装时会解压到 Plugins\&lt;包名&gt;\ 子目录。
-        /// 若已存在同名 plugin 目录，会弹窗询问是否覆盖。
+        /// 若已存在同名 plugin 目录，会弹窗询问是否覆盖（先卸载旧版再删除目录）。
         /// </summary>
         private void BeginInstallPluginFromFile(string sourceFile)
         {
@@ -186,18 +212,26 @@ namespace Ink_Canvas
         }
 
         /// <summary>
-        /// 将 .icplugin (ZIP) 解压到目标目录。
+        /// 将 .icplugin (ZIP) 解压到目标目录，并立即加载到 PluginHost。
         /// </summary>
         private void DoInstallPluginFromFile(string sourceFile, string destDir, bool overwrite)
         {
             try
             {
+                var host = PluginHost.Instance;
+
                 if (!Directory.Exists(PluginDirectory))
                     Directory.CreateDirectory(PluginDirectory);
 
-                // 覆盖时先删除旧目录
+                // 覆盖时：先软卸载旧版（解绑事件），再删除旧目录
                 if (overwrite && Directory.Exists(destDir))
                 {
+                    // 尝试读取旧 manifest 的 id，软卸载
+                    var oldManifest = TryReadManifest(destDir);
+                    if (oldManifest != null && host != null)
+                    {
+                        host.UnloadPlugin(oldManifest.Id);
+                    }
                     Directory.Delete(destDir, recursive: true);
                 }
 
@@ -221,7 +255,19 @@ namespace Ink_Canvas
 
                 string fileName = Path.GetFileName(sourceFile);
                 LogHelper.WriteLogToFile($"plugin 已安装: {fileName} -> {destDir}", LogHelper.LogType.Event);
-                ShowInlineMessage($"plugin 已安装：{Path.GetFileNameWithoutExtension(fileName)}");
+
+                // 立即加载到 PluginHost（无需重启）
+                var manifest = TryReadManifest(destDir);
+                if (manifest != null && host != null)
+                {
+                    // 默认启用新装的 plugin
+                    host.SetPluginEnabled(manifest.Id, true);
+                    ShowInlineMessage($"plugin 已安装并启用：{manifest.Name}");
+                }
+                else
+                {
+                    ShowInlineMessage($"plugin 已安装：{Path.GetFileNameWithoutExtension(fileName)}（请手动启用）");
+                }
 
                 RefreshPluginList(silent: true);
             }
@@ -246,17 +292,32 @@ namespace Ink_Canvas
                 if (!Directory.Exists(PluginDirectory))
                     Directory.CreateDirectory(PluginDirectory);
 
-                // 已安装的 plugin 都是子目录形式（每个子目录包含 plugin.icplugin 清单）
-                var pluginDirs = Directory.GetDirectories(PluginDirectory, "*", SearchOption.TopDirectoryOnly)
-                                          .Where(d => File.Exists(Path.Combine(d, "plugin.icplugin")))
-                                          .ToList();
+                var host = PluginHost.Instance;
+                IReadOnlyList<InstalledPluginInfo> installed;
+                if (host != null)
+                {
+                    installed = host.GetAllInstalledPlugins();
+                }
+                else
+                {
+                    // PluginHost 未初始化时回退到目录扫描
+                    var dirs = Directory.GetDirectories(PluginDirectory, "*", SearchOption.TopDirectoryOnly)
+                                         .Where(d => File.Exists(Path.Combine(d, "plugin.icplugin")))
+                                         .ToList();
+                    installed = dirs.Select(d => new InstalledPluginInfo
+                    {
+                        Manifest = TryReadManifest(d),
+                        Directory = d,
+                        IsEnabled = true,
+                        IsLoaded = false
+                    }).Where(x => x.Manifest != null).ToList();
+                }
 
-                int count = pluginDirs.Count;
-
+                int count = installed.Count;
                 if (TextBlockPluginCount != null)
                     TextBlockPluginCount.Text = $"已安装 plugin：{count}";
 
-                RenderInstalledPlugins(pluginDirs);
+                RenderInstalledPlugins(installed);
 
                 if (!silent)
                     ShowInlineMessage("plugin 列表已刷新");
@@ -268,66 +329,51 @@ namespace Ink_Canvas
             }
         }
 
-        private void RenderInstalledPlugins(List<string> pluginDirs)
+        private void RenderInstalledPlugins(IReadOnlyList<InstalledPluginInfo> installed)
         {
             if (PanelInstalledPlugins == null) return;
 
             PanelInstalledPlugins.Children.Clear();
 
-            if (pluginDirs.Count == 0)
+            if (installed.Count == 0)
             {
                 PanelInstalledPlugins.Children.Add(new TextBlock
                 {
                     Text = "暂无已安装的 plugin",
                     FontSize = 13,
-                    Foreground = TryFindResource("SettingsPageAnnotationForeground") as System.Windows.Media.Brush,
+                    Foreground = TryFindResource("SettingsPageAnnotationForeground") as Brush,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     Margin = new Thickness(0, 16, 0, 16)
                 });
                 return;
             }
 
-            foreach (var dir in pluginDirs)
+            foreach (var info in installed)
             {
-                // 尝试从 manifest 读取 plugin 名称
-                string displayName = Path.GetFileName(dir);
-                string pluginId = displayName;
-                string version = "";
-                try
-                {
-                    string manifestPath = Path.Combine(dir, "plugin.icplugin");
-                    string json = File.ReadAllText(manifestPath, System.Text.Encoding.UTF8);
-                    var manifest = Newtonsoft.Json.JsonConvert.DeserializeObject<dynamic>(json);
-                    if (manifest != null)
-                    {
-                        if (manifest.name != null)
-                            displayName = (string)manifest.name;
-                        if (manifest.id != null)
-                            pluginId = (string)manifest.id;
-                        if (manifest.version != null)
-                            version = (string)manifest.version;
-                    }
-                }
-                catch { /* 读取失败时使用目录名 */ }
-
                 PanelInstalledPlugins.Children.Add(
-                    BuildPluginItem(displayName, pluginId, version));
+                    BuildPluginItem(info));
             }
         }
 
-        private UIElement BuildPluginItem(string displayName, string pluginId, string version)
+        private UIElement BuildPluginItem(InstalledPluginInfo info)
         {
+            var manifest = info.Manifest;
+            string displayName = manifest?.Name ?? Path.GetFileName(info.Directory);
+            string pluginId = manifest?.Id ?? Path.GetFileName(info.Directory);
+            string version = manifest?.Version ?? "";
+
             var border = new Border
             {
                 Margin = new Thickness(0, 0, 0, 6),
                 Padding = new Thickness(10, 8, 10, 8),
-                BorderBrush = TryFindResource("PopupWindowBorderBrush") as System.Windows.Media.Brush,
+                BorderBrush = TryFindResource("PopupWindowBorderBrush") as Brush,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(6)
             };
 
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var titlePanel = new StackPanel
@@ -340,7 +386,7 @@ namespace Ink_Canvas
                 Text = displayName,
                 FontSize = 14,
                 FontWeight = FontWeights.Bold,
-                Foreground = TryFindResource("PopupWindowForeground") as System.Windows.Media.Brush
+                Foreground = TryFindResource("PopupWindowForeground") as Brush
             };
             titlePanel.Children.Add(title);
 
@@ -349,32 +395,69 @@ namespace Ink_Canvas
             {
                 Text = string.IsNullOrEmpty(version) ? pluginId : $"{pluginId}  v{version}",
                 FontSize = 11,
-                Foreground = TryFindResource("SettingsPageAnnotationForeground") as System.Windows.Media.Brush
+                Foreground = TryFindResource("SettingsPageAnnotationForeground") as Brush
             };
             titlePanel.Children.Add(subtitle);
 
             Grid.SetColumn(titlePanel, 0);
             grid.Children.Add(titlePanel);
 
-            var versionTag = new Border
+            // 状态标签
+            var statusTag = new Border
             {
                 Padding = new Thickness(8, 2, 8, 2),
-                Background = TryFindResource("PopupWindowDarkBlueBorderBackground") as System.Windows.Media.Brush,
+                Background = TryFindResource("PopupWindowDarkBlueBorderBackground") as Brush,
                 CornerRadius = new CornerRadius(4),
-                VerticalAlignment = VerticalAlignment.Center
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0)
             };
-            var versionText = new TextBlock
+            var statusText = new TextBlock
             {
-                Text = string.IsNullOrEmpty(version) ? "已安装" : $"v{version}",
+                Text = info.IsLoaded ? "运行中" : (info.IsEnabled ? "已启用" : "已禁用"),
                 FontSize = 11,
-                Foreground = TryFindResource("PopupWindowDarkBlueBorderForeground") as System.Windows.Media.Brush
+                Foreground = TryFindResource("PopupWindowDarkBlueBorderForeground") as Brush
             };
-            versionTag.Child = versionText;
-            Grid.SetColumn(versionTag, 1);
-            grid.Children.Add(versionTag);
+            statusTag.Child = statusText;
+            Grid.SetColumn(statusTag, 1);
+            grid.Children.Add(statusTag);
+
+            // 启用/禁用开关
+            var toggle = new CheckBox
+            {
+                IsChecked = info.IsEnabled,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 0, 0),
+                ToolTip = "启用 / 禁用此 plugin（立即生效）"
+            };
+            toggle.Checked += (s, e) => OnPluginToggleChanged(pluginId, true);
+            toggle.Unchecked += (s, e) => OnPluginToggleChanged(pluginId, false);
+            Grid.SetColumn(toggle, 2);
+            grid.Children.Add(toggle);
 
             border.Child = grid;
             return border;
+        }
+
+        /// <summary>插件开关切换：立即加载或软卸载</summary>
+        private void OnPluginToggleChanged(string pluginId, bool enabled)
+        {
+            try
+            {
+                var host = PluginHost.Instance;
+                if (host == null)
+                {
+                    ShowInlineMessage("PluginHost 未初始化");
+                    return;
+                }
+                host.SetPluginEnabled(pluginId, enabled);
+                ShowInlineMessage(enabled ? $"已启用 plugin：{pluginId}" : $"已禁用 plugin：{pluginId}");
+                RefreshPluginList(silent: true);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"切换 plugin 状态失败: {ex.Message}", LogHelper.LogType.Error);
+                ShowInlineMessage("切换失败：" + ex.Message);
+            }
         }
 
         // ===== 打开 plugin 目录 =====
@@ -393,6 +476,20 @@ namespace Ink_Canvas
                 LogHelper.WriteLogToFile($"打开 plugin 目录失败: {ex.Message}", LogHelper.LogType.Error);
                 ShowInlineMessage("打开 plugin 目录失败：" + ex.Message);
             }
+        }
+
+        // ===== 辅助 =====
+
+        private static PluginManifest TryReadManifest(string pluginDir)
+        {
+            try
+            {
+                string manifestFile = Path.Combine(pluginDir, "plugin.icplugin");
+                if (!File.Exists(manifestFile)) return null;
+                string json = File.ReadAllText(manifestFile, System.Text.Encoding.UTF8);
+                return Newtonsoft.Json.JsonConvert.DeserializeObject<PluginManifest>(json);
+            }
+            catch { return null; }
         }
 
         // ===== 简易内联提示 =====

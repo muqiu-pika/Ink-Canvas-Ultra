@@ -39,24 +39,9 @@ namespace Ink_Canvas
             InitializeComponent();
             InitializeStartupModes();
 
-            // 将视频控制条嵌入到 BorderStrokeSelectionControl 内部容器
-            try
-            {
-                if (VideoControlContainer != null && BorderVideoSelectionControl != null)
-                {
-                    if (BorderVideoSelectionControl.Parent is Panel parentPanel)
-                    {
-                        parentPanel.Children.Remove(BorderVideoSelectionControl);
-                    }
-                    VideoControlContainer.Children.Add(BorderVideoSelectionControl);
-                    BorderVideoSelectionControl.Margin = new Thickness(0, 4, 0, 0);
-                    BorderVideoSelectionControl.HorizontalAlignment = HorizontalAlignment.Stretch;
-                    BorderVideoSelectionControl.VerticalAlignment = VerticalAlignment.Top;
-                }
-            }
-            catch { }
+            // VideoControlContainer 保留为插件插槽，由视频控件 plugin 通过 host.RegisterSelectionControlBar 注册
 
-            try { inkCanvas.SelectionChanged += InkCanvas_VideoSelectionChanged; } catch { }
+            try { inkCanvas.SelectionChanged += InkCanvas_SelectionChanged_ForPlugins; } catch { }
 
             BlackboardLeftSide.Visibility = Visibility.Collapsed;
             BlackboardCenterSide.Visibility = Visibility.Collapsed;
@@ -130,14 +115,65 @@ namespace Ink_Canvas
         }
 
         /// <summary>
-        /// 初始化 plugin 系统：创建 PluginHost、加载 Plugins 目录下所有 plugin、
+        /// 初始化 plugin 系统：创建 PluginHost、注入主程序能力、加载 Plugins 目录下所有 plugin、
         /// 注册主程序内建路由处理器、根据已安装的 plugin 显示对应入口按钮。
         /// </summary>
         private void InitializePluginSystem()
         {
             try
             {
-                var host = Plugins.PluginHost.Initialize(this);
+                // 注入主程序能力委托
+                var opts = new Plugins.PluginHostOptions
+                {
+                    GetInkCanvas = () => inkCanvas,
+                    GetSelectedElements = () =>
+                    {
+                        var list = new List<UIElement>();
+                        foreach (var el in inkCanvas.GetSelectedElements())
+                            list.Add(el);
+                        return list;
+                    },
+                    CommitElementInsertHistory = el => timeMachine.CommitElementInsertHistory(el),
+                    GetAutoSavedStrokesLocation = () => Settings.Automation.AutoSavedStrokesLocation,
+                    RegisterSelectionControlBar = bar =>
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            try
+                            {
+                                if (VideoControlContainer != null)
+                                {
+                                    var panel = VideoControlContainer as Panel;
+                                    if (panel != null && !panel.Children.Contains(bar))
+                                    {
+                                        panel.Children.Add(bar);
+                                    }
+                                }
+                            }
+                            catch { }
+                        });
+                    },
+                    UnregisterSelectionControlBar = bar =>
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            try
+                            {
+                                if (VideoControlContainer != null)
+                                {
+                                    var panel = VideoControlContainer as Panel;
+                                    if (panel != null && panel.Children.Contains(bar))
+                                    {
+                                        panel.Children.Remove(bar);
+                                    }
+                                }
+                            }
+                            catch { }
+                        });
+                    }
+                };
+
+                var host = Plugins.PluginHost.Initialize(this, opts);
 
                 // 注册主程序内建路由处理器：video-presenter → 显示视频展台侧栏
                 host.RegisterRouteHandler("video-presenter", (entryPoint, parameter) =>
@@ -168,12 +204,25 @@ namespace Ink_Canvas
                         LogHelper.LogType.Info);
                 }
 
-                LogHelper.WriteLogToFile($"plugin 系统初始化完成，已加载 {host.GetAllManifests().Count} 个 plugin", LogHelper.LogType.Event);
+                LogHelper.WriteLogToFile($"plugin 系统初始化完成，已加载 {host.GetLoadedManifests().Count} 个 plugin", LogHelper.LogType.Event);
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"plugin 系统初始化失败: {ex.Message}", LogHelper.LogType.Error);
             }
+        }
+
+        /// <summary>InkCanvas 选择集变化时通知 plugin（替代原 InkCanvas_VideoSelectionChanged）</summary>
+        private void InkCanvas_SelectionChanged_ForPlugins(object sender, EventArgs e)
+        {
+            try
+            {
+                var host = Plugins.PluginHost.Instance;
+                if (host == null) return;
+                var selected = inkCanvas.GetSelectedElements().ToList();
+                host.RaiseElementSelectionChanged(selected);
+            }
+            catch { }
         }
 
         /// <summary>

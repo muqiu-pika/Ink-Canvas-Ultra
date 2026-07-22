@@ -138,11 +138,6 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BtnStrokeSelectionSaveToImage_Click), sender, e);
         }
 
-        private void BtnVideoPlayPause_Click(object sender, RoutedEventArgs e)
-        {
-            InvokeMainWindowHandler(nameof(BtnVideoPlayPause_Click), sender, e);
-        }
-
         private void GridInkCanvasSelectionCover_ManipulationCompleted(object sender, ManipulationCompletedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(GridInkCanvasSelectionCover_ManipulationCompleted), sender, e);
@@ -201,26 +196,6 @@ namespace Ink_Canvas
         private void GridPenWidthRestore_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(GridPenWidthRestore_Click), sender, e);
-        }
-
-        private void SliderVideoProgress_PreviewMouseDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            InvokeMainWindowHandler(nameof(SliderVideoProgress_PreviewMouseDown), sender, e);
-        }
-
-        private void SliderVideoProgress_PreviewMouseUp(object sender, System.Windows.Input.MouseButtonEventArgs e)
-        {
-            InvokeMainWindowHandler(nameof(SliderVideoProgress_PreviewMouseUp), sender, e);
-        }
-
-        private void SliderVideoProgress_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            InvokeMainWindowHandler(nameof(SliderVideoProgress_ValueChanged), sender, e);
-        }
-
-        private void SliderVideoVolume_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
-        {
-            InvokeMainWindowHandler(nameof(SliderVideoVolume_ValueChanged), sender, e);
         }
     }
 }

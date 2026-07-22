@@ -1,4 +1,4 @@
-﻿﻿﻿using Ink_Canvas.Helpers;
+﻿﻿using Ink_Canvas.Helpers;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -86,7 +86,19 @@ namespace Ink_Canvas
         private void BorderStrokeSelectionDelete_Click(object sender, RoutedEventArgs e)
         {
             SymbolIconDelete_MouseUp(sender, e);
-            try { HideVideoSelectionControl(); } catch { }
+            // 通知 plugin：元素被移除（视频控件 plugin 据此隐藏控制条）
+            try
+            {
+                var host = Plugins.PluginHost.Instance;
+                if (host != null)
+                {
+                    var selected = inkCanvas.GetSelectedElements();
+                    foreach (var el in selected)
+                    {
+                        host.RaiseElementRemoved(el);
+                    }
+                }
+            } catch { }
         }
 
         private void BtnStrokeSelectionSaveToImage_Click(object sender, RoutedEventArgs e)
@@ -355,7 +367,7 @@ namespace Ink_Canvas
                 stroke.Transform(m, false);
             }
             UpdateBorderStrokeSelectionControlLocation();
-            UpdateBorderVideoSelectionControlLocation();
+            RaiseElementTransformedForSelected();
         }
 
         private void GridInkCanvasSelectionCover_MouseUp(object sender, MouseButtonEventArgs e)
@@ -410,7 +422,7 @@ namespace Ink_Canvas
                 catch { }
             }
             UpdateBorderStrokeSelectionControlLocation();
-            UpdateBorderVideoSelectionControlLocation();
+            RaiseElementTransformedForSelected();
         }
 
         private void BtnSelect_Click(object sender, RoutedEventArgs e)
@@ -617,7 +629,7 @@ namespace Ink_Canvas
                         catch { }
                     }
                     UpdateBorderStrokeSelectionControlLocation();
-                    try { UpdateBorderVideoSelectionControlLocation(); } catch { }
+                    try { RaiseElementTransformedForSelected(); } catch { }
                 }
             }
             catch { }
@@ -686,6 +698,22 @@ namespace Ink_Canvas
                 StrokesSelectionClone = new StrokeCollection();
                 ElementsSelectionClone = new List<UIElement>();
             }
+        }
+
+        /// <summary>通知 plugin：当前选中元素被变换（移动/缩放/旋转）</summary>
+        private void RaiseElementTransformedForSelected()
+        {
+            try
+            {
+                var host = Plugins.PluginHost.Instance;
+                if (host == null) return;
+                var selected = inkCanvas.GetSelectedElements();
+                foreach (var el in selected)
+                {
+                    host.RaiseElementTransformed(el);
+                }
+            }
+            catch { }
         }
     }
 }

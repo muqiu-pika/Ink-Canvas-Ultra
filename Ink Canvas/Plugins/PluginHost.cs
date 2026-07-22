@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Controls;
 using Ink_Canvas.Helpers;
 using Newtonsoft.Json;
 
@@ -12,6 +13,7 @@ namespace Ink_Canvas.Plugins
     /// <summary>
     /// plugin 宿主管理器：负责扫描、加载、初始化、卸载所有 plugin，
     /// 并实现 IPluginHost 接口向 plugin 提供主程序能力。
+    /// 支持运行时加载/卸载（软卸载，已加载程序集不释放）。
     /// </summary>
     public class PluginHost : IPluginHost
     {
@@ -24,25 +26,43 @@ namespace Ink_Canvas.Plugins
         private readonly List<LoadedPlugin> _loaded = new List<LoadedPlugin>();
         private readonly Dictionary<string, PluginEntryPoint> _routeTable = new Dictionary<string, PluginEntryPoint>(StringComparer.OrdinalIgnoreCase);
 
+        // ===== 主程序能力委托（由 MainWindow 注入，避免硬耦合） =====
+        private readonly PluginHostOptions _opts;
+        private readonly string _pluginsStateFile;      // plugins.json 启用状态持久化
+        private readonly Dictionary<string, bool> _enabledState = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
         // ===== 事件 =====
         public event EventHandler ApplicationExiting;
         public event EventHandler<BoardModeChangedEventArgs> BoardModeChanged;
+        public event EventHandler<PluginElementSelectionChangedEventArgs> ElementSelectionChanged;
+        public event EventHandler<PluginElementEventArgs> ElementRemoved;
+        public event EventHandler<PluginElementEventArgs> ElementTransformed;
 
-        // ===== 路由处理委托（主程序注册，用于响应声明式入口点） =====
-        private readonly Dictionary<string, Func<PluginEntryPoint, object, bool>> _routeHandlers =
+        /// <summary>已安装 plugin 列表或启用状态发生变化时触发，供插件工坊 UI 刷新</summary>
+        public event EventHandler PluginListChanged;
+
+        // ===== 路由处理委托 =====
+        // 主程序内建处理器
+        private readonly Dictionary<string, Func<PluginEntryPoint, object, bool>> _builtinRouteHandlers =
             new Dictionary<string, Func<PluginEntryPoint, object, bool>>(StringComparer.OrdinalIgnoreCase);
+        // plugin 注册的处理器（优先级高于内建）
+        private readonly Dictionary<string, Func<object, bool>> _pluginRouteHandlers =
+            new Dictionary<string, Func<object, bool>>(StringComparer.OrdinalIgnoreCase);
 
-        private PluginHost(Window mainWindow)
+        private PluginHost(Window mainWindow, PluginHostOptions options)
         {
             _mainWindow = mainWindow;
+            _opts = options ?? new PluginHostOptions();
             _pluginsRoot = App.RootPath + "Plugins\\";
+            _pluginsStateFile = Path.Combine(_pluginsRoot, "plugins.json");
+            LoadEnabledState();
         }
 
         /// <summary>初始化全局唯一 PluginHost 实例。仅应调用一次。</summary>
-        public static PluginHost Initialize(Window mainWindow)
+        public static PluginHost Initialize(Window mainWindow, PluginHostOptions options = null)
         {
             if (Instance != null) return Instance;
-            Instance = new PluginHost(mainWindow);
+            Instance = new PluginHost(mainWindow, options);
             return Instance;
         }
 
@@ -81,9 +101,20 @@ namespace Ink_Canvas.Plugins
         public bool TriggerRoute(string route, object parameter = null)
         {
             if (string.IsNullOrEmpty(route)) return false;
+
+            // 优先 plugin 注册的处理器
+            if (_pluginRouteHandlers.TryGetValue(route, out var pluginHandler))
+            {
+                try { return pluginHandler(parameter); } catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile($"plugin 路由处理器异常 [{route}]: {ex.Message}", LogHelper.LogType.Error);
+                }
+            }
+
+            // 其次主程序内建处理器
             if (_routeTable.TryGetValue(route, out var ep))
             {
-                if (_routeHandlers.TryGetValue(route, out var handler))
+                if (_builtinRouteHandlers.TryGetValue(route, out var handler))
                 {
                     return handler(ep, parameter);
                 }
@@ -91,9 +122,88 @@ namespace Ink_Canvas.Plugins
             return false;
         }
 
-        // ===== 加载 / 卸载 =====
+        public void RegisterRouteHandler(string route, Func<object, bool> handler)
+        {
+            if (string.IsNullOrEmpty(route) || handler == null) return;
+            _pluginRouteHandlers[route] = handler;
+        }
 
-        /// <summary>扫描 Plugins 根目录下所有子目录，加载其中合法的 plugin</summary>
+        public void UnregisterRouteHandler(string route)
+        {
+            if (string.IsNullOrEmpty(route)) return;
+            _pluginRouteHandlers.Remove(route);
+        }
+
+        // ===== 画布与元素 API =====
+
+        public InkCanvas GetInkCanvas()
+        {
+            try { return _opts.GetInkCanvas?.Invoke(); } catch { }
+            return null;
+        }
+
+        public IReadOnlyList<UIElement> GetSelectedElements()
+        {
+            try { return _opts.GetSelectedElements?.Invoke() ?? new List<UIElement>(); } catch { }
+            return new List<UIElement>();
+        }
+
+        public void CommitElementInsertHistory(UIElement element)
+        {
+            try { _opts.CommitElementInsertHistory?.Invoke(element); } catch { }
+        }
+
+        public string AutoSavedStrokesLocation
+        {
+            get
+            {
+                try { return _opts.GetAutoSavedStrokesLocation?.Invoke() ?? string.Empty; } catch { }
+                return string.Empty;
+            }
+        }
+
+        // ===== 选择控制条插槽 =====
+
+        public void RegisterSelectionControlBar(UIElement controlBar)
+        {
+            try { _opts.RegisterSelectionControlBar?.Invoke(controlBar); } catch { }
+        }
+
+        public void UnregisterSelectionControlBar(UIElement controlBar)
+        {
+            try { _opts.UnregisterSelectionControlBar?.Invoke(controlBar); } catch { }
+        }
+
+        // ===== 事件触发（主程序调用） =====
+
+        public void RaiseBoardModeChanged(int newMode)
+        {
+            BoardModeChanged?.Invoke(this, new BoardModeChangedEventArgs { NewMode = newMode });
+        }
+
+        public void RaiseElementSelectionChanged(IReadOnlyList<UIElement> selected)
+        {
+            ElementSelectionChanged?.Invoke(this, new PluginElementSelectionChangedEventArgs { SelectedElements = selected });
+        }
+
+        public void RaiseElementRemoved(UIElement element)
+        {
+            ElementRemoved?.Invoke(this, new PluginElementEventArgs { Element = element });
+        }
+
+        public void RaiseElementTransformed(UIElement element)
+        {
+            ElementTransformed?.Invoke(this, new PluginElementEventArgs { Element = element });
+        }
+
+        private void RaisePluginListChanged()
+        {
+            try { PluginListChanged?.Invoke(this, EventArgs.Empty); } catch { }
+        }
+
+        // ===== 启动时加载 =====
+
+        /// <summary>扫描 Plugins 根目录下所有子目录，加载其中已启用的 plugin</summary>
         public void LoadAll()
         {
             try
@@ -106,7 +216,20 @@ namespace Ink_Canvas.Plugins
 
                 foreach (var dir in Directory.GetDirectories(_pluginsRoot, "*", SearchOption.TopDirectoryOnly))
                 {
-                    LoadPluginFromDirectory(dir);
+                    var manifest = TryReadManifest(dir);
+                    if (manifest == null) continue;
+
+                    // 启动时默认全部启用，除非 plugins.json 显式禁用
+                    bool enabled;
+                    if (!_enabledState.TryGetValue(manifest.Id, out enabled))
+                    {
+                        enabled = true;
+                        _enabledState[manifest.Id] = true;
+                    }
+                    if (enabled)
+                    {
+                        LoadPluginFromDirectory(dir);
+                    }
                 }
             }
             catch (Exception ex)
@@ -115,44 +238,188 @@ namespace Ink_Canvas.Plugins
             }
         }
 
+        // ===== 运行时加载 / 卸载（供插件工坊调用） =====
+
+        /// <summary>运行时加载指定 id 的 plugin（若已加载则返回 false）</summary>
+        public bool LoadPlugin(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return false;
+
+            if (_loaded.Any(p => string.Equals(p.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+
+            var dir = FindPluginDirectory(pluginId);
+            if (dir == null) return false;
+
+            LoadPluginFromDirectory(dir);
+            RaisePluginListChanged();
+            return _loaded.Any(p => string.Equals(p.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>软卸载指定 id 的 plugin：调用 Shutdown、解绑事件、从已加载列表移除（已加载程序集不释放）</summary>
+        public bool UnloadPlugin(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return false;
+
+            var idx = _loaded.FindIndex(x => string.Equals(x.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+            if (idx < 0) return false;
+
+            var p = _loaded[idx];
+            try
+            {
+                p.Instance?.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"plugin Shutdown 异常 [{p.Manifest.Id}]: {ex.Message}", LogHelper.LogType.Error);
+            }
+
+            // 移除该 plugin 注册的路由
+            if (p.Manifest.EntryPoints != null)
+            {
+                foreach (var ep in p.Manifest.EntryPoints)
+                {
+                    if (string.IsNullOrWhiteSpace(ep?.Route)) continue;
+                    _routeTable.Remove(ep.Route);
+                    _pluginRouteHandlers.Remove(ep.Route);
+                }
+            }
+
+            _loaded.RemoveAt(idx);
+            LogHelper.WriteLogToFile($"plugin 已软卸载: {p.Manifest.Id}", LogHelper.LogType.Event);
+            RaisePluginListChanged();
+            return true;
+        }
+
+        /// <summary>查询某个 plugin 的启用状态（默认启用）</summary>
+        public bool IsPluginEnabled(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return false;
+            return _enabledState.TryGetValue(pluginId, out var enabled) ? enabled : true;
+        }
+
+        /// <summary>设置 plugin 启用状态并持久化；true → LoadPlugin，false → UnloadPlugin</summary>
+        public void SetPluginEnabled(string pluginId, bool enabled)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return;
+            _enabledState[pluginId] = enabled;
+            SaveEnabledState();
+
+            if (enabled)
+            {
+                LoadPlugin(pluginId);
+            }
+            else
+            {
+                UnloadPlugin(pluginId);
+            }
+        }
+
+        /// <summary>查询某个 plugin 是否已加载（运行时活动）</summary>
+        public bool IsPluginLoaded(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return false;
+            return _loaded.Any(p => string.Equals(p.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+        }
+
+        // ===== 主程序向 PluginHost 注册内建路由处理器 =====
+
+        public void RegisterRouteHandler(string route, Func<PluginEntryPoint, object, bool> handler)
+        {
+            if (string.IsNullOrEmpty(route) || handler == null) return;
+            _builtinRouteHandlers[route] = handler;
+        }
+
+        // ===== 查询接口 =====
+
+        /// <summary>查询某个声明式入口点是否已注册（即对应 plugin 已安装且启用）</summary>
+        public bool IsRouteAvailable(string route)
+        {
+            if (string.IsNullOrEmpty(route)) return false;
+            return _routeTable.ContainsKey(route);
+        }
+
+        /// <summary>获取所有已加载 plugin 的 manifest</summary>
+        public IReadOnlyList<PluginManifest> GetLoadedManifests()
+        {
+            return _loaded.Select(p => p.Manifest).ToList();
+        }
+
+        /// <summary>获取所有已安装 plugin 的 manifest（含禁用状态），用于插件工坊展示</summary>
+        public IReadOnlyList<InstalledPluginInfo> GetAllInstalledPlugins()
+        {
+            var result = new List<InstalledPluginInfo>();
+            if (!Directory.Exists(_pluginsRoot)) return result;
+
+            foreach (var dir in Directory.GetDirectories(_pluginsRoot, "*", SearchOption.TopDirectoryOnly))
+            {
+                var manifest = TryReadManifest(dir);
+                if (manifest == null) continue;
+
+                result.Add(new InstalledPluginInfo
+                {
+                    Manifest = manifest,
+                    Directory = dir,
+                    IsEnabled = IsPluginEnabled(manifest.Id),
+                    IsLoaded = IsPluginLoaded(manifest.Id)
+                });
+            }
+            return result;
+        }
+
+        // ===== 内部辅助 =====
+
+        private PluginManifest TryReadManifest(string pluginDir)
+        {
+            try
+            {
+                string manifestFile = Path.Combine(pluginDir, "plugin.icplugin");
+                if (!File.Exists(manifestFile)) return null;
+                string json = File.ReadAllText(manifestFile, System.Text.Encoding.UTF8);
+                return JsonConvert.DeserializeObject<PluginManifest>(json);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"plugin manifest 读取失败 [{pluginDir}]: {ex.Message}", LogHelper.LogType.Warning);
+                return null;
+            }
+        }
+
+        private string FindPluginDirectory(string pluginId)
+        {
+            if (!Directory.Exists(_pluginsRoot)) return null;
+            foreach (var dir in Directory.GetDirectories(_pluginsRoot, "*", SearchOption.TopDirectoryOnly))
+            {
+                var manifest = TryReadManifest(dir);
+                if (manifest != null && string.Equals(manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+                {
+                    return dir;
+                }
+            }
+            return null;
+        }
+
         private void LoadPluginFromDirectory(string pluginDir)
         {
             try
             {
-                // 1) manifest 文件：plugin.icplugin
-                string manifestFile = Path.Combine(pluginDir, "plugin.icplugin");
-                if (!File.Exists(manifestFile))
-                {
-                    LogHelper.WriteLogToFile($"跳过插件目录（缺少 plugin.icplugin）: {pluginDir}", LogHelper.LogType.Warning);
-                    return;
-                }
-
-                PluginManifest manifest;
-                try
-                {
-                    string json = File.ReadAllText(manifestFile, System.Text.Encoding.UTF8);
-                    manifest = JsonConvert.DeserializeObject<PluginManifest>(json);
-                }
-                catch (Exception ex)
-                {
-                    LogHelper.WriteLogToFile($"plugin manifest 解析失败 [{pluginDir}]: {ex.Message}", LogHelper.LogType.Error);
-                    return;
-                }
-
+                var manifest = TryReadManifest(pluginDir);
                 if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id))
                 {
-                    LogHelper.WriteLogToFile($"plugin manifest 无效 [{pluginDir}]: Id 为空", LogHelper.LogType.Warning);
+                    LogHelper.WriteLogToFile($"plugin manifest 无效 [{pluginDir}]", LogHelper.LogType.Warning);
                     return;
                 }
 
-                // 2) 重复加载检查
+                // 重复加载检查
                 if (_loaded.Any(p => string.Equals(p.Manifest.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)))
                 {
-                    LogHelper.WriteLogToFile($"plugin 已加载，跳过: {manifest.Id}", LogHelper.LogType.Warning);
+                    LogHelper.WriteLogToFile($"plugin 已加载，跳过: {manifest.Id}", LogHelper.LogType.Trace);
                     return;
                 }
 
-                // 3) 注册声明式入口点
+                // 注册声明式入口点
                 if (manifest.EntryPoints != null)
                 {
                     foreach (var ep in manifest.EntryPoints)
@@ -162,7 +429,7 @@ namespace Ink_Canvas.Plugins
                     }
                 }
 
-                // 4) 加载程序集入口（若有）
+                // 加载程序集入口（若有）
                 IPlugin pluginInstance = null;
                 if (!string.IsNullOrWhiteSpace(manifest.EntryAssembly) && !string.IsNullOrWhiteSpace(manifest.EntryClass))
                 {
@@ -223,6 +490,7 @@ namespace Ink_Canvas.Plugins
                 }
                 _loaded.Clear();
                 _routeTable.Clear();
+                _pluginRouteHandlers.Clear();
             }
             catch (Exception ex)
             {
@@ -230,45 +498,42 @@ namespace Ink_Canvas.Plugins
             }
         }
 
-        // ===== 主程序向 PluginHost 注册路由处理器 =====
+        // ===== 启用状态持久化 =====
 
-        /// <summary>
-        /// 主程序注册对声明式入口点的处理逻辑。
-        /// 例如注册 "video-presenter" → 显示视频展台侧栏。
-        /// </summary>
-        public void RegisterRouteHandler(string route, Func<PluginEntryPoint, object, bool> handler)
+        private void LoadEnabledState()
         {
-            if (string.IsNullOrEmpty(route) || handler == null) return;
-            _routeHandlers[route] = handler;
+            try
+            {
+                if (!File.Exists(_pluginsStateFile)) return;
+                string json = File.ReadAllText(_pluginsStateFile, System.Text.Encoding.UTF8);
+                var dict = JsonConvert.DeserializeObject<Dictionary<string, bool>>(json);
+                if (dict != null)
+                {
+                    foreach (var kv in dict) _enabledState[kv.Key] = kv.Value;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"读取 plugins.json 失败: {ex.Message}", LogHelper.LogType.Warning);
+            }
         }
 
-        // ===== 查询接口 =====
-
-        /// <summary>查询某个 plugin 是否已安装（仅判断 manifest 存在，不要求程序集入口）</summary>
-        public bool IsPluginInstalled(string pluginId)
+        private void SaveEnabledState()
         {
-            if (string.IsNullOrEmpty(pluginId)) return false;
-            return _loaded.Any(p => string.Equals(p.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+            try
+            {
+                if (!Directory.Exists(_pluginsRoot))
+                    Directory.CreateDirectory(_pluginsRoot);
+                string json = JsonConvert.SerializeObject(_enabledState, Formatting.Indented);
+                File.WriteAllText(_pluginsStateFile, json, System.Text.Encoding.UTF8);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"写入 plugins.json 失败: {ex.Message}", LogHelper.LogType.Warning);
+            }
         }
 
-        /// <summary>查询某个声明式入口点是否已注册（即对应 plugin 已安装）</summary>
-        public bool IsRouteAvailable(string route)
-        {
-            if (string.IsNullOrEmpty(route)) return false;
-            return _routeTable.ContainsKey(route);
-        }
-
-        /// <summary>获取所有已加载 plugin 的 manifest（用于插件工坊展示）</summary>
-        public IReadOnlyList<PluginManifest> GetAllManifests()
-        {
-            return _loaded.Select(p => p.Manifest).ToList();
-        }
-
-        /// <summary>触发白板模式变化事件（主程序在切换模式时调用）</summary>
-        public void RaiseBoardModeChanged(int newMode)
-        {
-            BoardModeChanged?.Invoke(this, new BoardModeChangedEventArgs { NewMode = newMode });
-        }
+        // ===== 内部类型 =====
 
         private class LoadedPlugin
         {
@@ -276,5 +541,25 @@ namespace Ink_Canvas.Plugins
             public string Directory { get; set; }
             public IPlugin Instance { get; set; }
         }
+    }
+
+    /// <summary>主程序注入 PluginHost 的能力委托集合</summary>
+    public class PluginHostOptions
+    {
+        public Func<InkCanvas> GetInkCanvas { get; set; }
+        public Func<IReadOnlyList<UIElement>> GetSelectedElements { get; set; }
+        public Action<UIElement> CommitElementInsertHistory { get; set; }
+        public Func<string> GetAutoSavedStrokesLocation { get; set; }
+        public Action<UIElement> RegisterSelectionControlBar { get; set; }
+        public Action<UIElement> UnregisterSelectionControlBar { get; set; }
+    }
+
+    /// <summary>已安装 plugin 信息（含启用/加载状态），用于插件工坊展示</summary>
+    public class InstalledPluginInfo
+    {
+        public PluginManifest Manifest { get; set; }
+        public string Directory { get; set; }
+        public bool IsEnabled { get; set; }
+        public bool IsLoaded { get; set; }
     }
 }

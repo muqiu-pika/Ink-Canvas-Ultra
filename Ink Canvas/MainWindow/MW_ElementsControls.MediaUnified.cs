@@ -11,7 +11,9 @@ namespace Ink_Canvas
     public partial class MainWindow : Window
     {
         /// <summary>
-        /// 统一媒体插入按钮点击事件
+        /// 统一媒体插入按钮点击事件。
+        /// 图片：主程序直接处理；视频：委托给已安装的视频控件 plugin（路由 "video-insert"）。
+        /// 若视频控件 plugin 未安装，则提示用户。
         /// </summary>
         private async void BtnMediaInsertUnified_Click(object sender, RoutedEventArgs e)
         {
@@ -48,42 +50,14 @@ namespace Ink_Canvas
                 }
                 else if (videoExts.Contains(ext))
                 {
-                    MediaElement mediaElement = await CreateMediaElementAsync(filePath);
-
-                    if (mediaElement != null)
+                    // 视频插入委托给已安装的视频控件 plugin
+                    var host = Plugins.PluginHost.Instance;
+                    if (host == null || !host.IsRouteAvailable("video-insert"))
                     {
-                        CenterAndScaleElement(mediaElement);
-
-                        InkCanvas.SetLeft(mediaElement, 0);
-                        InkCanvas.SetTop(mediaElement, 0);
-                        inkCanvas.Children.Add(mediaElement);
-
-                        mediaElement.LoadedBehavior = MediaState.Manual;
-                        mediaElement.UnloadedBehavior = MediaState.Manual;
-
-                        mediaElement.Loaded += (_, args) =>
-                        {
-                            try
-                            {
-                                if (mediaElement != null && inkCanvas.Children.Contains(mediaElement))
-                                {
-                                    mediaElement.Play();
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Console.WriteLine($"视频自动播放失败: {ex.Message}");
-                            }
-                        };
-
-                        mediaElement.MediaFailed += (_, args) =>
-                        {
-                            Console.WriteLine($"媒体加载失败: {args.ErrorException?.Message}");
-                            MessageBox.Show("视频文件加载失败，请检查文件格式是否支持。", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        };
-
-                        timeMachine.CommitElementInsertHistory(mediaElement);
+                        ShowNotificationAsync("未安装视频控件 plugin，无法插入视频。请到插件工坊安装 videocontrols。");
+                        return;
                     }
+                    host.TriggerRoute("video-insert", filePath);
                 }
                 else
                 {

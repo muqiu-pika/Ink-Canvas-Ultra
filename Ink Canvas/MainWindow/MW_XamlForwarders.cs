@@ -26,11 +26,6 @@ namespace Ink_Canvas
         private dynamic IconStrokeSelectionClone => FindXamlPart(MWSelectionHost, nameof(IconStrokeSelectionClone));
         private dynamic TextSelectionCloneToNewBoard => FindXamlPart(MWSelectionHost, nameof(TextSelectionCloneToNewBoard));
         private dynamic VideoControlContainer => FindXamlPart(MWSelectionHost, nameof(VideoControlContainer));
-        private dynamic BorderVideoSelectionControl => FindXamlPart(MWSelectionHost, nameof(BorderVideoSelectionControl));
-        private dynamic BtnVideoPlayPause => FindXamlPart(MWSelectionHost, nameof(BtnVideoPlayPause));
-        private dynamic IconVideoPlayPause => FindXamlPart(MWSelectionHost, nameof(IconVideoPlayPause));
-        private dynamic SliderVideoProgress => FindXamlPart(MWSelectionHost, nameof(SliderVideoProgress));
-        private dynamic SliderVideoVolume => FindXamlPart(MWSelectionHost, nameof(SliderVideoVolume));
         private dynamic ViewboxBlackboardLeftSide => FindXamlPart(MWBoardHost, nameof(ViewboxBlackboardLeftSide));
         private dynamic ViewboxBlackboardLeftSideScaleTransform => FindXamlPart(MWBoardHost, nameof(ViewboxBlackboardLeftSideScaleTransform));
         private dynamic BlackboardLeftSide => FindXamlPart(MWBoardHost, nameof(BlackboardLeftSide));

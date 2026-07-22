@@ -1,4 +1,4 @@
-﻿<UserControl
+<UserControl
     x:Class="Ink_Canvas.MW_Selection"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
@@ -656,45 +656,11 @@
                             </Border>
 
                         </ikw:SimpleStackPanel>
-                        <!-- 嵌入：视频控制条容器（运行时将 BorderVideoSelectionControl 移入此处） -->
+                        <!-- 插件插槽：视频控件 plugin 通过 host.RegisterSelectionControlBar 注册到此容器 -->
                         <StackPanel x:Name="VideoControlContainer" Margin="0,4,0,0" />
                     </ikw:SimpleStackPanel>
-                </Viewbox>
-            </Border>
-            <!-- 移至此处：同层渲染时后声明的元素位于上方，避免被 Stroke 选择浮条遮挡 -->
-            <Border
-                x:Name="BorderVideoSelectionControl"
-                Height="64"
-                Margin="0,50,0,0"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                Background="{DynamicResource FloatBarBackground}"
-                BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="5"
-                Panel.ZIndex="10"
-                Visibility="Collapsed">
-                <Viewbox>
-                    <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="6" Height="50" VerticalAlignment="Center" Margin="6,0,6,0">
-                        <Button x:Name="BtnVideoPlayPause" Width="40" Height="35" Padding="0"
-                                Background="{DynamicResource FloatBarBackground}" Click="BtnVideoPlayPause_Click">
-                            <!-- 使用 Play 图标（E768），暂停改为 Pause（E769） -->
-                            <ui:FontIcon x:Name="IconVideoPlayPause" Width="18" Height="18" FontFamily="{StaticResource FluentIconFontFamily}" FontSize="18" Foreground="{DynamicResource FloatBarForeground}" Glyph="&#xe768;" />
-                        </Button>
-                        <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                            <Slider x:Name="SliderVideoProgress" Width="300" Minimum="0" Maximum="100"
-                                    IsMoveToPointEnabled="True"
-                                    ValueChanged="SliderVideoProgress_ValueChanged"
-                                    PreviewMouseDown="SliderVideoProgress_PreviewMouseDown"
-                                    PreviewMouseUp="SliderVideoProgress_PreviewMouseUp"/>
-                        </ikw:SimpleStackPanel>
-                        <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
-                            <ui:FontIcon Width="18" Height="18" FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Foreground="{DynamicResource FloatBarForeground}" Glyph="&#xe767;" />
-                            <Slider x:Name="SliderVideoVolume" Width="140" Minimum="0" Maximum="100" ValueChanged="SliderVideoVolume_ValueChanged"/>
-                        </ikw:SimpleStackPanel>
-                    </ikw:SimpleStackPanel>
-                </Viewbox>
-            </Border>
+                </Viewbox>
+            </Border>
         </Grid>
     </Grid>
 </UserControl>
