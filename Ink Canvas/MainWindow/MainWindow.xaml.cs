@@ -175,6 +175,9 @@ namespace Ink_Canvas
 
                 var host = Plugins.PluginHost.Initialize(this, opts);
 
+                // 订阅 PluginListChanged：插件加载/卸载后动态刷新入口按钮可见性
+                host.PluginListChanged += Host_PluginListChanged;
+
                 // 注册主程序内建路由处理器：video-presenter → 显示视频展台侧栏
                 host.RegisterRouteHandler("video-presenter", (entryPoint, parameter) =>
                 {
@@ -194,15 +197,7 @@ namespace Ink_Canvas
                 host.LoadAll();
 
                 // 根据已安装的 plugin 显示对应入口按钮
-                // 视频展台 plugin 已安装时才显示白板工具栏的「视频展台」按钮
-                if (BtnVideoPresenter != null)
-                {
-                    bool vpInstalled = host.IsRouteAvailable("video-presenter");
-                    BtnVideoPresenter.Visibility = vpInstalled ? Visibility.Visible : Visibility.Collapsed;
-                    LogHelper.WriteLogToFile(
-                        $"视频展台按钮可见性: {(vpInstalled ? "Visible" : "Collapsed")} (plugin installed = {vpInstalled})",
-                        LogHelper.LogType.Info);
-                }
+                UpdatePluginBasedButtonVisibility();
 
                 LogHelper.WriteLogToFile($"plugin 系统初始化完成，已加载 {host.GetLoadedManifests().Count} 个 plugin", LogHelper.LogType.Event);
             }
@@ -221,6 +216,39 @@ namespace Ink_Canvas
                 if (host == null) return;
                 var selected = inkCanvas.GetSelectedElements().ToList();
                 host.RaiseElementSelectionChanged(selected);
+            }
+            catch { }
+        }
+
+        /// <summary>PluginListChanged 事件处理：在 UI 线程上刷新入口按钮可见性</summary>
+        private void Host_PluginListChanged(object sender, EventArgs e)
+        {
+            try
+            {
+                Dispatcher.Invoke(() => UpdatePluginBasedButtonVisibility());
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 根据已安装/启用的 plugin 动态刷新主程序入口按钮的可见性。
+        /// 在以下时机调用：
+        ///   - InitializePluginSystem 初始化完成时
+        ///   - PluginListChanged 事件触发时（插件加载/卸载/启用/禁用/安装）
+        /// </summary>
+        private void UpdatePluginBasedButtonVisibility()
+        {
+            try
+            {
+                var host = Plugins.PluginHost.Instance;
+                if (host == null) return;
+
+                // 视频展台按钮：仅当 video-presenter 路由可用（即视频展台 plugin 已安装且启用）时显示
+                if (BtnVideoPresenter != null)
+                {
+                    bool vpAvailable = host.IsRouteAvailable("video-presenter");
+                    BtnVideoPresenter.Visibility = vpAvailable ? Visibility.Visible : Visibility.Collapsed;
+                }
             }
             catch { }
         }

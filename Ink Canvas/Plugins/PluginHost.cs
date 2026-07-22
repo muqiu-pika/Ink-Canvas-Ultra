@@ -31,6 +31,14 @@ namespace Ink_Canvas.Plugins
         private readonly string _pluginsStateFile;      // plugins.json 启用状态持久化
         private readonly Dictionary<string, bool> _enabledState = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
+        // ===== 插件注册跟踪（用于 UnloadPlugin 时自动清理） =====
+        // 当前正在加载的 pluginId（在 LoadPluginFromDirectory 期间设置，RegisterRouteHandler/RegisterSelectionControlBar 时关联）
+        private string _currentLoadingPluginId;
+        // route -> pluginId（插件通过 RegisterRouteHandler 注册的路由，按 pluginId 跟踪）
+        private readonly Dictionary<string, string> _routeOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // pluginId -> 插件注册的选择控制条 UI 列表
+        private readonly Dictionary<string, List<UIElement>> _pluginControlBars = new Dictionary<string, List<UIElement>>(StringComparer.OrdinalIgnoreCase);
+
         // ===== 事件 =====
         public event EventHandler ApplicationExiting;
         public event EventHandler<BoardModeChangedEventArgs> BoardModeChanged;
@@ -126,12 +134,18 @@ namespace Ink_Canvas.Plugins
         {
             if (string.IsNullOrEmpty(route) || handler == null) return;
             _pluginRouteHandlers[route] = handler;
+            // 关联到当前正在加载的 pluginId，供 UnloadPlugin 自动清理
+            if (!string.IsNullOrEmpty(_currentLoadingPluginId))
+            {
+                _routeOwners[route] = _currentLoadingPluginId;
+            }
         }
 
         public void UnregisterRouteHandler(string route)
         {
             if (string.IsNullOrEmpty(route)) return;
             _pluginRouteHandlers.Remove(route);
+            _routeOwners.Remove(route);
         }
 
         // ===== 画布与元素 API =====
@@ -166,12 +180,35 @@ namespace Ink_Canvas.Plugins
 
         public void RegisterSelectionControlBar(UIElement controlBar)
         {
-            try { _opts.RegisterSelectionControlBar?.Invoke(controlBar); } catch { }
+            try
+            {
+                _opts.RegisterSelectionControlBar?.Invoke(controlBar);
+                // 关联到当前正在加载的 pluginId，供 UnloadPlugin 自动清理
+                if (!string.IsNullOrEmpty(_currentLoadingPluginId))
+                {
+                    if (!_pluginControlBars.TryGetValue(_currentLoadingPluginId, out var list))
+                    {
+                        list = new List<UIElement>();
+                        _pluginControlBars[_currentLoadingPluginId] = list;
+                    }
+                    if (!list.Contains(controlBar)) list.Add(controlBar);
+                }
+            }
+            catch { }
         }
 
         public void UnregisterSelectionControlBar(UIElement controlBar)
         {
-            try { _opts.UnregisterSelectionControlBar?.Invoke(controlBar); } catch { }
+            try
+            {
+                _opts.UnregisterSelectionControlBar?.Invoke(controlBar);
+                // 从所有 pluginId 的列表中移除
+                foreach (var kv in _pluginControlBars)
+                {
+                    kv.Value.Remove(controlBar);
+                }
+            }
+            catch { }
         }
 
         // ===== 事件触发（主程序调用） =====
@@ -258,7 +295,7 @@ namespace Ink_Canvas.Plugins
             return _loaded.Any(p => string.Equals(p.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase));
         }
 
-        /// <summary>软卸载指定 id 的 plugin：调用 Shutdown、解绑事件、从已加载列表移除（已加载程序集不释放）</summary>
+        /// <summary>软卸载指定 id 的 plugin：调用 Shutdown、解绑事件、移除路由/UI、从已加载列表移除</summary>
         public bool UnloadPlugin(string pluginId)
         {
             if (string.IsNullOrEmpty(pluginId)) return false;
@@ -276,7 +313,7 @@ namespace Ink_Canvas.Plugins
                 LogHelper.WriteLogToFile($"plugin Shutdown 异常 [{p.Manifest.Id}]: {ex.Message}", LogHelper.LogType.Error);
             }
 
-            // 移除该 plugin 注册的路由
+            // 移除该 plugin 声明式入口点对应的路由
             if (p.Manifest.EntryPoints != null)
             {
                 foreach (var ep in p.Manifest.EntryPoints)
@@ -284,7 +321,31 @@ namespace Ink_Canvas.Plugins
                     if (string.IsNullOrWhiteSpace(ep?.Route)) continue;
                     _routeTable.Remove(ep.Route);
                     _pluginRouteHandlers.Remove(ep.Route);
+                    _routeOwners.Remove(ep.Route);
                 }
+            }
+
+            // 自动清理：插件通过 RegisterRouteHandler 注册但未在 manifest 中声明的路由
+            var extraRoutes = _routeOwners
+                .Where(kv => string.Equals(kv.Value, pluginId, StringComparison.OrdinalIgnoreCase))
+                .Select(kv => kv.Key)
+                .ToList();
+            foreach (var route in extraRoutes)
+            {
+                _routeTable.Remove(route);
+                _pluginRouteHandlers.Remove(route);
+                _routeOwners.Remove(route);
+            }
+
+            // 自动清理：插件通过 RegisterSelectionControlBar 注册但未在 Shutdown 中反注册的 UI
+            if (_pluginControlBars.TryGetValue(pluginId, out var bars))
+            {
+                foreach (var bar in bars.ToList())
+                {
+                    try { _opts.UnregisterSelectionControlBar?.Invoke(bar); }
+                    catch (Exception ex) { LogHelper.WriteLogToFile($"自动移除插件 UI 失败 [{pluginId}]: {ex.Message}", LogHelper.LogType.Warning); }
+                }
+                _pluginControlBars.Remove(pluginId);
             }
 
             _loaded.RemoveAt(idx);
@@ -442,7 +503,13 @@ namespace Ink_Canvas.Plugins
                     {
                         try
                         {
-                            var asm = Assembly.LoadFrom(asmPath);
+                            // 使用 Assembly.Load(byte[]) 代替 Assembly.LoadFrom(string)
+                            // 原因：.NET Framework 下 Assembly.LoadFrom 会锁定 DLL 文件，
+                            // 导致覆盖安装时 Directory.Delete 失败（需要重启才能释放文件锁）。
+                            // Assembly.Load(byte[]) 从字节数组加载，不锁定文件，
+                            // 覆盖安装时可以自由删除/替换 DLL，实现真正的热加载。
+                            byte[] asmBytes = File.ReadAllBytes(asmPath);
+                            var asm = Assembly.Load(asmBytes);
                             var type = asm.GetType(manifest.EntryClass, throwOnError: false);
                             if (type == null || !typeof(IPlugin).IsAssignableFrom(type))
                             {
@@ -451,7 +518,17 @@ namespace Ink_Canvas.Plugins
                             else
                             {
                                 pluginInstance = (IPlugin)Activator.CreateInstance(type);
-                                pluginInstance.Initialize(this);
+                                // 设置当前加载上下文，让 RegisterRouteHandler/RegisterSelectionControlBar
+                                // 能自动关联到该 pluginId
+                                _currentLoadingPluginId = manifest.Id;
+                                try
+                                {
+                                    pluginInstance.Initialize(this);
+                                }
+                                finally
+                                {
+                                    _currentLoadingPluginId = null;
+                                }
                             }
                         }
                         catch (Exception ex)
@@ -459,6 +536,23 @@ namespace Ink_Canvas.Plugins
                             LogHelper.WriteLogToFile($"plugin 初始化失败 [{manifest.Id}]: {ex.Message}", LogHelper.LogType.Error);
                         }
                     }
+                }
+
+                // Initialize 失败（pluginInstance == null）时不添加到 _loaded，
+                // 否则后续 LoadPlugin 会误判为"已加载"而拒绝重新加载
+                if (pluginInstance == null && !string.IsNullOrWhiteSpace(manifest.EntryAssembly))
+                {
+                    // 清理已注册的声明式入口点（因为插件实际未成功加载）
+                    if (manifest.EntryPoints != null)
+                    {
+                        foreach (var ep in manifest.EntryPoints)
+                        {
+                            if (string.IsNullOrWhiteSpace(ep?.Route)) continue;
+                            _routeTable.Remove(ep.Route);
+                        }
+                    }
+                    LogHelper.WriteLogToFile($"plugin 入口实例创建失败，未添加到已加载列表 [{manifest.Id}]", LogHelper.LogType.Warning);
+                    return;
                 }
 
                 _loaded.Add(new LoadedPlugin
@@ -491,6 +585,8 @@ namespace Ink_Canvas.Plugins
                 _loaded.Clear();
                 _routeTable.Clear();
                 _pluginRouteHandlers.Clear();
+                _routeOwners.Clear();
+                _pluginControlBars.Clear();
             }
             catch (Exception ex)
             {
