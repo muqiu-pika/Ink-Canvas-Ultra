@@ -15,6 +15,7 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
+using System.Windows.Documents;
 using System.Windows.Ink;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -366,6 +367,17 @@ namespace Ink_Canvas
         // 照片页面管理相关字段
         private Dictionary<string, int> photoPageMapping = new Dictionary<string, int>(); // 记录照片时间戳与页码的关联
         private System.Windows.Controls.Image currentPhotoImage; // 当前显示的照片元素
+        // 照片列表交互：右键/长按弹出的操作覆盖层
+        private FrameworkElement _activePhotoActionOverlay;
+        // 照片列表手动排序
+        private bool _isReorderingPhotos = false;
+        private int _photoReorderSourceIndex = -1;
+        private int _photoReorderTargetIndex = -1;
+        private Border _reorderIndicatorLine;
+        private DispatcherTimer _reorderAutoScrollTimer;
+        private int _reorderAutoScrollDirection = 0; // -1 上, 0 停止, 1 下
+        // 画板拖拽插入指示器（Adorner 实现虚线框）
+        private DragInsertionAdorner _photoDragInsertionAdorner;
         private bool shouldLaunchIntoVideoPresenterMode;
         private bool hasAppliedVideoPresenterStartupMode;
         private bool shouldOpenVideoPresenterAfterBoardSwitch;
@@ -682,8 +694,15 @@ namespace Ink_Canvas
 
                 if (isMouseDown && elapsed > InputWatchdogTimeoutMs)
                 {
-                    LogHelper.WriteLogToFile("Input watchdog detected stuck input state (isMouseDown), forcing recovery", LogHelper.LogType.Warning);
-                    ScheduleInputDeviceRecovery();
+                    // 仅在窗口处于活动状态时执行恢复（含 inkCanvas.Focus()），
+                    // 避免软件在后台时反复抢占其它软件的键盘焦点导致无法打字
+                    if (IsActive)
+                    {
+                        LogHelper.WriteLogToFile("Input watchdog detected stuck input state (isMouseDown), forcing recovery", LogHelper.LogType.Warning);
+                        ScheduleInputDeviceRecovery();
+                    }
+                    // 无论是否活动，都重置状态和时间戳，防止看门狗持续触发
+                    isMouseDown = false;
                     UpdateInputActivityTimestamp();
                 }
             }
@@ -759,6 +778,10 @@ namespace Ink_Canvas
                     if (wParam == IntPtr.Zero)
                     {
                         try { Mouse.Capture(null); Stylus.Capture(null); TouchStack_ClearAllCaptures(); } catch { }
+                        // 应用失去焦点时重置 isMouseDown，避免输入看门狗在后台反复触发
+                        // RecoverFromInputDeviceChange → inkCanvas.Focus()，导致抢占其它软件的键盘焦点
+                        isMouseDown = false;
+                        UpdateInputActivityTimestamp();
                     }
                     else
                     {
@@ -898,7 +921,21 @@ namespace Ink_Canvas
             
             // 初始化摄像头设备管理器
             InitializeCameraDeviceManager();
-            
+
+            // 为照片列表 StackPanel 绑定排序与隐藏覆盖层的事件
+            try
+            {
+                object spObj = CapturedPhotosStackPanel;
+                if (spObj is StackPanel sp)
+                {
+                    sp.PreviewMouseMove += CapturedPhotosStackPanel_PreviewMouseMove;
+                    sp.PreviewMouseUp += CapturedPhotosStackPanel_PreviewMouseUp;
+                    sp.PreviewTouchMove += CapturedPhotosStackPanel_PreviewTouchMove;
+                    sp.PreviewTouchUp += CapturedPhotosStackPanel_PreviewTouchUp;
+                }
+            }
+            catch { }
+
             isLoaded = true;
             StartSingleInstanceCommandServer();
             RegisterGlobalHotkeys();
@@ -1457,8 +1494,8 @@ namespace Ink_Canvas
             {
                 Source = photo.Thumbnail,
                 Stretch = Stretch.Uniform,
-                Width = 290,
-                Height = 180,
+                Width = 220,
+                Height = 140,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center
             };
@@ -1471,7 +1508,7 @@ namespace Ink_Canvas
             {
                 Text = "☑",
                 Foreground = System.Windows.Media.Brushes.SkyBlue,
-                FontSize = 40,
+                FontSize = 30,
                 FontWeight = FontWeights.Bold,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -1487,8 +1524,8 @@ namespace Ink_Canvas
                 {
                     HorizontalAlignment = HorizontalAlignment.Right,
                     VerticalAlignment = VerticalAlignment.Top,
-                    Margin = new Thickness(0, 6, 6, 0),
-                    Padding = new Thickness(6, 2, 6, 2),
+                    Margin = new Thickness(0, 5, 5, 0),
+                    Padding = new Thickness(5, 2, 5, 2),
                     CornerRadius = new CornerRadius(4),
                     Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xCC, 0xE8, 0x3E, 0x3E))
                 };
@@ -1497,15 +1534,15 @@ namespace Ink_Canvas
                 {
                     Text = "\uE714",
                     FontFamily = (System.Windows.Media.FontFamily)Application.Current.TryFindResource("FluentIconFontFamily"),
-                    FontSize = 11,
+                    FontSize = 10,
                     Foreground = System.Windows.Media.Brushes.White,
                     VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 3, 0)
+                    Margin = new Thickness(0, 0, 2, 0)
                 });
                 badgeContent.Children.Add(new TextBlock
                 {
                     Text = "视频",
-                    FontSize = 11,
+                    FontSize = 10,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = System.Windows.Media.Brushes.White,
                     VerticalAlignment = VerticalAlignment.Center
@@ -1517,11 +1554,88 @@ namespace Ink_Canvas
             contentGrid.Children.Add(image);
             contentGrid.Children.Add(checkOverlay);
 
-            var button = new Button
+            // 操作覆盖层（排序 + 删除），初始隐藏
+            // 3 秒自动隐藏计时器
+            var autoHideTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            bool overlayShown = false;
+            Grid actionOverlay = null;
+            Button button = null;
+
+            // === 交互状态 ===
+            var longPressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            bool _touchActive = false;       // 触摸序列进行中
+            bool _longPressFired = false;    // 长按已触发（显示覆盖层）
+            bool _longPressReleased = false; // 长按松手后等待自动隐藏（抑制 Click 事件）
+            bool _moved = false;             // 已触发拖拽
+            DateTime _lastLongPressTime = DateTime.MinValue; // 上次触发长按覆盖层的时间，用于防抖
+            System.Windows.Point _downPos = new System.Windows.Point();
+            const int TouchMoveThreshold = 25;
+
+            // 强制释放按钮占用的所有输入捕获（触摸/鼠标/手写笔），避免 suppressed 事件导致输入被卡住
+            Action releaseAllCaptures = () =>
             {
-                Width = 300,
-                Height = 200,
-                Margin = new Thickness(4),
+                try { button?.ReleaseAllTouchCaptures(); } catch { }
+                try { button?.ReleaseMouseCapture(); } catch { }
+                try { button?.ReleaseStylusCapture(); } catch { }
+            };
+
+            // 显示覆盖层
+            Action<bool> showOverlay = (startAutoHide) =>
+            {
+                HideActivePhotoActionOverlay();
+                actionOverlay.Visibility = Visibility.Visible;
+                _activePhotoActionOverlay = actionOverlay;
+                overlayShown = true;
+                autoHideTimer.Stop();
+                if (startAutoHide) autoHideTimer.Start();
+            };
+
+            // 隐藏覆盖层
+            Action hideOverlay = () =>
+            {
+                actionOverlay.Visibility = Visibility.Collapsed;
+                if (_activePhotoActionOverlay == actionOverlay)
+                    _activePhotoActionOverlay = null;
+                overlayShown = false;
+                autoHideTimer.Stop();
+                // 重置所有交互状态标志，避免覆盖层被外部隐藏后残留状态导致下一次长按异常
+                _touchActive = false;
+                _longPressFired = false;
+                _longPressReleased = false;
+                _moved = false;
+                // 释放可能残留的输入捕获，防止输入被卡住
+                releaseAllCaptures();
+            };
+
+            actionOverlay = CreatePhotoActionOverlay(photo, hideOverlay);
+            actionOverlay.Tag = new Action(hideOverlay);
+            contentGrid.Children.Add(actionOverlay);
+
+            // 点击覆盖层背景（两个按钮之外）→ 隐藏
+            actionOverlay.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                if (e.OriginalSource == actionOverlay)
+                {
+                    hideOverlay();
+                    e.Handled = true;
+                }
+            };
+
+            // 触屏：点击覆盖层背景（两个按钮之外）→ 隐藏
+            actionOverlay.PreviewTouchDown += (s, e) =>
+            {
+                if (e.OriginalSource == actionOverlay)
+                {
+                    hideOverlay();
+                    e.Handled = true;
+                }
+            };
+
+            button = new Button
+            {
+                Width = 230,
+                Height = 160,
+                Margin = new Thickness(3),
                 Background = System.Windows.Media.Brushes.Transparent,
                 BorderThickness = isSelected ? new Thickness(4) : new Thickness(1),
                 BorderBrush = isSelected ? System.Windows.Media.Brushes.SkyBlue : defaultBorderBrush,
@@ -1529,9 +1643,9 @@ namespace Ink_Canvas
                 Tag = photo.Timestamp
             };
 
-            button.Click += (sender, e) =>
+            // 点击动作
+            Action performClick = () =>
             {
-                // 视频条目：点击后通过路由触发视频插入
                 if (photo.IsVideo)
                 {
                     var host = Plugins.PluginHost.Instance;
@@ -1548,30 +1662,859 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 图片条目：更新选中状态并刷新侧栏照片样式
                 selectedPhotoTimestamp = photo.Timestamp;
                 UpdateCapturedPhotosDisplay();
 
-                // 检查该照片是否已经插入过白板
                 if (photoPageMapping.ContainsKey(photo.Timestamp))
                 {
-                    // 如果已经插入过，直接跳转到该照片所在的页码
                     int targetPage = photoPageMapping[photo.Timestamp];
                     Console.WriteLine($"照片 {photo.Timestamp} 已存在于页码 {targetPage}，正在跳转...");
-                    
-                    // 跳转到目标页码
                     SwitchToPage(targetPage);
                     Console.WriteLine($"已跳转到页码 {targetPage}，照片已存在，无需重新插入");
                 }
                 else
                 {
-                    // 直接切换到下一页插入，不再判断当前页面是否有内容
                     Console.WriteLine("直接切换到下一页插入照片");
                     SwitchToNextBoardAndInsertPhoto(photo);
                 }
             };
 
+            autoHideTimer.Tick += (ts, te) =>
+            {
+                autoHideTimer.Stop();
+                _longPressReleased = false;
+                hideOverlay();
+            };
+
+            longPressTimer.Tick += (ts, te) =>
+            {
+                longPressTimer.Stop();
+                if (!_moved && !_longPressFired)
+                {
+                    // 防抖：避免重复快速触发长按覆盖层
+                    if ((DateTime.Now - _lastLongPressTime).TotalMilliseconds < 300) return;
+                    _longPressFired = true;
+                    _lastLongPressTime = DateTime.Now;
+                    showOverlay(false);
+                }
+            };
+
+            // 右键：立即显示操作覆盖层
+            button.PreviewMouseRightButtonDown += (s, e) =>
+            {
+                showOverlay(true);
+                e.Handled = true;
+            };
+
+            // === 触屏处理 ===
+            // 始终设置 e.Handled = true 以完全抑制触摸到鼠标的提升，避免幽灵鼠标事件
+            button.PreviewTouchDown += (s, e) =>
+            {
+                if (overlayShown)
+                {
+                    // 本按钮覆盖层已显示：不启动长按检测，让事件继续隧穿到覆盖层内的按钮
+                    // （sortBtn/deleteBtn 的 PreviewTouchDown 会处理）
+                    return;
+                }
+
+                // 隐藏其他按钮的覆盖层
+                HideActivePhotoActionOverlay();
+
+                _touchActive = true;
+                _longPressFired = false;
+                _longPressReleased = false;
+                _moved = false;
+                _downPos = e.GetTouchPoint(button).Position;
+                e.TouchDevice.Capture(button, CaptureMode.SubTree);
+
+                longPressTimer.Stop();
+                longPressTimer.Start();
+                e.Handled = true;
+            };
+
+            button.PreviewTouchMove += (s, e) =>
+            {
+                if (!_touchActive || _longPressFired) return;
+
+                var currentPos = e.GetTouchPoint(button).Position;
+                double dx = Math.Abs(currentPos.X - _downPos.X);
+                double dy = Math.Abs(currentPos.Y - _downPos.Y);
+
+                bool outsideSidebar = false;
+                try
+                {
+                    object sidebarObj = VideoPresenterSidebar;
+                    if (sidebarObj is FrameworkElement sidebar && sidebar.IsVisible)
+                    {
+                        var sidebarPos = e.GetTouchPoint(sidebar).Position;
+                        if (sidebarPos.X < 0 || sidebarPos.X > sidebar.ActualWidth ||
+                            sidebarPos.Y < 0 || sidebarPos.Y > sidebar.ActualHeight)
+                        {
+                            outsideSidebar = true;
+                        }
+                    }
+                }
+                catch { }
+
+                if (!_moved)
+                {
+                    bool shouldDrag = outsideSidebar || dx > TouchMoveThreshold || dy > TouchMoveThreshold;
+                    if (shouldDrag)
+                    {
+                        _moved = true;
+                        longPressTimer.Stop();
+                        // 必须先标记事件已处理并释放捕获，再进入拖拽模态循环
+                        e.Handled = true;
+                        try { e.TouchDevice.Capture(null); } catch { }
+                        releaseAllCaptures();
+                        if (!photo.IsVideo)
+                        {
+                            var data = new DataObject("CapturedPhoto", photo);
+                            try
+                            {
+                                DragDrop.DoDragDrop(button, data, DragDropEffects.Copy);
+                            }
+                            finally
+                            {
+                                // 拖拽模态循环结束后强制清理状态，避免其他区域触摸手势失效
+                                _touchActive = false;
+                                releaseAllCaptures();
+                                // 某些触屏设备在拖拽后会出现触摸锁死，重新注册触摸窗口以恢复
+                                TouchLockFix.ReRegisterTouchWindow(this);
+                            }
+                        }
+                    }
+                }
+            };
+
+            button.PreviewTouchUp += (s, e) =>
+            {
+                // 始终抑制触摸到鼠标的提升
+                e.Handled = true;
+
+                try { e.TouchDevice.Capture(null); } catch { }
+                releaseAllCaptures();
+                longPressTimer.Stop();
+
+                if (!_touchActive) return;
+                _touchActive = false;
+
+                if (_longPressFired)
+                {
+                    // 长按松手：保持覆盖层显示，启动 3 秒自动隐藏
+                    // 设置独立标志 _longPressReleased 来抑制后续提升的 Click 事件
+                    // _longPressFired 可在下一次按下时重置而不影响抑制逻辑
+                    _longPressReleased = true;
+                    autoHideTimer.Stop();
+                    autoHideTimer.Start();
+                    // 某些触屏设备在长按时会出现触摸锁死，重新注册触摸窗口以恢复
+                    TouchLockFix.ReRegisterTouchWindow(this);
+                    return;
+                }
+
+                if (_moved)
+                {
+                    _moved = false;
+                    return;
+                }
+
+                // 短按：选中照片
+                performClick();
+            };
+
+            // === 鼠标处理 ===
+            button.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                if (_touchActive) return;
+                if (overlayShown)
+                {
+                    // 覆盖层已显示：标记以跳过松手时的选中（覆盖层自身会处理隐藏）
+                    _moved = true;
+                    return;
+                }
+
+                // 隐藏其他按钮的覆盖层
+                HideActivePhotoActionOverlay();
+
+                _moved = false;
+                _longPressFired = false;
+                _longPressReleased = false;
+                _downPos = e.GetPosition(null);
+                longPressTimer.Stop();
+                longPressTimer.Start();
+            };
+
+            button.PreviewMouseMove += (s, e) =>
+            {
+                if (_touchActive) return;
+                if (e.LeftButton != MouseButtonState.Pressed || _moved) return;
+
+                System.Windows.Point cur = e.GetPosition(null);
+                if (Math.Abs(cur.X - _downPos.X) > SystemParameters.MinimumHorizontalDragDistance ||
+                    Math.Abs(cur.Y - _downPos.Y) > SystemParameters.MinimumVerticalDragDistance)
+                {
+                    _moved = true;
+                    longPressTimer.Stop();
+                    if (!photo.IsVideo)
+                    {
+                        var data = new DataObject("CapturedPhoto", photo);
+                        DragDrop.DoDragDrop(button, data, DragDropEffects.Copy);
+                    }
+                }
+            };
+
+            button.PreviewMouseLeftButtonUp += (s, e) =>
+            {
+                if (_touchActive) return;
+                longPressTimer.Stop();
+                // 抑制 Button.Click，由本方法直接处理选中逻辑
+                e.Handled = true;
+
+                if (_longPressFired)
+                {
+                    // 长按松手：保持覆盖层显示，启动 3 秒自动隐藏
+                    _longPressReleased = true;
+                    autoHideTimer.Stop();
+                    autoHideTimer.Start();
+                    return;
+                }
+
+                if (_moved)
+                {
+                    _moved = false;
+                    return;
+                }
+
+                // 短按：选中照片
+                performClick();
+            };
+
+            // Button.Click 回退路径：键盘激活（Enter/Space）或未被抑制的提升事件
+            button.Click += (sender, e) =>
+            {
+                // 长按松手后 WPF 可能产生多次提升的 Click 事件（StylusUp + 鼠标提升）
+                // _longPressReleased 持续抑制，直到 autoHideTimer 触发 hideOverlay 或下一次按下
+                if (_longPressReleased) return;
+                if (_longPressFired || _touchActive || _moved) return;
+                performClick();
+            };
+
             return button;
+        }
+
+        /// <summary>创建照片操作覆盖层（排序 + 删除两个圆形按钮）</summary>
+        private Grid CreatePhotoActionOverlay(CapturedImage photo, Action hideOverlay)
+        {
+            var overlay = new Grid
+            {
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x99, 0x00, 0x00, 0x00)),
+                Visibility = Visibility.Collapsed
+            };
+
+            var btnPanel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+
+            // 左侧：排序按钮
+            var sortBtn = CreateCircularActionButton("\uE8CB", "#4A90D9");
+            sortBtn.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                hideOverlay();
+                StartPhotoReorder(photo, null);
+                e.Handled = true;
+            };
+            sortBtn.PreviewTouchDown += (s, e) =>
+            {
+                hideOverlay();
+                StartPhotoReorder(photo, e.TouchDevice);
+                e.Handled = true;
+            };
+            btnPanel.Children.Add(sortBtn);
+
+            // 间隔
+            btnPanel.Children.Add(new Border { Width = 20 });
+
+            // 右侧：删除按钮
+            var deleteBtn = CreateCircularActionButton("\uE74D", "#E83E3E");
+            deleteBtn.PreviewMouseLeftButtonDown += (s, e) =>
+            {
+                hideOverlay();
+                DeletePhotoFromList(photo);
+                e.Handled = true;
+            };
+            deleteBtn.PreviewTouchDown += (s, e) =>
+            {
+                hideOverlay();
+                DeletePhotoFromList(photo);
+                e.Handled = true;
+            };
+            btnPanel.Children.Add(deleteBtn);
+
+            overlay.Children.Add(btnPanel);
+            return overlay;
+        }
+
+        /// <summary>创建圆形操作按钮（Border 实现，支持 CornerRadius）</summary>
+        private Border CreateCircularActionButton(string glyph, string hexColor)
+        {
+            var color = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hexColor);
+            var border = new Border
+            {
+                Width = 42,
+                Height = 42,
+                CornerRadius = new CornerRadius(21),
+                Background = new SolidColorBrush(color),
+                Cursor = Cursors.Hand,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            var icon = new TextBlock
+            {
+                Text = glyph,
+                FontFamily = (System.Windows.Media.FontFamily)Application.Current.TryFindResource("FluentIconFontFamily"),
+                FontSize = 18,
+                Foreground = System.Windows.Media.Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            border.Child = icon;
+            return border;
+        }
+
+        /// <summary>隐藏当前显示的照片操作覆盖层</summary>
+        private void HideActivePhotoActionOverlay()
+        {
+            if (_activePhotoActionOverlay != null)
+            {
+                if (_activePhotoActionOverlay.Tag is Action hideAction)
+                    hideAction();
+                else
+                    _activePhotoActionOverlay.Visibility = Visibility.Collapsed;
+                _activePhotoActionOverlay = null;
+            }
+        }
+
+
+        /// <summary>从照片列表中删除指定照片</summary>
+        private void DeletePhotoFromList(CapturedImage photo)
+        {
+            try
+            {
+                capturedPhotos.Remove(photo);
+                photoPageMapping.Remove(photo.Timestamp);
+                if (selectedPhotoTimestamp == photo.Timestamp)
+                    selectedPhotoTimestamp = null;
+                UpdateCapturedPhotosDisplay();
+                Console.WriteLine($"已从照片列表删除: {photo.Timestamp}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"删除照片失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>开始照片手动排序（按下排序按钮后进入拖拽排序模式）</summary>
+        private void StartPhotoReorder(CapturedImage photo, TouchDevice touchDevice)
+        {
+            int idx = capturedPhotos.IndexOf(photo);
+            if (idx < 0) return;
+            _photoReorderSourceIndex = idx;
+            _photoReorderTargetIndex = idx;
+            _isReorderingPhotos = true;
+
+            // 先创建蓝色插入指示线（CaptureMouse 会同步派发 PreviewMouseMove，
+            // 此时 UpdateReorderIndicatorPosition 需要 _reorderIndicatorLine 已实例化）
+            if (_reorderIndicatorLine == null)
+            {
+                _reorderIndicatorLine = new Border
+                {
+                    Height = 3,
+                    CornerRadius = new CornerRadius(1.5),
+                    Background = new SolidColorBrush(System.Windows.Media.Color.FromRgb(0x4A, 0x90, 0xD9)),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    Margin = new Thickness(0, 0, 0, 0),
+                    IsHitTestVisible = false
+                };
+            }
+
+            // 初始放置指示线（在捕获鼠标前，避免同步 MouseMove 时状态不一致）
+            UpdateReorderIndicatorPosition();
+
+            // 捕获输入设备以跟踪拖拽
+            object spObj = CapturedPhotosStackPanel;
+            if (spObj is StackPanel sp)
+            {
+                sp.CaptureMouse();
+                if (touchDevice != null)
+                {
+                    touchDevice.Capture(sp, CaptureMode.SubTree);
+                }
+            }
+
+            // 启动自动滚动计时器
+            if (_reorderAutoScrollTimer == null)
+            {
+                _reorderAutoScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
+                _reorderAutoScrollTimer.Tick += ReorderAutoScrollTimer_Tick;
+            }
+            _reorderAutoScrollDirection = 0;
+            _reorderAutoScrollTimer.Start();
+        }
+
+        /// <summary>自动滚动计时器：在列表顶部/底部边缘时自动滚动</summary>
+        private void ReorderAutoScrollTimer_Tick(object sender, EventArgs e)
+        {
+            if (!_isReorderingPhotos) return;
+            object svObj = CapturedPhotosScrollViewer;
+            if (!(svObj is ScrollViewer sv)) return;
+
+            if (_reorderAutoScrollDirection < 0)
+            {
+                sv.ScrollToVerticalOffset(Math.Max(0, sv.VerticalOffset - 15));
+            }
+            else if (_reorderAutoScrollDirection > 0)
+            {
+                sv.ScrollToVerticalOffset(sv.VerticalOffset + 15);
+            }
+        }
+
+        /// <summary>更新蓝色指示线位置</summary>
+        private void UpdateReorderIndicatorPosition()
+        {
+            if (!_isReorderingPhotos) return;
+            if (_reorderIndicatorLine == null) return;
+            object spObj = CapturedPhotosStackPanel;
+            if (!(spObj is StackPanel sp)) return;
+
+            // 移除旧指示线
+            if (sp.Children.Contains(_reorderIndicatorLine))
+                sp.Children.Remove(_reorderIndicatorLine);
+
+            // _photoReorderTargetIndex 是数据索引（照片在列表中的位置）
+            // 转换为视觉索引（在 sp.Children 中的插入位置）
+            int dataCount = 0;
+            int visualInsertIndex = sp.Children.Count;
+            for (int i = 0; i < sp.Children.Count; i++)
+            {
+                if (dataCount == _photoReorderTargetIndex)
+                {
+                    visualInsertIndex = i;
+                    break;
+                }
+                // 跳过非照片元素（不应存在），计数照片按钮
+                dataCount++;
+            }
+            if (visualInsertIndex > sp.Children.Count) visualInsertIndex = sp.Children.Count;
+            sp.Children.Insert(visualInsertIndex, _reorderIndicatorLine);
+        }
+
+        /// <summary>照片列表鼠标移动：手动排序时实时调整蓝线位置 + 自动滚动</summary>
+        private void CapturedPhotosStackPanel_PreviewMouseMove(object sender, MouseEventArgs e)
+        {
+            if (!_isReorderingPhotos || _photoReorderSourceIndex < 0) return;
+            object spObj = CapturedPhotosStackPanel;
+            if (!(spObj is StackPanel sp)) return;
+            object svObj = CapturedPhotosScrollViewer;
+            if (!(svObj is ScrollViewer sv)) return;
+
+            System.Windows.Point pos = e.GetPosition(sp);
+
+            // 自动滚动检测：在 ScrollViewer 视口顶部/底部边缘时滚动
+            System.Windows.Point svPos = e.GetPosition(sv);
+            double edgeThreshold = 50;
+            if (svPos.Y < edgeThreshold)
+                _reorderAutoScrollDirection = -1;
+            else if (svPos.Y > sv.ActualHeight - edgeThreshold)
+                _reorderAutoScrollDirection = 1;
+            else
+                _reorderAutoScrollDirection = 0;
+
+            // 收集所有照片按钮（排除指示线）及其中线位置
+            var photoItems = new List<(int visualIndex, double midY)>();
+            for (int i = 0; i < sp.Children.Count; i++)
+            {
+                if (sp.Children[i] == _reorderIndicatorLine) continue;
+                if (sp.Children[i] is FrameworkElement child)
+                {
+                    double top = child.TransformToAncestor(sp).Transform(new System.Windows.Point(0, 0)).Y;
+                    double mid = top + child.ActualHeight / 2;
+                    photoItems.Add((i, mid));
+                }
+            }
+
+            // 计算目标插入位置（基于照片中线判定上/下）
+            // targetVisualIndex 指示线应插入到 sp.Children 的位置（视觉索引）
+            int targetVisualIndex = sp.Children.Count; // 默认末尾
+            foreach (var item in photoItems)
+            {
+                // 鼠标在该照片中线以上 → 蓝线显示在该照片上方
+                if (pos.Y < item.midY)
+                {
+                    targetVisualIndex = item.visualIndex;
+                    break;
+                }
+            }
+
+            // 转换为数据索引（排除指示线后的照片索引）
+            int targetDataIndex = 0;
+            for (int i = 0; i < targetVisualIndex; i++)
+            {
+                if (sp.Children[i] != _reorderIndicatorLine) targetDataIndex++;
+            }
+
+            if (targetDataIndex != _photoReorderTargetIndex)
+            {
+                _photoReorderTargetIndex = targetDataIndex;
+                UpdateReorderIndicatorPosition();
+            }
+        }
+
+        /// <summary>照片列表鼠标释放：结束手动排序并同步数据</summary>
+        private void CapturedPhotosStackPanel_PreviewMouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (_isReorderingPhotos)
+            {
+                _isReorderingPhotos = false;
+                _reorderAutoScrollTimer.Stop();
+                _reorderAutoScrollDirection = 0;
+
+                object spObj = CapturedPhotosStackPanel;
+                if (spObj is StackPanel sp)
+                {
+                    if (sp.IsMouseCaptured) sp.ReleaseMouseCapture();
+
+                    // 移除指示线
+                    if (sp.Children.Contains(_reorderIndicatorLine))
+                        sp.Children.Remove(_reorderIndicatorLine);
+
+                    // 计算实际目标数据索引
+                    // _photoReorderTargetIndex 是纯数据索引（不含指示线）
+                    int actualTarget = _photoReorderTargetIndex;
+                    // 源在目标之前时，移除源后目标索引需要减 1
+                    if (_photoReorderSourceIndex < actualTarget) actualTarget--;
+
+                    // 移动数据
+                    if (actualTarget >= 0 && actualTarget < capturedPhotos.Count && actualTarget != _photoReorderSourceIndex)
+                    {
+                        var photo = capturedPhotos[_photoReorderSourceIndex];
+                        capturedPhotos.RemoveAt(_photoReorderSourceIndex);
+                        capturedPhotos.Insert(actualTarget, photo);
+                        Console.WriteLine($"照片排序：从 {_photoReorderSourceIndex} 移动到 {actualTarget}");
+                    }
+                }
+                _photoReorderSourceIndex = -1;
+                _photoReorderTargetIndex = -1;
+                UpdateCapturedPhotosDisplay();
+            }
+            // 仅在左键点击空白区域（而非按钮上）时隐藏覆盖层
+            // 注意：StackPanel 无背景，非捕获状态下仅当事件源是子元素时才会触发此处
+            // 按钮自身的 PreviewMouseUp 已通过 e.Handled=true 阻止冒泡
+            if (e.ChangedButton == MouseButton.Left && e.OriginalSource == sender)
+            {
+                HideActivePhotoActionOverlay();
+            }
+        }
+
+        /// <summary>照片列表触摸移动：手动排序时实时调整蓝线位置 + 自动滚动</summary>
+        private void CapturedPhotosStackPanel_PreviewTouchMove(object sender, TouchEventArgs e)
+        {
+            if (!_isReorderingPhotos || _photoReorderSourceIndex < 0) return;
+            object spObj = CapturedPhotosStackPanel;
+            if (!(spObj is StackPanel sp)) return;
+            object svObj = CapturedPhotosScrollViewer;
+            if (!(svObj is ScrollViewer sv)) return;
+
+            System.Windows.Point pos = e.GetTouchPoint(sp).Position;
+
+            // 自动滚动检测：在 ScrollViewer 视口顶部/底部边缘时滚动
+            System.Windows.Point svPos = e.GetTouchPoint(sv).Position;
+            double edgeThreshold = 50;
+            if (svPos.Y < edgeThreshold)
+                _reorderAutoScrollDirection = -1;
+            else if (svPos.Y > sv.ActualHeight - edgeThreshold)
+                _reorderAutoScrollDirection = 1;
+            else
+                _reorderAutoScrollDirection = 0;
+
+            // 收集所有照片按钮（排除指示线）及其中线位置
+            var photoItems = new List<(int visualIndex, double midY)>();
+            for (int i = 0; i < sp.Children.Count; i++)
+            {
+                if (sp.Children[i] == _reorderIndicatorLine) continue;
+                if (sp.Children[i] is FrameworkElement child)
+                {
+                    double top = child.TransformToAncestor(sp).Transform(new System.Windows.Point(0, 0)).Y;
+                    double mid = top + child.ActualHeight / 2;
+                    photoItems.Add((i, mid));
+                }
+            }
+
+            // 计算目标插入位置（基于照片中线判定上/下）
+            int targetVisualIndex = sp.Children.Count; // 默认末尾
+            foreach (var item in photoItems)
+            {
+                // 触摸点在该照片中线以上 → 蓝线显示在该照片上方
+                if (pos.Y < item.midY)
+                {
+                    targetVisualIndex = item.visualIndex;
+                    break;
+                }
+            }
+
+            // 转换为数据索引（排除指示线后的照片索引）
+            int targetDataIndex = 0;
+            for (int i = 0; i < targetVisualIndex; i++)
+            {
+                if (sp.Children[i] != _reorderIndicatorLine) targetDataIndex++;
+            }
+
+            if (targetDataIndex != _photoReorderTargetIndex)
+            {
+                _photoReorderTargetIndex = targetDataIndex;
+                UpdateReorderIndicatorPosition();
+            }
+        }
+
+        /// <summary>照片列表触摸释放：结束手动排序并同步数据</summary>
+        private void CapturedPhotosStackPanel_PreviewTouchUp(object sender, TouchEventArgs e)
+        {
+            if (_isReorderingPhotos)
+            {
+                _isReorderingPhotos = false;
+                _reorderAutoScrollTimer.Stop();
+                _reorderAutoScrollDirection = 0;
+
+                object spObj = CapturedPhotosStackPanel;
+                if (spObj is StackPanel sp)
+                {
+                    if (e.TouchDevice.Captured == sp) sp.ReleaseTouchCapture(e.TouchDevice);
+
+                    // 移除指示线
+                    if (sp.Children.Contains(_reorderIndicatorLine))
+                        sp.Children.Remove(_reorderIndicatorLine);
+
+                    // 计算实际目标数据索引
+                    int actualTarget = _photoReorderTargetIndex;
+                    if (_photoReorderSourceIndex < actualTarget) actualTarget--;
+
+                    // 移动数据
+                    if (actualTarget >= 0 && actualTarget < capturedPhotos.Count && actualTarget != _photoReorderSourceIndex)
+                    {
+                        var photo = capturedPhotos[_photoReorderSourceIndex];
+                        capturedPhotos.RemoveAt(_photoReorderSourceIndex);
+                        capturedPhotos.Insert(actualTarget, photo);
+                        Console.WriteLine($"照片排序：从 {_photoReorderSourceIndex} 移动到 {actualTarget}");
+                    }
+                }
+                _photoReorderSourceIndex = -1;
+                _photoReorderTargetIndex = -1;
+                UpdateCapturedPhotosDisplay();
+            }
+            // 仅当触摸释放于空白区域（而非按钮上）时隐藏覆盖层
+            if (e.OriginalSource == sender)
+            {
+                HideActivePhotoActionOverlay();
+            }
+        }
+
+        // ===== 画板拖拽插入照片 =====
+
+        /// <summary>画板拖拽进入：显示虚线插入指示器</summary>
+        private void inkCanvas_DragEnter(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("CapturedPhoto"))
+            {
+                e.Effects = DragDropEffects.Copy;
+                var photo = e.Data.GetData("CapturedPhoto") as CapturedImage;
+                var size = ComputePhotoDisplaySize(photo);
+                ShowPhotoDragIndicator(e.GetPosition(inkCanvas), size);
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        /// <summary>画板拖拽移动：更新虚线插入指示器位置</summary>
+        private void inkCanvas_DragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data.GetDataPresent("CapturedPhoto"))
+            {
+                e.Effects = DragDropEffects.Copy;
+                var photo = e.Data.GetData("CapturedPhoto") as CapturedImage;
+                var size = ComputePhotoDisplaySize(photo);
+                ShowPhotoDragIndicator(e.GetPosition(inkCanvas), size);
+            }
+            else
+            {
+                e.Effects = DragDropEffects.None;
+            }
+            e.Handled = true;
+        }
+
+        /// <summary>画板拖拽离开：隐藏虚线插入指示器</summary>
+        private void inkCanvas_DragLeave(object sender, DragEventArgs e)
+        {
+            HidePhotoDragIndicator();
+            e.Handled = true;
+        }
+
+        /// <summary>画板拖拽释放：在当前位置插入照片并绑定页码</summary>
+        private void inkCanvas_Drop(object sender, DragEventArgs e)
+        {
+            HidePhotoDragIndicator();
+            if (e.Data.GetDataPresent("CapturedPhoto"))
+            {
+                var photo = e.Data.GetData("CapturedPhoto") as CapturedImage;
+                if (photo != null)
+                {
+                    System.Windows.Point pos = e.GetPosition(inkCanvas);
+                    InsertPhotoToCanvasAtPosition(photo, pos);
+                }
+            }
+            e.Handled = true;
+        }
+
+        /// <summary>计算照片插入画板后的实际显示尺寸（与 InsertPhotoToCanvasAtPosition 一致）</summary>
+        private System.Windows.Size ComputePhotoDisplaySize(CapturedImage photo)
+        {
+            try
+            {
+                double w, h;
+                if (photo != null && photo.Image != null && photo.Image.PixelWidth > 0)
+                {
+                    w = photo.Image.PixelWidth;
+                    h = photo.Image.PixelHeight;
+                }
+                else
+                {
+                    // 视频或无原始尺寸：使用 16:9 默认比例
+                    w = 640;
+                    h = 360;
+                }
+
+                double maxWidth = inkCanvas.ActualWidth * 0.5;
+                double maxHeight = inkCanvas.ActualHeight * 0.5;
+                if (maxWidth <= 0) maxWidth = 400;
+                if (maxHeight <= 0) maxHeight = 300;
+
+                double scale = Math.Min(maxWidth / w, maxHeight / h);
+                if (scale < 1.0)
+                {
+                    w *= scale;
+                    h *= scale;
+                }
+                return new System.Windows.Size(w, h);
+            }
+            catch
+            {
+                return new System.Windows.Size(300, 200);
+            }
+        }
+
+        /// <summary>显示拖拽插入虚线指示器（使用 Adorner 确保拖拽期间可见）</summary>
+        private void ShowPhotoDragIndicator(System.Windows.Point position, System.Windows.Size indicatorSize)
+        {
+            try
+            {
+                if (_photoDragInsertionAdorner == null)
+                {
+                    AdornerLayer layer = AdornerLayer.GetAdornerLayer(inkCanvas);
+                    if (layer == null)
+                    {
+                        Console.WriteLine("无法获取 inkCanvas 的 AdornerLayer");
+                        return;
+                    }
+                    _photoDragInsertionAdorner = new DragInsertionAdorner(inkCanvas);
+                    layer.Add(_photoDragInsertionAdorner);
+                }
+                _photoDragInsertionAdorner.SetSize(indicatorSize.Width, indicatorSize.Height);
+                _photoDragInsertionAdorner.SetPosition(position);
+                _photoDragInsertionAdorner.Visibility = Visibility.Visible;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"显示拖拽指示器失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>隐藏拖拽插入虚线指示器</summary>
+        private void HidePhotoDragIndicator()
+        {
+            if (_photoDragInsertionAdorner != null)
+            {
+                _photoDragInsertionAdorner.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>在画板指定位置插入照片并绑定到当前页码</summary>
+        private void InsertPhotoToCanvasAtPosition(CapturedImage photo, System.Windows.Point position)
+        {
+            try
+            {
+                int currentPage = GetCurrentPageIndex();
+
+                // 多次拖入只记录最后一次插入的页面（覆盖旧映射）
+                if (photoPageMapping.ContainsKey(photo.Timestamp))
+                {
+                    int existingPage = photoPageMapping[photo.Timestamp];
+                    if (existingPage != currentPage)
+                    {
+                        Console.WriteLine($"照片 {photo.Timestamp} 从页面 {existingPage} 重新绑定到页面 {currentPage}");
+                    }
+                }
+
+                // 不清除页面上已有的媒体内容，仅追加新照片
+                // 仅更新当前照片引用（旧引用保留在画布上不受影响）
+
+                // 创建图片元素
+                var imageElement = new System.Windows.Controls.Image
+                {
+                    Source = CreateBitmapImageFromFileOrMemory(photo),
+                    Width = photo.Image.PixelWidth,
+                    Height = photo.Image.PixelHeight,
+                    Name = "photo_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff")
+                };
+                System.Windows.Media.RenderOptions.SetBitmapScalingMode(imageElement, System.Windows.Media.BitmapScalingMode.HighQuality);
+
+                // 缩放到合理大小（以鼠标位置为中心）
+                double maxWidth = inkCanvas.ActualWidth * 0.5;
+                double maxHeight = inkCanvas.ActualHeight * 0.5;
+                double scale = Math.Min(maxWidth / imageElement.Width, maxHeight / imageElement.Height);
+                if (scale < 1.0)
+                {
+                    imageElement.Width *= scale;
+                    imageElement.Height *= scale;
+                }
+
+                // 设置位置（以鼠标位置为图片中心）
+                double left = position.X - imageElement.Width / 2;
+                double top = position.Y - imageElement.Height / 2;
+                if (left < 0) left = 0;
+                if (top < 0) top = 0;
+
+                InkCanvas.SetLeft(imageElement, left);
+                InkCanvas.SetTop(imageElement, top);
+                inkCanvas.Children.Add(imageElement);
+
+                currentPhotoImage = imageElement;
+                // 始终覆盖映射，确保只记录最后一次插入的页面
+                photoPageMapping[photo.Timestamp] = currentPage;
+                Console.WriteLine($"照片已通过拖拽插入到页面 {currentPage}，位置({left},{top})");
+
+                timeMachine.CommitElementInsertHistory(imageElement);
+
+                selectedPhotoTimestamp = photo.Timestamp;
+                UpdateCapturedPhotosDisplay();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"拖拽插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
 
         private void InsertPhotoToCanvas(CapturedImage photo)
@@ -2695,6 +3638,48 @@ namespace Ink_Canvas
                     currentCameraImage = image;
                     break;
                 }
+            }
+        }
+
+        /// <summary>拖拽插入位置的虚线框 Adorner，确保拖拽期间始终可见</summary>
+        private class DragInsertionAdorner : Adorner
+        {
+            private readonly System.Windows.Media.Pen _pen;
+            private readonly System.Windows.Media.Brush _fill;
+            private System.Windows.Point _position;
+            private double _indicatorWidth = 220;
+            private double _indicatorHeight = 140;
+
+            public DragInsertionAdorner(UIElement adornedElement) : base(adornedElement)
+            {
+                var strokeColor = System.Windows.Media.Color.FromRgb(0x4A, 0x90, 0xD9);
+                _pen = new System.Windows.Media.Pen(new SolidColorBrush(strokeColor), 2);
+                _pen.DashStyle = new DashStyle(new double[] { 5, 3 }, 0);
+                _pen.Freeze();
+                _fill = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x22, 0x4A, 0x90, 0xD9));
+                _fill.Freeze();
+                IsHitTestVisible = false;
+            }
+
+            public void SetPosition(System.Windows.Point pos)
+            {
+                _position = pos;
+                InvalidateVisual();
+            }
+
+            public void SetSize(double width, double height)
+            {
+                _indicatorWidth = width;
+                _indicatorHeight = height;
+                InvalidateVisual();
+            }
+
+            protected override void OnRender(DrawingContext drawingContext)
+            {
+                double x = _position.X - _indicatorWidth / 2;
+                double y = _position.Y - _indicatorHeight / 2;
+                var rect = new System.Windows.Rect(x, y, _indicatorWidth, _indicatorHeight);
+                drawingContext.DrawRoundedRectangle(_fill, _pen, rect, 4, 4);
             }
         }
     }

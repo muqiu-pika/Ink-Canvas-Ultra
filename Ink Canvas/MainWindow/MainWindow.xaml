@@ -293,7 +293,17 @@
 
                 TouchMove="inkCanvas_TouchMove"
 
-                TouchUp="Main_Grid_TouchUp" />
+                TouchUp="Main_Grid_TouchUp"
+
+                AllowDrop="True"
+
+                DragEnter="inkCanvas_DragEnter"
+
+                DragOver="inkCanvas_DragOver"
+
+                DragLeave="inkCanvas_DragLeave"
+
+                Drop="inkCanvas_Drop" />
 
         </AdornerDecorator>
 

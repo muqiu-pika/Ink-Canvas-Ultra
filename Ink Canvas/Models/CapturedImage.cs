@@ -78,9 +78,9 @@ namespace Ink_Canvas.Models
 
         private BitmapImage CreateThumbnail(BitmapImage original)
         {
-            // 生成接近展示尺寸（侧栏使用 290x180）的缩略图，避免放大导致模糊
-            double targetWidth = 290.0;
-            double targetHeight = 180.0;
+            // 生成接近展示尺寸（侧栏使用 220x140）的缩略图，避免放大导致模糊
+            double targetWidth = 220.0;
+            double targetHeight = 140.0;
             double scale = Math.Min(targetWidth / original.PixelWidth, targetHeight / original.PixelHeight);
             var thumbnail = new TransformedBitmap(original,
                 new System.Windows.Media.ScaleTransform(scale, scale));
@@ -109,8 +109,8 @@ namespace Ink_Canvas.Models
         /// <summary>为视频条目生成占位缩略图（深色背景 + 播放图标）</summary>
         public static BitmapImage CreateVideoPlaceholderThumbnail()
         {
-            // 生成 290x180 的深色背景 + 白色播放三角占位图
-            double w = 290, h = 180;
+            // 生成 220x140 的深色背景 + 白色播放三角占位图
+            double w = 220, h = 140;
             var dv = new DrawingVisual();
             using (var dc = dv.RenderOpen())
             {
@@ -125,17 +125,17 @@ namespace Ink_Canvas.Models
 
                 // 白色半透明播放三角（圆形背景 + 三角）
                 double cx = w / 2, cy = h / 2;
-                double r = 32;
+                double r = 26;
                 dc.DrawEllipse(
                     new SolidColorBrush(Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF)),
                     null,
                     new System.Windows.Point(cx, cy), r, r);
 
                 // 三角形（向右）
-                var triStart = cx - 8;
-                var triTop = cy - 12;
-                var triBottom = cy + 12;
-                var triRight = cx + 12;
+                var triStart = cx - 7;
+                var triTop = cy - 10;
+                var triBottom = cy + 10;
+                var triRight = cx + 10;
                 var triangle = new StreamGeometry();
                 using (var ctx = triangle.Open())
                 {
