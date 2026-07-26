@@ -1562,7 +1562,7 @@ namespace Ink_Canvas
             Button button = null;
 
             // === 交互状态 ===
-            var longPressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            var longPressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
             bool _touchActive = false;       // 触摸序列进行中
             bool _longPressFired = false;    // 长按已触发（显示覆盖层）
             bool _longPressReleased = false; // 长按松手后等待自动隐藏（抑制 Click 事件）
@@ -2290,7 +2290,12 @@ namespace Ink_Canvas
                 object spObj = CapturedPhotosStackPanel;
                 if (spObj is StackPanel sp)
                 {
+                    // 强制释放所有输入捕获：排序模式启动时同时 CaptureMouse + Capture(touchDevice)，
+                    // 某些情况下仅释放当前 TouchDevice 仍会导致鼠标/其他触摸捕获残留，从而全局触摸失灵
+                    try { sp.ReleaseAllTouchCaptures(); } catch { }
                     if (e.TouchDevice.Captured == sp) sp.ReleaseTouchCapture(e.TouchDevice);
+                    if (sp.IsMouseCaptured) sp.ReleaseMouseCapture();
+                    try { sp.ReleaseStylusCapture(); } catch { }
 
                     // 移除指示线
                     if (sp.Children.Contains(_reorderIndicatorLine))
@@ -2312,6 +2317,8 @@ namespace Ink_Canvas
                 _photoReorderSourceIndex = -1;
                 _photoReorderTargetIndex = -1;
                 UpdateCapturedPhotosDisplay();
+                // 重新注册触摸窗口，修复某些触屏设备在排序操作后出现的触摸锁死
+                TouchLockFix.ReRegisterTouchWindow(this);
             }
             // 仅当触摸释放于空白区域（而非按钮上）时隐藏覆盖层
             if (e.OriginalSource == sender)
