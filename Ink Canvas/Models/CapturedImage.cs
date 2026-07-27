@@ -24,7 +24,7 @@ namespace Ink_Canvas.Models
             Image = image;
             Thumbnail = CreateThumbnail(image);
             Strokes = new StrokeCollection();
-            Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             FilePath = null;
             IsVideo = false;
             VideoFilePath = null;
@@ -36,7 +36,7 @@ namespace Ink_Canvas.Models
             Thumbnail = CreateThumbnail(image);
             Strokes = new StrokeCollection();
             FilePath = filePath;
-            Timestamp = TryExtractTimestampFromFilePath(filePath) ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            Timestamp = TryExtractTimestampFromFilePath(filePath) ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             IsVideo = false;
             VideoFilePath = null;
         }
@@ -50,7 +50,7 @@ namespace Ink_Canvas.Models
             FilePath = videoFilePath;
             VideoFilePath = videoFilePath;
             IsVideo = isVideo;
-            Timestamp = TryExtractTimestampFromFilePath(videoFilePath) ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+            Timestamp = TryExtractTimestampFromFilePath(videoFilePath) ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
         }
 
         private static string TryExtractTimestampFromFilePath(string filePath)
@@ -61,14 +61,14 @@ namespace Ink_Canvas.Models
                 var name = System.IO.Path.GetFileNameWithoutExtension(filePath);
                 if (DateTime.TryParseExact(name, "yyyy-MM-dd HH-mm-ss-fff", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt))
                 {
-                    return dt.ToString("yyyy-MM-dd HH:mm:ss");
+                    return dt.ToString("yyyy-MM-dd HH:mm:ss.fff");
                 }
                 if (name.Length >= 23)
                 {
                     var tail = name.Substring(name.Length - 23);
                     if (DateTime.TryParseExact(tail, "yyyy-MM-dd HH-mm-ss-fff", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var dt2))
                     {
-                        return dt2.ToString("yyyy-MM-dd HH:mm:ss");
+                        return dt2.ToString("yyyy-MM-dd HH:mm:ss.fff");
                     }
                 }
                 return null;

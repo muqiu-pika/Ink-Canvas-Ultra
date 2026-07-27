@@ -133,6 +133,8 @@ namespace Ink_Canvas
                     },
                     CommitElementInsertHistory = el => timeMachine.CommitElementInsertHistory(el),
                     GetAutoSavedStrokesLocation = () => Settings.Automation.AutoSavedStrokesLocation,
+                    GetPhotoClarityDpi = () => Settings.Automation.PhotoClarityDpi,
+                    AddCapturedPhoto = (image, filePath) => Dispatcher.Invoke(() => AddCapturedPhotoInternal(image, filePath)),
                     RegisterSelectionControlBar = bar =>
                     {
                         Dispatcher.Invoke(() =>
@@ -196,6 +198,20 @@ namespace Ink_Canvas
 
                 // 根据已安装的 plugin 显示对应入口按钮
                 UpdatePluginBasedButtonVisibility();
+
+                // 如果启动参数包含 Word/Excel/PDF 文件路径，交给 document-viewer 插件处理
+                if (!string.IsNullOrEmpty(App.PendingDocumentPath))
+                {
+                    try
+                    {
+                        host.TriggerRoute("document-open", App.PendingDocumentPath);
+                        App.PendingDocumentPath = null;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile($"启动时处理文档参数失败: {ex.Message}", LogHelper.LogType.Error);
+                    }
+                }
 
                 LogHelper.WriteLogToFile($"plugin 系统初始化完成，已加载 {host.GetLoadedManifests().Count} 个 plugin", LogHelper.LogType.Event);
             }
@@ -594,6 +610,26 @@ namespace Ink_Canvas
             if (string.Equals(command, App.ActivateVideoPresenterCommand, StringComparison.OrdinalIgnoreCase))
             {
                 ActivateVideoPresenterMode();
+                return;
+            }
+
+            // 处理来自第二个实例的文档打开请求
+            const string documentOpenPrefix = "document-open|";
+            if (command.StartsWith(documentOpenPrefix, StringComparison.OrdinalIgnoreCase))
+            {
+                string filePath = command.Substring(documentOpenPrefix.Length);
+                if (!string.IsNullOrWhiteSpace(filePath) && System.IO.File.Exists(filePath))
+                {
+                    try
+                    {
+                        Plugins.PluginHost.Instance?.TriggerRoute("document-open", filePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile($"处理单实例文档打开命令失败: {ex.Message}", LogHelper.LogType.Error);
+                    }
+                }
+                return;
             }
         }
 
@@ -1405,13 +1441,18 @@ namespace Ink_Canvas
 
         private void AddCapturedPhoto(BitmapImage image)
         {
+            AddCapturedPhoto(image, null);
+        }
+
+        private void AddCapturedPhoto(BitmapImage image, string sourceFilePath)
+        {
             try
             {
-                string path = SaveBitmapImageToPhotoFile(image);
+                string path = SaveBitmapImageToPhotoFile(image, sourceFilePath);
                 var capturedImage = string.IsNullOrEmpty(path) ? new CapturedImage(image) : new CapturedImage(image, path);
                 capturedPhotos.Insert(0, capturedImage);
                 UpdateCapturedPhotosDisplay();
-                
+
                 // 拍照后不立即插入照片到白板，等待用户点击照片按钮后再插入
                 Console.WriteLine($"照片已保存到相册，时间戳: {capturedImage.Timestamp}");
                 Console.WriteLine("请点击照片按钮将照片插入白板");
@@ -1420,6 +1461,11 @@ namespace Ink_Canvas
             {
                 Console.WriteLine($"添加照片失败: {ex.Message}");
             }
+        }
+
+        private void AddCapturedPhotoInternal(BitmapImage image, string sourceFilePath)
+        {
+            AddCapturedPhoto(image, sourceFilePath);
         }
 
         private void UpdateCapturedPhotosDisplay()
@@ -2794,6 +2840,40 @@ namespace Ink_Canvas
             notificationWindow.Show();
         }
 
+        // 导入文档按钮点击事件：由 document-viewer 插件接管文件选择与转换
+        public void BtnImportDocument_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                var host = Plugins.PluginHost.Instance;
+                if (host == null)
+                {
+                    MessageBox.Show("插件系统未初始化", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                if (!host.IsRouteAvailable("document-open"))
+                {
+                    MessageBox.Show("未安装文档查看器插件，请前往插件工坊安装。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                var dialog = new Microsoft.Win32.OpenFileDialog
+                {
+                    Filter = "Office 文档|*.doc;*.docx;*.xls;*.xlsx;*.pdf|Word 文档|*.doc;*.docx|Excel 工作簿|*.xls;*.xlsx|PDF 文档|*.pdf|所有文件|*.*",
+                    Title = "选择要导入的文档",
+                    Multiselect = false
+                };
+                if (dialog.ShowDialog(this) == true)
+                {
+                    host.TriggerRoute("document-open", dialog.FileName);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"导入文档失败: {ex.Message}", LogHelper.LogType.Error);
+                MessageBox.Show($"导入文档时发生错误: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         /// <summary>
         /// 清除所有白板内容，恢复至初始默认状态
         /// </summary>
@@ -2925,7 +3005,7 @@ namespace Ink_Canvas
             return photo.Image;
         }
 
-        private string SaveBitmapImageToPhotoFile(BitmapImage image)
+        private string SaveBitmapImageToPhotoFile(BitmapImage image, string sourceFilePath = null)
         {
             try
             {
@@ -2935,7 +3015,10 @@ namespace Ink_Canvas
                     baseDir += @"\" + DateTime.Now.ToString("yyyy-MM-dd");
                 }
                 if (!Directory.Exists(baseDir)) Directory.CreateDirectory(baseDir);
-                string fileName = DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss-fff") + ".png";
+                string suffix = string.IsNullOrEmpty(sourceFilePath)
+                    ? string.Empty
+                    : "_" + System.IO.Path.GetFileNameWithoutExtension(sourceFilePath);
+                string fileName = DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss-fff") + suffix + ".png";
                 string path = System.IO.Path.Combine(baseDir, fileName);
                 var encoder = new PngBitmapEncoder();
                 encoder.Frames.Add(BitmapFrame.Create(image));

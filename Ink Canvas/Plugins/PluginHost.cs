@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media.Imaging;
 using Ink_Canvas.Helpers;
 using Newtonsoft.Json;
 
@@ -174,6 +175,20 @@ namespace Ink_Canvas.Plugins
                 try { return _opts.GetAutoSavedStrokesLocation?.Invoke() ?? string.Empty; } catch { }
                 return string.Empty;
             }
+        }
+
+        public int PhotoClarityDpi
+        {
+            get
+            {
+                try { return _opts.GetPhotoClarityDpi?.Invoke() ?? 150; } catch { }
+                return 150;
+            }
+        }
+
+        public void AddCapturedPhoto(BitmapImage image, string filePath = null)
+        {
+            try { _opts.AddCapturedPhoto?.Invoke(image, filePath); } catch { }
         }
 
         // ===== 选择控制条插槽 =====
@@ -395,11 +410,11 @@ namespace Ink_Canvas.Plugins
 
         // ===== 查询接口 =====
 
-        /// <summary>查询某个声明式入口点是否已注册（即对应 plugin 已安装且启用）</summary>
+        /// <summary>查询某个路由是否可用（含声明式入口点或插件运行时注册的处理器）</summary>
         public bool IsRouteAvailable(string route)
         {
             if (string.IsNullOrEmpty(route)) return false;
-            return _routeTable.ContainsKey(route);
+            return _routeTable.ContainsKey(route) || _pluginRouteHandlers.ContainsKey(route);
         }
 
         /// <summary>获取所有已加载 plugin 的 manifest</summary>
@@ -646,6 +661,8 @@ namespace Ink_Canvas.Plugins
         public Func<IReadOnlyList<UIElement>> GetSelectedElements { get; set; }
         public Action<UIElement> CommitElementInsertHistory { get; set; }
         public Func<string> GetAutoSavedStrokesLocation { get; set; }
+        public Func<int> GetPhotoClarityDpi { get; set; }
+        public Action<BitmapImage, string> AddCapturedPhoto { get; set; }
         public Action<UIElement> RegisterSelectionControlBar { get; set; }
         public Action<UIElement> UnregisterSelectionControlBar { get; set; }
     }

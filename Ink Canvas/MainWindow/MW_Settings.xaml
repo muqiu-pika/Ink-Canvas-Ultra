@@ -3917,6 +3917,34 @@
 
                                     TextWrapping="Wrap" />
 
+                                <TextBlock
+                                    FontSize="15"
+                                    Foreground="{DynamicResource PopupWindowForeground}"
+                                    Text="文档转照片清晰度（DPI）：" />
+
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="12">
+                                    <Slider
+                                        x:Name="PhotoClarityDpiSlider"
+                                        Width="320"
+                                        Minimum="72"
+                                        Maximum="300"
+                                        TickFrequency="1"
+                                        IsSnapToTickEnabled="True"
+                                        ValueChanged="PhotoClarityDpiSlider_ValueChanged" />
+                                    <TextBlock
+                                        x:Name="PhotoClarityDpiValueText"
+                                        Width="50"
+                                        VerticalAlignment="Center"
+                                        FontSize="14"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="150" />
+                                </ikw:SimpleStackPanel>
+
+                                <TextBlock
+                                    Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                                    Text="* DPI 越高照片越清晰，但文件越大、转换越慢。推荐 150。"
+                                    TextWrapping="Wrap" />
+
                                 <ikw:SimpleStackPanel HorizontalAlignment="Left" Orientation="Horizontal">
 
                                     <ikw:SimpleStackPanel Width="50">

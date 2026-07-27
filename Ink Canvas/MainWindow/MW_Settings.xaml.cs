@@ -22,6 +22,17 @@ namespace Ink_Canvas
             InvokeMainWindowHandler("LoadSettings", false);
             if (AppVersionTextBlock != null)
                 AppVersionTextBlock.Text = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+
+            // 同步「文档转照片清晰度」滑块与数值显示
+            try
+            {
+                int dpi = MainWindow.Settings?.Automation?.PhotoClarityDpi ?? 150;
+                if (PhotoClarityDpiSlider != null)
+                    PhotoClarityDpiSlider.Value = dpi;
+                if (PhotoClarityDpiValueText != null)
+                    PhotoClarityDpiValueText.Text = dpi.ToString();
+            }
+            catch { }
         }
 
         private void InvokeMainWindowHandler(string handlerName, params object[] args)
@@ -49,6 +60,13 @@ namespace Ink_Canvas
         private void AutoSavedStrokesLocationTextBox_TextChanged(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(AutoSavedStrokesLocationTextBox_TextChanged), sender, e);
+        }
+
+        private void PhotoClarityDpiSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(PhotoClarityDpiSlider_ValueChanged), sender, e);
+            if (PhotoClarityDpiValueText != null)
+                PhotoClarityDpiValueText.Text = ((int)Math.Round(e.NewValue)).ToString();
         }
 
         private void AutoStraightenLineThresholdSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

@@ -626,6 +626,14 @@ namespace Ink_Canvas
             SaveSettingsToFile();
         }
 
+        private void PhotoClarityDpiSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            int dpi = (int)Math.Round(e.NewValue);
+            Settings.Automation.PhotoClarityDpi = dpi;
+            SaveSettingsToFile();
+        }
+
         private void AutoSavedStrokesLocationButton_Click(object sender, RoutedEventArgs e)
         {
             System.Windows.Forms.FolderBrowserDialog folderBrowser = new System.Windows.Forms.FolderBrowserDialog();

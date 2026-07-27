@@ -299,6 +299,9 @@ namespace Ink_Canvas
 
         [JsonProperty("autoDelSavedFilesDaysThreshold")]
         public int AutoDelSavedFilesDaysThreshold = 15;
+
+        [JsonProperty("photoClarityDpi")]
+        public int PhotoClarityDpi = 150;
     }
 
     public class Advanced

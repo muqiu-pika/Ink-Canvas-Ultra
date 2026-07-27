@@ -67,5 +67,10 @@ namespace Ink_Canvas
         {
             InvokeMainWindowHandler(nameof(BtnClearAllContent_Click), sender, e);
         }
+
+        private void BtnImportDocument_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BtnImportDocument_Click), sender, e);
+        }
     }
 }

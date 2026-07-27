@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Media.Imaging;
 
 namespace Ink_Canvas.Plugins
 {
@@ -54,6 +55,15 @@ namespace Ink_Canvas.Plugins
 
         /// <summary>主程序存放媒体依赖文件的目录（Settings.Automation.AutoSavedStrokesLocation）</summary>
         string AutoSavedStrokesLocation { get; }
+
+        /// <summary>照片清晰度 DPI（Settings.Automation.PhotoClarityDpi）</summary>
+        int PhotoClarityDpi { get; }
+
+        /// <summary>
+        /// 将图片添加到主程序照片列表。
+        /// filePath 为原始文件路径（可选），会复制到 File Dependency 目录。
+        /// </summary>
+        void AddCapturedPhoto(BitmapImage image, string filePath = null);
 
         // ===== 选择控制条插槽 =====
 

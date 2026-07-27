@@ -246,23 +246,47 @@
 
                         </Grid.RowDefinitions>
 
-                        <TextBlock
-
-                            Grid.Row="0"
-
-                            x:Name="CapturedPhotosTitleTextBlock"
-
-                            Margin="0,0,0,8"
-
-                            HorizontalAlignment="Left"
-
-                            FontSize="12"
-
-                            FontWeight="SemiBold"
-
-                            Foreground="{DynamicResource BoardBarForeground}"
-
-                            Text="拍摄照片" />
+                        <Grid Grid.Row="0" Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                x:Name="CapturedPhotosTitleTextBlock"
+                                Grid.Column="0"
+                                HorizontalAlignment="Left"
+                                VerticalAlignment="Center"
+                                FontSize="12"
+                                FontWeight="SemiBold"
+                                Foreground="{DynamicResource BoardBarForeground}"
+                                Text="拍摄照片" />
+                            <Button
+                                x:Name="BtnImportDocument"
+                                Grid.Column="1"
+                                Width="Auto"
+                                Height="24"
+                                Padding="8,0"
+                                HorizontalAlignment="Right"
+                                Background="{DynamicResource BoardBarButtonBackground}"
+                                BorderThickness="0"
+                                Click="BtnImportDocument_Click"
+                                FontSize="11"
+                                Foreground="{DynamicResource BoardBarForeground}"
+                                ToolTipService.ToolTip="导入 Word / Excel / PDF 文件并转为照片">
+                                <StackPanel Orientation="Horizontal">
+                                    <ui:FontIcon
+                                        Width="14"
+                                        Height="14"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="12"
+                                        Glyph="&#xE8E5;" />
+                                    <TextBlock
+                                        Margin="4,0,0,0"
+                                        VerticalAlignment="Center"
+                                        Text="导入文档" />
+                                </StackPanel>
+                            </Button>
+                        </Grid>
 
                         <ScrollViewer
 

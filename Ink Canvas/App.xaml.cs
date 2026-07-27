@@ -242,6 +242,15 @@ namespace Ink_Canvas
             if (!ret && !e.Args.Contains("-m")) //-m multiple
             {
                 LogHelper.NewLog("Detected existing instance");
+
+                // 如果启动参数包含文档路径，尝试转发给已运行的实例处理
+                string documentPath = e.Args.FirstOrDefault(IsDocumentFilePath);
+                if (!string.IsNullOrEmpty(documentPath) && TryNotifyExistingInstance($"document-open|{documentPath}"))
+                {
+                    LogHelper.NewLog("Document open request sent to existing instance");
+                    Environment.Exit(0);
+                }
+
                 if (IsVideoPresenterLaunchRequested(e.Args) && TryNotifyExistingInstance())
                 {
                     LogHelper.NewLog("Ink Canvas activation request sent to existing instance");
@@ -301,8 +310,23 @@ namespace Ink_Canvas
                 {
                     CurrentStartupMode = StartupMode.WhiteboardAndCamera;
                 }
+                else if (IsDocumentFilePath(arg))
+                {
+                    PendingDocumentPath = arg;
+                }
             }
         }
+
+        /// <summary>是否为插件支持的文档文件路径（Word / Excel / PDF）</summary>
+        private static bool IsDocumentFilePath(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path)) return false;
+            string ext = System.IO.Path.GetExtension(path).ToLowerInvariant();
+            return ext == ".doc" || ext == ".docx" || ext == ".xls" || ext == ".xlsx" || ext == ".pdf";
+        }
+
+        /// <summary>启动时待处理的文档文件路径（由 document-viewer 插件处理）</summary>
+        public static string PendingDocumentPath { get; set; }
 
         public static void RegisterUriScheme()
         {
@@ -332,7 +356,7 @@ namespace Ink_Canvas
             }
         }
 
-        private bool TryNotifyExistingInstance()
+        private bool TryNotifyExistingInstance(string command = null)
         {
             try
             {
@@ -341,7 +365,7 @@ namespace Ink_Canvas
                     client.Connect(1500);
                     using (var writer = new StreamWriter(client, Encoding.UTF8, 1024, true))
                     {
-                        writer.Write(ActivateVideoPresenterCommand);
+                        writer.Write(command ?? ActivateVideoPresenterCommand);
                         writer.Flush();
                     }
                 }
