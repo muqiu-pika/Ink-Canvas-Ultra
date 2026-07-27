@@ -78,9 +78,8 @@ namespace Ink_Canvas
         // 在线插件商店目录地址（按优先级尝试）
         private static readonly string[] MarketSources = new[]
         {
-            "https://plugin.muqiu.eu.org/v1/market.json",          // EdgeOne（国内快）
-            "https://icu-market.pages.dev/v1/market.json",         // Cloudflare Pages 回退
-            "https://cdn.jsdelivr.net/gh/muqiu-pika/Ink-Canvas-Ultra-Plugin@main/market/v1/market.json" // jsDelivr
+            "https://plugin.muqiu.eu.org/v1/market.json",          // EdgeOne Pages
+            "https://cdn.jsdelivr.net/gh/muqiu-pika/Ink-Canvas-Ultra-Plugin@main/market/v1/market.json" // jsDelivr 回退
         };
 
         // 最近一次获取到的在线插件列表
