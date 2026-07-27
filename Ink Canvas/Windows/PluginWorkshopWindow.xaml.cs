@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -74,8 +75,13 @@ namespace Ink_Canvas
         // .icplugin 安装包扩展名
         private const string PluginFileExtension = ".icplugin";
 
-        // 在线插件商店目录地址（GitHub  raw）
-        private const string OnlineCatalogUrl = "https://github.com/muqiu1a/Ink-Canvas-Ultra-Plugin/raw/main/plugins.json";
+        // 在线插件商店目录地址（按优先级尝试）
+        private static readonly string[] MarketSources = new[]
+        {
+            "https://plugin.muqiu.eu.org/v1/market.json",          // EdgeOne（国内快）
+            "https://icu-market.pages.dev/v1/market.json",         // Cloudflare Pages 回退
+            "https://cdn.jsdelivr.net/gh/muqiu-pika/Ink-Canvas-Ultra-Plugin@main/market/v1/market.json" // jsDelivr
+        };
 
         // 最近一次获取到的在线插件列表
         private List<OnlinePluginInfo> _availablePlugins = new List<OnlinePluginInfo>();
@@ -342,23 +348,39 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>从 GitHub 获取在线插件目录，并渲染「可安装」区域。</summary>
+        /// <summary>从多个市场源获取在线插件目录，并渲染「可安装」区域。</summary>
         private async Task RefreshAvailablePluginsAsync(IReadOnlyList<InstalledPluginInfo> installed)
         {
-            try
+            _availablePlugins = new List<OnlinePluginInfo>();
+            Exception lastError = null;
+
+            foreach (var url in MarketSources)
             {
-                using (var client = new WebClient())
+                try
                 {
-                    client.Encoding = System.Text.Encoding.UTF8;
-                    string json = await client.DownloadStringTaskAsync(new Uri(OnlineCatalogUrl));
-                    var catalog = Newtonsoft.Json.JsonConvert.DeserializeObject<OnlinePluginCatalog>(json);
-                    _availablePlugins = catalog?.Plugins ?? new List<OnlinePluginInfo>();
+                    using (var client = new WebClient())
+                    {
+                        client.Encoding = System.Text.Encoding.UTF8;
+                        string json = await client.DownloadStringTaskAsync(new Uri(url));
+                        var catalog = Newtonsoft.Json.JsonConvert.DeserializeObject<OnlinePluginCatalog>(json);
+                        _availablePlugins = catalog?.Plugins ?? new List<OnlinePluginInfo>();
+                        if (_availablePlugins.Count > 0)
+                        {
+                            LogHelper.WriteLogToFile($"在线插件目录加载成功: {url}", LogHelper.LogType.Info);
+                            break;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    lastError = ex;
+                    LogHelper.WriteLogToFile($"在线插件目录源失败 [{url}]: {ex.Message}", LogHelper.LogType.Warning);
                 }
             }
-            catch (Exception ex)
+
+            if (_availablePlugins.Count == 0 && lastError != null)
             {
-                _availablePlugins = new List<OnlinePluginInfo>();
-                LogHelper.WriteLogToFile($"获取在线 plugin 目录失败: {ex.Message}", LogHelper.LogType.Error);
+                LogHelper.WriteLogToFile($"获取在线 plugin 目录失败: {lastError.Message}", LogHelper.LogType.Error);
                 ShowInlineMessage("获取在线插件列表失败，请检查网络连接。");
             }
 
@@ -407,10 +429,14 @@ namespace Ink_Canvas
                 CornerRadius = new CornerRadius(6)
             };
 
+            var update = FindOnlineUpdate(info);
+
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            if (update != null)
+                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var titlePanel = new StackPanel
             {
@@ -470,6 +496,23 @@ namespace Ink_Canvas
             Grid.SetColumn(toggle, 2);
             grid.Children.Add(toggle);
 
+            // 在线有更新时显示「更新」按钮
+            if (update != null)
+            {
+                var updateBtn = new Button
+                {
+                    Content = "更新",
+                    Width = 60,
+                    Height = 32,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(12, 0, 0, 0),
+                    ToolTip = $"更新到 v{update.Version}"
+                };
+                updateBtn.Click += async (s, e) => await InstallOnlinePluginAsync(update);
+                Grid.SetColumn(updateBtn, 3);
+                grid.Children.Add(updateBtn);
+            }
+
             border.Child = grid;
             return border;
         }
@@ -498,7 +541,29 @@ namespace Ink_Canvas
 
         // ===== 在线插件商店 =====
 
-        /// <summary>渲染「可安装」区域：过滤掉已安装的插件。</summary>
+        /// <summary>查找指定已安装插件是否有可用在线更新。</summary>
+        private OnlinePluginInfo FindOnlineUpdate(InstalledPluginInfo installed)
+        {
+            if (installed?.Manifest == null) return null;
+            var online = _availablePlugins.FirstOrDefault(p =>
+                string.Equals(p.Id, installed.Manifest.Id, StringComparison.OrdinalIgnoreCase));
+            if (online == null) return null;
+            return IsNewerVersion(online.Version, installed.Manifest.Version) ? online : null;
+        }
+
+        /// <summary>比较版本号，判断 onlineVersion 是否比 installedVersion 新。</summary>
+        private static bool IsNewerVersion(string onlineVersion, string installedVersion)
+        {
+            if (string.IsNullOrWhiteSpace(onlineVersion)) return false;
+            if (string.IsNullOrWhiteSpace(installedVersion)) return true;
+            if (Version.TryParse(onlineVersion, out var onlineV) && Version.TryParse(installedVersion, out var installedV))
+            {
+                return onlineV > installedV;
+            }
+            return !string.Equals(onlineVersion, installedVersion, StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>渲染「可安装」区域：过滤掉已安装且为最新版本的插件。</summary>
         private void RenderAvailablePlugins(IReadOnlyList<InstalledPluginInfo> installed)
         {
             if (PanelAvailablePlugins == null) return;
@@ -593,10 +658,10 @@ namespace Ink_Canvas
             return border;
         }
 
-        /// <summary>从网络下载 .icplugin 并安装。</summary>
+        /// <summary>从网络下载 .icplugin（支持主下载源 + fallback）并安装，安装前校验大小与 SHA256。</summary>
         private async Task InstallOnlinePluginAsync(OnlinePluginInfo plugin)
         {
-            if (string.IsNullOrWhiteSpace(plugin.DownloadUrl))
+            if (string.IsNullOrWhiteSpace(plugin.DownloadUrl) && string.IsNullOrWhiteSpace(plugin.FallbackUrl))
             {
                 ShowInlineMessage("该插件未提供下载地址");
                 return;
@@ -606,10 +671,32 @@ namespace Ink_Canvas
             string tempFile = null;
             try
             {
-                using (var client = new WebClient())
+                tempFile = await DownloadPluginWithFallbackAsync(plugin);
+                if (string.IsNullOrEmpty(tempFile))
                 {
-                    tempFile = Path.Combine(Path.GetTempPath(), $"{plugin.Id}-{plugin.Version}{PluginFileExtension}");
-                    await client.DownloadFileTaskAsync(new Uri(plugin.DownloadUrl), tempFile);
+                    ShowInlineMessage($"下载 {plugin.Name} 失败：所有下载源均不可用");
+                    return;
+                }
+
+                // 校验文件大小
+                var fileInfo = new FileInfo(tempFile);
+                if (plugin.Size > 0 && fileInfo.Length != plugin.Size)
+                {
+                    ShowInlineMessage($"下载 {plugin.Name} 大小校验失败");
+                    return;
+                }
+
+                // 校验 SHA256
+                if (plugin.Checksum != null &&
+                    !string.IsNullOrWhiteSpace(plugin.Checksum.Value) &&
+                    string.Equals(plugin.Checksum.Algorithm, "SHA256", StringComparison.OrdinalIgnoreCase))
+                {
+                    string fileHash = CalculateSHA256(tempFile);
+                    if (!string.Equals(fileHash, plugin.Checksum.Value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        ShowInlineMessage($"下载 {plugin.Name} 校验失败");
+                        return;
+                    }
                 }
 
                 BeginInstallPluginFromFile(tempFile);
@@ -622,6 +709,44 @@ namespace Ink_Canvas
             finally
             {
                 try { if (tempFile != null && File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+            }
+        }
+
+        /// <summary>依次尝试 downloadUrl 与 fallbackUrl 下载插件包，返回临时文件路径。</summary>
+        private async Task<string> DownloadPluginWithFallbackAsync(OnlinePluginInfo plugin)
+        {
+            var urls = new List<string>();
+            if (!string.IsNullOrWhiteSpace(plugin.DownloadUrl)) urls.Add(plugin.DownloadUrl);
+            if (!string.IsNullOrWhiteSpace(plugin.FallbackUrl) && !urls.Contains(plugin.FallbackUrl, StringComparer.OrdinalIgnoreCase))
+                urls.Add(plugin.FallbackUrl);
+
+            foreach (var url in urls)
+            {
+                try
+                {
+                    string tempFile = Path.Combine(Path.GetTempPath(), $"{plugin.Id}-{plugin.Version}{PluginFileExtension}");
+                    using (var client = new WebClient())
+                    {
+                        await client.DownloadFileTaskAsync(new Uri(url), tempFile);
+                    }
+                    return tempFile;
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile($"下载 plugin 源失败 [{plugin.Id}] {url}: {ex.Message}", LogHelper.LogType.Warning);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>计算文件 SHA256 校验值（大写十六进制）。</summary>
+        private static string CalculateSHA256(string filePath)
+        {
+            using (var sha = SHA256.Create())
+            using (var stream = File.OpenRead(filePath))
+            {
+                var hash = sha.ComputeHash(stream);
+                return BitConverter.ToString(hash).Replace("-", "").ToUpperInvariant();
             }
         }
 
