@@ -238,12 +238,12 @@
                         CornerRadius="6">
                         <StackPanel x:Name="PanelAvailablePlugins">
                             <TextBlock
-                                HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                Margin="0,20"
-                                FontSize="13"
-                                Foreground="{DynamicResource SettingsPageAnnotationForeground}"
-                                Text="点击「刷新列表」以加载可用 plugin" />
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Margin="0,20"
+                            FontSize="13"
+                            Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                            Text="点击「刷新列表」从在线商店加载可用 plugin" />
                         </StackPanel>
                     </Border>
 

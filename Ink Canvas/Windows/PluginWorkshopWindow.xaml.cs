@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -71,6 +73,12 @@ namespace Ink_Canvas
 
         // .icplugin 安装包扩展名
         private const string PluginFileExtension = ".icplugin";
+
+        // 在线插件商店目录地址（GitHub  raw）
+        private const string OnlineCatalogUrl = "https://github.com/muqiu1a/Ink-Canvas-Ultra-Plugin/raw/main/plugins.json";
+
+        // 最近一次获取到的在线插件列表
+        private List<OnlinePluginInfo> _availablePlugins = new List<OnlinePluginInfo>();
 
         public PluginWorkshopWindow()
         {
@@ -285,7 +293,7 @@ namespace Ink_Canvas
             RefreshPluginList(silent: false);
         }
 
-        private void RefreshPluginList(bool silent)
+        private async void RefreshPluginList(bool silent)
         {
             try
             {
@@ -319,6 +327,11 @@ namespace Ink_Canvas
 
                 RenderInstalledPlugins(installed);
 
+                // 同步加载在线插件商店目录
+                if (!silent)
+                    ShowInlineMessage("正在加载在线插件列表...");
+                await RefreshAvailablePluginsAsync(installed);
+
                 if (!silent)
                     ShowInlineMessage("plugin 列表已刷新");
             }
@@ -327,6 +340,29 @@ namespace Ink_Canvas
                 LogHelper.WriteLogToFile($"刷新 plugin 列表失败: {ex.Message}", LogHelper.LogType.Error);
                 ShowInlineMessage("刷新 plugin 列表失败：" + ex.Message);
             }
+        }
+
+        /// <summary>从 GitHub 获取在线插件目录，并渲染「可安装」区域。</summary>
+        private async Task RefreshAvailablePluginsAsync(IReadOnlyList<InstalledPluginInfo> installed)
+        {
+            try
+            {
+                using (var client = new WebClient())
+                {
+                    client.Encoding = System.Text.Encoding.UTF8;
+                    string json = await client.DownloadStringTaskAsync(new Uri(OnlineCatalogUrl));
+                    var catalog = Newtonsoft.Json.JsonConvert.DeserializeObject<OnlinePluginCatalog>(json);
+                    _availablePlugins = catalog?.Plugins ?? new List<OnlinePluginInfo>();
+                }
+            }
+            catch (Exception ex)
+            {
+                _availablePlugins = new List<OnlinePluginInfo>();
+                LogHelper.WriteLogToFile($"获取在线 plugin 目录失败: {ex.Message}", LogHelper.LogType.Error);
+                ShowInlineMessage("获取在线插件列表失败，请检查网络连接。");
+            }
+
+            Dispatcher.Invoke(() => RenderAvailablePlugins(installed));
         }
 
         private void RenderInstalledPlugins(IReadOnlyList<InstalledPluginInfo> installed)
@@ -457,6 +493,135 @@ namespace Ink_Canvas
             {
                 LogHelper.WriteLogToFile($"切换 plugin 状态失败: {ex.Message}", LogHelper.LogType.Error);
                 ShowInlineMessage("切换失败：" + ex.Message);
+            }
+        }
+
+        // ===== 在线插件商店 =====
+
+        /// <summary>渲染「可安装」区域：过滤掉已安装的插件。</summary>
+        private void RenderAvailablePlugins(IReadOnlyList<InstalledPluginInfo> installed)
+        {
+            if (PanelAvailablePlugins == null) return;
+
+            PanelAvailablePlugins.Children.Clear();
+
+            var installedIds = new HashSet<string>(installed.Select(i => i.Manifest?.Id ?? Path.GetFileName(i.Directory)), StringComparer.OrdinalIgnoreCase);
+            var available = _availablePlugins.Where(p => !installedIds.Contains(p.Id)).ToList();
+
+            if (available.Count == 0)
+            {
+                PanelAvailablePlugins.Children.Add(new TextBlock
+                {
+                    Text = "暂无可安装的在线 plugin（或已全部安装）",
+                    FontSize = 13,
+                    Foreground = TryFindResource("SettingsPageAnnotationForeground") as Brush,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 20, 0, 20)
+                });
+                return;
+            }
+
+            foreach (var plugin in available)
+            {
+                PanelAvailablePlugins.Children.Add(BuildAvailablePluginItem(plugin));
+            }
+        }
+
+        private UIElement BuildAvailablePluginItem(OnlinePluginInfo plugin)
+        {
+            var border = new Border
+            {
+                Margin = new Thickness(0, 0, 0, 6),
+                Padding = new Thickness(10, 8, 10, 8),
+                BorderBrush = TryFindResource("PopupWindowBorderBrush") as Brush,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6)
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var titlePanel = new StackPanel { Orientation = Orientation.Vertical };
+
+            var title = new TextBlock
+            {
+                Text = $"{plugin.Icon} {plugin.Name}",
+                FontSize = 14,
+                FontWeight = FontWeights.Bold,
+                Foreground = TryFindResource("PopupWindowForeground") as Brush
+            };
+            titlePanel.Children.Add(title);
+
+            var subtitle = new TextBlock
+            {
+                Text = $"{plugin.Id}  v{plugin.Version}",
+                FontSize = 11,
+                Foreground = TryFindResource("SettingsPageAnnotationForeground") as Brush
+            };
+            titlePanel.Children.Add(subtitle);
+
+            if (!string.IsNullOrWhiteSpace(plugin.Description))
+            {
+                var desc = new TextBlock
+                {
+                    Text = plugin.Description,
+                    FontSize = 12,
+                    Foreground = TryFindResource("SettingsPageAnnotationForeground") as Brush,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 4, 0, 0)
+                };
+                titlePanel.Children.Add(desc);
+            }
+
+            Grid.SetColumn(titlePanel, 0);
+            grid.Children.Add(titlePanel);
+
+            var installBtn = new Button
+            {
+                Content = "安装",
+                Width = 80,
+                Height = 32,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 0, 0)
+            };
+            installBtn.Click += async (s, e) => await InstallOnlinePluginAsync(plugin);
+            Grid.SetColumn(installBtn, 1);
+            grid.Children.Add(installBtn);
+
+            border.Child = grid;
+            return border;
+        }
+
+        /// <summary>从网络下载 .icplugin 并安装。</summary>
+        private async Task InstallOnlinePluginAsync(OnlinePluginInfo plugin)
+        {
+            if (string.IsNullOrWhiteSpace(plugin.DownloadUrl))
+            {
+                ShowInlineMessage("该插件未提供下载地址");
+                return;
+            }
+
+            ShowInlineMessage($"正在下载 {plugin.Name}...");
+            string tempFile = null;
+            try
+            {
+                using (var client = new WebClient())
+                {
+                    tempFile = Path.Combine(Path.GetTempPath(), $"{plugin.Id}-{plugin.Version}{PluginFileExtension}");
+                    await client.DownloadFileTaskAsync(new Uri(plugin.DownloadUrl), tempFile);
+                }
+
+                BeginInstallPluginFromFile(tempFile);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"下载 plugin 失败 {plugin.Id}: {ex.Message}", LogHelper.LogType.Error);
+                ShowInlineMessage($"下载 {plugin.Name} 失败：{ex.Message}");
+            }
+            finally
+            {
+                try { if (tempFile != null && File.Exists(tempFile)) File.Delete(tempFile); } catch { }
             }
         }
 
