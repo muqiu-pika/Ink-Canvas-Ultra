@@ -131,9 +131,7 @@
 		<Resource Include="Resources\Icons-png\penUpright.png" />
 	</ItemGroup>
 	<ItemGroup>
-		<None Include="Plugins\**\*">
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</None>
+		<!-- 插件目录内容由插件项目生成后自行复制到主程序输出目录，避免主项目先复制时插件尚未生成。 -->
 	</ItemGroup>
 	<ItemGroup>
 		<BootstrapperPackage Include=".NETFramework,Version=v4.7.2">

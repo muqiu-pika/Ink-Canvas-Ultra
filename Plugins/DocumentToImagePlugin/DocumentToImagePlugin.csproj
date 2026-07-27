@@ -38,7 +38,8 @@
     <!-- 开源 Office 文档读取库，无需安装 Microsoft Office -->
     <PackageReference Include="NPOI" Version="2.5.6" />
     <PackageReference Include="PdfiumViewer" Version="2.13.0" />
-    <PackageReference Include="PdfiumViewer.Native.x86.v8-xfa" Version="2018.4.8.256" />
+    <!-- 不带 V8/XFA 的 pdfium 原生包，仅用于 PDF 转图片，体积从约 13MB 降到约 2MB -->
+    <PackageReference Include="PdfiumViewer.Native.x86.no_v8-no_xfa" Version="2018.4.8.256" />
   </ItemGroup>
 
   <ItemGroup>
@@ -83,6 +84,20 @@
       <DuplicateHostDlls Include="$(TargetDir)AForge.Video.DirectShow.dll" />
     </ItemGroup>
     <Delete Files="@(DuplicateHostDlls)" ContinueOnError="true" />
+  </Target>
+
+  <!-- 主项目先构建，插件后构建；插件构建完成后把清理过的输出复制到主程序输出目录，
+       保证一次性生成即可获得完整插件目录。 -->
+  <Target Name="CopyPluginToHostOutput" AfterTargets="RemoveDuplicateHostDependencies">
+    <PropertyGroup>
+      <HostOutputDir>$(ProjectDir)..\..\Ink Canvas\bin\$(Configuration)\</HostOutputDir>
+      <HostPluginDir>$(HostOutputDir)Plugins\DocumentToImagePlugin\</HostPluginDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <PluginOutputFiles Include="$(TargetDir)**\*" Exclude="$(TargetDir)obj\**\*" />
+    </ItemGroup>
+    <MakeDir Directories="$(HostPluginDir)" />
+    <Copy SourceFiles="@(PluginOutputFiles)" DestinationFolder="$(HostPluginDir)%(RecursiveDir)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>
