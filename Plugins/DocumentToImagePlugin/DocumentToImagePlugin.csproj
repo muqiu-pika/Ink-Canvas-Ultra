@@ -61,4 +61,28 @@
     </None>
   </ItemGroup>
 
+  <!-- 插件通过 ProjectReference 引用主程序，导致主程序的依赖 DLL 被复制到插件输出目录。
+       这些 DLL 在主程序输出中已存在，随插件重复打包会显著增加安装包体积。
+       生成后删除重复/废弃的 DLL，仅保留插件自身依赖（NPOI、PdfiumViewer、pdfium 等）。 -->
+  <Target Name="RemoveDuplicateHostDependencies" AfterTargets="Build">
+    <ItemGroup>
+      <DuplicateHostDlls Include="$(TargetDir)iNKORE.UI.WPF.Modern.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)iNKORE.UI.WPF.Modern.Controls.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)iNKORE.UI.WPF.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)Newtonsoft.Json.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)OSVersionExt.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)System.ValueTuple.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)Office.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)Microsoft.Office.Interop.PowerPoint.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)Microsoft.Office.Interop.Word.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)Microsoft.Office.Interop.Excel.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)AForge.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)AForge.Imaging.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)AForge.Math.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)AForge.Video.dll" />
+      <DuplicateHostDlls Include="$(TargetDir)AForge.Video.DirectShow.dll" />
+    </ItemGroup>
+    <Delete Files="@(DuplicateHostDlls)" ContinueOnError="true" />
+  </Target>
+
 </Project>

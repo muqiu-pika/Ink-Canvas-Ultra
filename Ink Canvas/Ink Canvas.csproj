@@ -24,8 +24,8 @@
 		<UpdatePeriodically>false</UpdatePeriodically>
 		<UpdateRequired>false</UpdateRequired>
 		<MapFileExtensions>true</MapFileExtensions>
-		<ApplicationRevision>4</ApplicationRevision>
-		<ApplicationVersion>7.0.4.%2a</ApplicationVersion>
+		<ApplicationRevision>0</ApplicationRevision>
+		<ApplicationVersion>8.0.1.%2a</ApplicationVersion>
 		<UseApplicationTrust>false</UseApplicationTrust>
 		<BootstrapperEnabled>false</BootstrapperEnabled>
 		<Platforms>AnyCPU;x86</Platforms>
@@ -161,6 +161,32 @@
 			<VideoPresenterOutputDir>$(TargetDir)</VideoPresenterOutputDir>
 		</PropertyGroup>
 		<Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(VideoPresenterLauncherScript)&quot; -OutputDir &quot;$(TargetDir.TrimEnd('\'))&quot;" ContinueOnError="true" />
+	</Target>
+
+	<!-- 文档转照片插件的依赖已随插件隔离，但构建时插件输出目录会重复复制主程序已携带的 DLL。
+	     此目标在生成后删除这些重复/废弃的 DLL，避免安装包体积膨胀。 -->
+	<Target Name="RemoveDuplicatePluginDependencies" AfterTargets="Build">
+		<PropertyGroup>
+			<PluginOutputDir>$(TargetDir)Plugins\DocumentToImagePlugin\</PluginOutputDir>
+		</PropertyGroup>
+		<ItemGroup>
+			<DuplicatePluginDlls Include="$(PluginOutputDir)iNKORE.UI.WPF.Modern.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)iNKORE.UI.WPF.Modern.Controls.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)iNKORE.UI.WPF.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)Newtonsoft.Json.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)OSVersionExt.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)System.ValueTuple.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)Office.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)Microsoft.Office.Interop.PowerPoint.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)Microsoft.Office.Interop.Word.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)Microsoft.Office.Interop.Excel.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)AForge.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)AForge.Imaging.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)AForge.Math.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)AForge.Video.dll" />
+			<DuplicatePluginDlls Include="$(PluginOutputDir)AForge.Video.DirectShow.dll" />
+		</ItemGroup>
+		<Delete Files="@(DuplicatePluginDlls)" ContinueOnError="true" />
 	</Target>
 </Project>
 
