@@ -299,6 +299,46 @@
                     Content="关闭" />
             </Grid>
 
+            <!-- 安装进度遮罩 -->
+            <Grid
+                x:Name="GridInstallProgress"
+                Grid.Row="0"
+                Grid.RowSpan="4"
+                Background="#CC000000"
+                Visibility="Collapsed">
+                <Border
+                    MaxWidth="420"
+                    Padding="24"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Background="{DynamicResource PopupWindowBackground}"
+                    BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="12">
+                    <ikw:SimpleStackPanel Spacing="14">
+                        <TextBlock
+                            x:Name="TextBlockInstallStatus"
+                            FontSize="15"
+                            FontWeight="Bold"
+                            Foreground="{DynamicResource PopupWindowForeground}"
+                            Text="正在准备安装..."
+                            TextAlignment="Center" />
+                        <ProgressBar
+                            x:Name="ProgressBarInstall"
+                            Height="10"
+                            Maximum="100"
+                            Minimum="0"
+                            Value="0" />
+                        <TextBlock
+                            x:Name="TextBlockInstallDetail"
+                            FontSize="12"
+                            Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+                            Text=""
+                            TextAlignment="Center" />
+                    </ikw:SimpleStackPanel>
+                </Border>
+            </Grid>
+
         </Grid>
     </Border>
 </Window>

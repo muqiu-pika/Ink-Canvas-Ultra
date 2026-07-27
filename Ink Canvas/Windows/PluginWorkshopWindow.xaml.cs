@@ -657,6 +657,50 @@ namespace Ink_Canvas
             return border;
         }
 
+        // ===== 安装进度 UI =====
+
+        private void ShowInstallProgress(string status, string detail = "")
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TextBlockInstallStatus.Text = status;
+                TextBlockInstallDetail.Text = detail;
+                ProgressBarInstall.Value = 0;
+                ProgressBarInstall.IsIndeterminate = false;
+                GridInstallProgress.Visibility = Visibility.Visible;
+            });
+        }
+
+        private void UpdateInstallProgress(double value, string status = null, string detail = null)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                if (value >= 0) ProgressBarInstall.Value = Math.Min(100, Math.Max(0, value));
+                if (status != null) TextBlockInstallStatus.Text = status;
+                if (detail != null) TextBlockInstallDetail.Text = detail;
+            });
+        }
+
+        private void SetInstallProgressIndeterminate(string status, string detail = "")
+        {
+            Dispatcher.Invoke(() =>
+            {
+                TextBlockInstallStatus.Text = status;
+                TextBlockInstallDetail.Text = detail;
+                ProgressBarInstall.IsIndeterminate = true;
+            });
+        }
+
+        private void HideInstallProgress()
+        {
+            Dispatcher.Invoke(() =>
+            {
+                GridInstallProgress.Visibility = Visibility.Collapsed;
+                ProgressBarInstall.IsIndeterminate = false;
+                ProgressBarInstall.Value = 0;
+            });
+        }
+
         /// <summary>从网络下载 .icplugin（支持主下载源 + fallback）并安装，安装前校验大小与 SHA256。</summary>
         private async Task InstallOnlinePluginAsync(OnlinePluginInfo plugin)
         {
@@ -666,26 +710,30 @@ namespace Ink_Canvas
                 return;
             }
 
-            ShowInlineMessage($"正在下载 {plugin.Name}...");
+            ShowInstallProgress($"准备安装 {plugin.Name}", "正在连接下载源...");
             string tempFile = null;
             try
             {
                 tempFile = await DownloadPluginWithFallbackAsync(plugin);
                 if (string.IsNullOrEmpty(tempFile))
                 {
-                    ShowInlineMessage($"下载 {plugin.Name} 失败：所有下载源均不可用");
+                    UpdateInstallProgress(-1, $"下载 {plugin.Name} 失败", "所有下载源均不可用");
+                    await Task.Delay(1500);
                     return;
                 }
 
                 // 校验文件大小
+                SetInstallProgressIndeterminate($"正在校验 {plugin.Name}", "校验文件大小...");
                 var fileInfo = new FileInfo(tempFile);
                 if (plugin.Size > 0 && fileInfo.Length != plugin.Size)
                 {
-                    ShowInlineMessage($"下载 {plugin.Name} 大小校验失败");
+                    UpdateInstallProgress(-1, $"安装 {plugin.Name} 失败", "文件大小校验失败");
+                    await Task.Delay(1500);
                     return;
                 }
 
                 // 校验 SHA256
+                UpdateInstallProgress(-1, $"正在校验 {plugin.Name}", "校验 SHA256...");
                 if (plugin.Checksum != null &&
                     !string.IsNullOrWhiteSpace(plugin.Checksum.Value) &&
                     string.Equals(plugin.Checksum.Algorithm, "SHA256", StringComparison.OrdinalIgnoreCase))
@@ -693,20 +741,28 @@ namespace Ink_Canvas
                     string fileHash = CalculateSHA256(tempFile);
                     if (!string.Equals(fileHash, plugin.Checksum.Value, StringComparison.OrdinalIgnoreCase))
                     {
-                        ShowInlineMessage($"下载 {plugin.Name} 校验失败");
+                        UpdateInstallProgress(-1, $"安装 {plugin.Name} 失败", "SHA256 校验失败");
+                        await Task.Delay(1500);
                         return;
                     }
                 }
 
+                // 安装
+                SetInstallProgressIndeterminate($"正在安装 {plugin.Name}", "解压并加载插件...");
                 BeginInstallPluginFromFile(tempFile);
+
+                UpdateInstallProgress(100, $"安装 {plugin.Name} 完成", "插件已启用");
+                await Task.Delay(800);
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"下载 plugin 失败 {plugin.Id}: {ex.Message}", LogHelper.LogType.Error);
-                ShowInlineMessage($"下载 {plugin.Name} 失败：{ex.Message}");
+                UpdateInstallProgress(-1, $"安装 {plugin.Name} 失败", ex.Message);
+                await Task.Delay(1500);
             }
             finally
             {
+                HideInstallProgress();
                 try { if (tempFile != null && File.Exists(tempFile)) File.Delete(tempFile); } catch { }
             }
         }
@@ -719,13 +775,20 @@ namespace Ink_Canvas
             if (!string.IsNullOrWhiteSpace(plugin.FallbackUrl) && !urls.Contains(plugin.FallbackUrl, StringComparer.OrdinalIgnoreCase))
                 urls.Add(plugin.FallbackUrl);
 
-            foreach (var url in urls)
+            for (int i = 0; i < urls.Count; i++)
             {
+                var url = urls[i];
                 try
                 {
                     string tempFile = Path.Combine(Path.GetTempPath(), $"{plugin.Id}-{plugin.Version}{PluginFileExtension}");
                     using (var client = new WebClient())
                     {
+                        client.DownloadProgressChanged += (s, e) =>
+                        {
+                            UpdateInstallProgress(e.ProgressPercentage,
+                                $"正在下载 {plugin.Name}",
+                                $"源 {i + 1}/{urls.Count}：{e.BytesReceived / 1024} KB / {e.TotalBytesToReceive / 1024} KB");
+                        };
                         await client.DownloadFileTaskAsync(new Uri(url), tempFile);
                     }
                     return tempFile;
