@@ -42,7 +42,7 @@
                         FontFamily="{StaticResource FluentIconFontFamily}"
                         FontSize="24"
                         Foreground="{DynamicResource PopupWindowDarkBlueBorderBackground}"
-                        Glyph="&#xE735;" />
+                        Glyph="&#xEA86;" />
                     <TextBlock
                         Margin="0,0,8,0"
                         FontSize="26"
@@ -96,7 +96,7 @@
                                     FontFamily="{StaticResource FluentIconFontFamily}"
                                     FontSize="14"
                                     Foreground="{DynamicResource PopupWindowForeground}"
-                                    Glyph="&#xE71D;" />
+                                    Glyph="&#xE8E5;" />
                                 <TextBlock
                                     VerticalAlignment="Center"
                                     FontSize="14"
@@ -186,7 +186,7 @@
                             FontFamily="{StaticResource FluentIconFontFamily}"
                             FontSize="16"
                             Foreground="{DynamicResource PopupWindowForeground}"
-                            Glyph="&#xE943;" />
+                            Glyph="&#xE7B8;" />
                         <TextBlock
                             VerticalAlignment="Center"
                             FontSize="16"
@@ -220,7 +220,7 @@
                             FontFamily="{StaticResource FluentIconFontFamily}"
                             FontSize="16"
                             Foreground="{DynamicResource PopupWindowForeground}"
-                            Glyph="&#xE7BF;" />
+                            Glyph="&#xEAFC;" />
                         <TextBlock
                             VerticalAlignment="Center"
                             FontSize="16"

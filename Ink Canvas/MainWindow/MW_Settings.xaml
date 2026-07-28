@@ -71,24 +71,16 @@
                 ScrollViewer.HorizontalScrollBarVisibility="Disabled">
 
                 <ui:NavigationView.PaneHeader>
-                    <Border Height="40" Margin="0,4,0,0">
-                        <TextBlock
-                            Margin="16,0,0,0"
-                            VerticalAlignment="Center"
-                            FontSize="12"
-                            FontWeight="SemiBold"
-                            Foreground="{DynamicResource SettingsPageAnnotationForeground}"
-                            Text="导航" />
-                    </Border>
+                    <ui:NavigationViewItemHeader Content="导航" />
                 </ui:NavigationView.PaneHeader>
 
                 <ui:NavigationView.MenuItems>
                     <ui:NavigationViewItem
-                        Content="概览"
+                        Content="快捷操作"
                         Tag="Overview"
-                        ToolTipService.ToolTip="概览">
+                        ToolTipService.ToolTip="快捷操作">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE80F;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE945;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -101,7 +93,7 @@
                         Tag="Startup"
                         ToolTipService.ToolTip="启动设置">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE8FC;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE7E8;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -110,7 +102,7 @@
                         Tag="PluginWorkshop"
                         ToolTipService.ToolTip="插件工坊 - 管理与安装 plugin">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE735;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xEA86;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -119,7 +111,7 @@
                         Tag="Board"
                         ToolTipService.ToolTip="画板设置">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE70F;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE929;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -128,7 +120,7 @@
                         Tag="Gesture"
                         ToolTipService.ToolTip="手势设置">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE8A5;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE927;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -137,7 +129,7 @@
                         Tag="InkRecognition"
                         ToolTipService.ToolTip="墨迹识别设置">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE76C;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE70F;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -146,7 +138,7 @@
                         Tag="Appearance"
                         ToolTipService.ToolTip="外观设置">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE771;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE790;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -155,7 +147,7 @@
                         Tag="PPT"
                         ToolTipService.ToolTip="PPT 设置">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE8B9;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE786;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -164,7 +156,7 @@
                         Tag="Advanced"
                         ToolTipService.ToolTip="高级设置">
                         <ui:NavigationViewItem.Icon>
-                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE81E;" />
+                            <ui:FontIcon FontFamily="{StaticResource FluentIconFontFamily}" FontSize="16" Glyph="&#xE90F;" />
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
 
@@ -508,15 +500,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="启动选项" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE7E8;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="启动选项" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 
@@ -910,7 +906,7 @@
                                         FontFamily="{StaticResource FluentIconFontFamily}"
                                         FontSize="22"
                                         Foreground="{DynamicResource PopupWindowForeground}"
-                                        Glyph="&#xE735;" />
+                                        Glyph="&#xEA86;" />
                                     <TextBlock
                                         FontSize="26"
                                         FontWeight="Bold"
@@ -945,24 +941,27 @@
                                                     FontFamily="{StaticResource FluentIconFontFamily}"
                                                     FontSize="20"
                                                     Foreground="{DynamicResource PopupWindowForeground}"
-                                                    Glyph="&#xE735;" />
+                                                    Glyph="&#xEA86;" />
                                                 <TextBlock
                                                     VerticalAlignment="Center"
                                                     FontSize="18"
                                                     FontWeight="Bold"
                                                     Foreground="{DynamicResource PopupWindowForeground}"
-                                                    Text="打开插件工坊" />
+                                                    Text="打开插件工坊"
+                                                    TextWrapping="Wrap" />
                                             </ikw:SimpleStackPanel>
                                             <TextBlock
                                                 FontSize="12"
                                                 Foreground="{DynamicResource SettingsPageAnnotationForeground}"
-                                                Text="点击右侧按钮在新窗口中管理 plugin（已安装 / 可安装 / 从本地安装 .icplugin）。" />
+                                                Text="点击右侧按钮在新窗口中管理 plugin（已安装 / 可安装 / 从本地安装 .icplugin）。"
+                                                TextWrapping="Wrap" />
                                         </ikw:SimpleStackPanel>
 
                                         <Button
                                             Grid.Column="1"
                                             Width="160"
                                             Height="44"
+                                            Margin="12,0,0,0"
                                             VerticalAlignment="Center"
                                             Click="BtnOpenPluginWorkshop_Click"
                                             FontWeight="Bold">
@@ -1002,15 +1001,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="画板选项" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE929;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="画板选项" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 
@@ -1202,15 +1205,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="手势选项" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE927;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="手势选项" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 
@@ -1336,15 +1343,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="墨迹识别选项" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE70F;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="墨迹识别选项" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 
@@ -1604,15 +1615,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="外观选项" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE790;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="外观选项" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 
@@ -2008,15 +2023,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="PPT 选项" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE786;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="PPT 选项" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 
@@ -2544,15 +2563,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="高级选项" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE90F;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="高级选项" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 
@@ -3216,15 +3239,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="自动选项" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE895;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="自动选项" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 
@@ -4045,15 +4072,19 @@
 
                             <GroupBox.Header>
 
-                                <TextBlock
-
-                                    FontSize="26"
-
-                                    FontWeight="Bold"
-
-                                    Foreground="{DynamicResource PopupWindowForeground}"
-
-                                    Text="关于 Ink Canvas Ultra" />
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="8">
+                                    <ui:FontIcon
+                                        VerticalAlignment="Center"
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                        FontSize="22"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Glyph="&#xE946;" />
+                                    <TextBlock
+                                        FontSize="26"
+                                        FontWeight="Bold"
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+                                        Text="关于 Ink Canvas Ultra" />
+                                </ikw:SimpleStackPanel>
 
                             </GroupBox.Header>
 

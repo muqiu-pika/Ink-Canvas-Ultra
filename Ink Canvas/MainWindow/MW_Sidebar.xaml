@@ -425,18 +425,14 @@
 
                             x:Name="BtnInsertMediaInSidebar"
 
-                            Width="76"
-
+                            MinWidth="76"
+                            Width="Auto"
                             Height="36"
-
                             Margin="2,2"
-
+                            Padding="6,0"
                             Background="{DynamicResource BoardBarButtonBackground}"
-
                             BorderBrush="{DynamicResource BoardBarBorderBrush}"
-
                             BorderThickness="1"
-
                             Click="BtnInsertMediaInSidebar_Click">
 
                             <StackPanel Orientation="Horizontal">
