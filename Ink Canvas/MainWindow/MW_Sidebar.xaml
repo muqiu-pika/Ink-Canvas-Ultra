@@ -268,7 +268,8 @@
                                 Padding="8,0"
                                 HorizontalAlignment="Right"
                                 Background="{DynamicResource BoardBarButtonBackground}"
-                                BorderThickness="0"
+                                BorderBrush="{DynamicResource BoardBarBorderBrush}"
+                                BorderThickness="1"
                                 Click="BtnImportDocument_Click"
                                 FontSize="11"
                                 Foreground="{DynamicResource BoardBarForeground}"
@@ -408,11 +409,11 @@
 
                 <!--  底部按钮区域  -->
 
-                <Grid Grid.Row="3" Height="60">
+                <Grid Grid.Row="3" MinHeight="52">
 
-                    <StackPanel
+                    <WrapPanel
 
-                        Margin="10,5"
+                        Margin="8,8"
 
                         HorizontalAlignment="Center"
 
@@ -424,11 +425,11 @@
 
                             x:Name="BtnInsertMediaInSidebar"
 
-                            Width="80"
+                            Width="76"
 
                             Height="36"
 
-                            Margin="3,0"
+                            Margin="2,2"
 
                             Background="{DynamicResource BoardBarButtonBackground}"
 
@@ -474,11 +475,11 @@
 
                             x:Name="BtnCapturePhoto"
 
-                            Width="80"
+                            Width="76"
 
                             Height="36"
 
-                            Margin="3,0"
+                            Margin="2,2"
 
                             Background="{DynamicResource BoardBarButtonBackground}"
 
@@ -524,11 +525,11 @@
 
                             x:Name="BtnRotateImage"
 
-                            Width="80"
+                            Width="76"
 
                             Height="36"
 
-                            Margin="3,0"
+                            Margin="2,2"
 
                             Background="{DynamicResource BoardBarButtonBackground}"
 
@@ -570,7 +571,7 @@
 
                         </Button>
 
-                    </StackPanel>
+                    </WrapPanel>
 
                 </Grid>
 
