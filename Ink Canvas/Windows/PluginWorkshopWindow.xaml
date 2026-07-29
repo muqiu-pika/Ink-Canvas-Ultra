@@ -12,6 +12,7 @@
     Height="640"
     MinWidth="640"
     MinHeight="480"
+    ShowInTaskbar="True"
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
     ui:WindowHelper.UseModernWindowStyle="False"

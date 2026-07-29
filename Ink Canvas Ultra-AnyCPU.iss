@@ -72,7 +72,6 @@ Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey2}\shell\open\command"; Valu
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autoprograms}\视频展台"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--video-presenter"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{autodesktop}\视频展台"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--video-presenter"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall

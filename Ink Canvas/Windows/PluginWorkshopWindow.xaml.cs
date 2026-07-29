@@ -275,6 +275,10 @@ namespace Ink_Canvas
                 {
                     // 默认启用新装的 plugin
                     host.SetPluginEnabled(manifest.Id, true);
+
+                    // 若是视频展台 plugin，在桌面创建指向软件安装位置的快捷方式
+                    TryCreateVideoPresenterDesktopShortcut(manifest);
+
                     ShowInlineMessage($"plugin 已安装并启用：{manifest.Name}");
                 }
                 else
@@ -842,6 +846,50 @@ namespace Ink_Canvas
                 return Newtonsoft.Json.JsonConvert.DeserializeObject<PluginManifest>(json);
             }
             catch { return null; }
+        }
+
+        /// <summary>
+        /// 若安装的 plugin 是视频展台，则在桌面创建快捷方式，目标指向当前软件安装位置。
+        /// </summary>
+        private static void TryCreateVideoPresenterDesktopShortcut(PluginManifest manifest)
+        {
+            if (manifest == null) return;
+
+            bool isVideoPresenter =
+                string.Equals(manifest.Id, "ink-canvas.visualpresenter", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(manifest.Name, "视频展台", StringComparison.OrdinalIgnoreCase) ||
+                (manifest.EntryPoints != null && manifest.EntryPoints.Any(ep =>
+                    string.Equals(ep?.Route, "video-presenter", StringComparison.OrdinalIgnoreCase)));
+
+            if (!isVideoPresenter) return;
+
+            try
+            {
+                string exePath = Path.Combine(App.RootPath, "Ink Canvas Ultra.exe");
+                if (!File.Exists(exePath))
+                {
+                    LogHelper.WriteLogToFile($"创建视频展台快捷方式失败：未找到主程序 {exePath}", LogHelper.LogType.Warning);
+                    return;
+                }
+
+                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                string shortcutPath = Path.Combine(desktopPath, "视频展台.lnk");
+
+                var shell = new IWshRuntimeLibrary.WshShell();
+                var shortcut = (IWshRuntimeLibrary.IWshShortcut)shell.CreateShortcut(shortcutPath);
+                shortcut.TargetPath = exePath;
+                shortcut.Arguments = App.VideoPresenterLaunchArgument;
+                shortcut.WorkingDirectory = App.RootPath;
+                shortcut.IconLocation = $"{exePath},0";
+                shortcut.Description = "Ink Canvas Ultra - 视频展台";
+                shortcut.Save();
+
+                LogHelper.WriteLogToFile($"视频展台桌面快捷方式已创建: {shortcutPath}", LogHelper.LogType.Event);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"创建视频展台桌面快捷方式失败: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         // ===== 简易内联提示 =====

@@ -10,6 +10,7 @@
     Title="抽奖 - Ink Canvas Ultra"
     Width="900"
     Height="500"
+    ShowInTaskbar="True"
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
     ui:WindowHelper.UseModernWindowStyle="False"
