@@ -18,18 +18,10 @@ namespace Ink_Canvas
             MainWindow mainWindow = Application.Current.MainWindow as MainWindow;
             if (mainWindow != null)
             {
-                if (mainWindow.GetMainWindowTheme() == "Light")
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Light);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Light-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
-                else
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Dark);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Dark-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
+                bool isLight = mainWindow.GetMainWindowTheme() == "Light";
+                ThemeManager.SetRequestedTheme(this, isLight ? ElementTheme.Light : ElementTheme.Dark);
+                // 去重合并，避免每次打开窗口都往应用级资源里堆一份字典
+                ResourceDictionaryHelper.ApplyPopupWindowTheme(isLight);
             }
         }
 

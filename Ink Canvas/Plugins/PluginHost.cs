@@ -58,6 +58,9 @@ namespace Ink_Canvas.Plugins
         private readonly Dictionary<string, Func<object, bool>> _pluginRouteHandlers =
             new Dictionary<string, Func<object, bool>>(StringComparer.OrdinalIgnoreCase);
 
+        // 缓存已从插件目录解析加载的程序集，避免重复读取文件
+        private readonly Dictionary<string, Assembly> _resolvedAssemblies = new Dictionary<string, Assembly>();
+
         private PluginHost(Window mainWindow, PluginHostOptions options)
         {
             _mainWindow = mainWindow;
@@ -65,6 +68,60 @@ namespace Ink_Canvas.Plugins
             _pluginsRoot = App.RootPath + "Plugins\\";
             _pluginsStateFile = Path.Combine(_pluginsRoot, "plugins.json");
             LoadEnabledState();
+
+            // 订阅程序集解析失败事件，使 Assembly.Load(byte[]) 加载的插件能解析自身目录内的依赖 DLL
+            AppDomain.CurrentDomain.AssemblyResolve += CurrentDomain_AssemblyResolve;
+        }
+
+        /// <summary>
+        /// 当插件通过 Assembly.Load(byte[]) 加载后，其依赖项不会自动从插件目录解析。
+        /// 此处遍历 Plugins 下各插件目录，按程序集名称（含版本无关的简单名称匹配）加载依赖 DLL。
+        /// </summary>
+        private Assembly CurrentDomain_AssemblyResolve(object sender, ResolveEventArgs args)
+        {
+            try
+            {
+                var requestedName = new AssemblyName(args.Name);
+                string simpleName = requestedName.Name;
+
+                lock (_resolvedAssemblies)
+                {
+                    if (_resolvedAssemblies.TryGetValue(simpleName, out var cached))
+                        return cached;
+                }
+
+                if (!Directory.Exists(_pluginsRoot))
+                    return null;
+
+                foreach (var pluginDir in Directory.GetDirectories(_pluginsRoot, "*", SearchOption.TopDirectoryOnly))
+                {
+                    string candidatePath = Path.Combine(pluginDir, simpleName + ".dll");
+                    if (!File.Exists(candidatePath))
+                        continue;
+
+                    try
+                    {
+                        byte[] bytes = File.ReadAllBytes(candidatePath);
+                        var asm = Assembly.Load(bytes);
+                        lock (_resolvedAssemblies)
+                        {
+                            _resolvedAssemblies[simpleName] = asm;
+                        }
+                        LogHelper.WriteLogToFile($"已从插件目录解析依赖: {simpleName} -> {candidatePath}", LogHelper.LogType.Trace);
+                        return asm;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile($"解析插件依赖失败 [{candidatePath}]: {ex.Message}", LogHelper.LogType.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"AssemblyResolve 处理异常 [{args.Name}]: {ex.Message}", LogHelper.LogType.Error);
+            }
+
+            return null;
         }
 
         /// <summary>初始化全局唯一 PluginHost 实例。仅应调用一次。</summary>
@@ -189,6 +246,35 @@ namespace Ink_Canvas.Plugins
         public void AddCapturedPhoto(BitmapImage image, string filePath = null)
         {
             try { _opts.AddCapturedPhoto?.Invoke(image, filePath); } catch { }
+        }
+
+        public void UpdateCapturedPhoto(string filePath, BitmapImage newImage)
+        {
+            try { _opts.UpdateCapturedPhoto?.Invoke(filePath, newImage); } catch { }
+        }
+
+        public bool ReplaceDocumentImageOnCanvas(string filePath, BitmapImage newImage)
+        {
+            try { return _opts.ReplaceDocumentImageOnCanvas?.Invoke(filePath, newImage) ?? false; } catch { }
+            return false;
+        }
+
+        public int GetCurrentPageIndex()
+        {
+            try { return _opts.GetCurrentPageIndex?.Invoke() ?? 0; } catch { }
+            return 0;
+        }
+
+        public bool RestoreDocumentPageIfSaved(string sourceFilePath)
+        {
+            try { return _opts.RestoreDocumentPageIfSaved?.Invoke(sourceFilePath) ?? false; } catch { }
+            return false;
+        }
+
+        public bool HasCapturedPhotoForFile(string sourceFilePath)
+        {
+            try { return _opts.HasCapturedPhotoForFile?.Invoke(sourceFilePath) ?? false; } catch { }
+            return false;
         }
 
         // ===== 选择控制条插槽 =====
@@ -663,6 +749,11 @@ namespace Ink_Canvas.Plugins
         public Func<string> GetAutoSavedStrokesLocation { get; set; }
         public Func<int> GetPhotoClarityDpi { get; set; }
         public Action<BitmapImage, string> AddCapturedPhoto { get; set; }
+        public Action<string, BitmapImage> UpdateCapturedPhoto { get; set; }
+        public Func<string, BitmapImage, bool> ReplaceDocumentImageOnCanvas { get; set; }
+        public Func<int> GetCurrentPageIndex { get; set; }
+        public Func<string, bool> RestoreDocumentPageIfSaved { get; set; }
+        public Func<string, bool> HasCapturedPhotoForFile { get; set; }
         public Action<UIElement> RegisterSelectionControlBar { get; set; }
         public Action<UIElement> UnregisterSelectionControlBar { get; set; }
     }

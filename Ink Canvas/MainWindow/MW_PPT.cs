@@ -263,7 +263,7 @@ namespace Ink_Canvas
                                         if (int.TryParse(File.ReadAllText(folderPath + "/Position"), out var page))
                                         {
                                             if (page <= 0) return;
-                                            new YesOrNoNotificationWindow($"上次播放到了第 {page} 页, 是否立即跳转", () =>
+                                            var jumpNotification = new YesOrNoNotificationWindow($"上次播放到了第 {page} 页, 是否立即跳转", () =>
                                             {
                                                 if (pptApplication.SlideShowWindows.Count >= 1)
                                                 {
@@ -274,7 +274,9 @@ namespace Ink_Canvas
                                                 {
                                                     presentation.Windows[1].View.GotoSlide(page);
                                                 }
-                                            }).ShowDialog();
+                                            });
+                                            Helpers.WindowMemoryHelper.ReleaseOnClose(jumpNotification);
+                                            jumpNotification.ShowDialog();
                                         }
                                     }
                                 }
@@ -303,7 +305,7 @@ namespace Ink_Canvas
                         if (isHaveHiddenSlide && !IsShowingRestoreHiddenSlidesWindow)
                         {
                             IsShowingRestoreHiddenSlidesWindow = true;
-                            new YesOrNoNotificationWindow("检测到此演示文档中包含隐藏的幻灯片，是否取消隐藏？",
+                            var hiddenSlidesNotification = new YesOrNoNotificationWindow("检测到此演示文档中包含隐藏的幻灯片，是否取消隐藏？",
                                 () =>
                                 {
                                     foreach (Slide slide in slides)
@@ -313,7 +315,9 @@ namespace Ink_Canvas
                                             slide.SlideShowTransition.Hidden = Microsoft.Office.Core.MsoTriState.msoFalse;
                                         }
                                     }
-                                }).ShowDialog();
+                                });
+                            Helpers.WindowMemoryHelper.ReleaseOnClose(hiddenSlidesNotification);
+                            hiddenSlidesNotification.ShowDialog();
                         }
 
                         // BtnPPTSlideShow.Visibility = Visibility.Visible;
@@ -338,11 +342,13 @@ namespace Ink_Canvas
                     {
                         _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
                         {
-                            new YesOrNoNotificationWindow("检测到此演示文档中自动播放或排练计时已经启用，可能导致幻灯片自动翻页，是否取消？",
+                            var autoPlayNotification = new YesOrNoNotificationWindow("检测到此演示文档中自动播放或排练计时已经启用，可能导致幻灯片自动翻页，是否取消？",
                                 () =>
                                 {
                                     presentation.SlideShowSettings.AdvanceMode = PpSlideShowAdvanceMode.ppSlideShowManualAdvance;
-                                }).ShowDialog();
+                                });
+                            Helpers.WindowMemoryHelper.ReleaseOnClose(autoPlayNotification);
+                            autoPlayNotification.ShowDialog();
                         }));
                         presentation.SlideShowSettings.AdvanceMode = PpSlideShowAdvanceMode.ppSlideShowManualAdvance;
                     }

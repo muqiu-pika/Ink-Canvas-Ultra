@@ -51,6 +51,39 @@ namespace Ink_Canvas
             {
                 if (element is Image origImg)
                 {
+                    // 文档瓦片照片（Tag 为「文档路径#块序号」）：其 Source 已经是 OnDemand + Freeze 的 UriSource
+                    // BitmapImage（插入时已设置），XamlWriter 序列化时只写 UriSource 字符串。
+                    // 直接共享原 Source 可跳过 BeginInit/EndInit/Freeze 的冗余重建，显著减少
+                    // 大量瓦片时 CreateSerializableCanvasForSnapshot 的 UI 线程开销（瓦片长图 N 个 Image）。
+                    string documentTileTag = origImg.Tag as string;
+                    bool isDocumentTile = !string.IsNullOrEmpty(documentTileTag) &&
+                                          documentTileTag.Contains("#") &&
+                                          IsDocumentFilePath(StripChunkSuffix(documentTileTag));
+                    if (isDocumentTile && origImg.Source is BitmapImage origBi && origBi.UriSource != null && origBi.IsFrozen)
+                    {
+                        var sharedImage = new Image
+                        {
+                            Source = origBi, // 共享冻结的 UriSource BitmapImage，XamlWriter 只序列化 UriSource
+                            Width = origImg.Width,
+                            Height = origImg.Height,
+                            Stretch = origImg.Stretch,
+                            Name = (origImg.Name != null && origImg.Name.StartsWith("photo_"))
+                                ? GeneratePhotoName()
+                                : origImg.Name
+                        };
+                        try { sharedImage.RenderTransform = origImg.RenderTransform?.CloneCurrentValue(); } catch { }
+                        try
+                        {
+                            double left = InkCanvas.GetLeft(origImg);
+                            double top = InkCanvas.GetTop(origImg);
+                            InkCanvas.SetLeft(sharedImage, left);
+                            InkCanvas.SetTop(sharedImage, top);
+                        }
+                        catch { }
+                        try { sharedImage.Tag = documentTileTag; } catch { }
+                        return sharedImage;
+                    }
+
                     string filePath = null;
                     if (origImg.Source is BitmapImage bi && bi.UriSource != null)
                     {
@@ -63,10 +96,13 @@ namespace Ink_Canvas
 
                     if (!string.IsNullOrEmpty(filePath))
                     {
+                        // 使用 OnDemand 而非 OnLoad，避免 XamlWriter 将完整像素 base64 内联进 XAML。
+                        // 内联像素会导致 XAML 文件巨大（瓦片长图可达数十 MB），且 XamlReader 反序列化大量图像数据不稳定，
+                        // 表现为“换页/重进后瓦片照片消失”。OnDemand 只序列化 UriSource，恢复时按需从 chunk 文件解码，稳定可靠。
                         var newBi = new BitmapImage();
                         newBi.BeginInit();
                         newBi.UriSource = new Uri(filePath, UriKind.Absolute);
-                        newBi.CacheOption = BitmapCacheOption.OnLoad;
+                        newBi.CacheOption = BitmapCacheOption.OnDemand;
                         newBi.EndInit();
                         newBi.Freeze();
 
@@ -76,7 +112,11 @@ namespace Ink_Canvas
                             Width = origImg.Width,
                             Height = origImg.Height,
                             Stretch = origImg.Stretch,
-                            Name = origImg.Name
+                            // 快照保存时始终生成唯一名称，避免旧画布残留的重复名称被写入 XAML，
+                            // 否则恢复时 XamlReader.Load 会因「在此范围中注册重复的名称」而失败
+                            Name = (origImg.Name != null && origImg.Name.StartsWith("photo_"))
+                                ? GeneratePhotoName()
+                                : origImg.Name
                         };
                         try { clonedImage.RenderTransform = origImg.RenderTransform?.CloneCurrentValue(); } catch { }
                         try
@@ -87,7 +127,17 @@ namespace Ink_Canvas
                             InkCanvas.SetTop(clonedImage, top);
                         }
                         catch { }
-                        try { clonedImage.Tag = "File Dependency/" + System.IO.Path.GetFileName(filePath); } catch { }
+                        // 若原元素已标记为文档来源路径，则保留该 Tag，便于后续自动刷新定位
+                        // （分块照片的 Tag 形如「文档路径#块序号」，需剥离块序号后按文档识别）
+                        string originalTag = origImg.Tag as string;
+                        if (!string.IsNullOrEmpty(originalTag) && IsDocumentFilePath(StripChunkSuffix(originalTag)))
+                        {
+                            try { clonedImage.Tag = originalTag; } catch { }
+                        }
+                        else
+                        {
+                            try { clonedImage.Tag = "File Dependency/" + System.IO.Path.GetFileName(filePath); } catch { }
+                        }
                         return clonedImage;
                     }
 
@@ -167,7 +217,13 @@ namespace Ink_Canvas
                                 bi2.EndInit();
                                 bi2.Freeze();
                                 img.Source = bi2;
-                                try { img.Tag = "File Dependency/" + System.IO.Path.GetFileName(filePath); } catch { }
+                                // 若原元素已标记为文档来源路径，则保留该 Tag
+                                // （分块照片的 Tag 形如「文档路径#块序号」，需剥离块序号后按文档识别）
+                                string originalTag = img.Tag as string;
+                                if (string.IsNullOrEmpty(originalTag) || !IsDocumentFilePath(StripChunkSuffix(originalTag)))
+                                {
+                                    try { img.Tag = "File Dependency/" + System.IO.Path.GetFileName(filePath); } catch { }
+                                }
                             }
                         }
                         catch { }
@@ -768,6 +824,10 @@ namespace Ink_Canvas
                 if (!File.Exists(strokesPath) && !File.Exists(elementsPath)) return;
                 ClearStrokes(true);
                 timeMachine.ClearStrokeHistory();
+                // 恢复内容标记为 CodeInput：换页/进入白板时过渡窗口可能已开启，
+                // 避免恢复的笔迹被 StrokesOnStrokesChanged 误判为“残留用户笔迹”而拦截删除。
+                // 注意：ClearStrokes 末尾会把 _currentCommitType 重置为 UserInput，因此需在此处重新设置。
+                _currentCommitType = CommitReason.CodeInput;
                 if (File.Exists(strokesPath))
                 {
                     using (var ss = new FileStream(strokesPath, FileMode.Open))

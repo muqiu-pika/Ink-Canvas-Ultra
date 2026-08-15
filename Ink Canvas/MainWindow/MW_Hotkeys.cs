@@ -124,6 +124,7 @@ namespace Ink_Canvas
             {
                 var optionWindow = new ScreenshotInsertOptionWindow();
                 optionWindow.Owner = this;
+                Helpers.WindowMemoryHelper.ReleaseOnClose(optionWindow);
 
                 bool? result = optionWindow.ShowDialog();
 

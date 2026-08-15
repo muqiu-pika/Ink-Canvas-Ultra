@@ -698,6 +698,12 @@ namespace Ink_Canvas
             if (isDisplayingOrHidingBlackboard) return;
             isDisplayingOrHidingBlackboard = true;
 
+            // 切换模式前先排空残留输入并开启过渡窗口，再取消进行中的笔画：
+            // 排空让“卡顿残留”的延迟笔画先在旧画布落地并计入旧历史，
+            // 过渡窗口兜底拦截仍可能延迟到达的笔迹，防止其混入/替换白板笔迹。
+            BeginBoardModeSwitch();
+            CancelInProgressStroke();
+
             if (inkCanvas.EditingMode == InkCanvasEditingMode.Select) PenIcon_Click(null, null);
 
             if (VideoPresenterSidebar != null && VideoPresenterSidebar.Visibility == Visibility.Visible
@@ -812,7 +818,126 @@ namespace Ink_Canvas
                 }
             }
 
-            BtnSwitch_Click(null, null);
+            // 内联模式切换逻辑，正确处理照片的保存与恢复
+            // （原 BtnSwitch_Click 只通过 TimeMachineHistory 保存/恢复笔迹，不处理照片元素）
+            if (Main_Grid.Background == Brushes.Transparent)
+            {
+                // 光标模式：先切换到笔模式。
+                // 注意：此处 currentMode 已在方法开头完成切换（0→1 进入白板 / 1→0 退出白板）。
+                // 必须与下方笔模式分支保持一致：进入白板要显示白板背景与侧边工具栏并取消置顶，
+                // 退出白板要保存白板内容（含照片）并恢复桌面笔迹。
+                // 否则会出现白板栏已显示但背景/布局错乱、或退出后白板内容丢失等切换异常。
+                if (currentMode == 1)
+                {
+                    // 进入白板：显示白板背景与侧边工具栏，保存桌面笔迹，恢复白板笔迹
+                    GridBackgroundCover.Visibility = Visibility.Visible;
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BlackboardLeftSide);
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BlackboardCenterSide);
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BlackboardRightSide);
+
+                    SaveStrokes(true);
+                    ClearStrokes(true);
+                    bool docRestored = false;
+                    try { docRestored = RestoreDocumentPageIfAvailable(CurrentWhiteboardIndex); } catch { }
+                    if (!docRestored)
+                    {
+                        bool rebuiltFromMemory = false;
+                        try { rebuiltFromMemory = ReinsertDocumentPhotosFromMemory(CurrentWhiteboardIndex); } catch { }
+                        if (!rebuiltFromMemory) RestoreStrokes();
+                    }
+
+                    Topmost = false;
+                    this.Activate();
+                    TouchLockFix.ReRegisterTouchWindow(this);
+                }
+                else // currentMode == 0：退出白板 → 桌面模式
+                {
+                    // 保存白板内容（含照片），恢复桌面笔迹，与笔模式退出分支保持一致
+                    SaveStrokes();
+                    SaveDocumentPageIfNeeded(CurrentWhiteboardIndex);
+                    if (pageDocumentMapping.ContainsKey(CurrentWhiteboardIndex))
+                    {
+                        TimeMachineHistories[CurrentWhiteboardIndex] = null;
+                    }
+                    ClearStrokes(true);
+                    RestoreStrokes(true);
+
+                    Topmost = true;
+                    WindowFocusHelper.EnsureWindowFocus(this);
+                    TouchLockFix.ReRegisterTouchWindow(this);
+                }
+                // 无论进入还是退出白板，最终都切回笔模式（批注模式）
+                BtnHideInkCanvas_Click(null, null);
+            }
+            else
+            {
+                // 笔模式：根据 currentMode 执行保存/恢复
+                if (currentMode == 0)
+                {
+                    // 退出白板 → 桌面模式：保存白板内容（含照片），恢复桌面笔迹
+                    SaveStrokes();
+                    SaveDocumentPageIfNeeded(CurrentWhiteboardIndex);
+                    // 文档页已完整落盘（.icstk/.xaml 为真相），清空该页时间机器历史以释放其中
+                    // 持有的照片 Image 及其大位图引用（否则退出白板后内存无法释放，持续偏高）。
+                    // 重新进入该页时会从磁盘恢复并再次置空历史，行为一致。
+                    if (pageDocumentMapping.ContainsKey(CurrentWhiteboardIndex))
+                    {
+                        TimeMachineHistories[CurrentWhiteboardIndex] = null;
+                    }
+                    ClearStrokes(true);
+                    RestoreStrokes(true);
+
+                    // 退出白板后画布上的瓦片照片 Image 已被 ClearStrokes 移除、历史引用也已断开，
+                    // 但 OnDemand BitmapImage 的解码缓存仍可能驻留。后台延迟触发一次完整 GC 释放这些
+                    // 不再被引用的内存，避免下一次操作前内存占用持续偏高。GC 在后台线程执行，不阻塞 UI；
+                    // WaitForPendingFinalizers 等待终结器回收非托管资源，确保大位图及时释放。
+                    System.Threading.Tasks.Task.Run(() =>
+                    {
+                        System.Threading.Thread.Sleep(300);
+                        try
+                        {
+                            GC.Collect(2, GCCollectionMode.Forced, blocking: false);
+                            GC.WaitForPendingFinalizers();
+                        }
+                        catch { }
+                    });
+
+                    Topmost = true;
+                    WindowFocusHelper.EnsureWindowFocus(this);
+                    TouchLockFix.ReRegisterTouchWindow(this);
+                }
+                else // currentMode == 1
+                {
+                    // 进入白板模式：保存桌面笔迹，恢复白板内容（含照片）
+                    GridBackgroundCover.Visibility = Visibility.Visible;
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BlackboardLeftSide);
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BlackboardCenterSide);
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BlackboardRightSide);
+
+                    SaveStrokes(true);
+                    ClearStrokes(true);
+                    bool docRestored = false;
+                    try { docRestored = RestoreDocumentPageIfAvailable(CurrentWhiteboardIndex); } catch { }
+                    if (!docRestored)
+                    {
+                        // 磁盘恢复失败（如退出白板后立即重进，异步保存尚未落盘）时，
+                        // 若该页仍有文档映射，则从内存照片列表重建文档瓦片，避免照片丢失
+                        bool rebuiltFromMemory = false;
+                        try { rebuiltFromMemory = ReinsertDocumentPhotosFromMemory(CurrentWhiteboardIndex); } catch { }
+                        // 已从内存照片重建文档瓦片后，不再回放时间机器历史：历史中同样含照片插入提交，
+                        // 回放会导致照片被重复插入（"进入白板时重新插入一张照片"的根因之一）。
+                        if (!rebuiltFromMemory) RestoreStrokes();
+                        if (rebuiltFromMemory)
+                        {
+                            LogHelper.WriteLogToFile($"磁盘恢复失败，已从内存照片重建文档页照片: {CurrentWhiteboardIndex}", Helpers.LogHelper.LogType.Trace);
+                        }
+                    }
+
+                    Topmost = false;
+                    this.Activate();
+                    TouchLockFix.ReRegisterTouchWindow(this);
+                }
+            }
 
             CompletePendingVideoPresenterActivation();
 
@@ -835,33 +960,129 @@ namespace Ink_Canvas
             CheckColorTheme(true);
         }
 
+        /// <summary>
+        /// 取消 inkCanvas 上正在进行的任何活动笔画，释放所有捕获。
+        /// 在切换模式（白板/桌面/批注）前调用，避免卡顿时延迟提交的笔迹错误地出现在新模式的画布上。
+        /// </summary>
+        private bool _isCancellingActiveStroke = false;
+        private void CancelInProgressStroke()
+        {
+            try
+            {
+                if (inkCanvas == null) return;
+                var mode = inkCanvas.EditingMode;
+                if (mode == InkCanvasEditingMode.None) return;
+                _isCancellingActiveStroke = true;
+                // 设置为 None 立即终止当前正在绘制的笔画，防止 StylusUp 延迟提交
+                inkCanvas.EditingMode = InkCanvasEditingMode.None;
+                inkCanvas.ReleaseStylusCapture();
+                inkCanvas.ReleaseAllTouchCaptures();
+                inkCanvas.ReleaseMouseCapture();
+                // 恢复原编辑模式（恢复后仍可继续书写/擦除）
+                inkCanvas.EditingMode = mode;
+                _isCancellingActiveStroke = false;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 模式（白板/桌面/批注）切换期间是否正处于“清空-恢复”过渡窗口。
+        /// 卡顿时，切换前残留的桌面笔迹其延迟的 StrokesChanged 会在过渡窗口内被提交到画布，
+        /// 造成“浮动栏笔迹混入/替换白板笔迹”。该窗口内到达的残留笔画会被 StrokesOnStrokesChanged 拦截移除。
+        /// </summary>
+        private bool _isInBoardModeSwitch = false;
+
+        /// <summary>
+        /// 过渡窗口内是否已检测到“新画布上的新书写”。为真时说明用户已开始在新模式画布上正常书写，
+        /// 后续笔迹应放行（不拦截），避免把用户新写的笔画误当残留笔迹删除。
+        /// </summary>
+        private bool _inputActivityAfterSwitch = false;
+
+        /// <summary>
+        /// 过渡窗口开启的时刻（单调时钟，用于区分“切换前的残留输入”与“切换后的新输入”）。
+        /// </summary>
+        private long _boardModeSwitchStartedTicks = 0;
+
+        /// <summary>
+        /// 模式（白板/桌面/批注）切换前的防护：
+        /// 1) 同步排空排队中的输入事件（含 Win32 消息队列中延迟的 StylusUp/TouchUp）。
+        ///    此阶段过渡窗口尚未开启，切换前“卡顿残留”的延迟笔画会在旧画布上先落地并计入旧历史，
+        ///    随后由 SaveStrokes 保存到正确页面，而不是提交到新模式画布。
+        /// 2) 开启过渡窗口，兜底拦截排空后仍可能延迟到达的笔画提交。
+        /// 3) 用户在过渡窗口内开始新书写（下笔）后自动放行，避免误删新笔画。
+        /// </summary>
+        private void BeginBoardModeSwitch()
+        {
+            try
+            {
+                // 阶段一：排空排队中的输入（Background 优先级会连带处理 Input/Normal 等更高优先级操作，
+                // 并泵送 Win32 消息队列）。此阶段 _isInBoardModeSwitch 尚未开启，
+                // 残留笔画会正常提交到旧画布并计入旧历史，不会混入新模式画布。
+                Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() => { }));
+            }
+            catch { }
+
+            // 阶段二：开启过渡窗口。时刻在排空之后记录，确保排空阶段处理的输入被判定为“切换前”。
+            // 使用 Environment.TickCount（int，约 25 天回绕一次）作为单调时钟，不受系统时间调整影响。
+            _boardModeSwitchStartedTicks = Environment.TickCount;
+            _inputActivityAfterSwitch = false;
+            _isInBoardModeSwitch = true;
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle,
+                new Action(() => _isInBoardModeSwitch = false));
+        }
+
+        /// <summary>
+        /// 记录一次“下笔”输入（由 StylusDown/TouchDown 调用）。
+        /// 若发生在过渡窗口开启之后，说明用户已在新模式画布上开始书写，后续笔迹应放行。
+        /// </summary>
+        private void RecordInputDown()
+        {
+            try
+            {
+                if (!_isInBoardModeSwitch) return;
+                // 以 int 比较：过渡窗口存活时间远小于 TickCount 约 25 天的回绕周期，可直接比较判定先后。
+                if (Environment.TickCount >= (int)_boardModeSwitchStartedTicks)
+                    _inputActivityAfterSwitch = true;
+            }
+            catch { }
+        }
+
         private void ImageCountdownTimer_Click(object sender, RoutedEventArgs e)
         {
             AnimationsHelper.HideWithSlideAndFade(BorderTools);
             AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
-            new CountdownTimerWindow().Show();
+            var w = new CountdownTimerWindow();
+            Helpers.WindowMemoryHelper.ReleaseOnClose(w);
+            w.Show();
         }
 
         private void OperatingGuideWindowIcon_Click(object sender, RoutedEventArgs e)
         {
             AnimationsHelper.HideWithSlideAndFade(BorderTools);
             AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
-            new OperatingGuideWindow().Show();
+            var w = new OperatingGuideWindow();
+            Helpers.WindowMemoryHelper.ReleaseOnClose(w);
+            w.Show();
         }
 
         private void SymbolIconRand_Click(object sender, RoutedEventArgs e)
         {
             AnimationsHelper.HideWithSlideAndFade(BorderTools);
             AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
-            new RandWindow().Show();
+            var w = new RandWindow();
+            Helpers.WindowMemoryHelper.ReleaseOnClose(w);
+            w.Show();
         }
 
         private void SymbolIconRandOne_Click(object sender, RoutedEventArgs e)
         {
             AnimationsHelper.HideWithSlideAndFade(BorderTools);
             AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
-
-            new RandWindow(true).ShowDialog();
+            var w = new RandWindow(true);
+            Helpers.WindowMemoryHelper.ReleaseOnClose(w);
+            w.ShowDialog();
+            // ShowDialog 返回后窗口已关闭，直接触发后台 GC 回收
+            Helpers.WindowMemoryHelper.ScheduleRelease();
         }
 
         private void GridInkReplayButton_Click(object sender, RoutedEventArgs e)
@@ -1468,18 +1689,123 @@ namespace Ink_Canvas
             Application.Current.Shutdown();
         }
 
+        // 缓存设置窗口实例，避免每次打开都重新解析 4600+ 行（约 170KB）的 XAML，显著减少卡顿
+        private static MW_Settings _settingsWindowInstance;
+        // 标记是否处于“空闲预构建”阶段：此阶段设置窗口在后台渲染、不淡入、渲染完成后隐藏
+        internal static bool IsSettingsPrebuilding { get; set; }
+
+        /// <summary>
+        /// 在应用空闲时预先构造并重渲染设置窗口，把“解析 170KB XAML + 首次布局/渲染”的
+        /// 开销从“点击设置”挪到空闲时段，从而避免点击时的卡顿与黑屏闪烁。
+        /// </summary>
+        private void PrebuildSettingsWindow()
+        {
+            if (_settingsWindowInstance != null) return;
+            IsSettingsPrebuilding = true;
+            var w = new MW_Settings { Owner = this, ShowActivated = false };
+            // 预构建阶段在屏幕外 + 隐藏任务栏 + 透明渲染，避免启动时出现“窗口弹出后又自动关闭”的闪烁。
+            // 用户点击设置时再移动到主窗口居中显示。
+            // 注意：XAML 里声明了 WindowStartupLocation="CenterScreen"，若不改为 Manual，
+            // Show() 时 WPF 会无视上面设置的 Left/Top 而强制将窗口居中到屏幕，导致启动时仍会闪烁。
+            w.WindowStartupLocation = WindowStartupLocation.Manual;
+            w.ShowInTaskbar = false;
+            w.Opacity = 0;
+            w.Left = -10000;
+            w.Top = -10000;
+            w.ContentRendered += OnSettingsPrebuiltRendered;
+            _settingsWindowInstance = w;
+            // 窗口真正关闭（如 Alt+F4）时清空缓存，下次再新建，避免使用已失效的实例
+            w.Closed += (s, ev) =>
+            {
+                if (ReferenceEquals(_settingsWindowInstance, s))
+                {
+                    _settingsWindowInstance = null;
+                }
+                // 关闭即释放内存：延时后台 GC 回收窗口可视化树
+                Helpers.WindowMemoryHelper.ScheduleRelease();
+            };
+            w.Show();
+        }
+
+        /// <summary>
+        /// 把设置窗口恢复到主窗口居中显示（预构建阶段被挪到了屏幕外，重新打开前需复位）。
+        /// </summary>
+        private static void CenterSettingsWindow(Window w)
+        {
+            try
+            {
+                var owner = (w.Owner as Window) ?? Application.Current?.MainWindow;
+                if (owner == null) return;
+                w.Left = owner.Left + (owner.ActualWidth - w.Width) / 2;
+                w.Top = owner.Top + (owner.ActualHeight - w.Height) / 2;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 关闭并释放被缓存（可能处于隐藏状态）的设置窗口实例。
+        /// 隐藏的窗口在 WPF 里仍算“已打开”，若不显式关闭，主窗口退出后进程可能无法结束、内存无法回收。
+        /// </summary>
+        internal void CloseCachedSettingsWindow()
+        {
+            var w = _settingsWindowInstance;
+            _settingsWindowInstance = null;
+            IsSettingsPrebuilding = false;
+            if (w == null) return;
+            try
+            {
+                w.ContentRendered -= OnSettingsPrebuiltRendered;
+                w.Owner = null;
+                w.Close();
+            }
+            catch { }
+        }
+
+        private void OnSettingsPrebuiltRendered(object sender, EventArgs e)
+        {
+            var w = sender as MW_Settings;
+            if (w == null) return;
+            w.ContentRendered -= OnSettingsPrebuiltRendered;
+            // 空闲时段已完成首次渲染（用户无感），隐藏后缓存，点击时即时复用
+            if (IsSettingsPrebuilding)
+            {
+                IsSettingsPrebuilding = false;
+                w.Hide();
+            }
+        }
+
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
-            var existing = System.Windows.Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
-            if (existing != null)
+            // 复用已存在的设置窗口实例（可能只是被隐藏/预构建缓存），点击即开，不再重复解析巨型 XAML
+            if (_settingsWindowInstance != null)
             {
-                existing.Activate();
+                var w = _settingsWindowInstance;
+                IsSettingsPrebuilding = false; // 防止预构建的 ContentRendered 将其再次隐藏
+                w.Owner = this;
+                w.ShowInTaskbar = true;
+                w.ShowActivated = true;
+                // 预构建阶段被挪到了屏幕外，重新显示前恢复到主窗口居中位置
+                CenterSettingsWindow(w);
+                if (!w.IsVisible) w.Show();
+                w.Opacity = 1; // 预构建阶段为 0，确保点击时立即可见
+                w.ReloadContents();
+                w.Activate();
                 return;
             }
 
             var settingsWindow = new MW_Settings
             {
                 Owner = this
+            };
+            _settingsWindowInstance = settingsWindow;
+            settingsWindow.Closed += (s, ev) =>
+            {
+                if (ReferenceEquals(_settingsWindowInstance, s))
+                {
+                    _settingsWindowInstance = null;
+                }
+                // 关闭即释放内存：设置窗口不再长期缓存，延时后台 GC 回收其大 XAML 可视化树
+                Helpers.WindowMemoryHelper.ScheduleRelease();
             };
             settingsWindow.Show();
         }
@@ -1565,11 +1891,11 @@ namespace Ink_Canvas
                 if (!System.IO.Directory.Exists(PluginDirectory))
                     System.IO.Directory.CreateDirectory(PluginDirectory);
 
-                // 无论插件工坊是否已打开，从设置进入时都要关闭设置窗口
+                // 无论插件工坊是否已打开，从设置进入时都要隐藏设置窗口（保留实例以便复用）
                 var settings = SettingsWindow;
                 if (settings != null)
                 {
-                    settings.Close();
+                    settings.Hide();
                 }
 
                 if (PluginWorkshopWindow.HasInstance)
@@ -1650,10 +1976,38 @@ namespace Ink_Canvas
             isLongPressSelected = false;
         }
 
-        int currentMode = 0;
+        // 白板浮动栏(MWBoardHost)仅应在白板模式(currentMode == 1)下显示。
+        // 原先 XAML 将 MWBoardHost.Visibility 绑定到 GridBackgroundCoverHolder，
+        // 而批注(PenIcon_Click)也会把该 Holder 置为 Visible，导致点击"批注"误呼出白板栏。
+        // 改为由 currentMode 统一驱动：任何进入/退出白板模式的地方只需设置 currentMode，
+        // 工具栏可见性即自动同步，覆盖 ImageBlackboard_Click / BtnSwitch_Click / MW_PenColors / MW_PPT 等所有入口。
+        private int _currentMode = 0;
+        private int currentMode
+        {
+            get => _currentMode;
+            set
+            {
+                if (_currentMode == value) return;
+                _currentMode = value;
+                if (MWBoardHost != null)
+                    MWBoardHost.Visibility = _currentMode == 1 ? Visibility.Visible : Visibility.Collapsed;
+                // 进入白板模式时同步隐藏浮动栏，避免白板栏与浮动栏同时显示造成界面错乱；
+                // 退出白板时浮动栏由 ViewboxFloatingBarMarginAnimation 负责恢复显示与定位。
+                if (_currentMode == 1 && ViewboxFloatingBar != null)
+                    ViewboxFloatingBar.Visibility = Visibility.Collapsed;
+                // 退出白板（切回桌面批注模式）时隐藏白板画布背景。
+                // 否则 GridBackgroundCover 会在进入白板时被置为 Visible 后一直残留，
+                // 导致再次点击“批注”时出现白色画布而不是直接透明批注。
+                if (_currentMode == 0 && GridBackgroundCover != null)
+                    GridBackgroundCover.Visibility = Visibility.Collapsed;
+            }
+        }
 
         private void BtnSwitch_Click(object sender, RoutedEventArgs e)
         {
+            // 模式切换前先排空残留输入并开启过渡窗口，再取消进行中的笔画，避免残留笔迹混入新模式画布
+            BeginBoardModeSwitch();
+            CancelInProgressStroke();
             if (Main_Grid.Background == Brushes.Transparent)
             {
                 if (currentMode == 1)

@@ -113,6 +113,7 @@ namespace Ink_Canvas
                         
                         var optionWindow = new ScreenshotInsertOptionWindow();
                         optionWindow.Owner = this;
+                        Helpers.WindowMemoryHelper.ReleaseOnClose(optionWindow);
                         
                         // 显示对话框
                         bool? result = optionWindow.ShowDialog();
@@ -224,6 +225,7 @@ namespace Ink_Canvas
                 await Application.Current.Dispatcher.InvokeAsync(() =>
                 {
                     var selectorWindow = new ScreenshotSelectorWindow();
+                    Helpers.WindowMemoryHelper.ReleaseOnClose(selectorWindow);
                     if (selectorWindow.ShowDialog() == true)
                     {
                         // 检查是否是摄像头截图
@@ -484,16 +486,27 @@ namespace Ink_Canvas
                 if (targetPageIndex < 1 || targetPageIndex > WhiteboardTotalCount) return;
                 if (targetPageIndex == CurrentWhiteboardIndex) return;
 
+                // 换页前先排空残留输入并开启过渡窗口，再取消进行中笔画，避免卡顿时延迟提交的笔迹落到错误的页面
+                BeginBoardModeSwitch();
+                CancelInProgressStroke();
+
+                int oldPage = CurrentWhiteboardIndex;
                 // 保存当前页面的墨迹
                 SaveStrokes();
+                // 保存当前文档页内容
+                SaveDocumentPageIfNeeded(oldPage);
                 // 清空画布
                 ClearStrokes(true);
                 // 切换页面索引
                 CurrentWhiteboardIndex = targetPageIndex;
-                // 尝试从磁盘恢复页面
-                try { RestorePageFromDiskIfAvailable(CurrentWhiteboardIndex); } catch { }
-                // 恢复墨迹
-                RestoreStrokes();
+                // 优先尝试恢复文档页；未恢复再尝试会话恢复与墨迹历史
+                bool documentRestored = false;
+                try { documentRestored = RestoreDocumentPageIfAvailable(CurrentWhiteboardIndex); } catch { }
+                if (!documentRestored)
+                {
+                    try { RestorePageFromDiskIfAvailable(CurrentWhiteboardIndex); } catch { }
+                    RestoreStrokes();
+                }
             }
             catch (Exception ex)
             {

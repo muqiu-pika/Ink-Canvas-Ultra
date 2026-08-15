@@ -919,6 +919,7 @@ namespace Ink_Canvas
                     Owner = this,
                     Topmost = true
                 };
+                Helpers.WindowMemoryHelper.ReleaseOnClose(wizard);
                 wizard.Show();
             }
             catch (Exception ex)

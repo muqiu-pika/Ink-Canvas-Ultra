@@ -49,40 +49,47 @@ namespace Ink_Canvas
             _isLoadingSettings = true;
             try
             {
-            try
+            // 仅在启动时、或内存中尚无设置对象时，才从磁盘读取并反序列化设置文件。
+            // 普通“打开设置窗口”场景下，内存中的 Settings 已由各开关的 Toggled 处理持续同步为最新，
+            // 跳过此处可避免每次打开都进行不必要的文件读取与 JSON 解析，减少卡顿。
+            bool needReloadFromDisk = isStartup || Settings == null || Settings.Startup == null;
+            if (needReloadFromDisk)
             {
-                // 优先从用户数据目录（始终可写）读取
-                string userFile = App.UserDataPath + settingsFileName;
-                string legacyFile = App.RootPath + settingsFileName;
-                string targetFile = null;
+                try
+                {
+                    // 优先从用户数据目录（始终可写）读取
+                    string userFile = App.UserDataPath + settingsFileName;
+                    string legacyFile = App.RootPath + settingsFileName;
+                    string targetFile = null;
 
-                if (File.Exists(userFile))
-                {
-                    targetFile = userFile;
-                }
-                else if (File.Exists(legacyFile))
-                {
-                    // 用户数据目录不存在设置文件时回退到 exe 目录（兼容旧版本/便携模式）
-                    targetFile = legacyFile;
-                }
-
-                if (targetFile != null)
-                {
-                    try
+                    if (File.Exists(userFile))
                     {
-                        string text = File.ReadAllText(targetFile);
-                        Settings = JsonConvert.DeserializeObject<Settings>(text);
+                        targetFile = userFile;
                     }
-                    catch { }
+                    else if (File.Exists(legacyFile))
+                    {
+                        // 用户数据目录不存在设置文件时回退到 exe 目录（兼容旧版本/便携模式）
+                        targetFile = legacyFile;
+                    }
+
+                    if (targetFile != null)
+                    {
+                        try
+                        {
+                            string text = File.ReadAllText(targetFile);
+                            Settings = JsonConvert.DeserializeObject<Settings>(text);
+                        }
+                        catch { }
+                    }
+                    else
+                    {
+                        BtnResetToSuggestion_Click(null, null);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    BtnResetToSuggestion_Click(null, null);
+                    LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
                 }
-            }
-            catch (Exception ex)
-            {
-                LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
             }
 
             if (Settings == null) Settings = new Settings();
@@ -916,6 +923,7 @@ namespace Ink_Canvas
                 {
                     Owner = this
                 };
+                Helpers.WindowMemoryHelper.ReleaseOnClose(wizard);
                 wizard.Show();
             }
             catch (Exception ex)

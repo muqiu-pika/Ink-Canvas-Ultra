@@ -51,6 +51,7 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
+                RecordInputDown();
                 if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint
                     || inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke
                     || inkCanvas.EditingMode == InkCanvasEditingMode.Select) return;
@@ -99,6 +100,7 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
+                RecordInputDown();
                 if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint
                     || inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke
                     || inkCanvas.EditingMode == InkCanvasEditingMode.Select) return;
@@ -293,6 +295,7 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
+                RecordInputDown();
                 if (!isHidingSubPanelsWhenInking)
                 {
                     isHidingSubPanelsWhenInking = true;
@@ -652,7 +655,14 @@ namespace Ink_Canvas
                 m.ScaleAt(scale.X, scale.Y, center.X, center.Y);
                 foreach (UIElement element in elements)
                 {
-                    ApplyElementMatrixTransform(element, m);
+                    // 为每个元素创建独立矩阵，将画布坐标系的缩放中心转换为元素本地坐标
+                    double left = InkCanvas.GetLeft(element);
+                    double top = InkCanvas.GetTop(element);
+                    if (double.IsNaN(left)) left = 0;
+                    if (double.IsNaN(top)) top = 0;
+                    Matrix elementMatrix = new Matrix();
+                    elementMatrix.ScaleAt(scale.X, scale.Y, center.X - left, center.Y - top);
+                    ApplyElementMatrixTransform(element, elementMatrix);
                 }
                 
                 // 对笔迹进行缩放变换
@@ -680,7 +690,14 @@ namespace Ink_Canvas
                         m.RotateAt(rotate, center.X, center.Y);
                         foreach (UIElement element in elements)
                         {
-                            ApplyElementMatrixTransform(element, m);
+                            // 为每个元素创建独立矩阵，将画布坐标系的旋转中心转换为元素本地坐标
+                            double left = InkCanvas.GetLeft(element);
+                            double top = InkCanvas.GetTop(element);
+                            if (double.IsNaN(left)) left = 0;
+                            if (double.IsNaN(top)) top = 0;
+                            Matrix elementMatrix = new Matrix();
+                            elementMatrix.RotateAt(rotate, center.X - left, center.Y - top);
+                            ApplyElementMatrixTransform(element, elementMatrix);
                         }
                         foreach (Stroke stroke in inkCanvas.Strokes)
                         {

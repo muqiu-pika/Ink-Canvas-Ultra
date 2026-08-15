@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using Microsoft.VisualBasic;
 using System;
 using System.Collections.Generic;
@@ -18,42 +18,12 @@ namespace Ink_Canvas {
         public RandWindow() {
             InitializeComponent();
             AnimationsHelper.ShowWithSlideFromBottomAndFade(this, 0.25);
-            MainWindow mainWindow = Application.Current.MainWindow as MainWindow;
-            if (mainWindow != null)
-            {
-                if (mainWindow.GetMainWindowTheme() == "Light")
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Light);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Light-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
-                else
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Dark);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Dark-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
-            }
+            ApplyThemeFromMainWindow();
         }
 
         public RandWindow(bool IsAutoClose) {
             InitializeComponent();
-            MainWindow mainWindow = Application.Current.MainWindow as MainWindow;
-            if (mainWindow != null)
-            {
-                if (mainWindow.GetMainWindowTheme() == "Light")
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Light);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Light-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
-                else
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Dark);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Dark-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
-            }
+            ApplyThemeFromMainWindow();
             isAutoClose = IsAutoClose;
 
             new Thread(new ThreadStart(() => {
@@ -64,9 +34,18 @@ namespace Ink_Canvas {
             })).Start();
         }
 
+        private void ApplyThemeFromMainWindow() {
+            if (!(Application.Current.MainWindow is MainWindow mainWindow)) return;
+            bool isLight = mainWindow.GetMainWindowTheme() == "Light";
+            ThemeManager.SetRequestedTheme(this, isLight ? ElementTheme.Light : ElementTheme.Dark);
+            // 去重合并，避免每次打开窗口都往应用级资源里堆一份字典
+            ResourceDictionaryHelper.ApplyPopupWindowTheme(isLight);
+        }
+
         public static int randSeed = 0;
         public bool isAutoClose = false;
         public bool isNotRepeatName = false;
+        private bool _isClosed = false;
 
         public int TotalCount = 1;
         public int PeopleCount = 60;
@@ -96,6 +75,7 @@ namespace Ink_Canvas {
 
             new Thread(new ThreadStart(() => {
                 for (int i = 0; i < 5; i++) {
+                    if (_isClosed) return;
                     int rand = random.Next(1, PeopleCount + 1);
                     while (rands.Contains(rand)) {
                         rand = random.Next(1, PeopleCount + 1);
@@ -103,6 +83,7 @@ namespace Ink_Canvas {
                     rands.Add(rand);
                     if (rands.Count >= PeopleCount) rands = new List<int>();
                     Application.Current.Dispatcher.Invoke(() => {
+                        if (_isClosed) return;
                         if (Names.Count != 0) {
                             LabelOutput.Content = Names[rand - 1];
                         } else {
@@ -115,6 +96,7 @@ namespace Ink_Canvas {
 
                 rands = new List<int>();
                 Application.Current.Dispatcher.Invoke(() => {
+                    if (_isClosed) return;
                     for (int i = 0; i < TotalCount; i++) {
                         int rand = random.Next(1, PeopleCount + 1);
                         while (rands.Contains(rand)) {
@@ -170,6 +152,7 @@ namespace Ink_Canvas {
                         new Thread(new ThreadStart(() => {
                             Thread.Sleep(1500);
                             Application.Current.Dispatcher.Invoke(() => {
+                                if (_isClosed) return;
                                 Close();
                             });
                         })).Start();
@@ -211,12 +194,22 @@ namespace Ink_Canvas {
         }
 
         private void BorderBtnHelp_MouseUp(object sender, MouseButtonEventArgs e) {
-            new NamesInputWindow().ShowDialog();
+            var namesInputWindow = new NamesInputWindow();
+            Helpers.WindowMemoryHelper.ReleaseOnClose(namesInputWindow);
+            namesInputWindow.ShowDialog();
             Window_Loaded(this, null);
         }
 
         private void BtnClose_MouseUp(object sender, MouseButtonEventArgs e) {
             Close();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            // 标记已关闭，使后台抽奖线程中的 Dispatcher.Invoke 回调立即返回，
+            // 不再持有本窗口引用，关闭后即可被回收
+            _isClosed = true;
+            base.OnClosed(e);
         }
     }
 }

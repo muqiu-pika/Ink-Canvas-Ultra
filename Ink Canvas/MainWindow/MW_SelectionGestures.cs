@@ -1,4 +1,4 @@
-﻿﻿using Ink_Canvas.Helpers;
+﻿using Ink_Canvas.Helpers;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -615,7 +615,19 @@ namespace Ink_Canvas
                     // handle UIElements
                     foreach (UIElement element in elements)
                     {
-                        ApplyElementMatrixTransform(element, m);
+                        // 为每个元素创建独立矩阵，将画布坐标系的变换中心转换为元素本地坐标
+                        double left = InkCanvas.GetLeft(element);
+                        double top = InkCanvas.GetTop(element);
+                        if (double.IsNaN(left)) left = 0;
+                        if (double.IsNaN(top)) top = 0;
+                        Matrix elementMatrix = new Matrix();
+                        elementMatrix.ScaleAt(scale.X, scale.Y, center.X - left, center.Y - top);
+                        if (Settings.Gesture.IsEnableTwoFingerRotationOnSelection)
+                        {
+                            elementMatrix.RotateAt(rotate, center.X - left, center.Y - top);
+                        }
+                        elementMatrix.Translate(trans.X, trans.Y);
+                        ApplyElementMatrixTransform(element, elementMatrix);
                     }
                     // handle strokes
                     foreach (Stroke stroke in strokes)

@@ -25,13 +25,7 @@ namespace Ink_Canvas
 
         void RemoveResourceDictionary(Uri uri)
         {
-            var dictionaries = Application.Current.Resources.MergedDictionaries;
-            var dictionaryToRemove = dictionaries.FirstOrDefault(d => d.Source == uri);
-
-            if (dictionaryToRemove != null)
-            {
-                dictionaries.Remove(dictionaryToRemove);
-            }
+            Helpers.ResourceDictionaryHelper.Remove(uri);
         }
 
         private void ComboBoxTheme_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -46,16 +40,15 @@ namespace Ink_Canvas
         {
             var lightBoardUri = new Uri("Resources/Styles/Light-Board.xaml", UriKind.Relative);
             var darkBoardUri = new Uri("Resources/Styles/Dark-Board.xaml", UriKind.Relative);
+            // 使用去重合并：主题会随系统设置/模式切换反复刷新，若每次都 Add 新字典会让应用级资源无限膨胀
             if (Settings.Canvas.UsingWhiteboard)
             {
-                ResourceDictionary rd = new ResourceDictionary { Source = lightBoardUri };
-                Application.Current.Resources.MergedDictionaries.Add(rd);
+                Helpers.ResourceDictionaryHelper.MergeOnce(lightBoardUri);
                 RemoveResourceDictionary(darkBoardUri);
             }
             else
             {
-                ResourceDictionary rd = new ResourceDictionary { Source = darkBoardUri };
-                Application.Current.Resources.MergedDictionaries.Add(rd);
+                Helpers.ResourceDictionaryHelper.MergeOnce(darkBoardUri);
                 RemoveResourceDictionary(lightBoardUri);
             }
         }
@@ -69,16 +62,14 @@ namespace Ink_Canvas
 
             if (theme == "Light")
             {
-                ResourceDictionary rd = new ResourceDictionary { Source = lightUri };
-                Application.Current.Resources.MergedDictionaries.Add(rd);
+                Helpers.ResourceDictionaryHelper.MergeOnce(lightUri);
                 RemoveResourceDictionary(darkUri);
                 ThemeManager.SetRequestedTheme(window, ElementTheme.Light);
                 ThemeManager.Current.ApplicationTheme = ApplicationTheme.Light;
             }
             else if (theme == "Dark")
             {
-                ResourceDictionary rd = new ResourceDictionary { Source = darkUri };
-                Application.Current.Resources.MergedDictionaries.Add(rd);
+                Helpers.ResourceDictionaryHelper.MergeOnce(darkUri);
                 RemoveResourceDictionary(lightUri);
                 ThemeManager.SetRequestedTheme(window, ElementTheme.Dark);
                 ThemeManager.Current.ApplicationTheme = ApplicationTheme.Dark;

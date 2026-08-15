@@ -309,7 +309,9 @@
 
         <local:MW_Selection x:Name="MWSelectionHost" Visibility="{Binding ElementName=inkCanvas, Path=Visibility}" />
 
-        <local:MW_Board x:Name="MWBoardHost" Visibility="{Binding ElementName=GridBackgroundCoverHolder, Path=Visibility}" />
+        <!-- 白板浮动栏仅在白板模式(currentMode==1)下显示，Visibility 由 currentMode 的 setter 驱动，
+             不再绑定到 GridBackgroundCoverHolder（批注 PenIcon_Click 也会置其 Visible，会误呼出白板栏）。 -->
+        <local:MW_Board x:Name="MWBoardHost" Visibility="Collapsed" />
 
         <local:MW_Notifications x:Name="MWNotificationsHost" />
 

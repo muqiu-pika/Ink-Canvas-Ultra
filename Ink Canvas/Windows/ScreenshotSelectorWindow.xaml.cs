@@ -69,15 +69,26 @@ namespace Ink_Canvas
             // 初始化摄像头服务
             InitializeCameraService();
 
-            // 隐藏提示文字的定时器
-            var timer = new DispatcherTimer();
-            timer.Interval = TimeSpan.FromSeconds(5);
-            timer.Tick += (s, e) =>
-            {
-                HintTextBorder.Visibility = Visibility.Collapsed;
-                timer.Stop();
-            };
-            timer.Start();
+            // 隐藏提示文字的定时器（保存为字段，窗口关闭时停止，避免定时器在关闭后继续引用本窗口）
+            _hintTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _hintTimer.Tick += HintTimer_Tick;
+            _hintTimer.Start();
+        }
+
+        private DispatcherTimer _hintTimer;
+
+        private void HintTimer_Tick(object sender, EventArgs e)
+        {
+            StopHintTimer();
+            if (HintTextBorder != null) HintTextBorder.Visibility = Visibility.Collapsed;
+        }
+
+        private void StopHintTimer()
+        {
+            if (_hintTimer == null) return;
+            _hintTimer.Stop();
+            _hintTimer.Tick -= HintTimer_Tick;
+            _hintTimer = null;
         }
 
         private void InitializeFreehandMode()
@@ -1527,9 +1538,15 @@ namespace Ink_Canvas
         {
             try
             {
+                // 停止提示文字定时器
+                StopHintTimer();
+
                 // 清理摄像头资源
                 if (_cameraService != null)
                 {
+                    // 先反注册事件，避免服务在关闭过程中回调到已释放的窗口
+                    _cameraService.FrameReceived -= CameraService_FrameReceived;
+                    _cameraService.ErrorOccurred -= CameraService_ErrorOccurred;
                     _cameraService.StopPreview();
                     _cameraService.Dispose();
                     _cameraService = null;

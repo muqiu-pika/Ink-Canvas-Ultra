@@ -65,6 +65,32 @@ namespace Ink_Canvas.Plugins
         /// </summary>
         void AddCapturedPhoto(BitmapImage image, string filePath = null);
 
+        /// <summary>
+        /// 更新照片列表中对应 filePath 的文档照片。
+        /// 如果存在则替换图片并保留时间戳等元数据；不存在则新增。
+        /// </summary>
+        void UpdateCapturedPhoto(string filePath, BitmapImage newImage);
+
+        /// <summary>
+        /// 替换画板上对应 filePath 的文档图片源，保留 Left/Top 位置、宽度及其他内容不变。
+        /// 返回是否成功找到并替换。
+        /// </summary>
+        bool ReplaceDocumentImageOnCanvas(string filePath, BitmapImage newImage);
+
+        /// <summary>获取当前页码（白板模式为 CurrentWhiteboardIndex，批注模式为 0）</summary>
+        int GetCurrentPageIndex();
+
+        /// <summary>
+        /// 如果 sourceFilePath 对应的文档此前有保存的笔迹/元素，
+        /// 则自动恢复到当前页。返回是否成功找到并恢复了保存的内容。
+        /// </summary>
+        bool RestoreDocumentPageIfSaved(string sourceFilePath);
+
+        /// <summary>
+        /// 检查照片列表中是否已经存在对应 sourceFilePath 的文档照片。
+        /// </summary>
+        bool HasCapturedPhotoForFile(string sourceFilePath);
+
         // ===== 选择控制条插槽 =====
 
         /// <summary>

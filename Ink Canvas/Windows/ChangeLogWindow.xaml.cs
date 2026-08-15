@@ -1,3 +1,4 @@
+using Ink_Canvas.Helpers;
 using iNKORE.UI.WPF.Modern;
 using System;
 using System.Diagnostics;
@@ -16,19 +17,13 @@ namespace Ink_Canvas
             InitializeComponent();
             if (Application.Current.MainWindow is MainWindow mainWindow)
             {
-                if (mainWindow.GetMainWindowTheme() == "Light")
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Light);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Light-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
-                else
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Dark);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Dark-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
+                bool isLight = mainWindow.GetMainWindowTheme() == "Light";
+                ThemeManager.SetRequestedTheme(this, isLight ? ElementTheme.Light : ElementTheme.Dark);
+                // 去重合并，避免每次打开窗口都往应用级资源里堆一份字典
+                ResourceDictionaryHelper.ApplyPopupWindowTheme(isLight);
             }
+            // 关闭后清理可视化树（位图/媒体引用）并触发后台 GC，避免内存只增不减
+            Helpers.WindowMemoryHelper.ReleaseOnClose(this);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

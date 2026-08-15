@@ -7,6 +7,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using System.IO.Pipes;
 using System.Linq;
+using System.Windows.Markup;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -135,6 +136,27 @@ namespace Ink_Canvas
                     GetAutoSavedStrokesLocation = () => Settings.Automation.AutoSavedStrokesLocation,
                     GetPhotoClarityDpi = () => Settings.Automation.PhotoClarityDpi,
                     AddCapturedPhoto = (image, filePath) => Dispatcher.Invoke(() => AddCapturedPhotoInternal(image, filePath)),
+                    UpdateCapturedPhoto = (filePath, newImage) => Dispatcher.Invoke(() => UpdateCapturedPhotoInternal(filePath, newImage)),
+                    ReplaceDocumentImageOnCanvas = (filePath, newImage) => Dispatcher.Invoke(() => ReplaceDocumentImageOnCanvasInternal(filePath, newImage)),
+                    GetCurrentPageIndex = () => GetCurrentPageIndex(),
+                    RestoreDocumentPageIfSaved = (filePath) => Dispatcher.Invoke(() => RestoreDocumentPageIfSavedInternal(filePath)),
+                    HasCapturedPhotoForFile = (filePath) =>
+                    {
+                        return Dispatcher.Invoke(() =>
+                        {
+                            if (string.IsNullOrEmpty(filePath)) return false;
+                            // 仅检查照片列表（内存）中是否已有该文档的照片。
+                            // 磁盘缓存有效性与同名修改检测由 OpenDocumentWithPhotoCache 在触发转换前完成，
+                            // 此处若再按磁盘文件判断会导致需要重新转换的文档被错误跳过。
+                            if (capturedPhotos.Any(p =>
+                                !string.IsNullOrEmpty(p.SourceFilePath) &&
+                                string.Equals(StripChunkSuffix(p.SourceFilePath), filePath, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                return true;
+                            }
+                            return false;
+                        });
+                    },
                     RegisterSelectionControlBar = bar =>
                     {
                         Dispatcher.Invoke(() =>
@@ -199,19 +221,7 @@ namespace Ink_Canvas
                 // 根据已安装的 plugin 显示对应入口按钮
                 UpdatePluginBasedButtonVisibility();
 
-                // 如果启动参数包含 Word/Excel/PDF 文件路径，交给 document-viewer 插件处理
-                if (!string.IsNullOrEmpty(App.PendingDocumentPath))
-                {
-                    try
-                    {
-                        host.TriggerRoute("document-open", App.PendingDocumentPath);
-                        App.PendingDocumentPath = null;
-                    }
-                    catch (Exception ex)
-                    {
-                        LogHelper.WriteLogToFile($"启动时处理文档参数失败: {ex.Message}", LogHelper.LogType.Error);
-                    }
-                }
+                // 启动参数携带的文档延迟到 Window_Loaded 中处理（需等待设置加载完成以确定缓存路径）
 
                 LogHelper.WriteLogToFile($"plugin 系统初始化完成，已加载 {host.GetLoadedManifests().Count} 个 plugin", LogHelper.LogType.Event);
             }
@@ -363,7 +373,7 @@ namespace Ink_Canvas
             {
                 inkCanvas1.ForceCursor = false;
             }
-            if (inkCanvas1.EditingMode == InkCanvasEditingMode.Ink) forcePointEraser = !forcePointEraser;
+            if (inkCanvas1.EditingMode == InkCanvasEditingMode.Ink && !_isCancellingActiveStroke) forcePointEraser = !forcePointEraser;
         }
 
         #endregion Ink Canvas Functions
@@ -382,7 +392,20 @@ namespace Ink_Canvas
         
         // 照片页面管理相关字段
         private Dictionary<string, int> photoPageMapping = new Dictionary<string, int>(); // 记录照片时间戳与页码的关联
+        private Dictionary<int, string> pageDocumentMapping = new Dictionary<int, string>(); // 记录页码与文档来源路径的关联
         private System.Windows.Controls.Image currentPhotoImage; // 当前显示的照片元素
+
+        // 元素命名计数器：确保同一毫秒内创建的多个元素（如文档瓦片）名称唯一，避免 XAML 序列化/恢复时命名冲突
+        private static int _photoNameSequence = 0;
+        private static string GeneratePhotoName()
+        {
+            int seq = System.Threading.Interlocked.Increment(ref _photoNameSequence);
+            return "photo_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff") + "_" + seq.ToString();
+        }
+
+        // 文档页笔迹自动保存防抖 Timer
+        private Timer _documentPageSaveTimer;
+        private int _pendingDocumentSavePageIndex = -1;
         // 照片列表交互：右键/长按弹出的操作覆盖层
         private FrameworkElement _activePhotoActionOverlay;
         // 照片列表手动排序
@@ -622,7 +645,8 @@ namespace Ink_Canvas
                 {
                     try
                     {
-                        Plugins.PluginHost.Instance?.TriggerRoute("document-open", filePath);
+                        // 先查本地转换缓存，已缓存则直接加载照片，未转换/已修改则触发插件转换
+                        OpenDocumentWithPhotoCache(filePath);
                     }
                     catch (Exception ex)
                     {
@@ -984,14 +1008,39 @@ namespace Ink_Canvas
             // 启动后提示是否恢复上次会话
             PromptRestoreLastSessionOnStartup();
 
+            // 注意：启动时不再扫描磁盘照片填充照片列表，照片列表保持初始空状态。
+            // 文档照片仅在「打开文档」时从该文档的缓存文件夹加载（或重新转换后放入）。
+
             // 首次安装引导
             TryShowInitialSetupWizard();
             ApplyStartupModes();
+
+            // 启动参数携带的文档：先查本地转换缓存，已缓存则直接加载照片，未转换/已修改则触发插件转换
+            if (!string.IsNullOrEmpty(App.PendingDocumentPath))
+            {
+                try
+                {
+                    string pendingDoc = App.PendingDocumentPath;
+                    App.PendingDocumentPath = null;
+                    OpenDocumentWithPhotoCache(pendingDoc);
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile($"启动时处理文档参数失败: {ex.Message}", LogHelper.LogType.Error);
+                }
+            }
+
+            // 应用空闲时预先构造并重渲染设置窗口，把“解析 170KB XAML + 首次布局/渲染”
+            // 的开销从“点击设置”挪到空闲时段，避免点击时的卡顿与黑屏闪烁。
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+                (System.Action)PrebuildSettingsWindow);
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             LogHelper.WriteLogToFile("Ink Canvas closing", LogHelper.LogType.Event);
+            // 关闭前立即保存当前文档页的笔迹/元素，避免防抖计时器窗口期内的书写内容丢失
+            try { SaveDocumentPageIfNeeded(CurrentWhiteboardIndex); } catch { }
             if (!CloseIsFromButton && Settings.Advanced.IsSecondConfimeWhenShutdownApp)
             {
                 e.Cancel = true;
@@ -1015,7 +1064,16 @@ namespace Ink_Canvas
         private void Window_Closed(object sender, EventArgs e)
         {
             LogHelper.WriteLogToFile("Ink Canvas closed", LogHelper.LogType.Event);
-            try { timerFixFloatingBarZOrder?.Stop(); } catch { }
+            // 关闭被缓存/隐藏的设置窗口：隐藏窗口在 WPF 中仍属“已打开”，
+            // 不显式关闭会阻止应用退出（默认 ShutdownMode 为 OnLastWindowClose），内存也无法释放
+            try { CloseCachedSettingsWindow(); } catch { }
+            // 关闭其余仍然存活的附属窗口（插件工坊、倒计时、抽奖等）
+            try { CloseRemainingOwnedWindows(); } catch { }
+            // 停止并释放所有后台定时器：System.Timers.Timer 的 Elapsed 处理函数持有本窗口引用，
+            // 若窗口关闭后仍在运行，会阻止主窗口与其可视化树、以及各附属窗口被回收。
+            StopAllBackgroundTimers();
+            // 反订阅全局系统事件（应用级事件链会持有本窗口引用）
+            try { Microsoft.Win32.SystemEvents.UserPreferenceChanged -= SystemEvents_UserPreferenceChanged; } catch { }
             UnhookInputDeviceNotifications();
             StopSingleInstanceCommandServer();
             // 通知所有 plugin 主程序即将退出
@@ -1024,6 +1082,68 @@ namespace Ink_Canvas
             RemoveCameraFrame();
             // 清理摄像头资源
             cameraDeviceManager?.Dispose();
+            // 释放照片列表大图内存并主动回收，减少退出/关闭时的内存占用
+            try { ReleaseAllCapturedPhotoMemory(); } catch { }
+            try { GC.Collect(); GC.WaitForPendingFinalizers(); } catch { }
+        }
+
+        /// <summary>
+        /// 停止并释放本窗口的所有后台定时器（System.Timers.Timer 与 DispatcherTimer）。
+        /// 定时器一旦停止并反注册 Elapsed/Tick 处理函数，窗口引用即断开，可被正常回收。
+        /// </summary>
+        private void StopAllBackgroundTimers()
+        {
+            try { timerCheckPPT?.Stop(); timerCheckPPT?.Dispose(); } catch { }
+            try { timerKillProcess?.Stop(); timerKillProcess?.Dispose(); } catch { }
+            try { timerCheckAutoFold?.Stop(); timerCheckAutoFold?.Dispose(); } catch { }
+            try { timerFixFloatingBarZOrder?.Stop(); timerFixFloatingBarZOrder?.Dispose(); } catch { }
+            try { timerCheckAutoUpdateWithSilence?.Stop(); timerCheckAutoUpdateWithSilence?.Dispose(); } catch { }
+            try { _inputWatchdogTimer?.Stop(); } catch { }
+            try { _documentPageSaveTimer?.Dispose(); } catch { }
+            try { cameraFrameTimer?.Stop(); } catch { }
+            try { _reorderAutoScrollTimer?.Stop(); } catch { }
+        }
+
+        /// <summary>
+        /// 关闭除主窗口之外仍然打开（含隐藏）的所有本程序窗口，确保退出时资源被逐个释放。
+        /// 每个窗口的 OnClosed/Closing 里会停止各自的计时器、动画与外设资源。
+        /// </summary>
+        private void CloseRemainingOwnedWindows()
+        {
+            var windows = Application.Current?.Windows;
+            if (windows == null) return;
+
+            foreach (var window in windows.OfType<System.Windows.Window>().Where(w => !ReferenceEquals(w, this)).ToList())
+            {
+                try
+                {
+                    window.Owner = null;
+                    window.Close();
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile($"关闭附属窗口失败({window.GetType().Name}): {ex.Message}", LogHelper.LogType.Error);
+                }
+            }
+        }
+
+        /// <summary>释放照片列表中所有已落盘照片的全尺寸大图内存（缩略图与文件路径保留）。</summary>
+        private void ReleaseAllCapturedPhotoMemory()
+        {
+            try
+            {
+                foreach (var photo in capturedPhotos)
+                {
+                    if (photo != null && !photo.IsVideo && !photo.IsImageReleased)
+                    {
+                        photo.ReleaseImageMemory();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"释放照片内存失败: {ex.Message}");
+            }
         }
 
         #endregion Definations and Loading
@@ -1106,6 +1226,7 @@ namespace Ink_Canvas
                                 catch { }
                                 ShowNotificationAsync("已恢复上次会话快照", true);
                                 try { LoadLastSessionPhotosToSidebarAndBind(); } catch { }
+                                // 不再从磁盘照片目录合并已保存照片；文档照片按需通过打开文档加载
                             }
                             else
                             {
@@ -1116,6 +1237,7 @@ namespace Ink_Canvas
                     },
                     noAction: () => { });
 
+                Helpers.WindowMemoryHelper.ReleaseOnClose(notificationWindow);
                 notificationWindow.Show();
             }
             catch (Exception ex)
@@ -1151,6 +1273,7 @@ namespace Ink_Canvas
                                     if (child is System.Windows.Controls.Image image)
                                     {
                                         string candidate = null;
+                                        string sourceFilePath = null;
                                         try
                                         {
                                             string tagPath = image.Tag as string;
@@ -1163,6 +1286,14 @@ namespace Ink_Canvas
                                                 candidate = bmi.UriSource.LocalPath;
                                                 string tryLocal = System.IO.Path.Combine(dir, "File Dependency", System.IO.Path.GetFileName(candidate));
                                                 if (System.IO.File.Exists(tryLocal)) candidate = tryLocal;
+                                            }
+
+                                            // 文档照片的 Tag 存储的是原始文档路径（如 C:\Docs\report.pdf）
+                                            // 用于恢复 SourceFilePath，使文档去重与笔迹加载在重启后仍可生效
+                                            // （分块照片的 Tag 形如「文档路径#块序号」，需剥离块序号后按文档识别）
+                                            if (!string.IsNullOrEmpty(tagPath) && IsDocumentFilePath(StripChunkSuffix(tagPath)))
+                                            {
+                                                sourceFilePath = tagPath;
                                             }
                                         }
                                         catch { }
@@ -1177,7 +1308,9 @@ namespace Ink_Canvas
                                                 bi.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
                                                 bi.EndInit();
                                                 bi.Freeze();
-                                                var ci = new Ink_Canvas.Models.CapturedImage(bi, candidate);
+                                                var ci = sourceFilePath != null
+                                                    ? new Ink_Canvas.Models.CapturedImage(bi, candidate, sourceFilePath)
+                                                    : new Ink_Canvas.Models.CapturedImage(bi, candidate);
 
                                                 bool exists = capturedPhotos.Any(p => (!string.IsNullOrEmpty(p.FilePath) && p.FilePath == candidate) || p.Timestamp == ci.Timestamp);
                                                 if (!exists)
@@ -1187,6 +1320,11 @@ namespace Ink_Canvas
                                                 if (!string.IsNullOrEmpty(ci.Timestamp))
                                                 {
                                                     photoPageMapping[ci.Timestamp] = pageIndex;
+                                                }
+                                                // 文档照片：同时建立页码与文档来源的映射
+                                                if (!string.IsNullOrEmpty(sourceFilePath))
+                                                {
+                                                    pageDocumentMapping[pageIndex] = sourceFilePath;
                                                 }
                                             }
                                             catch { }
@@ -1449,9 +1587,18 @@ namespace Ink_Canvas
             try
             {
                 string path = SaveBitmapImageToPhotoFile(image, sourceFilePath);
-                var capturedImage = string.IsNullOrEmpty(path) ? new CapturedImage(image) : new CapturedImage(image, path);
+                var capturedImage = string.IsNullOrEmpty(path)
+                    ? new CapturedImage(image)
+                    : new CapturedImage(image, path, sourceFilePath);
                 capturedPhotos.Insert(0, capturedImage);
                 UpdateCapturedPhotosDisplay();
+
+                // 照片已落盘，释放全尺寸大图以节省内存（缩略图与尺寸缓存保留，
+                // 之后插入画板时由 CreateBitmapImageFromFileOrMemory 从磁盘重新加载）
+                if (!capturedImage.IsVideo && !string.IsNullOrEmpty(path))
+                {
+                    capturedImage.ReleaseImageMemory();
+                }
 
                 // 拍照后不立即插入照片到白板，等待用户点击照片按钮后再插入
                 Console.WriteLine($"照片已保存到相册，时间戳: {capturedImage.Timestamp}");
@@ -1465,7 +1612,1537 @@ namespace Ink_Canvas
 
         private void AddCapturedPhotoInternal(BitmapImage image, string sourceFilePath)
         {
+            // 文档照片：先写入/替换本地缓存（photo.png + photo.meta，与文档笔迹同文件夹），再进入照片列表
+            // （分块照片的 sourceFilePath 形如「文档路径#块序号」，需剥离块序号后按文档识别）
+            if (!string.IsNullOrEmpty(sourceFilePath) && IsDocumentFilePath(StripChunkSuffix(sourceFilePath)))
+            {
+                // 分块瓦片（路径带 #块序号）：不写入同名的 photo.png 缓存（避免互相覆盖），
+                // 改为走普通文件保存路径，每张瓦片存为独立文件，由 CapturedImage.FilePath 分别引用。
+                // 缓存仅用于无块序号的文档主照片（源文件路径本身即为文档路径）。
+                if (sourceFilePath.Contains("#"))
+                {
+                    // 分块瓦片：除保存到照片列表外，同时写入文档级缓存（chunk_{N}.png + photo.meta），
+                    // 记录文档修改信息，使下次打开可从硬盘直接加载，仅当文档被修改时才重新转换。
+                    SaveDocumentChunkToCache(sourceFilePath, image);
+                    AddCapturedPhoto(image, sourceFilePath);
+                    return;
+                }
+
+                string cachedPath = SaveDocumentPhotoToCache(sourceFilePath, image);
+
+                // 去重：同一 sourceFilePath 只保留一张照片（同名文档重新转换时更新图片与缓存路径）
+                var existing = capturedPhotos.FirstOrDefault(p =>
+                    !string.IsNullOrEmpty(p.SourceFilePath) &&
+                    string.Equals(p.SourceFilePath, sourceFilePath, StringComparison.OrdinalIgnoreCase));
+                if (existing != null)
+                {
+                    existing.UpdateImage(image, cachedPath ?? existing.FilePath);
+                    UpdateCapturedPhotosDisplay();
+                    Console.WriteLine($"文档照片已存在，更新图片: {sourceFilePath}");
+                    return;
+                }
+
+                if (!string.IsNullOrEmpty(cachedPath))
+                {
+                    var ci = new CapturedImage(image, cachedPath, sourceFilePath);
+                    capturedPhotos.Insert(0, ci);
+                    UpdateCapturedPhotosDisplay();
+                    // 文档主照片已写入缓存，释放全尺寸大图以节省内存
+                    if (!ci.IsVideo) ci.ReleaseImageMemory();
+                    Console.WriteLine($"文档照片已缓存并加入照片列表: {sourceFilePath}");
+                    return;
+                }
+            }
             AddCapturedPhoto(image, sourceFilePath);
+        }
+
+        private bool IsDocumentFilePath(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return false;
+            string ext = System.IO.Path.GetExtension(filePath).ToLowerInvariant();
+            return ext == ".docx" || ext == ".xls" || ext == ".xlsx" || ext == ".pdf";
+        }
+
+        /// <summary>
+        /// 剥离文档分块照片的块序号后缀（"文档路径#N" → "文档路径"）。
+        /// 文档过大时会被拆分为多张照片，每张来源标识为「文档路径#块序号」，
+        /// 需要按原始文档路径识别同一文档。
+        /// </summary>
+        private static string StripChunkSuffix(string filePath)
+        {
+            if (string.IsNullOrEmpty(filePath)) return filePath;
+            int idx = filePath.LastIndexOf('#');
+            return idx >= 0 ? filePath.Substring(0, idx) : filePath;
+        }
+
+        /// <summary>解析文档分块照片的块序号（"文档路径#N" → N；无块序号返回 0）。</summary>
+        private static int GetChunkIndex(string sourceFilePath)
+        {
+            if (string.IsNullOrEmpty(sourceFilePath)) return 0;
+            int idx = sourceFilePath.LastIndexOf('#');
+            if (idx < 0 || idx == sourceFilePath.Length - 1) return 0;
+            if (int.TryParse(sourceFilePath.Substring(idx + 1), out int n)) return n;
+            return 0;
+        }
+
+        /// <summary>
+        /// 清洗 XAML 文本中重复的 photo_ 元素名称，为后续同名元素附加自增序号，保证名称唯一。
+        /// 旧版保存文件可能因同毫秒多瓦片而含重复名称，整体 XamlReader.Load 会因此抛
+        /// 「不能在此范围中注册重复的名称」异常。此方法仅作用于 photo_ 前缀的名称，
+        /// 不影响其它元素（如视频 MediaElement 的命名）。
+        /// </summary>
+        private static string SanitizeDuplicatePhotoNames(string xaml)
+        {
+            if (string.IsNullOrEmpty(xaml)) return xaml;
+
+            var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+            var pattern = new System.Text.RegularExpressions.Regex(
+                "(Name=\\\"photo_[0-9]{8}_[0-9]{2}_[0-9]{2}_[0-9]{2}_[0-9]{3}\\\")");
+
+            return pattern.Replace(xaml, m =>
+            {
+                string name = m.Groups[1].Value;
+                if (seen.TryGetValue(name, out int count))
+                {
+                    seen[name] = count + 1;
+                    // 追加自增序号，形式如 photo_..._222_1、photo_..._222_2 等
+                    string baseName = name.Substring(0, name.Length - 1); // 去掉尾引号
+                    return baseName + "_" + (count + 1) + "\"";
+                }
+                seen[name] = 0;
+                return m.Value;
+            });
+        }
+
+        /// <summary>
+        /// 获取同一文档的所有分块照片，按块序号升序排列。
+        /// 分块照片来源标识为「文档路径#块序号」，据此归并同一文档。
+        /// </summary>
+        private List<CapturedImage> GetDocumentTiles(string docPath)
+        {
+            if (string.IsNullOrEmpty(docPath)) return new List<CapturedImage>();
+            return capturedPhotos
+                .Where(p => !string.IsNullOrEmpty(p.SourceFilePath) &&
+                            string.Equals(StripChunkSuffix(p.SourceFilePath), docPath, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(p => GetChunkIndex(p.SourceFilePath))
+                .ToList();
+        }
+
+        /// <summary>
+        /// 从内存照片列表重建指定文档页的照片瓦片到画布。
+        /// 用于磁盘保存文件尚未就绪（如退出白板后立即重进）时，保证文档照片不丢失。
+        /// 返回是否成功重建了照片。
+        /// </summary>
+        private bool ReinsertDocumentPhotosFromMemory(int pageIndex)
+        {
+            try
+            {
+                if (!pageDocumentMapping.TryGetValue(pageIndex, out string sourceFilePath) ||
+                    string.IsNullOrEmpty(sourceFilePath))
+                {
+                    LogHelper.WriteLogToFile($"[诊断] 内存重建失败：页 {pageIndex} 无文档映射", LogHelper.LogType.Trace);
+                    return false;
+                }
+                string docPath = StripChunkSuffix(sourceFilePath);
+                if (string.IsNullOrEmpty(docPath) || !IsDocumentFilePath(docPath))
+                {
+                    LogHelper.WriteLogToFile($"[诊断] 内存重建失败：页 {pageIndex} 文档无效 {docPath}", LogHelper.LogType.Trace);
+                    return false;
+                }
+
+                var tiles = GetDocumentTiles(docPath);
+                if (tiles.Count == 0)
+                {
+                    LogHelper.WriteLogToFile($"[诊断] 内存重建失败：页 {pageIndex} 文档 {docPath} 无内存瓦片 (capturedPhotos={capturedPhotos.Count})", LogHelper.LogType.Trace);
+                    return false;
+                }
+
+                // 按瓦片总高度铺开展示：以最大瓦片宽度为基准水平居中，顶部对齐
+                int maxW = tiles.Max(t => t.PixelWidth);
+                double canvasWidth = inkCanvas.ActualWidth;
+                if (canvasWidth <= 0) canvasWidth = SystemParameters.PrimaryScreenWidth;
+                double left = Math.Round(Math.Max(0, (canvasWidth - maxW) / 2.0));
+                double top = 0;
+
+                System.Windows.Controls.Image firstTileImg = null;
+                for (int ti = 0; ti < tiles.Count; ti++)
+                {
+                    var tile = tiles[ti];
+                    var tileImg = new System.Windows.Controls.Image
+                    {
+                        Source = CreateBitmapImageFromFileOrMemory(tile),
+                        Width = tile.PixelWidth,
+                        Height = tile.PixelHeight,
+                        Name = GeneratePhotoName(),
+                        Tag = tile.SourceFilePath,
+                        SnapsToDevicePixels = true,
+                        UseLayoutRounding = true
+                    };
+                    System.Windows.Media.RenderOptions.SetBitmapScalingMode(tileImg, System.Windows.Media.BitmapScalingMode.HighQuality);
+                    InkCanvas.SetLeft(tileImg, left);
+                    InkCanvas.SetTop(tileImg, Math.Round(top));
+                    inkCanvas.Children.Add(tileImg);
+                    if (firstTileImg == null) firstTileImg = tileImg;
+                    photoPageMapping[tile.Timestamp] = pageIndex;
+                    top += tile.PixelHeight;
+                }
+
+                currentPhotoImage = firstTileImg;
+                // 与 XAML 恢复路径保持一致：按当前画布宽度统一重算瓦片位置
+                RecenterDocumentTilesOnCanvas(sourceFilePath);
+                Console.WriteLine($"从内存照片重建文档瓦片完成: {tiles.Count} 张, 文档: {docPath}, 总高度: {Math.Round(top)}px");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"从内存照片重建文档瓦片失败: {ex.Message}", Helpers.LogHelper.LogType.Error);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 换页/重进白板时，从内存照片列表重建文档页瓦片的带异常保护包装。
+        /// 返回是否成功重建了照片。
+        /// </summary>
+        private bool ReinsertDocumentPhotosFromMemorySafe(int pageIndex)
+        {
+            try
+            {
+                return ReinsertDocumentPhotosFromMemory(pageIndex);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"从内存重建文档瓦片（安全包装）失败: {ex.Message}", Helpers.LogHelper.LogType.Error);
+                return false;
+            }
+        }
+
+        /// <summary>判断当前画布上是否已存在指定文档的任意瓦片照片元素。</summary>
+        private bool HasDocumentTilesOnCurrentPage(string docPath)
+        {
+            if (inkCanvas == null || string.IsNullOrEmpty(docPath)) return false;
+            foreach (var child in inkCanvas.Children)
+            {
+                if (child is System.Windows.Controls.Image img && img.Tag is string tag && !string.IsNullOrEmpty(tag))
+                {
+                    if (string.Equals(StripChunkSuffix(tag), docPath, StringComparison.OrdinalIgnoreCase))
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 更新照片列表中对应 sourceFilePath 的文档照片。不存在则新增。
+        /// </summary>
+        private void UpdateCapturedPhotoInternal(string sourceFilePath, BitmapImage newImage)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(sourceFilePath) || newImage == null) return;
+
+                var existing = capturedPhotos.FirstOrDefault(p =>
+                    !string.IsNullOrEmpty(p.SourceFilePath) &&
+                    string.Equals(p.SourceFilePath, sourceFilePath, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    // 刷新时同步保存新图片并更新文件路径，避免后续加载到过期的旧照片文件
+                    // 文档照片写入专属缓存（替换原 photo.png 并刷新 meta 修改记录）
+                    string newPath = IsDocumentFilePath(StripChunkSuffix(sourceFilePath))
+                        ? SaveDocumentPhotoToCache(sourceFilePath, newImage)
+                        : SaveBitmapImageToPhotoFile(newImage, sourceFilePath);
+                    existing.UpdateImage(newImage, newPath);
+                    UpdateCapturedPhotosDisplay();
+                    Console.WriteLine($"已更新文档照片: {sourceFilePath}");
+                }
+                else
+                {
+                    AddCapturedPhoto(newImage, sourceFilePath);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"UpdateCapturedPhoto 失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 替换画板上对应 sourceFilePath 的文档图片源，保留 Left/Top 位置、宽度及其他内容不变。
+        /// </summary>
+        private bool ReplaceDocumentImageOnCanvasInternal(string sourceFilePath, BitmapImage newImage)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(sourceFilePath) || newImage == null) return false;
+
+                bool replaced = false;
+                foreach (UIElement child in inkCanvas.Children)
+                {
+                    if (child is System.Windows.Controls.Image img &&
+                        img.Tag is string tag &&
+                        string.Equals(tag, sourceFilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        double oldWidth = img.Width;
+                        double oldLeft = InkCanvas.GetLeft(img);
+                        double oldTop = InkCanvas.GetTop(img);
+
+                        img.Source = newImage;
+
+                        // 保持原宽度不变，按新图片宽高比调整高度；保留 Left/Top。
+                        // 尺寸取整到像素，避免子像素模糊。
+                        if (oldWidth > 0 && newImage.PixelWidth > 0)
+                        {
+                            img.Width = Math.Round(oldWidth);
+                            img.Height = Math.Round(oldWidth * newImage.PixelHeight / newImage.PixelWidth);
+                        }
+                        else
+                        {
+                            img.Width = newImage.PixelWidth;
+                            img.Height = newImage.PixelHeight;
+                        }
+
+                        InkCanvas.SetLeft(img, Math.Round(oldLeft));
+                        InkCanvas.SetTop(img, Math.Round(oldTop));
+
+                        replaced = true;
+                    }
+                }
+
+                if (replaced)
+                {
+                    Console.WriteLine($"已替换画板文档图片: {sourceFilePath}");
+                    // 若当前页面正是该文档页，立即更新保存文件中的图片
+                    int currentPage = GetCurrentPageIndex();
+                    if (pageDocumentMapping.TryGetValue(currentPage, out string mappedPath) &&
+                        string.Equals(mappedPath, sourceFilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        SaveDocumentPageIfNeeded(currentPage);
+                    }
+                }
+                return replaced;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"ReplaceDocumentImageOnCanvas 失败: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 对文档页笔迹/元素的变更进行防抖自动保存。
+        /// </summary>
+        private void ScheduleDocumentPageSave(int pageIndex)
+        {
+            _pendingDocumentSavePageIndex = pageIndex;
+            if (_documentPageSaveTimer == null)
+            {
+                _documentPageSaveTimer = new Timer(_ =>
+                {
+                    Dispatcher.Invoke(() =>
+                    {
+                        if (_pendingDocumentSavePageIndex >= 0)
+                        {
+                            SaveDocumentPageIfNeeded(_pendingDocumentSavePageIndex);
+                            _pendingDocumentSavePageIndex = -1;
+                        }
+                    });
+                }, null, Timeout.Infinite, Timeout.Infinite);
+            }
+            _documentPageSaveTimer.Change(1500, Timeout.Infinite);
+        }
+
+        /// <summary>
+        /// 如果指定页面对应文档照片，则保存该页全部内容（墨迹+元素）到文件名对应文件夹。
+        /// 保存方式与 PPT 笔迹自动保存保持一致：
+        /// - 墨迹流保存为 {pageIndex:0000}.icstk（与 PPT 的 .icstk 文件格式相同）
+        /// - UI 元素保存为 {pageIndex:0000}.xaml
+        /// - 依赖文件保存到 File Dependency 子文件夹
+        /// </summary>
+        private void SaveDocumentPageIfNeeded(int pageIndex)
+        {
+            try
+            {
+                // 该页已被显式保存，取消防抖队列中针对该页的待保存项，
+                // 避免翻页后防抖触发时把新页内容误写入旧文档的保存文件
+                if (_pendingDocumentSavePageIndex == pageIndex) _pendingDocumentSavePageIndex = -1;
+
+                if (!pageDocumentMapping.TryGetValue(pageIndex, out string sourceFilePath) ||
+                    string.IsNullOrEmpty(sourceFilePath) ||
+                    !IsDocumentFilePath(StripChunkSuffix(sourceFilePath)))
+                {
+                    return;
+                }
+
+                string folderPath = GetDocumentPageFolderPath(sourceFilePath);
+                if (string.IsNullOrEmpty(folderPath)) return;
+
+                if (!Directory.Exists(folderPath))
+                    Directory.CreateDirectory(folderPath);
+
+                string baseFilePath = System.IO.Path.Combine(folderPath, pageIndex.ToString("0000"));
+                string strokesFilePath = baseFilePath + ".icstk";
+                string elementsFilePath = baseFilePath + ".xaml";
+
+                // 清理同文档下其他页码的旧保存文件，避免页码变化后恢复到过期的旧笔迹
+                try
+                {
+                    foreach (var f in Directory.GetFiles(folderPath, "*.icstk"))
+                    {
+                        if (!string.Equals(f, strokesFilePath, StringComparison.OrdinalIgnoreCase))
+                            File.Delete(f);
+                    }
+                    foreach (var f in Directory.GetFiles(folderPath, "*.xaml"))
+                    {
+                        if (!string.Equals(f, elementsFilePath, StringComparison.OrdinalIgnoreCase))
+                            File.Delete(f);
+                    }
+                }
+                catch { }
+
+                // 保存墨迹与 UI 元素到磁盘。
+                // 重要：StrokeCollection.Save / XamlWriter.Save 必须在本（UI）线程执行，
+                // 因为 InkCanvas 及其子元素均为 DispatcherObject，不能在后台线程访问其 Children。
+                // 之前把这两步放到 Task.Run 中导致「调用线程无法访问此对象」与「流已关闭」异常，
+                // 使得 .icstk/.xaml 从未真正落盘，进而任何文档页恢复都失败、回退逻辑重复插入照片。
+                // 这里先在 UI 线程完成全部序列化（得到字节数组 / XAML 文本），
+                // 再在后台线程仅做纯磁盘写入，既避免跨线程异常，也避免长时间阻塞 UI。
+
+                // 序列化墨迹（与 PPT 的 .icstk 格式一致，均为 ISF 字节流）
+                byte[] strokesBytes;
+                using (var ms = new System.IO.MemoryStream())
+                {
+                    inkCanvas.Strokes.Save(ms);
+                    strokesBytes = ms.ToArray();
+                }
+
+                // 序列化 UI 元素：构造可序列化画布快照并在本线程完成 XAML 序列化
+                var serializableCanvas = CreateSerializableCanvasForSnapshot();
+                string elementsXaml;
+                using (var msXaml = new System.IO.MemoryStream())
+                {
+                    XamlWriter.Save(serializableCanvas, msXaml);
+                    elementsXaml = System.Text.Encoding.UTF8.GetString(msXaml.ToArray());
+                }
+
+                // 收集需要复制到 File Dependency 子文件夹的依赖文件（图像/媒体源）。
+                // 关键优化：跳过「文档分块照片」——其源已经是持久化的缓存文件（photo.png / chunk_*.png），
+                // 保存的 .xaml 直接引用该缓存路径，无需再复制整张长图，既避免每次保存时同步拷贝造成卡顿，
+                // 也避免磁盘上重复存储同一张大图。拷贝本身放到后台线程执行，不阻塞 UI（尤其退出白板时）。
+                var dependencyFiles = CollectDocumentPageDependencyFiles(serializableCanvas);
+
+                // 后台线程仅做磁盘写入（含依赖文件拷贝），不再访问任何 UI 对象
+                SaveDocumentPageDataAsync(strokesBytes, elementsXaml, folderPath, strokesFilePath, elementsFilePath, dependencyFiles);
+
+                LogHelper.WriteLogToFile($"文档页已自动保存: {strokesFilePath}（笔迹 {inkCanvas.Strokes.Count}，元素 {inkCanvas.Children.Count}）", LogHelper.LogType.Trace);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"保存文档页内容失败: {ex.Message}", LogHelper.LogType.Error);
+            }
+        }
+
+        /// <summary>
+        /// 在后台线程将已序列化的墨迹字节与 XAML 文本原子写入磁盘。
+        /// 序列化的工作（StrokeCollection.Save / XamlWriter.Save）必须在 UI 线程完成
+        /// （InkCanvas 及其子元素为 DispatcherObject，不能跨线程访问），
+        /// 本方法仅负责纯磁盘 IO，不再触碰任何 UI 对象，避免跨线程异常与「流已关闭」异常。
+        /// </summary>
+        private void SaveDocumentPageDataAsync(
+            byte[] strokesBytes, string elementsXaml, string folderPath,
+            string strokesFilePath, string elementsFilePath, System.Collections.Generic.List<string> dependencyFiles)
+        {
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try
+                {
+                    // 原子写入墨迹：先写 .tmp，Flush 落盘后替换正式文件，
+                    // 避免进程中途退出导致 .icstk 截断
+                    if (strokesBytes != null && strokesBytes.Length > 0)
+                    {
+                        string tmpStrokesPath = strokesFilePath + ".tmp";
+                        using (var fs = new FileStream(tmpStrokesPath, FileMode.Create, FileAccess.Write))
+                        {
+                            fs.Write(strokesBytes, 0, strokesBytes.Length);
+                            fs.Flush(true);
+                        }
+                        if (File.Exists(strokesFilePath)) File.Delete(strokesFilePath);
+                        File.Move(tmpStrokesPath, strokesFilePath);
+                    }
+
+                    // 原子写入元素 XAML：同样先写 .tmp 再替换
+                    if (!string.IsNullOrEmpty(elementsXaml))
+                    {
+                        string tmpFilePath = elementsFilePath + ".tmp";
+                        using (var fs = new FileStream(tmpFilePath, FileMode.Create, FileAccess.Write))
+                        using (var sw = new StreamWriter(fs, System.Text.Encoding.UTF8))
+                        {
+                            sw.Write(elementsXaml);
+                            sw.Flush();
+                            fs.Flush(true);
+                        }
+                        if (File.Exists(elementsFilePath)) File.Delete(elementsFilePath);
+                        File.Move(tmpFilePath, elementsFilePath);
+                    }
+
+                    // 依赖文件（图像/媒体源）复制到 File Dependency 子文件夹。
+                    // 此拷贝在后台线程执行（纯磁盘 IO），不阻塞 UI 线程，避免退出白板 / 换页时卡顿。
+                    // 文档分块照片已在 CollectDocumentPageDependencyFiles 中剔除（其源即持久化缓存文件）。
+                    if (dependencyFiles != null && dependencyFiles.Count > 0)
+                    {
+                        string dependencyFolder = System.IO.Path.Combine(folderPath, "File Dependency");
+                        if (!Directory.Exists(dependencyFolder))
+                            Directory.CreateDirectory(dependencyFolder);
+                        foreach (var src in dependencyFiles)
+                        {
+                            try
+                            {
+                                if (File.Exists(src))
+                                {
+                                    string destPath = System.IO.Path.Combine(dependencyFolder, System.IO.Path.GetFileName(src));
+                                    File.Copy(src, destPath, true);
+                                }
+                            }
+                            catch (Exception copyEx)
+                            {
+                                LogHelper.WriteLogToFile($"复制依赖文件失败 [{src}]: {copyEx.Message}", LogHelper.LogType.Error);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile($"后台保存文档页失败: {ex.Message}", LogHelper.LogType.Error);
+                }
+            });
+        }
+
+        /// <summary>
+        /// 在 UI 线程收集需要复制到 File Dependency 子文件夹的依赖文件（图像/媒体源路径）。
+        /// 仅收集路径字符串，不执行磁盘 IO，因此可在 UI 线程安全调用。
+        /// 关键：剔除「文档分块照片」——其源已经是持久化的缓存文件（photo.png / chunk_*.png），
+        /// 保存的 .xaml 直接引用该缓存路径，无需复制整张长图（避免卡顿与重复存储）。
+        /// </summary>
+        private System.Collections.Generic.List<string> CollectDocumentPageDependencyFiles(InkCanvas serializableCanvas)
+        {
+            var list = new System.Collections.Generic.List<string>();
+            try
+            {
+                foreach (UIElement element in serializableCanvas.Children)
+                {
+                    if (element is System.Windows.Controls.Image image && image.Source is BitmapImage bitmapImage && bitmapImage.UriSource != null)
+                    {
+                        string tag = image.Tag as string;
+                        // 文档分块照片（Tag 形如「文档路径#块序号」）：源已持久化，跳过拷贝
+                        if (!string.IsNullOrEmpty(tag) && IsDocumentFilePath(StripChunkSuffix(tag)))
+                            continue;
+                        try { list.Add(bitmapImage.UriSource.LocalPath); } catch { }
+                    }
+                    else if (element is MediaElement mediaElement && mediaElement.Source != null)
+                    {
+                        try { list.Add(mediaElement.Source.LocalPath); } catch { }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"收集文档页依赖文件失败: {ex.Message}", LogHelper.LogType.Error);
+            }
+            return list;
+        }
+
+        /// <summary>
+        /// 在文档页文件夹中查找存在的保存文件基路径。
+        /// 优先匹配当前页码 {pageIndex:0000}，未命中则回退到文件夹内任意页文件（页码可能因重启变化）。
+        /// 返回基路径（不含扩展名），不存在则返回 null。
+        /// </summary>
+        private string FindDocumentPageBasePath(string folderPath, int pageIndex)
+        {
+            if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
+                return null;
+
+            // 1. 优先精确匹配当前页码
+            string basePath = System.IO.Path.Combine(folderPath, pageIndex.ToString("0000"));
+            if (File.Exists(basePath + ".icstk") || File.Exists(basePath + ".xaml"))
+                return basePath;
+
+            // 2. 回退：搜索文件夹内任意页文件
+            try
+            {
+                foreach (var f in Directory.GetFiles(folderPath, "*.icstk"))
+                {
+                    return System.IO.Path.Combine(folderPath, System.IO.Path.GetFileNameWithoutExtension(f));
+                }
+                foreach (var f in Directory.GetFiles(folderPath, "*.xaml"))
+                {
+                    return System.IO.Path.Combine(folderPath, System.IO.Path.GetFileNameWithoutExtension(f));
+                }
+            }
+            catch { }
+            return null;
+        }
+
+        /// <summary>
+        /// 导入文档前检测是否已有对应保存的笔迹/元素，有则自动恢复到当前页。
+        /// 行为与 PPT 幻灯片开始时检测并加载已有墨迹一致。
+        /// 返回是否成功找到并恢复了保存的内容。
+        /// </summary>
+        private bool RestoreDocumentPageIfSavedInternal(string sourceFilePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(sourceFilePath))
+                    return false;
+
+                string folderPath = GetDocumentPageFolderPath(sourceFilePath);
+                if (string.IsNullOrEmpty(folderPath)) return false;
+
+                int pageIndex = GetCurrentPageIndex();
+                // 页码可能因重启变化，回退搜索文件夹内任意页文件
+                string basePathName = FindDocumentPageBasePath(folderPath, pageIndex);
+                if (basePathName == null)
+                    return false;
+
+                // 建立/更新页码与文档的映射关系
+                pageDocumentMapping[pageIndex] = sourceFilePath;
+                // 清空当前页已有内容，然后从文件恢复（与 PPT 检测到已有墨迹后加载的行为一致）
+                RestoreDocumentPageIfAvailable(pageIndex);
+
+                // 若照片列表中没有该文档的照片，从画布上恢复的图片中提取并添加到侧栏
+                if (!capturedPhotos.Any(p =>
+                    !string.IsNullOrEmpty(p.SourceFilePath) &&
+                    string.Equals(p.SourceFilePath, sourceFilePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    TryRestorePhotoToSidebarFromCanvas(sourceFilePath);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"RestoreDocumentPageIfSaved 失败: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 从当前画布上查找 Tag 匹配 sourceFilePath 的文档图片，将其添加到照片侧栏。
+        /// 用于照片列表被清空但画布已从文件恢复的场景。
+        /// </summary>
+        private void TryRestorePhotoToSidebarFromCanvas(string sourceFilePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(sourceFilePath)) return;
+                foreach (UIElement child in inkCanvas.Children)
+                {
+                    if (child is System.Windows.Controls.Image img &&
+                        img.Tag is string tag &&
+                        string.Equals(tag, sourceFilePath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (img.Source is BitmapSource bs)
+                        {
+                            // 转为 BitmapImage 并添加到侧栏
+                            var encoder = new PngBitmapEncoder();
+                            encoder.Frames.Add(BitmapFrame.Create(bs));
+                            using (var ms = new MemoryStream())
+                            {
+                                encoder.Save(ms);
+                                ms.Position = 0;
+                                var bi = new BitmapImage();
+                                bi.BeginInit();
+                                bi.CacheOption = BitmapCacheOption.OnLoad;
+                                bi.StreamSource = ms;
+                                bi.EndInit();
+                                bi.Freeze();
+                                AddCapturedPhoto(bi, sourceFilePath);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"从画布恢复照片到侧栏失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 尝试从文件名对应文件夹加载指定页的文档内容。
+        /// 加载方式与 PPT 笔迹保存保持一致：
+        /// - 墨迹从 {pageIndex:0000}.icstk 加载（页码不匹配时回退到文件夹内任意页文件）
+        /// - UI 元素从 {pageIndex:0000}.xaml 加载（同上）
+        /// - 依赖文件从本文件夹下的 File Dependency 子文件夹加载
+        /// 如果加载成功，会清空当前画布并覆盖为保存的内容，同时清空该页内存历史。
+        /// 返回是否成功找到并加载了文档页。
+        /// </summary>
+        private bool RestoreDocumentPageIfAvailable(int pageIndex)
+        {
+            try
+            {
+                if (!pageDocumentMapping.TryGetValue(pageIndex, out string sourceFilePath) ||
+                    string.IsNullOrEmpty(sourceFilePath))
+                {
+                    LogHelper.WriteLogToFile($"[诊断] 文档页恢复：页 {pageIndex} 无文档映射，跳过", LogHelper.LogType.Trace);
+                    return false;
+                }
+
+                string folderPath = GetDocumentPageFolderPath(sourceFilePath);
+                if (string.IsNullOrEmpty(folderPath)) return false;
+
+                // 页码可能因重启变化，回退搜索文件夹内任意页文件
+                string baseFilePath = FindDocumentPageBasePath(folderPath, pageIndex);
+                if (baseFilePath == null)
+                {
+                    LogHelper.WriteLogToFile($"[诊断] 文档页恢复：页 {pageIndex} 文件夹 {folderPath} 找不到页文件", LogHelper.LogType.Trace);
+                    return false;
+                }
+
+                string strokesFilePath = baseFilePath + ".icstk";
+                string elementsFilePath = baseFilePath + ".xaml";
+
+                // 换页/重进时，SaveDocumentPageIfNeeded 是异步后台写盘，可能还未完成。
+                // 等待 .xaml/.icstk 正式文件出现且对应 .tmp 消失（写盘完成），
+                // 避免读到半写的旧文件或误判“磁盘恢复失败”而走内存重建。
+                // 退出白板后立即重进时，等待能给后台写盘留出完成时间，保证走完整的 XAML 恢复路径。
+                bool hasStrokes = false;
+                bool hasElements = false;
+                DateTime saveDeadline = DateTime.UtcNow.AddMilliseconds(1500);
+                while (DateTime.UtcNow < saveDeadline)
+                {
+                    hasStrokes = File.Exists(strokesFilePath);
+                    hasElements = File.Exists(elementsFilePath);
+                    bool strokesReady = hasStrokes && !File.Exists(strokesFilePath + ".tmp");
+                    bool elementsReady = hasElements && !File.Exists(elementsFilePath + ".tmp");
+                    // 两个文件都就绪（或题图文件已就绪）即视为保存完成
+                    if (elementsReady && strokesReady) break;
+                    if (hasStrokes || hasElements) break; // 已有文件，不再等待
+                    System.Threading.Thread.Sleep(60);
+                }
+                if (!hasStrokes && !hasElements) return false;
+
+                // 先加载到临时对象，全部成功后再替换画布。
+                // 避免加载中途失败时已插入的照片被清空、随后空内容又覆盖保存文件。
+                StrokeCollection loadedStrokes = null;
+                var loadedElements = new List<UIElement>();
+
+                // 加载墨迹（与 PPT 的 .icstk 格式一致）
+                if (hasStrokes)
+                {
+                    using (var fs = new FileStream(strokesFilePath, FileMode.Open, FileAccess.Read))
+                    {
+                        loadedStrokes = new StrokeCollection(fs);
+                    }
+                }
+
+                // 加载 UI 元素（单个子元素失败不影响其他元素）
+                if (hasElements)
+                {
+                    string xamlText;
+                    using (var fs = new FileStream(elementsFilePath, FileMode.Open, FileAccess.Read))
+                    using (var sr = new StreamReader(fs))
+                    {
+                        xamlText = sr.ReadToEnd();
+                    }
+
+                    // 旧版保存文件可能因同毫秒多瓦片而含重复的 photo_ 名称，
+                    // 整体加载会因「在此范围中注册重复的名称」抛异常，
+                    // 先在文本层面为每个 photo_ 名称附加自增序号，保证唯一后再解析。
+                    xamlText = SanitizeDuplicatePhotoNames(xamlText);
+
+                    InkCanvas loadedCanvas = null;
+                    try
+                    {
+                        using (var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(xamlText)))
+                        {
+                            loadedCanvas = XamlReader.Load(ms) as InkCanvas;
+                        }
+                    }
+                    catch (Exception topEx)
+                    {
+                        LogHelper.WriteLogToFile($"恢复文档页整体加载失败: {topEx.Message}", LogHelper.LogType.Warning);
+                        // 整体解析失败说明 XAML 文件损坏（如后台写入时进程退出导致被截断）。
+                        // 不直接删除原文件，改为将损坏文件移动或另存为 .corrupt 以便后续人工分析与恢复，防止数据丢失。
+                        try
+                        {
+                            string corruptPath = elementsFilePath + ".corrupt";
+                            if (File.Exists(elementsFilePath))
+                            {
+                                try
+                                {
+                                    File.Move(elementsFilePath, corruptPath);
+                                    LogHelper.WriteLogToFile($"已移动损坏的文档页元素文件到: {corruptPath}", LogHelper.LogType.Warning);
+                                }
+                                catch
+                                {
+                                    // 如果无法移动，尝试以读取到的文本保存为 .corrupt，然后删除原文件以避免重复报错
+                                    File.WriteAllText(corruptPath, xamlText ?? string.Empty, System.Text.Encoding.UTF8);
+                                    LogHelper.WriteLogToFile($"无法移动文件，已将 XAML 内容另存为: {corruptPath}", LogHelper.LogType.Warning);
+                                    try { File.Delete(elementsFilePath); } catch { }
+                                }
+                            }
+                            else
+                            {
+                                File.WriteAllText(corruptPath, xamlText ?? string.Empty, System.Text.Encoding.UTF8);
+                                LogHelper.WriteLogToFile($"已将损坏的 XAML 内容保存为: {corruptPath}", LogHelper.LogType.Warning);
+                            }
+                        }
+                        catch (Exception ex2)
+                        {
+                            LogHelper.WriteLogToFile($"处理损坏文档页文件时出错: {ex2.Message}", LogHelper.LogType.Warning);
+                        }
+                    }
+
+                    if (loadedCanvas != null)
+                    {
+                        foreach (UIElement child in loadedCanvas.Children)
+                        {
+                            try
+                            {
+                                var xaml = XamlWriter.Save(child);
+                                UIElement clonedChild = (UIElement)XamlReader.Parse(xaml);
+                                if (clonedChild is System.Windows.Controls.Image image)
+                                {
+                                    FixLoadedImageSource(image, folderPath);
+                                    // 兜底：文档照片图片源失效时，强制使用缓存的 photo.png
+                                    if (image.Name != null && image.Name.StartsWith("photo_") &&
+                                        !HasValidImageSource(image) && IsDocumentFilePath(StripChunkSuffix(sourceFilePath)))
+                                    {
+                                        TrySetImageSourceFromDocumentCache(image, sourceFilePath);
+                                    }
+                                }
+                                if (clonedChild is MediaElement mediaElement)
+                                {
+                                    mediaElement.LoadedBehavior = MediaState.Manual;
+                                    mediaElement.UnloadedBehavior = MediaState.Manual;
+                                    mediaElement.Loaded += (_, __) => { mediaElement.Play(); };
+                                }
+                                loadedElements.Add(clonedChild);
+                            }
+                            catch (Exception childEx)
+                            {
+                                LogHelper.WriteLogToFile($"恢复文档页子元素失败: {childEx.Message}", LogHelper.LogType.Warning);
+                            }
+                        }
+                    }
+                }
+
+                // 文档页必须包含照片：若恢复内容中没有照片元素（保存文件为空/损坏），
+                // 用缓存的 photo.png 重建居中的照片元素，保证文档页一定能显示照片
+                bool hasPhotoElement = false;
+                foreach (var el in loadedElements)
+                {
+                    if (el is System.Windows.Controls.Image img && img.Name != null && img.Name.StartsWith("photo_"))
+                    {
+                        hasPhotoElement = true;
+                        break;
+                    }
+                }
+                if (!hasPhotoElement && IsDocumentFilePath(StripChunkSuffix(sourceFilePath)))
+                {
+                    string docPathForRebuild = StripChunkSuffix(sourceFilePath);
+                    // 多块瓦片长图：必须展开所有瓦片，单张 CreateDocumentPhotoImageElement 只能构造一张，
+                    // 会导致其他瓦片丢失（表现为“照片消失”）。这里复用瓦片插入逻辑展开所有瓦片。
+                    var tilesForRebuild = GetDocumentTiles(docPathForRebuild);
+                    if (tilesForRebuild.Count > 1)
+                    {
+                        int maxW = tilesForRebuild.Max(t => t.PixelWidth);
+                        double canvasWidth = inkCanvas.ActualWidth;
+                        if (canvasWidth <= 0) canvasWidth = SystemParameters.PrimaryScreenWidth;
+                        double left = Math.Round(Math.Max(0, (canvasWidth - maxW) / 2.0));
+                        double top = 0;
+                        foreach (var tile in tilesForRebuild)
+                        {
+                            var tileImg = new System.Windows.Controls.Image
+                            {
+                                Source = CreateBitmapImageFromFileOrMemory(tile),
+                                Width = tile.PixelWidth,
+                                Height = tile.PixelHeight,
+                                Name = GeneratePhotoName(),
+                                Tag = tile.SourceFilePath,
+                                SnapsToDevicePixels = true,
+                                UseLayoutRounding = true
+                            };
+                            System.Windows.Media.RenderOptions.SetBitmapScalingMode(tileImg, System.Windows.Media.BitmapScalingMode.HighQuality);
+                            InkCanvas.SetLeft(tileImg, left);
+                            InkCanvas.SetTop(tileImg, Math.Round(top));
+                            loadedElements.Add(tileImg);
+                            top += tile.PixelHeight;
+                        }
+                        LogHelper.WriteLogToFile($"文档页保存内容缺少照片元素，已从内存瓦片重建 {tilesForRebuild.Count} 张瓦片: {docPathForRebuild}", LogHelper.LogType.Trace);
+                    }
+                    else
+                    {
+                        var rebuilt = CreateDocumentPhotoImageElement(sourceFilePath);
+                        if (rebuilt != null)
+                        {
+                            loadedElements.Add(rebuilt);
+                            LogHelper.WriteLogToFile($"文档页保存内容缺少照片元素，已从缓存重建: {sourceFilePath}", LogHelper.LogType.Trace);
+                        }
+                    }
+                }
+
+                if (loadedStrokes == null && loadedElements.Count == 0) return false;
+
+                // 全部加载完成，替换当前画布内容。
+                // 必须标记为 CodeInput：进入白板/换页时模式切换过渡窗口已开启，
+                // 若不标记，恢复的笔迹会被 StrokesOnStrokesChanged 误判为“残留用户笔迹”而拦截删除（白板笔迹消失）。
+                _currentCommitType = CommitReason.CodeInput;
+                inkCanvas.Strokes.Clear();
+                inkCanvas.Children.Clear();
+                currentPhotoImage = null;
+                currentCameraImage = null;
+
+                if (loadedStrokes != null)
+                {
+                    inkCanvas.Strokes.Add(loadedStrokes);
+                }
+                foreach (var el in loadedElements)
+                {
+                    // 恢复 currentPhotoImage 引用，确保后续翻页/操作能正确识别画板上的照片
+                    if (el is System.Windows.Controls.Image img && img.Name != null && img.Name.StartsWith("photo_"))
+                    {
+                        currentPhotoImage = img;
+                    }
+                    inkCanvas.Children.Add(el);
+                }
+                _currentCommitType = CommitReason.UserInput;
+
+                // 文档页恢复后，重进白板时画布宽度可能与插入时不同，
+                // 沿用 XAML 中保存的 Left 会导致瓦片水平偏移。按当前画布宽度
+                // 重新计算文档瓦片的水平居中位置，垂直方向按顺序累加堆叠。
+                RecenterDocumentTilesOnCanvas(sourceFilePath);
+
+                // 该页使用文件作为真相，清空内存历史避免 RestoreStrokes 重复加载
+                TimeMachineHistories[pageIndex] = null;
+
+                LogHelper.WriteLogToFile($"已恢复文档页内容: {baseFilePath}（笔迹 {inkCanvas.Strokes.Count}，元素 {inkCanvas.Children.Count}，元素文件 {Path.GetFileName(elementsFilePath)}）", LogHelper.LogType.Trace);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"恢复文档页内容失败: {ex.Message}", LogHelper.LogType.Error);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 将画布上属于指定文档路径的所有瓦片照片按当前画布宽度重新水平居中，
+        /// 并按 child 顺序自顶向下垂直堆叠。重进白板时画布尺寸可能与插入时不同，
+        /// 直接使用 XAML 中保存的 Left 会导致水平偏移；这里统一重算。
+        /// </summary>
+        private void RecenterDocumentTilesOnCanvas(string sourceFilePath)
+        {
+            try
+            {
+                if (inkCanvas == null) return;
+                string docPath = StripChunkSuffix(sourceFilePath);
+                if (string.IsNullOrEmpty(docPath) || !IsDocumentFilePath(docPath)) return;
+
+                // 按 child 顺序收集所有属于该文档的瓦片 Image（保持原垂直顺序）
+                var tiles = new List<System.Windows.Controls.Image>();
+                foreach (var child in inkCanvas.Children)
+                {
+                    if (child is System.Windows.Controls.Image img &&
+                        img.Tag is string tag &&
+                        !string.IsNullOrEmpty(tag) &&
+                        string.Equals(StripChunkSuffix(tag), docPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        tiles.Add(img);
+                    }
+                }
+                if (tiles.Count == 0) return;
+
+                // 水平居中以最宽瓦片为基准，垂直方向按当前 child 顺序累加高度
+                double maxW = 0;
+                foreach (var t in tiles)
+                {
+                    double w = t.Width > 0 ? t.Width : (t.Source as BitmapSource)?.PixelWidth ?? 0;
+                    if (w > maxW) maxW = w;
+                }
+                if (maxW <= 0) return;
+
+                double canvasWidth = inkCanvas.ActualWidth;
+                if (canvasWidth <= 0)
+                {
+                    // 进入白板时画布可能尚未完成布局，ActualWidth 为 0。
+                    // 等待一次 LayoutUpdated 后再重算，避免用主屏宽度误算导致水平偏移。
+                    EventHandler layoutHandler = null;
+                    layoutHandler = (s, e) =>
+                    {
+                        if (inkCanvas.ActualWidth <= 0) return;
+                        inkCanvas.LayoutUpdated -= layoutHandler;
+                        RecenterDocumentTilesOnCanvas(sourceFilePath);
+                    };
+                    inkCanvas.LayoutUpdated += layoutHandler;
+                    return;
+                }
+                double left = Math.Round(Math.Max(0, (canvasWidth - maxW) / 2.0));
+                double top = 0;
+                foreach (var t in tiles)
+                {
+                    double h = t.Height > 0 ? t.Height : (t.Source as BitmapSource)?.PixelHeight ?? 0;
+                    InkCanvas.SetLeft(t, left);
+                    InkCanvas.SetTop(t, Math.Round(top));
+                    top += h;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"重定位文档瓦片位置失败: {ex.Message}", LogHelper.LogType.Warning);
+            }
+        }
+
+        /// <summary>
+        /// 修正从文件加载的 Image 源路径。
+        /// 若指定了 baseFolder，则优先在该文件夹及其 File Dependency 子文件夹中查找。
+        /// </summary>
+        private void FixLoadedImageSource(System.Windows.Controls.Image image, string baseFolder = null)
+        {
+            try
+            {
+                if (!(image.Source is BitmapImage bmi)) return;
+
+                var uri = bmi.UriSource;
+                bool needFix = uri == null || (uri != null && !File.Exists(uri.LocalPath));
+                if (!needFix) return;
+
+                string candidate = null;
+                string tagPath = image.Tag as string;
+                if (!string.IsNullOrEmpty(tagPath))
+                {
+                    if (!string.IsNullOrEmpty(baseFolder))
+                    {
+                        candidate = System.IO.Path.Combine(baseFolder, tagPath.Replace('/', '\\'));
+                        if (!File.Exists(candidate))
+                        {
+                            candidate = System.IO.Path.Combine(baseFolder, "File Dependency", System.IO.Path.GetFileName(tagPath));
+                        }
+                    }
+                    if (string.IsNullOrEmpty(candidate) || !File.Exists(candidate))
+                    {
+                        candidate = System.IO.Path.Combine(Settings.Automation.AutoSavedStrokesLocation, tagPath.Replace('/', '\\'));
+                        if (!File.Exists(candidate))
+                        {
+                            candidate = System.IO.Path.Combine(Settings.Automation.AutoSavedStrokesLocation, "File Dependency", System.IO.Path.GetFileName(tagPath));
+                        }
+                    }
+                }
+
+                if ((candidate == null || !File.Exists(candidate)) && uri != null)
+                {
+                    string fname = System.IO.Path.GetFileName(uri.LocalPath);
+                    if (!string.IsNullOrEmpty(fname))
+                    {
+                        if (!string.IsNullOrEmpty(baseFolder))
+                        {
+                            var fd = System.IO.Path.Combine(baseFolder, "File Dependency");
+                            var tryPath = System.IO.Path.Combine(fd, fname);
+                            if (File.Exists(tryPath)) candidate = tryPath;
+                        }
+                        if (candidate == null || !File.Exists(candidate))
+                        {
+                            var fd = System.IO.Path.Combine(Settings.Automation.AutoSavedStrokesLocation, "File Dependency");
+                            var tryPath = System.IO.Path.Combine(fd, fname);
+                            if (File.Exists(tryPath)) candidate = tryPath;
+                        }
+                    }
+                }
+
+                if (candidate != null && File.Exists(candidate))
+                {
+                    var bi2 = new BitmapImage();
+                    bi2.BeginInit();
+                    bi2.UriSource = new Uri(candidate, UriKind.Absolute);
+                    bi2.CacheOption = BitmapCacheOption.OnLoad;
+                    bi2.EndInit();
+                    bi2.Freeze();
+                    image.Source = bi2;
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 获取指定文档来源路径对应的保存文件夹。
+        /// 文件夹结构：AutoSavedStrokesLocation\Auto Saved - Documents\{safeFileName}
+        /// </summary>
+        private string GetDocumentPageFolderPath(string sourceFilePath)
+        {
+            if (string.IsNullOrEmpty(sourceFilePath)) return null;
+            string safeFileName = SanitizePathSegment(System.IO.Path.GetFileNameWithoutExtension(sourceFilePath));
+            if (string.IsNullOrEmpty(safeFileName)) safeFileName = "Untitled";
+            return System.IO.Path.Combine(
+                Settings.Automation.AutoSavedStrokesLocation,
+                "Auto Saved - Documents",
+                safeFileName);
+        }
+
+        /// <summary>文档照片本地缓存的状态</summary>
+        private enum DocumentPhotoCacheState
+        {
+            /// <summary>本地没有转换缓存（或缓存文件不完整）</summary>
+            Missing,
+            /// <summary>缓存有效：同名文档且文件未被修改</summary>
+            Valid,
+            /// <summary>同名同路径文档，但文件内容已被修改，需要重新转换并替换原照片（保留笔迹）</summary>
+            ModifiedSameDocument,
+            /// <summary>同名但来源路径不同的另一份文档，需要重新转换并清除旧笔迹</summary>
+            DifferentDocument
+        }
+
+        /// <summary>
+        /// 打开文档（带本地转换缓存检查）：
+        /// 1. 照片列表中已有该文档照片 → 直接返回；
+        /// 2. 磁盘缓存有效（同名且未修改）→ 从缓存文件夹加载照片到照片列表；
+        /// 3. 未转换过 / 同名但已修改 → 触发插件自动转换，完成后自动存储缓存并插入照片列表。
+        /// </summary>
+        public void OpenDocumentWithPhotoCache(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
+
+                // 1. 内存照片列表中已有该文档照片，无需重复加载/转换
+                //    （分块照片来源路径带 "#块序号"，需剥离后按文档识别）
+                if (capturedPhotos.Any(p =>
+                    !string.IsNullOrEmpty(p.SourceFilePath) &&
+                    string.Equals(StripChunkSuffix(p.SourceFilePath), filePath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    ShowNotificationAsync("该文档照片已在照片列表中", true);
+                    return;
+                }
+
+                var cacheState = GetDocumentPhotoCacheState(filePath);
+                if (cacheState == DocumentPhotoCacheState.Valid)
+                {
+                    // 2. 已转换过且未修改：直接从缓存文件夹加载到照片列表
+                    if (TryLoadDocumentPhotoFromCache(filePath))
+                    {
+                        // 让插件继续监视该文档的外部修改（不触发转换）
+                        try { Plugins.PluginHost.Instance?.TriggerRoute("document-watch", filePath); } catch { }
+                        ShowNotificationAsync("已从本地缓存加载该文档照片", true);
+                        return;
+                    }
+                }
+                else if (cacheState == DocumentPhotoCacheState.DifferentDocument)
+                {
+                    // 同名但路径不同的另一份文档：清除旧文档保存的笔迹/元素，避免串用
+                    ClearDocumentPageSavedFiles(filePath);
+                }
+                else if (cacheState == DocumentPhotoCacheState.ModifiedSameDocument)
+                {
+                    // 同名文档已修改：移除内存中该文档的旧照片并清理旧分块缓存，
+                    // 确保重新转换后照片列表与磁盘缓存一致（保留笔迹，笔迹由文档页保存文件管理）
+                    RemoveDocumentPhotosFromList(filePath);
+                    ClearDocumentChunkCache(filePath);
+                }
+
+                // 3. 未转换 / 已修改（ModifiedSameDocument 会重新转换并替换原照片，保留笔迹）
+                var host = Plugins.PluginHost.Instance;
+                if (host == null || !host.IsRouteAvailable("document-open"))
+                {
+                    MessageBox.Show("未安装文档查看器插件，请前往插件工坊安装。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                host.TriggerRoute("document-open", filePath);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"打开文档（缓存检查）失败: {ex.Message}", LogHelper.LogType.Error);
+            }
+        }
+
+        /// <summary>文档转换照片的缓存文件路径（存放在对应文档的保存文件夹内）</summary>
+        private string GetDocumentPhotoCacheFilePath(string sourceFilePath)
+        {
+            string folder = GetDocumentPageFolderPath(sourceFilePath);
+            return string.IsNullOrEmpty(folder) ? null : System.IO.Path.Combine(folder, "photo.png");
+        }
+
+        /// <summary>文档某分块瓦片的缓存文件路径（chunk_{N}.png，N 为块序号）</summary>
+        private string GetDocumentChunkCacheFilePath(string sourceFilePath)
+        {
+            // 传入的是带 "#块序号" 的来源路径
+            if (string.IsNullOrEmpty(sourceFilePath)) return null;
+            int chunkIndex = GetChunkIndex(sourceFilePath);
+            string folder = GetDocumentPageFolderPath(StripChunkSuffix(sourceFilePath));
+            return string.IsNullOrEmpty(folder) ? null : System.IO.Path.Combine(folder, $"chunk_{chunkIndex}.png");
+        }
+
+        /// <summary>文档转换缓存的元信息文件路径（记录来源路径、最后修改时间、文件长度）</summary>
+        private string GetDocumentPhotoMetaFilePath(string sourceFilePath)
+        {
+            string folder = GetDocumentPageFolderPath(sourceFilePath);
+            return string.IsNullOrEmpty(folder) ? null : System.IO.Path.Combine(folder, "photo.meta");
+        }
+
+        /// <summary>
+        /// 判断文档照片的本地缓存状态：不存在 / 有效 / 同名文档已修改 / 同名不同文档。
+        /// 支持两类缓存：单块文档使用 photo.png；多块文档使用 chunk_0.png / chunk_1.png ...。
+        /// </summary>
+        private DocumentPhotoCacheState GetDocumentPhotoCacheState(string sourceFilePath)
+        {
+            try
+            {
+                string metaPath = GetDocumentPhotoMetaFilePath(sourceFilePath);
+                if (string.IsNullOrEmpty(metaPath) || !File.Exists(metaPath))
+                {
+                    return DocumentPhotoCacheState.Missing;
+                }
+
+                // 判断是单块（photo.png）还是多块（chunk_*.png）缓存
+                string photoPath = GetDocumentPhotoCacheFilePath(sourceFilePath);
+                bool hasSinglePhoto = !string.IsNullOrEmpty(photoPath) && File.Exists(photoPath);
+                string folder = GetDocumentPageFolderPath(sourceFilePath);
+                var chunkFiles = (hasSinglePhoto == false && !string.IsNullOrEmpty(folder) && Directory.Exists(folder))
+                    ? Directory.GetFiles(folder, "chunk_*.png")
+                    : new string[0];
+
+                if (!hasSinglePhoto && chunkFiles.Length == 0)
+                {
+                    return DocumentPhotoCacheState.Missing;
+                }
+
+                var lines = File.ReadAllLines(metaPath);
+                if (lines.Length < 3) return DocumentPhotoCacheState.Missing;
+
+                // 同名但来源路径不同：视为另一份文档
+                string savedSource = lines[0].Trim();
+                if (!string.Equals(savedSource, sourceFilePath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return DocumentPhotoCacheState.DifferentDocument;
+                }
+
+                // 同名同路径：对比最后修改时间与文件长度，判断文档是否被修改过
+                var fi = new FileInfo(sourceFilePath);
+                long savedTicks = long.TryParse(lines[1].Trim(), out long t) ? t : 0;
+                long savedLength = long.TryParse(lines[2].Trim(), out long l) ? l : -1;
+                if (savedTicks == fi.LastWriteTimeUtc.Ticks && savedLength == fi.Length)
+                {
+                    return DocumentPhotoCacheState.Valid;
+                }
+                return DocumentPhotoCacheState.ModifiedSameDocument;
+            }
+            catch
+            {
+                return DocumentPhotoCacheState.Missing;
+            }
+        }
+
+        /// <summary>从本地缓存文件夹加载文档照片到照片列表（不重新转换）。支持单块（photo.png）与多块（chunk_*.png）缓存。</summary>
+        private bool TryLoadDocumentPhotoFromCache(string sourceFilePath)
+        {
+            try
+            {
+                string photoPath = GetDocumentPhotoCacheFilePath(sourceFilePath);
+                if (!string.IsNullOrEmpty(photoPath) && File.Exists(photoPath))
+                {
+                    var bi = new BitmapImage();
+                    bi.BeginInit();
+                    bi.UriSource = new Uri(photoPath, UriKind.Absolute);
+                    bi.CacheOption = BitmapCacheOption.OnLoad;
+                    bi.EndInit();
+                    bi.Freeze();
+
+                    var ci = new CapturedImage(bi, photoPath, sourceFilePath);
+                    capturedPhotos.Insert(0, ci);
+                    // 侧栏仅显示文档图标+文件名，全分辨率位图无需常驻，立即释放以节省内存
+                    // （之后插入画板时由 CreateBitmapImageFromFileOrMemory 从缓存文件按需重新加载）
+                    if (!ci.IsVideo) ci.ReleaseImageMemory();
+                    UpdateCapturedPhotosDisplay();
+                    Console.WriteLine($"已从缓存加载文档照片: {sourceFilePath}");
+                    return true;
+                }
+
+                // 多块文档：加载所有 chunk_*.png，按块序号升序加入照片列表
+                string folder = GetDocumentPageFolderPath(sourceFilePath);
+                if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder)) return false;
+
+                var chunkPaths = Directory.GetFiles(folder, "chunk_*.png")
+                    .OrderBy(f => GetChunkIndexFromFileName(Path.GetFileName(f)))
+                    .ToList();
+                if (chunkPaths.Count == 0) return false;
+
+                foreach (var chunkPath in chunkPaths)
+                {
+                    int chunkIndex = GetChunkIndexFromFileName(Path.GetFileName(chunkPath));
+                    string chunkSource = $"{sourceFilePath}#{chunkIndex}";
+                    var bi = new BitmapImage();
+                    bi.BeginInit();
+                    bi.UriSource = new Uri(chunkPath, UriKind.Absolute);
+                    bi.CacheOption = BitmapCacheOption.OnLoad;
+                    bi.EndInit();
+                    bi.Freeze();
+
+                    var ci = new CapturedImage(bi, chunkPath, chunkSource);
+                    capturedPhotos.Insert(0, ci);
+                    // 侧栏仅显示文档图标+文件名，全分辨率位图无需常驻，立即释放以节省内存
+                    if (!ci.IsVideo) ci.ReleaseImageMemory();
+                    Console.WriteLine($"已从缓存加载文档分块照片: {chunkSource}");
+                }
+
+                UpdateCapturedPhotosDisplay();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"从缓存加载文档照片失败: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>从缓存文件名（chunk_{N}.png）解析块序号 N。</summary>
+        private static int GetChunkIndexFromFileName(string fileName)
+        {
+            if (string.IsNullOrEmpty(fileName)) return 0;
+            string name = Path.GetFileNameWithoutExtension(fileName);
+            if (name.StartsWith("chunk_") && int.TryParse(name.Substring("chunk_".Length), out int idx))
+                return idx;
+            return 0;
+        }
+
+        /// <summary>
+        /// 将文档转换的照片写入本地缓存（photo.png，重名则替换原照片），
+        /// 并写入 photo.meta（来源路径 + 最后修改时间 + 文件长度）用于同名修改检测。
+        /// 缓存文件夹与该文档笔迹保存文件夹相同。
+        /// </summary>
+        private string SaveDocumentPhotoToCache(string sourceFilePath, BitmapImage image)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(sourceFilePath) || image == null) return null;
+                string folderPath = GetDocumentPageFolderPath(sourceFilePath);
+                if (string.IsNullOrEmpty(folderPath)) return null;
+                if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
+
+                string photoPath = GetDocumentPhotoCacheFilePath(sourceFilePath);
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(image));
+                using (var fs = new FileStream(photoPath, FileMode.Create, FileAccess.Write))
+                {
+                    encoder.Save(fs);
+                }
+
+                // 元信息：用于下次打开时判断同名文档是否已被修改
+                try
+                {
+                    var fi = new FileInfo(sourceFilePath);
+                    File.WriteAllLines(GetDocumentPhotoMetaFilePath(sourceFilePath), new[]
+                    {
+                        sourceFilePath,
+                        fi.LastWriteTimeUtc.Ticks.ToString(),
+                        fi.Length.ToString()
+                    });
+                }
+                catch { }
+
+                return photoPath;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"保存文档照片缓存失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 将文档分块瓦片写入本地缓存（chunk_{N}.png，N 为块序号），
+        /// 并写入 photo.meta（来源路径 + 最后修改时间 + 文件长度）用于同名修改检测。
+        /// 使多块文档下次打开时可直接从硬盘加载，仅当文档被修改时才重新转换。
+        /// </summary>
+        private string SaveDocumentChunkToCache(string chunkSourceFilePath, BitmapImage image)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(chunkSourceFilePath) || image == null) return null;
+                string docPath = StripChunkSuffix(chunkSourceFilePath);
+                string chunkPath = GetDocumentChunkCacheFilePath(chunkSourceFilePath);
+                if (string.IsNullOrEmpty(chunkPath)) return null;
+
+                string folderPath = GetDocumentPageFolderPath(docPath);
+                if (string.IsNullOrEmpty(folderPath)) return null;
+                if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
+
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(image));
+                using (var fs = new FileStream(chunkPath, FileMode.Create, FileAccess.Write))
+                {
+                    encoder.Save(fs);
+                }
+
+                // 元信息：用于下次打开时判断同名文档是否已被修改
+                try
+                {
+                    var fi = new FileInfo(docPath);
+                    File.WriteAllLines(GetDocumentPhotoMetaFilePath(docPath), new[]
+                    {
+                        docPath,
+                        fi.LastWriteTimeUtc.Ticks.ToString(),
+                        fi.Length.ToString()
+                    });
+                }
+                catch { }
+
+                Console.WriteLine($"已保存文档分块缓存: {chunkPath}");
+                return chunkPath;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"保存文档分块缓存失败: {ex.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>清除指定文档文件夹下已保存的笔迹/元素文件（同名不同文档时使用，避免串用旧笔迹）</summary>
+        private void ClearDocumentPageSavedFiles(string sourceFilePath)
+        {
+            try
+            {
+                string folderPath = GetDocumentPageFolderPath(sourceFilePath);
+                if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath)) return;
+                foreach (var f in Directory.GetFiles(folderPath, "*.icstk")) File.Delete(f);
+                foreach (var f in Directory.GetFiles(folderPath, "*.xaml")) File.Delete(f);
+            }
+            catch { }
+        }
+
+        /// <summary>从照片列表中移除指定文档的所有照片（含分块瓦片），用于文档被修改后重新转换前清理旧照片。</summary>
+        private void RemoveDocumentPhotosFromList(string sourceFilePath)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(sourceFilePath)) return;
+                var toRemove = capturedPhotos
+                    .Where(p => !string.IsNullOrEmpty(p.SourceFilePath) &&
+                                string.Equals(StripChunkSuffix(p.SourceFilePath), sourceFilePath, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
+                foreach (var photo in toRemove)
+                {
+                    capturedPhotos.Remove(photo);
+                    // 若移除的是当前选中的照片，清理选中状态
+                    if (!string.IsNullOrEmpty(selectedPhotoTimestamp) && selectedPhotoTimestamp == photo.Timestamp)
+                    {
+                        selectedPhotoTimestamp = null;
+                    }
+                }
+                if (toRemove.Count > 0)
+                {
+                    UpdateCapturedPhotosDisplay();
+                    Console.WriteLine($"已从照片列表移除文档旧照片: {sourceFilePath}（{toRemove.Count} 张）");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"移除文档旧照片失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>清除指定文档文件夹下的旧分块缓存（chunk_*.png），用于文档被修改后重新转换前清理旧缓存。</summary>
+        private void ClearDocumentChunkCache(string sourceFilePath)
+        {
+            try
+            {
+                string folderPath = GetDocumentPageFolderPath(sourceFilePath);
+                if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath)) return;
+                foreach (var f in Directory.GetFiles(folderPath, "chunk_*.png")) File.Delete(f);
+                // 单块缓存 photo.png 也一并清理，避免与新生成的分块缓存混用
+                string photoPath = GetDocumentPhotoCacheFilePath(sourceFilePath);
+                if (!string.IsNullOrEmpty(photoPath) && File.Exists(photoPath)) File.Delete(photoPath);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 文档照片的插入适配：
+        /// 无论如何都不调整缩放比例，保持照片原始像素尺寸插入，保证文字清晰不糊。
+        /// 水平居中，垂直顶部对齐（超长/超宽时可拖动画面阅读全文）。
+        /// 直接设置元素宽高与位置（不使用 RenderTransform），保证保存/恢复后几何一致。
+        /// </summary>
+        private void CenterAndScaleDocumentPhoto(FrameworkElement element)
+        {
+            double canvasWidth = inkCanvas.ActualWidth;
+            if (canvasWidth <= 0) canvasWidth = SystemParameters.PrimaryScreenWidth;
+
+            // 保持原始尺寸，不缩放，保证清晰。
+            // 坐标取整到像素，避免子像素对齐导致图片被 WPF 隐式反锯齿而模糊。
+            double left = Math.Round((canvasWidth - element.Width) / 2);
+            double top = 0;
+            InkCanvas.SetLeft(element, Math.Max(0, left));
+            InkCanvas.SetTop(element, Math.Max(0, top));
+
+            // 确保元素宽高为整数像素值
+            if (element.Width > 0) element.Width = Math.Round(element.Width);
+            if (element.Height > 0) element.Height = Math.Round(element.Height);
+        }
+
+        /// <summary>检查图片元素是否具有可显示的有效图像源</summary>
+        private bool HasValidImageSource(System.Windows.Controls.Image image)
+        {
+            try
+            {
+                if (image?.Source is BitmapImage bi)
+                {
+                    if (bi.UriSource != null) return File.Exists(bi.UriSource.LocalPath);
+                    return bi.PixelWidth > 0;
+                }
+                if (image?.Source is BitmapSource bs) return bs.PixelWidth > 0;
+                return false;
+            }
+            catch { return false; }
+        }
+
+        /// <summary>图片源失效时，强制使用文档缓存的 photo.png 作为图像源</summary>
+        private void TrySetImageSourceFromDocumentCache(System.Windows.Controls.Image image, string sourceFilePath)
+        {
+            try
+            {
+                string cachePath = GetDocumentPhotoCacheFilePath(sourceFilePath);
+                if (string.IsNullOrEmpty(cachePath) || !File.Exists(cachePath)) return;
+                var bi = new BitmapImage();
+                bi.BeginInit();
+                bi.UriSource = new Uri(cachePath, UriKind.Absolute);
+                bi.CacheOption = BitmapCacheOption.OnLoad;
+                bi.EndInit();
+                bi.Freeze();
+                image.Source = bi;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 从文档缓存的 photo.png 重建居中的照片元素。
+        /// 用于恢复内容中缺失照片元素（保存文件损坏/为空）时兜底，保证文档页一定能显示照片。
+        /// </summary>
+        private System.Windows.Controls.Image CreateDocumentPhotoImageElement(string sourceFilePath)
+        {
+            try
+            {
+                string cachePath = GetDocumentPhotoCacheFilePath(sourceFilePath);
+                if (string.IsNullOrEmpty(cachePath) || !File.Exists(cachePath)) return null;
+                var bi = new BitmapImage();
+                bi.BeginInit();
+                bi.UriSource = new Uri(cachePath, UriKind.Absolute);
+                bi.CacheOption = BitmapCacheOption.OnLoad;
+                bi.EndInit();
+                bi.Freeze();
+
+                var imageElement = new System.Windows.Controls.Image
+                {
+                    Source = bi,
+                    Width = bi.PixelWidth,
+                    Height = bi.PixelHeight,
+                    Name = GeneratePhotoName(),
+                    Tag = sourceFilePath,
+                    Stretch = Stretch.Uniform,
+                    SnapsToDevicePixels = true,
+                    UseLayoutRounding = true
+                };
+                System.Windows.Media.RenderOptions.SetBitmapScalingMode(imageElement, System.Windows.Media.BitmapScalingMode.HighQuality);
+                CenterAndScaleDocumentPhoto(imageElement);
+                return imageElement;
+            }
+            catch { return null; }
         }
 
         private void UpdateCapturedPhotosDisplay()
@@ -1477,8 +3154,27 @@ namespace Ink_Canvas
 
                 capturedPhotosStackPanel.Children.Clear();
 
+                // 已展示过的文档路径集合：同一文档只显示一个条目（文档名 + 文件类型图标），
+                // 其余分块瓦片不再单独占位，点击该条目时自动插入该文档的全部图片。
+                var shownDocuments = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
                 foreach (var photo in capturedPhotos)
                 {
+                    // 文档照片：归并为单一文档条目，列表只显示文档名与文件类型图标
+                    if (IsDocumentPhoto(photo))
+                    {
+                        string docPath = StripChunkSuffix(photo.SourceFilePath);
+                        if (string.IsNullOrEmpty(docPath) || shownDocuments.Contains(docPath)) continue;
+                        shownDocuments.Add(docPath);
+
+                        var docButton = CreateDocumentPhotoButton(docPath);
+                        if (docButton != null)
+                        {
+                            capturedPhotosStackPanel.Children.Add(docButton);
+                        }
+                        continue;
+                    }
+
                     var photoButton = CreatePhotoButton(photo);
                     capturedPhotosStackPanel.Children.Add(photoButton);
                 }
@@ -1528,6 +3224,113 @@ namespace Ink_Canvas
             catch (Exception ex)
             {
                 Console.WriteLine($"同步照片选中显示失败: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// 为文档照片创建侧栏条目：只显示文档名称与文件类型图标（不逐张显示分块瓦片）。
+        /// 点击该条目时自动将该文档的全部图片插入画板。
+        /// </summary>
+        private Button CreateDocumentPhotoButton(string docPath)
+        {
+            try
+            {
+                var tiles = GetDocumentTiles(docPath);
+                if (tiles.Count == 0) return null;
+
+                // 以第一张瓦片作为代表（时间戳/缩略图复用现有照片流程）
+                var firstTile = tiles[0];
+                bool isSelected = selectedPhotoTimestamp != null && selectedPhotoTimestamp == firstTile.Timestamp;
+
+                string ext = System.IO.Path.GetExtension(docPath).ToLowerInvariant();
+                string extLabel = ext.TrimStart('.').ToUpperInvariant();
+                string docName = System.IO.Path.GetFileName(docPath);
+                if (docName.Length > 24) docName = docName.Substring(0, 21) + "...";
+
+                // 文件类型图标色块
+                var iconColor = System.Windows.Media.Color.FromRgb(0x2E, 0x7D, 0x32); // 默认绿色
+                if (ext == ".docx" || ext == ".doc") iconColor = System.Windows.Media.Color.FromRgb(0x2B, 0x57, 0xA1); // Word 蓝
+                else if (ext == ".xls" || ext == ".xlsx") iconColor = System.Windows.Media.Color.FromRgb(0x1E, 0x7B, 0x3C); // Excel 绿
+                else if (ext == ".pdf") iconColor = System.Windows.Media.Color.FromRgb(0xC6, 0x2A, 0x2A); // PDF 红
+
+                var iconBorder = new Border
+                {
+                    Width = 60,
+                    Height = 70,
+                    CornerRadius = new CornerRadius(6),
+                    Background = new SolidColorBrush(iconColor),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Child = new TextBlock
+                    {
+                        Text = extLabel,
+                        Foreground = System.Windows.Media.Brushes.White,
+                        FontSize = 20,
+                        FontWeight = FontWeights.Bold,
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center
+                    }
+                };
+
+                var nameText = new TextBlock
+                {
+                    Text = docName,
+                    FontSize = 13,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xE0, 0xE0, 0xE0, 0xE0)),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 6, 0, 0)
+                };
+
+                var contentStack = new StackPanel
+                {
+                    Orientation = Orientation.Vertical,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center
+                };
+                contentStack.Children.Add(iconBorder);
+                contentStack.Children.Add(nameText);
+
+                var defaultBorderBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0x80, 0x80, 0x80, 0x80));
+                var button = new Button
+                {
+                    Width = 230,
+                    Height = 160,
+                    Margin = new Thickness(3),
+                    Background = System.Windows.Media.Brushes.Transparent,
+                    BorderThickness = isSelected ? new Thickness(4) : new Thickness(1),
+                    BorderBrush = isSelected ? System.Windows.Media.Brushes.SkyBlue : defaultBorderBrush,
+                    Content = contentStack,
+                    Tag = docPath
+                };
+
+                // 点击：自动插入该文档全部图片（分块瓦片按坐标拼接）
+                button.Click += (s, e) =>
+                {
+                    selectedPhotoTimestamp = firstTile.Timestamp;
+                    UpdateCapturedPhotosDisplay();
+
+                    if (photoPageMapping.ContainsKey(firstTile.Timestamp))
+                    {
+                        int targetPage = photoPageMapping[firstTile.Timestamp];
+                        Console.WriteLine($"文档 {docPath} 已存在于页码 {targetPage}，正在跳转...");
+                        SwitchToPage(targetPage);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"插入文档全部图片: {docPath}（{tiles.Count} 块）");
+                        SwitchToNextBoardAndInsertPhoto(firstTile);
+                    }
+                };
+
+                return button;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"创建文档照片条目失败: {ex.Message}");
+                return null;
             }
         }
 
@@ -2438,10 +4241,10 @@ namespace Ink_Canvas
             try
             {
                 double w, h;
-                if (photo != null && photo.Image != null && photo.Image.PixelWidth > 0)
+                if (photo != null && photo.PixelWidth > 0)
                 {
-                    w = photo.Image.PixelWidth;
-                    h = photo.Image.PixelHeight;
+                    w = photo.PixelWidth;
+                    h = photo.PixelHeight;
                 }
                 else
                 {
@@ -2528,20 +4331,87 @@ namespace Ink_Canvas
                 var imageElement = new System.Windows.Controls.Image
                 {
                     Source = CreateBitmapImageFromFileOrMemory(photo),
-                    Width = photo.Image.PixelWidth,
-                    Height = photo.Image.PixelHeight,
-                    Name = "photo_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff")
+                    Width = photo.PixelWidth,
+                    Height = photo.PixelHeight,
+                    Name = GeneratePhotoName(),
+                    Tag = photo.SourceFilePath,
+                    SnapsToDevicePixels = true,
+                    UseLayoutRounding = true
                 };
                 System.Windows.Media.RenderOptions.SetBitmapScalingMode(imageElement, System.Windows.Media.BitmapScalingMode.HighQuality);
 
                 // 缩放到合理大小（以鼠标位置为中心）
-                double maxWidth = inkCanvas.ActualWidth * 0.5;
-                double maxHeight = inkCanvas.ActualHeight * 0.5;
-                double scale = Math.Min(maxWidth / imageElement.Width, maxHeight / imageElement.Height);
-                if (scale < 1.0)
+                // 文档照片无论如何都不调整缩放比例，保持原始尺寸，避免按比例缩小导致模糊
+                if (!IsDocumentPhoto(photo))
                 {
-                    imageElement.Width *= scale;
-                    imageElement.Height *= scale;
+                    double maxWidth = inkCanvas.ActualWidth * 0.5;
+                    double maxHeight = inkCanvas.ActualHeight * 0.5;
+                    double scale = Math.Min(maxWidth / imageElement.Width, maxHeight / imageElement.Height);
+                    if (scale < 1.0)
+                    {
+                        imageElement.Width *= scale;
+                        imageElement.Height *= scale;
+                    }
+                }
+
+                // 文档照片：瓦片化前端拼接（拖拽时以鼠标位置为长图顶部，水平居中）
+                if (IsDocumentPhoto(photo))
+                {
+                    string docPath = StripChunkSuffix(photo.SourceFilePath);
+                    var tiles = GetDocumentTiles(docPath);
+                    if (tiles.Count > 0)
+                    {
+                        int maxW = tiles.Max(t => t.PixelWidth);
+                        double tileLeft = Math.Round(Math.Max(0, position.X - maxW / 2.0));
+                        double tileTop = Math.Max(0, position.Y - 20);
+
+                        System.Windows.Controls.Image firstTileImg = null;
+                        // 分批异步插入瓦片：每批让出 UI 线程，避免大量 Image 一次性创建导致卡顿
+                        int tileTotal = tiles.Count;
+                        int tileDone = 0;
+                        const int batchSize = 4;
+                        for (int ti = 0; ti < tiles.Count; ti++)
+                        {
+                            var tile = tiles[ti];
+                            var tileImg = new System.Windows.Controls.Image
+                            {
+                                Source = CreateBitmapImageFromFileOrMemory(tile),
+                                Width = tile.PixelWidth,
+                                Height = tile.PixelHeight,
+                                Name = GeneratePhotoName(),
+                                Tag = tile.SourceFilePath,
+                                SnapsToDevicePixels = true,
+                                UseLayoutRounding = true
+                            };
+                            System.Windows.Media.RenderOptions.SetBitmapScalingMode(tileImg, System.Windows.Media.BitmapScalingMode.HighQuality);
+                            InkCanvas.SetLeft(tileImg, tileLeft);
+                            InkCanvas.SetTop(tileImg, Math.Round(tileTop));
+                            inkCanvas.Children.Add(tileImg);
+                            if (firstTileImg == null) firstTileImg = tileImg;
+                            photoPageMapping[tile.Timestamp] = currentPage;
+                            tileTop += tile.PixelHeight;
+                            tileDone++;
+
+                            // 每批插入后让出 UI 线程处理渲染，并反馈进度
+                            if (tileDone % batchSize == 0)
+                            {
+                                ShowNotificationAsync($"正在插入文档照片 {tileDone}/{tileTotal}", true);
+                                try { inkCanvas.UpdateLayout(); } catch { }
+                                System.Windows.Threading.Dispatcher.Yield(
+                                    System.Windows.Threading.DispatcherPriority.Background);
+                            }
+                        }
+
+                        currentPhotoImage = firstTileImg;
+                        pageDocumentMapping[currentPage] = docPath;
+                        timeMachine.CommitElementInsertHistory(firstTileImg);
+                        selectedPhotoTimestamp = tiles[0].Timestamp;
+                        UpdateCapturedPhotosDisplay();
+                        SaveDocumentPageIfNeeded(currentPage);
+                        Console.WriteLine($"文档照片瓦片化（拖拽）插入完成: {tiles.Count} 张, 文档: {docPath}");
+                        ShowNotificationAsync($"文档照片插入完成（{tileTotal} 张）", true);
+                        return;
+                    }
                 }
 
                 // 设置位置（以鼠标位置为图片中心）
@@ -2555,19 +4425,37 @@ namespace Ink_Canvas
                 inkCanvas.Children.Add(imageElement);
 
                 currentPhotoImage = imageElement;
-                // 始终覆盖映射，确保只记录最后一次插入的页面
+                // 记录照片与页码的关联
                 photoPageMapping[photo.Timestamp] = currentPage;
                 Console.WriteLine($"照片已通过拖拽插入到页面 {currentPage}，位置({left},{top})");
+
+                // 记录文档页关联
+                if (IsDocumentPhoto(photo))
+                {
+                    pageDocumentMapping[currentPage] = StripChunkSuffix(photo.SourceFilePath);
+                }
 
                 timeMachine.CommitElementInsertHistory(imageElement);
 
                 selectedPhotoTimestamp = photo.Timestamp;
                 UpdateCapturedPhotosDisplay();
+
+                // 文档照片插入后，保存当前页全部内容
+                if (IsDocumentPhoto(photo))
+                {
+                    SaveDocumentPageIfNeeded(currentPage);
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"拖拽插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private bool IsDocumentPhoto(CapturedImage photo)
+        {
+            // 分块照片的来源路径带 "#块序号"，剥离后按文档识别
+            return photo != null && IsDocumentFilePath(StripChunkSuffix(photo.SourceFilePath));
         }
 
         private void InsertPhotoToCanvas(CapturedImage photo)
@@ -2626,18 +4514,148 @@ namespace Ink_Canvas
                 var imageElement = new System.Windows.Controls.Image
                 {
                     Source = CreateBitmapImageFromFileOrMemory(photo),
-                    Width = photo.Image.PixelWidth,
-                    Height = photo.Image.PixelHeight,
-                    Name = "photo_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff")
+                    Width = photo.PixelWidth,
+                    Height = photo.PixelHeight,
+                    Name = GeneratePhotoName(),
+                    Tag = photo.SourceFilePath,
+                    SnapsToDevicePixels = true,
+                    UseLayoutRounding = true
                 };
+                System.Windows.Media.RenderOptions.SetBitmapScalingMode(imageElement, System.Windows.Media.BitmapScalingMode.HighQuality);
 
                 // 居中并缩放
-                CenterAndScaleElement(imageElement);
+                if (IsDocumentPhoto(photo))
+                {
+                    // 文档照片：瓦片化前端拼接
+                    // 从源文件路径剥离块序号，获取原始文档路径
+                    string docPath = StripChunkSuffix(photo.SourceFilePath);
 
-                // 添加到画布
-                InkCanvas.SetLeft(imageElement, 0);
-                InkCanvas.SetTop(imageElement, 0);
+                    // 该文档的瓦片已经存在于当前页 → 跳过
+                    if (HasDocumentTilesOnCurrentPage(docPath))
+                    {
+                        Console.WriteLine($"文档照片 {docPath} 已存在于当前页面 {currentPage}，跳过重复插入");
+                        // 更新选中等
+                        selectedPhotoTimestamp = photo.Timestamp;
+                        UpdateCapturedPhotosDisplay();
+                        return;
+                    }
+
+                    // 移除当前页面的所有照片/摄像头元素，准备插入新瓦片集
+                    if (currentPhotoImage != null) { inkCanvas.Children.Remove(currentPhotoImage); currentPhotoImage = null; }
+                    if (currentCameraImage != null) { inkCanvas.Children.Remove(currentCameraImage); currentCameraImage = null; }
+                    ClearPhotoElementsFromCanvas();
+                    ClearCameraElementsFromCanvas();
+
+                    // 获取同一文档的所有瓦片，按块序号升序排列
+                    var tiles = GetDocumentTiles(docPath);
+                    if (tiles.Count == 0)
+                    {
+                        // 未找到该文档的分块瓦片（如单块文档），退化到单张插入：仅设置位置，交由统一逻辑添加
+                        Console.WriteLine($"未找到文档 {docPath} 的分块瓦片，退化到单张插入");
+                        CenterAndScaleDocumentPhoto(imageElement);
+                    }
+                    else
+                    {
+                        // 该文档的瓦片已存在 → 已有去重逻辑，此处直接异步插入
+                        // 计算所有瓦片的最大宽度，以此为基准水平居中
+                        int maxW = tiles.Max(t => t.PixelWidth);
+                        double canvasWidth = inkCanvas.ActualWidth;
+                        if (canvasWidth <= 0) canvasWidth = SystemParameters.PrimaryScreenWidth;
+                        double left = Math.Round(Math.Max(0, (canvasWidth - maxW) / 2.0));
+
+                        double top = 0;
+                        System.Windows.Controls.Image firstImg = null;
+
+                        // 分批异步插入瓦片：每批让出 UI 线程，避免大量 Image 一次性创建导致卡顿，
+                        // 并通过进度提示反馈插入状态
+                        int tileTotal = tiles.Count;
+                        int tileDone = 0;
+                        const int batchSize = 4;
+                        for (int ti = 0; ti < tiles.Count; ti++)
+                        {
+                            var tile = tiles[ti];
+                            var tileImg = new System.Windows.Controls.Image
+                            {
+                                Source = CreateBitmapImageFromFileOrMemory(tile),
+                                Width = tile.PixelWidth,
+                                Height = tile.PixelHeight,
+                                Name = GeneratePhotoName(),
+                                Tag = tile.SourceFilePath,
+                                SnapsToDevicePixels = true,
+                                UseLayoutRounding = true
+                            };
+                            System.Windows.Media.RenderOptions.SetBitmapScalingMode(tileImg, System.Windows.Media.BitmapScalingMode.HighQuality);
+
+                            InkCanvas.SetLeft(tileImg, left);
+                            InkCanvas.SetTop(tileImg, Math.Round(top));
+                            inkCanvas.Children.Add(tileImg);
+
+                            if (firstImg == null) firstImg = tileImg;
+
+                            // 所有瓦片的时间戳关联到同一页码，点击任意瓦片都能跳转到正确页面
+                            photoPageMapping[tile.Timestamp] = currentPage;
+                            top += tile.PixelHeight;
+                            tileDone++;
+
+                            // 每批插入后让出 UI 线程处理渲染，并反馈进度
+                            if (tileDone % batchSize == 0)
+                            {
+                                ShowNotificationAsync($"正在插入文档照片 {tileDone}/{tileTotal}", true);
+                                try { inkCanvas.UpdateLayout(); } catch { }
+                                System.Windows.Threading.Dispatcher.Yield(
+                                    System.Windows.Threading.DispatcherPriority.Background);
+                            }
+                        }
+
+                        // 记录当前照片引用（指向第一张瓦片，用于后续 HasPhotoOnCurrentPage 等判断）
+                        currentPhotoImage = firstImg;
+
+                        Console.WriteLine($"文档照片瓦片化插入完成: {tiles.Count} 张, 文档: {docPath}, 总高度: {Math.Round(top)}px");
+
+                        // 选中第一张瓦片
+                        selectedPhotoTimestamp = tiles[0].Timestamp;
+                        UpdateCapturedPhotosDisplay();
+
+                        // 记录历史（只记录第一张瓦片，保存/恢复时整个 InkCanvas 被序列化，包含所有瓦片）
+                        timeMachine.CommitElementInsertHistory(firstImg);
+
+                        // 记录文档页关联（使用原始文档路径，不含块序号），供后续保存/恢复使用
+                        pageDocumentMapping[currentPage] = docPath;
+
+                        // 文档页保存/恢复
+                        bool restored = RestoreDocumentPageIfAvailable(currentPage);
+                        if (!restored)
+                        {
+                            SaveDocumentPageIfNeeded(currentPage);
+                        }
+
+                        // 强制布局更新
+                        try { inkCanvas.UpdateLayout(); } catch { }
+                        Console.WriteLine($"文档照片瓦片已成功插入白板: {docPath}");
+                        ShowNotificationAsync($"文档照片插入完成（{tileTotal} 张）", true);
+                        return; // 已处理完毕，跳过后续单张照片逻辑
+                    }
+                }
+                else
+                {
+                    CenterAndScaleElement(imageElement);
+                    InkCanvas.SetLeft(imageElement, 0);
+                    InkCanvas.SetTop(imageElement, 0);
+                }
+
+                // 添加到画布（非文档照片，或文档照片退化到单张插入时执行到这里）
                 inkCanvas.Children.Add(imageElement);
+
+                // 强制立即布局与渲染，避免新建页面插入的图片不显示
+                try
+                {
+                    imageElement.UpdateLayout();
+                    inkCanvas.UpdateLayout();
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"照片插入后布局更新失败: {ex.Message}");
+                }
 
                 // 记录当前照片元素引用
                 currentPhotoImage = imageElement;
@@ -2645,6 +4663,12 @@ namespace Ink_Canvas
                 // 记录照片与页码的关联
                 photoPageMapping[photo.Timestamp] = currentPage;
                 Console.WriteLine($"照片已记录到页码: {currentPage}");
+
+                // 记录文档页关联（单张文档照片时使用原始路径；非文档照片无此关联）
+                if (IsDocumentPhoto(photo))
+                {
+                    pageDocumentMapping[currentPage] = StripChunkSuffix(photo.SourceFilePath);
+                }
 
                 // 记录历史
                 timeMachine.CommitElementInsertHistory(imageElement);
@@ -2655,6 +4679,16 @@ namespace Ink_Canvas
                 // 更新选中状态与侧栏样式
                 selectedPhotoTimestamp = photo.Timestamp;
                 UpdateCapturedPhotosDisplay();
+
+                // 文档照片插入后，若该页此前已有保存的笔迹/元素，则优先恢复；否则保存当前页
+                if (IsDocumentPhoto(photo))
+                {
+                    bool restored = RestoreDocumentPageIfAvailable(currentPage);
+                    if (!restored)
+                    {
+                        SaveDocumentPageIfNeeded(currentPage);
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -2837,34 +4871,25 @@ namespace Ink_Canvas
                 },
                 noAction: () => { });
 
+            Helpers.WindowMemoryHelper.ReleaseOnClose(notificationWindow);
             notificationWindow.Show();
         }
 
-        // 导入文档按钮点击事件：由 document-viewer 插件接管文件选择与转换
+        // 导入文档按钮点击事件：先查本地转换缓存，需要转换时再由 document-viewer 插件处理
         public void BtnImportDocument_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                var host = Plugins.PluginHost.Instance;
-                if (host == null)
-                {
-                    MessageBox.Show("插件系统未初始化", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-                if (!host.IsRouteAvailable("document-open"))
-                {
-                    MessageBox.Show("未安装文档查看器插件，请前往插件工坊安装。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
                 var dialog = new Microsoft.Win32.OpenFileDialog
                 {
-                    Filter = "Office 文档|*.doc;*.docx;*.xls;*.xlsx;*.pdf|Word 文档|*.doc;*.docx|Excel 工作簿|*.xls;*.xlsx|PDF 文档|*.pdf|所有文件|*.*",
+                    Filter = "Office 文档|*.docx;*.xls;*.xlsx;*.pdf|Word 文档|*.docx|Excel 工作簿|*.xls;*.xlsx|PDF 文档|*.pdf|所有文件|*.*",
                     Title = "选择要导入的文档",
                     Multiselect = false
                 };
                 if (dialog.ShowDialog(this) == true)
                 {
-                    host.TriggerRoute("document-open", dialog.FileName);
+                    // 先查找本地转换缓存：已转换且未修改则直接加载照片；未转换或已修改则自动转换
+                    OpenDocumentWithPhotoCache(dialog.FileName);
                 }
             }
             catch (Exception ex)
@@ -2914,9 +4939,10 @@ namespace Ink_Canvas
             // 7. 设置第一页为空白页面
             TimeMachineHistories[1] = new TimeMachineHistory[0];
 
-            // 8. 清除照片列表和页面映射
+            // 8. 清除照片列表和页面映射（含文档页映射，否则关闭时会把空画布误存进文档保存文件）
             capturedPhotos.Clear();
             photoPageMapping.Clear();
+            pageDocumentMapping.Clear();
             selectedPhotoTimestamp = null;
 
             // 9. 清除摄像头画面映射和引用
@@ -2995,13 +5021,46 @@ namespace Ink_Canvas
                     var bi = new BitmapImage();
                     bi.BeginInit();
                     bi.UriSource = new Uri(photo.FilePath, UriKind.Absolute);
-                    bi.CacheOption = BitmapCacheOption.OnLoad;
+                    // OnDemand：仅在真正渲染时解码像素，且支持按需释放，
+                    // 避免大量分块照片同时保留完整像素数据导致内存激增
+                    bi.CacheOption = BitmapCacheOption.OnDemand;
                     bi.EndInit();
                     bi.Freeze();
                     return bi;
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"从文件加载照片失败 [{photo.FilePath}]: {ex.Message}");
+            }
+
+            // 文件不存在或加载失败时，从内存图像创建一份在 UI 线程完整初始化的冻结副本，
+            // 避免后台线程创建的 BitmapImage 直接作为 Source 时出现渲染延迟或不显示的问题。
+            try
+            {
+                if (photo.Image != null && photo.Image.PixelWidth > 0)
+                {
+                    var encoder = new PngBitmapEncoder();
+                    encoder.Frames.Add(BitmapFrame.Create(photo.Image));
+                    using (var ms = new System.IO.MemoryStream())
+                    {
+                        encoder.Save(ms);
+                        ms.Position = 0;
+                        var bi = new BitmapImage();
+                        bi.BeginInit();
+                        bi.StreamSource = ms;
+                        bi.CacheOption = BitmapCacheOption.OnDemand;
+                        bi.EndInit();
+                        bi.Freeze();
+                        return bi;
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"从内存复制照片失败: {ex.Message}");
+            }
+
             return photo.Image;
         }
 
@@ -3025,6 +5084,16 @@ namespace Ink_Canvas
                 using (var fs = new FileStream(path, FileMode.Create, FileAccess.Write))
                 {
                     encoder.Save(fs);
+                }
+                // 文档照片：写入 .src 伴随文件记录原始文档路径，以便重启后恢复 SourceFilePath
+                // （分块照片的路径带 "#块序号"，剥离后仍识别为文档，保证写入 .src）
+                if (!string.IsNullOrEmpty(sourceFilePath) && IsDocumentFilePath(StripChunkSuffix(sourceFilePath)))
+                {
+                    try
+                    {
+                        File.WriteAllText(path + ".src", sourceFilePath);
+                    }
+                    catch { }
                 }
                 return path;
             }
@@ -3056,13 +5125,40 @@ namespace Ink_Canvas
                     {
                         try
                         {
+                            // 去重：跳过已加载的照片（按 FilePath 匹配）
+                            if (capturedPhotos.Any(p => !string.IsNullOrEmpty(p.FilePath) &&
+                                string.Equals(p.FilePath, file, StringComparison.OrdinalIgnoreCase)))
+                                continue;
+
                             var bi = new BitmapImage();
                             bi.BeginInit();
                             bi.UriSource = new Uri(file, UriKind.Absolute);
                             bi.CacheOption = BitmapCacheOption.OnLoad;
                             bi.EndInit();
                             bi.Freeze();
-                            var ci = new CapturedImage(bi, file);
+
+                            // 读取 .src 伴随文件恢复文档来源路径
+                            string sourceFilePath = null;
+                            try
+                            {
+                                string srcFile = file + ".src";
+                                if (File.Exists(srcFile))
+                                {
+                                    sourceFilePath = File.ReadAllText(srcFile).Trim();
+                                    if (string.IsNullOrEmpty(sourceFilePath)) sourceFilePath = null;
+                                }
+                            }
+                            catch { }
+
+                            // 去重：同一文档来源只保留最新一张
+                            if (!string.IsNullOrEmpty(sourceFilePath) &&
+                                capturedPhotos.Any(p => !string.IsNullOrEmpty(p.SourceFilePath) &&
+                                    string.Equals(p.SourceFilePath, sourceFilePath, StringComparison.OrdinalIgnoreCase)))
+                                continue;
+
+                            var ci = sourceFilePath != null
+                                ? new CapturedImage(bi, file, sourceFilePath)
+                                : new CapturedImage(bi, file);
                             capturedPhotos.Insert(0, ci);
                         }
                         catch { }
@@ -3159,16 +5255,38 @@ namespace Ink_Canvas
         {
             try
             {
+                // 若当前页为文档页且已从文件恢复完整内容，则不再重复插入照片，仅同步侧栏选中
+                if (pageDocumentMapping.TryGetValue(newPageIndex, out string docSourcePath) &&
+                    !string.IsNullOrEmpty(docSourcePath))
+                {
+                    string folderPath = GetDocumentPageFolderPath(docSourcePath);
+                    // 页码可能因重启变化，使用回退搜索
+                    string baseFilePath = FindDocumentPageBasePath(folderPath, newPageIndex);
+                    if (baseFilePath != null)
+                    {
+                        var photo = capturedPhotos.FirstOrDefault(p =>
+                            !string.IsNullOrEmpty(p.SourceFilePath) &&
+                            string.Equals(p.SourceFilePath, docSourcePath, StringComparison.OrdinalIgnoreCase));
+                        if (photo != null)
+                        {
+                            selectedPhotoTimestamp = photo.Timestamp;
+                            UpdateCapturedPhotosDisplay();
+                            Console.WriteLine($"页码 {newPageIndex} 的文档页已从文件恢复，跳过重复插入照片");
+                            return;
+                        }
+                    }
+                }
+
                 // 清除当前照片显示
                 if (currentPhotoImage != null)
                 {
                     inkCanvas.Children.Remove(currentPhotoImage);
                     currentPhotoImage = null;
                 }
-                
+
                 // 检查新页面是否有关联的照片
                 bool hasPhotoOnNewPage = false;
-                
+
                 // 遍历photoPageMapping字典，查找与新页面关联的照片
                 foreach (var kvp in photoPageMapping)
                 {
@@ -3176,7 +5294,7 @@ namespace Ink_Canvas
                     {
                         // 找到与新页面关联的照片
                         hasPhotoOnNewPage = true;
-                        
+
                         // 在照片集合中查找对应的照片
                         var photo = capturedPhotos.FirstOrDefault(p => p.Timestamp.Equals(kvp.Key));
                         if (photo != null)
@@ -3191,7 +5309,7 @@ namespace Ink_Canvas
                         break; // 每个页面最多只能有一张照片
                     }
                 }
-                
+
                 if (!hasPhotoOnNewPage)
                 {
                     Console.WriteLine($"页码 {newPageIndex} 上没有关联的照片");
@@ -3391,23 +5509,34 @@ namespace Ink_Canvas
                 int currentPage = GetCurrentPageIndex();
                 if (pageIndex != currentPage)
                 {
+                    // 跳转页面前先排空残留输入并开启过渡窗口，再取消进行中笔画，避免卡顿时延迟提交的笔迹落到错误的页面
+                    BeginBoardModeSwitch();
+                    CancelInProgressStroke();
+
                     // 保存当前页面的墨迹
                     SaveStrokes(false);
-                    
+                    // 保存当前文档页内容
+                    SaveDocumentPageIfNeeded(currentPage);
+
                     // 清除当前画布
                     ClearStrokes(true);
-                    
+
                     // 重置摄像头画面和照片引用
                     currentCameraImage = null;
                     currentPhotoImage = null;
-                    
+
                     // 设置新的页码
                     CurrentWhiteboardIndex = pageIndex;
-                    try { RestorePageFromDiskIfAvailable(pageIndex); } catch { }
-                    
-                    // 恢复新页面的墨迹
-                    RestoreStrokes(false);
-                    
+
+                    // 优先尝试恢复文档页；未恢复再尝试会话恢复与墨迹历史
+                    bool documentRestored = false;
+                    try { documentRestored = RestoreDocumentPageIfAvailable(pageIndex); } catch { }
+                    if (!documentRestored)
+                    {
+                        try { RestorePageFromDiskIfAvailable(pageIndex); } catch { }
+                        RestoreStrokes(false);
+                    }
+
                     // 处理页面切换时的照片显示逻辑
                     HandlePhotoDisplayOnPageChange(pageIndex);
                     // 再次仅刷新侧栏选中状态，确保视觉完全同步

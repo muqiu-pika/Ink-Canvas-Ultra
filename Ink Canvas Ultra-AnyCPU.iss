@@ -53,7 +53,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "Ink Canvas\bin\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
-Source: "Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; 插件（Plugins 目录）不随安装包分发：文档转照片等需要安装插件才能运行的功能已全部迁移到插件中，
+; 用户在安装后可从「插件工坊」按需在线下载安装，从而显著减小安装包体积。
+Source: "Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Plugins"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]

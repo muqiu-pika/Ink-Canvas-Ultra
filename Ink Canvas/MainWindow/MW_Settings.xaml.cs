@@ -14,12 +14,14 @@ namespace Ink_Canvas
         public MW_Settings()
         {
             InitializeComponent();
+            // 初始设为透明，待设置项填充完成后再淡入，避免“先显示空白再跳变”的闪烁与卡顿感
+            Opacity = 0;
             Loaded += SettingsWindow_Loaded;
         }
 
         private void SettingsWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            InvokeMainWindowHandler("LoadSettings", false);
+            // 轻量信息立即填充（几乎不耗时）
             if (AppVersionTextBlock != null)
                 AppVersionTextBlock.Text = Assembly.GetExecutingAssembly().GetName().Version.ToString();
 
@@ -33,6 +35,35 @@ namespace Ink_Canvas
                     PhotoClarityDpiValueText.Text = dpi.ToString();
             }
             catch { }
+
+            // 将重量级设置填充（数百个控件赋值 + ApplyScaling 等）推迟到窗口首次绘制之后执行，
+            // 这样点击设置后窗口会立即出现（此时透明），主线程不会被长时间占用而导致卡顿；
+            // 填充完成后再把窗口淡入显示，体验更顺滑。
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
+            {
+                try
+                {
+                    InvokeMainWindowHandler("LoadSettings", false);
+                }
+                finally
+                {
+                    // 预构建阶段（空闲时后台渲染）不淡入，保持透明直至被真正打开；
+                    // 普通打开阶段才淡入显示，避免停留在不可见状态。
+                    if (!MainWindow.IsSettingsPrebuilding)
+                    {
+                        this.BeginAnimation(System.Windows.Window.OpacityProperty,
+                            new System.Windows.Media.Animation.DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+                    }
+                }
+            }));
+        }
+
+        /// <summary>
+        /// 重新从内存中的 Settings 填充设置窗口控件（用于窗口复用/重新打开时刷新最新值）。
+        /// </summary>
+        public void ReloadContents()
+        {
+            InvokeMainWindowHandler("LoadSettings", false);
         }
 
         private void InvokeMainWindowHandler(string handlerName, params object[] args)
@@ -146,6 +177,8 @@ namespace Ink_Canvas
 
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
+            // 真正关闭并释放窗口内存（不再 Hide 缓存复用）。
+            // 关闭后主窗口会清空缓存实例，并在应用空闲时重新预构建，兼顾“再次打开较快”与“关闭即释放内存”。
             Close();
         }
 

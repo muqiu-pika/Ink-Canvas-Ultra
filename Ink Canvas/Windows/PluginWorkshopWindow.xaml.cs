@@ -51,16 +51,15 @@ namespace Ink_Canvas
                 {
                     _instance.Owner = owner;
                 }
+                // 关闭后延时后台 GC，回收插件工坊窗口可视化树内存
+                Helpers.WindowMemoryHelper.ReleaseOnClose(_instance);
                 _instance.Closed += (s, e) =>
                 {
-                    // 解除 PluginListChanged 订阅
-                    try
+                    // 事件反订阅统一在实例的 OnClosed 中完成（更可靠，不依赖静态字段状态）
+                    lock (_instanceLock)
                     {
-                        var host = PluginHost.Instance;
-                        if (host != null) host.PluginListChanged -= _instance.OnPluginListChanged;
+                        if (ReferenceEquals(_instance, s)) _instance = null;
                     }
-                    catch { }
-                    lock (_instanceLock) { _instance = null; }
                 };
                 return _instance;
             }
@@ -93,18 +92,34 @@ namespace Ink_Canvas
 
         private void PluginWorkshopWindow_Loaded(object sender, RoutedEventArgs e)
         {
-            // 订阅 PluginHost 的列表变化事件，自动刷新
+            // 订阅 PluginHost 的列表变化事件，自动刷新（先反订阅，避免 Loaded 多次触发导致重复订阅）
             try
             {
                 var host = PluginHost.Instance;
                 if (host != null)
                 {
+                    host.PluginListChanged -= OnPluginListChanged;
                     host.PluginListChanged += OnPluginListChanged;
                 }
             }
             catch { }
 
             RefreshPluginList(silent: true);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            // PluginHost 是与应用同生命周期的单例，若不反订阅其事件，
+            // 本窗口会被单例事件链永久引用，关闭后无法回收
+            try
+            {
+                var host = PluginHost.Instance;
+                if (host != null) host.PluginListChanged -= OnPluginListChanged;
+            }
+            catch { }
+
+            Loaded -= PluginWorkshopWindow_Loaded;
+            base.OnClosed(e);
         }
 
         private void OnPluginListChanged(object sender, EventArgs e)
@@ -130,12 +145,27 @@ namespace Ink_Canvas
                 {
                     mw.Dispatcher.Invoke(() =>
                     {
-                        var existing = Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
-                        if (existing != null)
+                var existing = Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
+                if (existing != null)
+                {
+                    // 设置窗口可能只是被隐藏（复用实例），需重新显示并刷新最新设置值
+                    if (!existing.IsVisible)
+                    {
+                        existing.Owner = mw;
+                        existing.ShowInTaskbar = true;
+                        // 预构建阶段被挪到了屏幕外，重新显示前恢复到主窗口居中位置
+                        try
                         {
-                            existing.Activate();
-                            return;
+                            existing.Left = mw.Left + (mw.ActualWidth - existing.Width) / 2;
+                            existing.Top = mw.Top + (mw.ActualHeight - existing.Height) / 2;
                         }
+                        catch { }
+                        existing.Show();
+                        existing.ReloadContents();
+                    }
+                    existing.Activate();
+                    return;
+                }
                         var settingsWindow = new MW_Settings
                         {
                             Owner = mw
@@ -214,20 +244,21 @@ namespace Ink_Canvas
                 // 询问是否覆盖
                 var confirm = new YesOrNoNotificationWindow(
                     $"已存在同名 plugin \"{fileNameWithoutExt}\"，是否覆盖安装？",
-                    yesAction: () => DoInstallPluginFromFile(sourceFile, destDir, overwrite: true),
+                    yesAction: () => DoInstallPluginFromFile(sourceFile, destDir, overwrite: true, autoEnable: true),
                     noAction: () => ShowInlineMessage("已取消安装"));
                 confirm.Owner = this;
+                Helpers.WindowMemoryHelper.ReleaseOnClose(confirm);
                 confirm.ShowDialog();
                 return;
             }
 
-            DoInstallPluginFromFile(sourceFile, destDir, overwrite: false);
+            DoInstallPluginFromFile(sourceFile, destDir, overwrite: false, autoEnable: true);
         }
 
         /// <summary>
         /// 将 .icplugin (ZIP) 解压到目标目录，并立即加载到 PluginHost。
         /// </summary>
-        private void DoInstallPluginFromFile(string sourceFile, string destDir, bool overwrite)
+        private void DoInstallPluginFromFile(string sourceFile, string destDir, bool overwrite, bool autoEnable)
         {
             try
             {
@@ -273,13 +304,20 @@ namespace Ink_Canvas
                 var manifest = TryReadManifest(destDir);
                 if (manifest != null && host != null)
                 {
-                    // 默认启用新装的 plugin
-                    host.SetPluginEnabled(manifest.Id, true);
+                    if (autoEnable)
+                    {
+                        // 默认启用新装的 plugin
+                        host.SetPluginEnabled(manifest.Id, true);
 
-                    // 若是视频展台 plugin，在桌面创建指向软件安装位置的快捷方式
-                    TryCreateVideoPresenterDesktopShortcut(manifest);
+                        // 若是视频展台 plugin，在桌面创建指向软件安装位置的快捷方式
+                        TryCreateVideoPresenterDesktopShortcut(manifest);
 
-                    ShowInlineMessage($"plugin 已安装并启用：{manifest.Name}");
+                        ShowInlineMessage($"plugin 已安装并启用：{manifest.Name}");
+                    }
+                    else
+                    {
+                        ShowInlineMessage($"plugin 已安装：{manifest.Name}（请手动启用）");
+                    }
                 }
                 else
                 {
@@ -511,7 +549,7 @@ namespace Ink_Canvas
                     Margin = new Thickness(12, 0, 0, 0),
                     ToolTip = $"更新到 v{update.Version}"
                 };
-                updateBtn.Click += async (s, e) => await InstallOnlinePluginAsync(update);
+                updateBtn.Click += async (s, e) => await UpdatePluginAsync(update, info);
                 Grid.SetColumn(updateBtn, 3);
                 grid.Children.Add(updateBtn);
             }
@@ -768,6 +806,103 @@ namespace Ink_Canvas
             {
                 HideInstallProgress();
                 try { if (tempFile != null && File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+            }
+        }
+
+        /// <summary>更新已安装的 plugin：先禁用，再下载安装，最后按原状态启用。</summary>
+        private async Task UpdatePluginAsync(OnlinePluginInfo plugin, InstalledPluginInfo installed)
+        {
+            if (string.IsNullOrWhiteSpace(plugin.DownloadUrl) && string.IsNullOrWhiteSpace(plugin.FallbackUrl))
+            {
+                ShowInlineMessage("该插件未提供下载地址");
+                return;
+            }
+
+            var host = PluginHost.Instance;
+            string pluginId = installed.Manifest?.Id;
+            bool wasEnabled = installed.IsEnabled;
+
+            ShowInstallProgress($"准备更新 {plugin.Name}", "正在禁用旧版本...");
+            try
+            {
+                // 1. 禁用插件（卸载并持久化禁用状态）
+                if (host != null && !string.IsNullOrEmpty(pluginId))
+                {
+                    host.SetPluginEnabled(pluginId, false);
+                }
+
+                // 2. 下载最新版本
+                UpdateInstallProgress(0, $"正在下载 {plugin.Name}", "正在连接下载源...");
+                string tempFile = null;
+                try
+                {
+                    tempFile = await DownloadPluginWithFallbackAsync(plugin);
+                    if (string.IsNullOrEmpty(tempFile))
+                    {
+                        UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", "所有下载源均不可用");
+                        await Task.Delay(1500);
+                        return;
+                    }
+
+                    // 校验文件大小
+                    SetInstallProgressIndeterminate($"正在校验 {plugin.Name}", "校验文件大小...");
+                    var fileInfo = new FileInfo(tempFile);
+                    if (plugin.Size > 0 && fileInfo.Length != plugin.Size)
+                    {
+                        UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", "文件大小校验失败");
+                        await Task.Delay(1500);
+                        return;
+                    }
+
+                    // 校验 SHA256
+                    UpdateInstallProgress(-1, $"正在校验 {plugin.Name}", "校验 SHA256...");
+                    if (plugin.Checksum != null &&
+                        !string.IsNullOrWhiteSpace(plugin.Checksum.Value) &&
+                        string.Equals(plugin.Checksum.Algorithm, "SHA256", StringComparison.OrdinalIgnoreCase))
+                    {
+                        string fileHash = CalculateSHA256(tempFile);
+                        if (!string.Equals(fileHash, plugin.Checksum.Value, StringComparison.OrdinalIgnoreCase))
+                        {
+                            UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", "SHA256 校验失败");
+                            await Task.Delay(1500);
+                            return;
+                        }
+                    }
+
+                    // 3. 安装新版本（直接覆盖原目录，不弹确认框）
+                    SetInstallProgressIndeterminate($"正在安装 {plugin.Name}", "解压并替换插件文件...");
+                    string destDir = installed.Directory;
+                    if (string.IsNullOrEmpty(destDir) || !Directory.Exists(destDir))
+                    {
+                        destDir = Path.Combine(PluginDirectory, plugin.Id);
+                        if (!Directory.Exists(destDir)) Directory.CreateDirectory(destDir);
+                    }
+                    DoInstallPluginFromFile(tempFile, destDir, overwrite: true, autoEnable: false);
+
+                    // 4. 如果原来处于启用状态，则重新启用
+                    if (host != null && !string.IsNullOrEmpty(pluginId) && wasEnabled)
+                    {
+                        UpdateInstallProgress(100, $"正在启用 {plugin.Name}", "加载新版本...");
+                        host.SetPluginEnabled(pluginId, true);
+                    }
+
+                    UpdateInstallProgress(100, $"更新 {plugin.Name} 完成", wasEnabled ? "插件已更新并启用" : "插件已更新（保持禁用）");
+                    await Task.Delay(800);
+                }
+                finally
+                {
+                    try { if (tempFile != null && File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"更新 plugin 失败 {plugin.Id}: {ex.Message}", LogHelper.LogType.Error);
+                UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", ex.Message);
+                await Task.Delay(1500);
+            }
+            finally
+            {
+                HideInstallProgress();
             }
         }
 

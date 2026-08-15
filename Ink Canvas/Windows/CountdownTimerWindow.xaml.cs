@@ -20,18 +20,10 @@ namespace Ink_Canvas
             AnimationsHelper.ShowWithSlideFromBottomAndFade(this, 0.25);
             if (Application.Current.MainWindow is MainWindow mainWindow)
             {
-                if (mainWindow.GetMainWindowTheme() == "Light")
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Light);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Light-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
-                else
-                {
-                    ThemeManager.SetRequestedTheme(this, ElementTheme.Dark);
-                    ResourceDictionary rd = new ResourceDictionary() { Source = new Uri("Resources/Styles/Dark-PopupWindow.xaml", UriKind.Relative) };
-                    Application.Current.Resources.MergedDictionaries.Add(rd);
-                }
+                bool isLight = mainWindow.GetMainWindowTheme() == "Light";
+                ThemeManager.SetRequestedTheme(this, isLight ? ElementTheme.Light : ElementTheme.Dark);
+                // 去重合并，避免每次打开窗口都往应用级资源里堆一份字典
+                ResourceDictionaryHelper.ApplyPopupWindowTheme(isLight);
             }
 
             timer.Elapsed += Timer_Elapsed;
@@ -40,6 +32,9 @@ namespace Ink_Canvas
 
         private void Timer_Elapsed(object sender, ElapsedEventArgs e)
         {
+            // 窗口已关闭时直接返回，避免回调继续访问已释放的控件（此时 timer 也已 Dispose）
+            if (_isClosed) return;
+
             if (!isTimerRunning || isPaused)
             {
                 timer.Stop();
@@ -326,9 +321,49 @@ namespace Ink_Canvas
             }
         }
 
+        private bool _isClosed;
+        private bool _resourcesReleased;
+
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             isTimerRunning = false;
+            _isClosed = true;
+            ReleaseResources();
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            // 兜底：即使 Closing 未走到（例如被外部直接关闭），也确保资源释放
+            _isClosed = true;
+            ReleaseResources();
+            base.OnClosed(e);
+        }
+
+        /// <summary>
+        /// 释放计时器与音频播放器。
+        /// System.Timers.Timer 的 Elapsed 处理函数持有窗口实例引用，若不停止并反注册，
+        /// 窗口关闭后仍会被计时器（以及其内部线程池计时队列）引用，导致整棵可视化树无法回收。
+        /// </summary>
+        private void ReleaseResources()
+        {
+            if (_resourcesReleased) return;
+            _resourcesReleased = true;
+
+            try
+            {
+                timer.Stop();
+                timer.Elapsed -= Timer_Elapsed;
+                timer.Dispose();
+            }
+            catch { }
+
+            try
+            {
+                player.Stop();
+                player.Stream = null;
+                player.Dispose();
+            }
+            catch { }
         }
 
         private void BtnClose_MouseUp(object sender, MouseButtonEventArgs e)

@@ -322,6 +322,28 @@ namespace Ink_Canvas
                 StrokeInitialHistory[stroke] = stroke.StylusPoints.Clone();
             }
             if (_currentCommitType == CommitReason.CodeInput || _currentCommitType == CommitReason.ShapeDrawing) return;
+
+            // 模式切换（白板/桌面/批注）过渡窗口内到达的“用户笔画”，是切换前桌面/白板残留笔迹被延迟提交，
+            // 若不拦截会混入新模式的画布（“浮动栏笔迹替换白板笔迹”的根因）。此处立即将其从画布移除且不入历史。
+            // 注意：若过渡窗口内用户已开始在新画布上书写（_inputActivityAfterSwitch == true），
+            // 说明这是新的正常笔画，应放行而不是误删。
+            if (_isInBoardModeSwitch && e.Added.Count != 0 && !_inputActivityAfterSwitch)
+            {
+                var strayStrokes = e.Added;
+                _currentCommitType = CommitReason.CodeInput;
+                try { inkCanvas.Strokes.Remove(strayStrokes); } catch { }
+                _currentCommitType = CommitReason.UserInput;
+                return;
+            }
+
+            // 文档页笔迹任何变更（新增/擦除）后立即调度自动保存（防抖），
+            // 确保文档照片上的书写内容实时落盘到对应文档照片存储文件夹内，
+            // 即使用户不切换页面也不会丢失。注意必须放在下面各 return 分支之前。
+            if (pageDocumentMapping.ContainsKey(CurrentWhiteboardIndex))
+            {
+                ScheduleDocumentPageSave(CurrentWhiteboardIndex);
+            }
+
             if ((e.Added.Count != 0 || e.Removed.Count != 0) && IsEraseByPoint)
             {
                 if (AddedStroke == null) AddedStroke = new StrokeCollection();

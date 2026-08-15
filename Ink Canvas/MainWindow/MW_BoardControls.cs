@@ -72,12 +72,31 @@ namespace Ink_Canvas
         private void BtnWhiteBoardSwitchPrevious_Click(object sender, EventArgs e)
         {
             if (CurrentWhiteboardIndex <= 1) return;
-            SaveStrokes();
-            ClearStrokes(true);
+            // 换页前先排空残留输入并开启过渡窗口，再取消进行中笔画，避免卡顿时延迟提交的笔迹落到错误的页面
+            BeginBoardModeSwitch();
+            CancelInProgressStroke();
             int oldPage = CurrentWhiteboardIndex;
+            SaveStrokes();
+            SaveDocumentPageIfNeeded(oldPage);
+            // 离开的文档页已落盘，清空其时间机器历史以释放持有的照片大位图
+            if (pageDocumentMapping.ContainsKey(oldPage)) TimeMachineHistories[oldPage] = null;
+            ClearStrokes(true);
             CurrentWhiteboardIndex--;
-            try { RestorePageFromDiskIfAvailable(CurrentWhiteboardIndex); } catch { }
-            RestoreStrokes();
+            bool documentRestored = false;
+            try { documentRestored = RestoreDocumentPageIfAvailable(CurrentWhiteboardIndex); } catch { }
+            if (!documentRestored)
+            {
+                try { RestorePageFromDiskIfAvailable(CurrentWhiteboardIndex); } catch { }
+                // 磁盘恢复失败时，若该页有文档映射，则从内存照片列表重建文档瓦片，避免照片丢失
+                bool rebuiltFromMemory = ReinsertDocumentPhotosFromMemorySafe(CurrentWhiteboardIndex);
+                // 已从内存照片重建文档瓦片后，不再回放时间机器历史：历史中同样含照片插入提交，
+                // 回放会导致照片被重复插入。仅在内存重建失败时才回放历史以恢复笔迹。
+                if (!rebuiltFromMemory) RestoreStrokes();
+                if (rebuiltFromMemory)
+                {
+                    LogHelper.WriteLogToFile($"换页时磁盘恢复失败，已从内存照片重建文档页照片: {CurrentWhiteboardIndex}", Helpers.LogHelper.LogType.Trace);
+                }
+            }
             UpdateIndexInfoDisplay();
 
             try
@@ -101,12 +120,29 @@ namespace Ink_Canvas
                 BtnWhiteBoardAdd_Click(sender, e);
                 return;
             }
-            SaveStrokes();
-            ClearStrokes(true);
+            // 换页前先排空残留输入并开启过渡窗口，再取消进行中笔画，避免卡顿时延迟提交的笔迹落到错误的页面
+            BeginBoardModeSwitch();
+            CancelInProgressStroke();
             int oldPage = CurrentWhiteboardIndex;
+            SaveStrokes();
+            SaveDocumentPageIfNeeded(oldPage);
+            // 离开的文档页已落盘，清空其时间机器历史以释放持有的照片大位图
+            if (pageDocumentMapping.ContainsKey(oldPage)) TimeMachineHistories[oldPage] = null;
+            ClearStrokes(true);
             CurrentWhiteboardIndex++;
-            try { RestorePageFromDiskIfAvailable(CurrentWhiteboardIndex); } catch { }
-            RestoreStrokes();
+            bool documentRestored = false;
+            try { documentRestored = RestoreDocumentPageIfAvailable(CurrentWhiteboardIndex); } catch { }
+            if (!documentRestored)
+            {
+                try { RestorePageFromDiskIfAvailable(CurrentWhiteboardIndex); } catch { }
+                bool rebuiltFromMemory = ReinsertDocumentPhotosFromMemorySafe(CurrentWhiteboardIndex);
+                // 已从内存照片重建文档瓦片后，不再回放时间机器历史，避免照片被重复插入。
+                if (!rebuiltFromMemory) RestoreStrokes();
+                if (rebuiltFromMemory)
+                {
+                    LogHelper.WriteLogToFile($"换页时磁盘恢复失败，已从内存照片重建文档页照片: {CurrentWhiteboardIndex}", Helpers.LogHelper.LogType.Trace);
+                }
+            }
             UpdateIndexInfoDisplay();
 
             try
@@ -122,11 +158,18 @@ namespace Ink_Canvas
         private void BtnWhiteBoardAdd_Click(object sender, EventArgs e)
         {
             if (WhiteboardTotalCount >= 99) return;
+            // 加页前先排空残留输入并开启过渡窗口，再取消进行中笔画，避免卡顿时延迟提交的笔迹落到新页面
+            BeginBoardModeSwitch();
+            CancelInProgressStroke();
             if (Settings.Automation.IsAutoSaveStrokesAtClear && inkCanvas.Strokes.Count > Settings.Automation.MinimumAutomationStrokeNumber)
             {
                 SaveScreenshot(true);
             }
+            int oldPage = CurrentWhiteboardIndex;
             SaveStrokes();
+            SaveDocumentPageIfNeeded(oldPage);
+            // 离开的文档页已落盘，清空其时间机器历史以释放持有的照片大位图
+            if (pageDocumentMapping.ContainsKey(oldPage)) TimeMachineHistories[oldPage] = null;
             ClearStrokes(true);
             WhiteboardTotalCount++;
 

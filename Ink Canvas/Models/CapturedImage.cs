@@ -7,11 +7,45 @@ namespace Ink_Canvas.Models
 {
     public class CapturedImage
     {
-        public BitmapImage Image { get; }
-        public BitmapImage Thumbnail { get; }
+        public BitmapImage Image { get; private set; }
+        public BitmapImage Thumbnail { get; private set; }
         public StrokeCollection Strokes { get; }
         public string Timestamp { get; }
-        public string FilePath { get; }
+        public string FilePath { get; private set; }
+
+        /// <summary>原始像素尺寸缓存。图片落盘后 Image 会被释放以节省内存，尺寸仍由此提供。</summary>
+        public int PixelWidth { get; private set; }
+        public int PixelHeight { get; private set; }
+
+        /// <summary>图片是否已被释放（落盘后为 true，仅保留缩略图与文件路径）。</summary>
+        public bool IsImageReleased { get; private set; }
+
+        /// <summary>原始来源文件路径（例如导入的文档路径），与照片列表保存路径 FilePath 区分。</summary>
+        public string SourceFilePath { get; }
+
+        /// <summary>更新图片并重绘缩略图，保留时间戳等元数据。</summary>
+        public void UpdateImage(BitmapImage newImage)
+        {
+            Image = newImage;
+            Thumbnail = CreateThumbnail(newImage);
+            PixelWidth = newImage?.PixelWidth ?? 0;
+            PixelHeight = newImage?.PixelHeight ?? 0;
+            IsImageReleased = false;
+        }
+
+        /// <summary>更新图片、缩略图及保存路径，保留时间戳等元数据。</summary>
+        public void UpdateImage(BitmapImage newImage, string newFilePath)
+        {
+            Image = newImage;
+            Thumbnail = CreateThumbnail(newImage);
+            PixelWidth = newImage?.PixelWidth ?? 0;
+            PixelHeight = newImage?.PixelHeight ?? 0;
+            IsImageReleased = false;
+            if (!string.IsNullOrEmpty(newFilePath))
+            {
+                FilePath = newFilePath;
+            }
+        }
 
         /// <summary>是否为视频条目（true=视频，false=图片）</summary>
         public bool IsVideo { get; }
@@ -23,19 +57,30 @@ namespace Ink_Canvas.Models
         {
             Image = image;
             Thumbnail = CreateThumbnail(image);
+            PixelWidth = image?.PixelWidth ?? 0;
+            PixelHeight = image?.PixelHeight ?? 0;
             Strokes = new StrokeCollection();
             Timestamp = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             FilePath = null;
+            SourceFilePath = null;
             IsVideo = false;
             VideoFilePath = null;
         }
 
         public CapturedImage(BitmapImage image, string filePath)
+            : this(image, filePath, sourceFilePath: null)
+        {
+        }
+
+        public CapturedImage(BitmapImage image, string filePath, string sourceFilePath)
         {
             Image = image;
             Thumbnail = CreateThumbnail(image);
+            PixelWidth = image?.PixelWidth ?? 0;
+            PixelHeight = image?.PixelHeight ?? 0;
             Strokes = new StrokeCollection();
             FilePath = filePath;
+            SourceFilePath = sourceFilePath;
             Timestamp = TryExtractTimestampFromFilePath(filePath) ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
             IsVideo = false;
             VideoFilePath = null;
@@ -46,11 +91,26 @@ namespace Ink_Canvas.Models
         {
             Image = thumbnail;
             Thumbnail = thumbnail;
+            PixelWidth = thumbnail?.PixelWidth ?? 0;
+            PixelHeight = thumbnail?.PixelHeight ?? 0;
             Strokes = new StrokeCollection();
             FilePath = videoFilePath;
+            SourceFilePath = videoFilePath;
             VideoFilePath = videoFilePath;
             IsVideo = isVideo;
             Timestamp = TryExtractTimestampFromFilePath(videoFilePath) ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
+        }
+
+        /// <summary>
+        /// 释放全尺寸大图 Image 以节省内存。调用前需确保图片已落盘（FilePath 有效），
+        /// 之后如需原始图片可由 CreateBitmapImageFromFileOrMemory 从文件重新加载。
+        /// 缩略图与像素尺寸缓存保留，照片列表显示不受影响。
+        /// </summary>
+        public void ReleaseImageMemory()
+        {
+            if (IsImageReleased) return;
+            IsImageReleased = true;
+            Image = null;
         }
 
         private static string TryExtractTimestampFromFilePath(string filePath)

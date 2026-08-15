@@ -32,18 +32,10 @@ namespace Ink_Canvas
             {
                 if (_mainWindow != null)
                 {
-                    if (_mainWindow.GetMainWindowTheme() == "Light")
-                    {
-                        ThemeManager.SetRequestedTheme(this, ElementTheme.Light);
-                        var rd = new ResourceDictionary { Source = new Uri("Resources/Styles/Light-PopupWindow.xaml", UriKind.Relative) };
-                        Application.Current.Resources.MergedDictionaries.Add(rd);
-                    }
-                    else
-                    {
-                        ThemeManager.SetRequestedTheme(this, ElementTheme.Dark);
-                        var rd = new ResourceDictionary { Source = new Uri("Resources/Styles/Dark-PopupWindow.xaml", UriKind.Relative) };
-                        Application.Current.Resources.MergedDictionaries.Add(rd);
-                    }
+                    bool isLight = _mainWindow.GetMainWindowTheme() == "Light";
+                    ThemeManager.SetRequestedTheme(this, isLight ? ElementTheme.Light : ElementTheme.Dark);
+                    // 去重合并，避免每次打开窗口都往应用级资源里堆一份字典
+                    ResourceDictionaryHelper.ApplyPopupWindowTheme(isLight);
                     try
                     {
                         var baseBrush = FindResource("PopupWindowDarkBlueBorderBackground") as System.Windows.Media.SolidColorBrush;
@@ -722,6 +714,82 @@ namespace Ink_Canvas
             catch { }
         }
 
+        /// <summary>
+        /// 停止彩带动画。RepeatBehavior.Forever 的动画时钟会常驻 WPF 计时树并持续引用被动画对象，
+        /// 窗口关闭后既回收不掉整棵可视化树，也会一直空转消耗 CPU，因此必须显式清除。
+        /// </summary>
+        private void StopConfetti()
+        {
+            try
+            {
+                if (ConfettiCanvas == null) return;
+                foreach (var child in ConfettiCanvas.Children.OfType<UIElement>())
+                {
+                    if (child.RenderTransform is TranslateTransform transform)
+                    {
+                        transform.BeginAnimation(TranslateTransform.YProperty, null);
+                        transform.BeginAnimation(TranslateTransform.XProperty, null);
+                    }
+                }
+                ConfettiCanvas.Children.Clear();
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 停止 XAML 中通过 EventTrigger 启动的表情缩放循环动画（同样是 Forever 动画）。
+        /// </summary>
+        private void StopEmojiAnimations()
+        {
+            var emojis = new FrameworkElement[] { EmojiStep1, EmojiStep2, EmojiStep3, EmojiStep4, EmojiStep5 };
+            foreach (var emoji in emojis)
+            {
+                try
+                {
+                    if (emoji?.RenderTransform is ScaleTransform scale)
+                    {
+                        scale.BeginAnimation(ScaleTransform.ScaleXProperty, null);
+                        scale.BeginAnimation(ScaleTransform.ScaleYProperty, null);
+                    }
+                }
+                catch { }
+            }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            StopNavTimer();
+            StopConfetti();
+            StopEmojiAnimations();
+            base.OnClosed(e);
+        }
+
+        private System.Windows.Threading.DispatcherTimer _navTimer;
+
+        private void NavTimer_Tick(object sender, EventArgs e)
+        {
+            StopNavTimer();
+            try
+            {
+                _navLocked = false;
+                if (BtnNext != null) BtnNext.IsEnabled = true;
+                if (BtnPrevious != null) BtnPrevious.IsEnabled = _currentStep > 1 && Visibility.Visible == BtnPrevious.Visibility;
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 停止并反注册导航锁定定时器：DispatcherTimer 由 Dispatcher 持有，
+        /// 若窗口关闭时仍在运行，Tick 处理函数会继续引用本窗口，阻止其被回收。
+        /// </summary>
+        private void StopNavTimer()
+        {
+            if (_navTimer == null) return;
+            _navTimer.Stop();
+            _navTimer.Tick -= NavTimer_Tick;
+            _navTimer = null;
+        }
+
         private void LockNav(int milliseconds = 320)
         {
             try
@@ -729,22 +797,13 @@ namespace Ink_Canvas
                 _navLocked = true;
                 if (BtnNext != null) BtnNext.IsEnabled = false;
                 if (BtnPrevious != null) BtnPrevious.IsEnabled = false;
-                var t = new System.Windows.Threading.DispatcherTimer
+                StopNavTimer();
+                _navTimer = new System.Windows.Threading.DispatcherTimer
                 {
                     Interval = TimeSpan.FromMilliseconds(milliseconds)
                 };
-                t.Tick += (s, e) =>
-                {
-                    try
-                    {
-                        _navLocked = false;
-                        if (BtnNext != null) BtnNext.IsEnabled = true;
-                        if (BtnPrevious != null) BtnPrevious.IsEnabled = _currentStep > 1 ? Visibility.Visible == BtnPrevious.Visibility : false;
-                    }
-                    catch { }
-                    if (s is System.Windows.Threading.DispatcherTimer dt) dt.Stop();
-                };
-                t.Start();
+                _navTimer.Tick += NavTimer_Tick;
+                _navTimer.Start();
             }
             catch { }
         }
