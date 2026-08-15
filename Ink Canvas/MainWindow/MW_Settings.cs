@@ -794,101 +794,7 @@ namespace Ink_Canvas
 
         public static void SetSettingsToRecommendation()
         {
-            bool AutoDelSavedFilesDays = Settings.Automation.AutoDelSavedFiles;
-            int AutoDelSavedFilesDaysThreshold = Settings.Automation.AutoDelSavedFilesDaysThreshold;
             Settings = new Settings();
-            Settings.Advanced.IsSpecialScreen = true;
-            Settings.Advanced.IsQuadIR = false;
-            Settings.Advanced.TouchMultiplier = 0.3;
-            Settings.Advanced.NibModeBoundsWidth = 5;
-            Settings.Advanced.FingerModeBoundsWidth = 20;
-            Settings.Advanced.NibModeBoundsWidthThresholdValue = 2.5;
-            Settings.Advanced.FingerModeBoundsWidthThresholdValue = 2.5;
-            Settings.Advanced.NibModeBoundsWidthEraserSize = 0.8;
-            Settings.Advanced.FingerModeBoundsWidthEraserSize = 0.8;
-            Settings.Advanced.IsLogEnabled = true;
-            Settings.Advanced.IsSecondConfimeWhenShutdownApp = false;
-            Settings.Advanced.IsEnableEdgeGestureUtil = false;
-            Settings.Advanced.IsEnableSilentRestartOnCrash = true;
-
-            Settings.Appearance.IsEnableDisPlayFloatBarText = false;
-            Settings.Appearance.IsEnableDisPlayNibModeToggler = false;
-            Settings.Appearance.IsColorfulViewboxFloatingBar = false;
-            Settings.Appearance.FloatingBarScale = 80.0;
-            Settings.Appearance.BlackboardScale = 80.0;
-            Settings.Appearance.IsTransparentButtonBackground = true;
-            Settings.Appearance.IsShowExitButton = true;
-            Settings.Appearance.IsShowEraserButton = true;
-            Settings.Appearance.IsShowHideControlButton = false;
-            Settings.Appearance.IsShowLRSwitchButton = false;
-            Settings.Appearance.IsShowModeFingerToggleSwitch = true;
-            Settings.Appearance.Theme = 0;
-
-            Settings.Automation.IsAutoFoldInEasiNote = true;
-            Settings.Automation.IsAutoFoldInEasiNoteIgnoreDesktopAnno = true;
-            Settings.Automation.IsAutoFoldInEasiCamera = true;
-            Settings.Automation.IsAutoFoldInEasiNote3C = false;
-            Settings.Automation.IsAutoFoldInSeewoPincoTeacher = false;
-            Settings.Automation.IsAutoFoldInHiteTouchPro = false;
-            Settings.Automation.IsAutoFoldInHiteCamera = false;
-            Settings.Automation.IsAutoFoldInWxBoardMain = false;
-            Settings.Automation.IsAutoFoldInOldZyBoard = false;
-            Settings.Automation.IsAutoFoldInMSWhiteboard = false;
-            Settings.Automation.IsAutoFoldInPPTSlideShow = false;
-            Settings.Automation.IsAutoKillPptService = false;
-            Settings.Automation.IsAutoKillEasiNote = false;
-            Settings.Automation.IsSaveScreenshotsInDateFolders = false;
-            Settings.Automation.IsAutoSaveStrokesAtScreenshot = true;
-            Settings.Automation.IsAutoSaveStrokesAtClear = true;
-            Settings.Automation.IsAutoClearWhenExitingWritingMode = false;
-            Settings.Automation.MinimumAutomationStrokeNumber = 0;
-            Settings.Automation.AutoDelSavedFiles = AutoDelSavedFilesDays;
-            Settings.Automation.AutoDelSavedFilesDaysThreshold = AutoDelSavedFilesDaysThreshold;
-
-            Settings.PowerPointSettings.IsShowPPTNavigationBottom = false;
-            Settings.PowerPointSettings.IsShowBottomPPTNavigationPanel = true;
-            Settings.PowerPointSettings.IsShowSidePPTNavigationPanel = false;
-            Settings.PowerPointSettings.PowerPointSupport = true;
-            Settings.PowerPointSettings.IsShowCanvasAtNewSlideShow = true;
-            Settings.PowerPointSettings.IsNoClearStrokeOnSelectWhenInPowerPoint = true;
-            Settings.PowerPointSettings.IsShowStrokeOnSelectInPowerPoint = false;
-            Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint = true;
-            Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint = false;
-            Settings.PowerPointSettings.IsNotifyPreviousPage = true;
-            Settings.PowerPointSettings.IsNotifyHiddenPage = false;
-            Settings.PowerPointSettings.IsNotifyAutoPlayPresentation = true;
-            Settings.PowerPointSettings.IsEnableTwoFingerGestureInPresentationMode = false;
-            Settings.PowerPointSettings.IsEnableFingerGestureSlideShowControl = false;
-            Settings.PowerPointSettings.IsSupportWPS = true;
-
-            Settings.Canvas.InkWidth = 2.5;
-            Settings.Canvas.InkAlpha = 80;
-            Settings.Canvas.IsShowCursor = false;
-            Settings.Canvas.InkStyle = 0;
-            Settings.Canvas.EraserSize = 1;
-            Settings.Canvas.EraserType = 0;
-            Settings.Canvas.HideStrokeWhenSelecting = false;
-            Settings.Canvas.HyperbolaAsymptoteOption = 0;
-            Settings.Canvas.UsingWhiteboard = true;
-
-            Settings.Gesture.MatrixTransformCenterPoint = MatrixTransformCenterPointOptions.CanvasCenterPoint;
-            Settings.Gesture.AutoSwitchTwoFingerGesture = true;
-            Settings.Gesture.IsEnableTwoFingerTranslate = false;
-            Settings.Gesture.IsEnableTwoFingerZoom = false;
-            Settings.Gesture.IsEnableTwoFingerRotation = false;
-            Settings.Gesture.IsEnableTwoFingerRotationOnSelection = true;
-            Settings.Gesture.IsEnableMultiTouchMode = false;
-
-            Settings.InkToShape.IsInkToShapeEnabled = true;
-
-            Settings.Startup.IsEnableNibMode = false;
-            Settings.Startup.IsAutoUpdate = true;
-            Settings.Startup.IsAutoUpdateWithSilence = true;
-            Settings.Startup.IsAutoUpdateWithProxy = true;
-            Settings.Startup.AutoUpdateProxy = "https://ghproxy.net/";
-            Settings.Startup.AutoUpdateWithSilenceStartTime = "18:20";
-            Settings.Startup.AutoUpdateWithSilenceEndTime = "07:40";
-            Settings.Startup.IsFoldAtStartup = false;
         }
 
         private void BtnResetToSuggestion_Click(object sender, RoutedEventArgs e)
@@ -935,10 +841,6 @@ namespace Ink_Canvas
             {
                 isLoaded = false;
                 SetSettingsToRecommendation();
-                Settings.Automation.AutoDelSavedFiles = true;
-                Settings.Automation.AutoDelSavedFilesDaysThreshold = 15;
-                Settings.Appearance.IsEnableDisPlayFloatBarText = true;
-                SetAutoSavedStrokesLocationToDiskDButton_Click(null, null);
                 SaveSettingsToFile();
                 LoadSettings();
                 isLoaded = true;

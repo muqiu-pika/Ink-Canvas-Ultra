@@ -1461,7 +1461,7 @@
 
                                                                         ui:ThemeManager.RequestedTheme="{DynamicResource BoardTheme}"
 
-                                                                        SelectedIndex="0"
+                                                                        SelectedIndex="2"
 
                                                                         SelectionChanged="ComboBoxPenStyle_SelectionChanged">
 

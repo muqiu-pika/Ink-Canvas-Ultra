@@ -39,7 +39,7 @@ namespace Ink_Canvas
         [JsonProperty("isShowCursor")]
         public bool IsShowCursor { get; set; } = false;
         [JsonProperty("inkStyle")]
-        public int InkStyle { get; set; } = 0;
+        public int InkStyle { get; set; } = 2;
         [JsonProperty("eraserSize")]
         public int EraserSize { get; set; } = 2;
         [JsonProperty("eraserType")] 
