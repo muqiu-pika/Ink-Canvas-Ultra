@@ -406,6 +406,10 @@ namespace Ink_Canvas
         // 文档页笔迹自动保存防抖 Timer
         private Timer _documentPageSaveTimer;
         private int _pendingDocumentSavePageIndex = -1;
+        // 进行中的文档页后台写盘任务，退出时等待全部完成，避免异步写盘被进程终止导致丢失
+        private readonly object _pendingSaveTasksLock = new object();
+        private readonly System.Collections.Generic.List<System.Threading.Tasks.Task> _pendingSaveTasks =
+            new System.Collections.Generic.List<System.Threading.Tasks.Task>();
         // 照片列表交互：右键/长按弹出的操作覆盖层
         private FrameworkElement _activePhotoActionOverlay;
         // 照片列表手动排序
@@ -1039,8 +1043,12 @@ namespace Ink_Canvas
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
         {
             LogHelper.WriteLogToFile("Ink Canvas closing", LogHelper.LogType.Event);
-            // 关闭前立即保存当前文档页的笔迹/元素，避免防抖计时器窗口期内的书写内容丢失
-            try { SaveDocumentPageIfNeeded(CurrentWhiteboardIndex); } catch { }
+            // 关闭前立即保存当前文档页的笔迹/元素，避免防抖计时器窗口期内的书写内容丢失。
+            // sync=true：同步写盘并等待完成，确保进程终止前 .icstk/.xaml 已完整写入对应文件夹，
+            // 防止异步后台写盘任务在进程退出时被中断导致文档照片/笔迹未保存。
+            try { SaveDocumentPageIfNeeded(CurrentWhiteboardIndex, sync: true); } catch { }
+            // 等待其余白板页（换页/防抖时触发）的后台写盘任务全部完成，避免退出时被中断丢失
+            try { WaitForPendingDocumentSaves(); } catch { }
             if (!CloseIsFromButton && Settings.Advanced.IsSecondConfimeWhenShutdownApp)
             {
                 e.Cancel = true;
@@ -1959,7 +1967,7 @@ namespace Ink_Canvas
         /// - UI 元素保存为 {pageIndex:0000}.xaml
         /// - 依赖文件保存到 File Dependency 子文件夹
         /// </summary>
-        private void SaveDocumentPageIfNeeded(int pageIndex)
+        private void SaveDocumentPageIfNeeded(int pageIndex, bool sync = false)
         {
             try
             {
@@ -2031,8 +2039,17 @@ namespace Ink_Canvas
                 // 也避免磁盘上重复存储同一张大图。拷贝本身放到后台线程执行，不阻塞 UI（尤其退出白板时）。
                 var dependencyFiles = CollectDocumentPageDependencyFiles(serializableCanvas);
 
-                // 后台线程仅做磁盘写入（含依赖文件拷贝），不再访问任何 UI 对象
-                SaveDocumentPageDataAsync(strokesBytes, elementsXaml, folderPath, strokesFilePath, elementsFilePath, dependencyFiles);
+                // 后台线程仅做磁盘写入（含依赖文件拷贝），不再访问任何 UI 对象。
+                // sync=true（软件退出时）改为同步写盘，确保进程终止前文件已完整落盘，
+                // 避免退出时后台写盘任务尚未完成导致 .icstk/.xaml 丢失或半写。
+                if (sync)
+                {
+                    SaveDocumentPageDataSync(strokesBytes, elementsXaml, folderPath, strokesFilePath, elementsFilePath, dependencyFiles);
+                }
+                else
+                {
+                    SaveDocumentPageDataAsync(strokesBytes, elementsXaml, folderPath, strokesFilePath, elementsFilePath, dependencyFiles);
+                }
 
                 LogHelper.WriteLogToFile($"文档页已自动保存: {strokesFilePath}（笔迹 {inkCanvas.Strokes.Count}，元素 {inkCanvas.Children.Count}）", LogHelper.LogType.Trace);
             }
@@ -2052,69 +2069,101 @@ namespace Ink_Canvas
             byte[] strokesBytes, string elementsXaml, string folderPath,
             string strokesFilePath, string elementsFilePath, System.Collections.Generic.List<string> dependencyFiles)
         {
-            System.Threading.Tasks.Task.Run(() =>
+            var task = System.Threading.Tasks.Task.Run(() =>
+                SaveDocumentPageDataSync(strokesBytes, elementsXaml, folderPath, strokesFilePath, elementsFilePath, dependencyFiles));
+            // 跟踪后台写盘任务，退出时等待全部完成，防止进程终止时写盘被中断导致数据丢失
+            lock (_pendingSaveTasksLock) { _pendingSaveTasks.Add(task); }
+            task.ContinueWith(t =>
             {
-                try
+                lock (_pendingSaveTasksLock) { _pendingSaveTasks.Remove(t); }
+            }, TaskContinuationOptions.ExecuteSynchronously);
+        }
+
+        /// <summary>
+        /// 等待所有进行中的文档页后台写盘任务完成（软件退出前调用）。
+        /// </summary>
+        private void WaitForPendingDocumentSaves()
+        {
+            System.Threading.Tasks.Task[] tasks;
+            lock (_pendingSaveTasksLock) { tasks = _pendingSaveTasks.ToArray(); }
+            if (tasks.Length == 0) return;
+            try
+            {
+                System.Threading.Tasks.Task.WaitAll(tasks, 3000);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"等待文档页保存任务完成超时/异常: {ex.Message}", LogHelper.LogType.Trace);
+            }
+        }
+
+        /// <summary>
+        /// 将已序列化的墨迹字节与 XAML 文本原子写入磁盘（纯磁盘 IO，不访问任何 UI 对象）。
+        /// 供异步（后台线程）与同步（软件退出时）两种方式复用。
+        /// </summary>
+        private void SaveDocumentPageDataSync(
+            byte[] strokesBytes, string elementsXaml, string folderPath,
+            string strokesFilePath, string elementsFilePath, System.Collections.Generic.List<string> dependencyFiles)
+        {
+            try
+            {
+                // 原子写入墨迹：先写 .tmp，Flush 落盘后替换正式文件，
+                // 避免进程中途退出导致 .icstk 截断
+                if (strokesBytes != null && strokesBytes.Length > 0)
                 {
-                    // 原子写入墨迹：先写 .tmp，Flush 落盘后替换正式文件，
-                    // 避免进程中途退出导致 .icstk 截断
-                    if (strokesBytes != null && strokesBytes.Length > 0)
+                    string tmpStrokesPath = strokesFilePath + ".tmp";
+                    using (var fs = new FileStream(tmpStrokesPath, FileMode.Create, FileAccess.Write))
                     {
-                        string tmpStrokesPath = strokesFilePath + ".tmp";
-                        using (var fs = new FileStream(tmpStrokesPath, FileMode.Create, FileAccess.Write))
-                        {
-                            fs.Write(strokesBytes, 0, strokesBytes.Length);
-                            fs.Flush(true);
-                        }
-                        if (File.Exists(strokesFilePath)) File.Delete(strokesFilePath);
-                        File.Move(tmpStrokesPath, strokesFilePath);
+                        fs.Write(strokesBytes, 0, strokesBytes.Length);
+                        fs.Flush(true);
                     }
+                    if (File.Exists(strokesFilePath)) File.Delete(strokesFilePath);
+                    File.Move(tmpStrokesPath, strokesFilePath);
+                }
 
-                    // 原子写入元素 XAML：同样先写 .tmp 再替换
-                    if (!string.IsNullOrEmpty(elementsXaml))
+                // 原子写入元素 XAML：同样先写 .tmp 再替换
+                if (!string.IsNullOrEmpty(elementsXaml))
+                {
+                    string tmpFilePath = elementsFilePath + ".tmp";
+                    using (var fs = new FileStream(tmpFilePath, FileMode.Create, FileAccess.Write))
+                    using (var sw = new StreamWriter(fs, System.Text.Encoding.UTF8))
                     {
-                        string tmpFilePath = elementsFilePath + ".tmp";
-                        using (var fs = new FileStream(tmpFilePath, FileMode.Create, FileAccess.Write))
-                        using (var sw = new StreamWriter(fs, System.Text.Encoding.UTF8))
-                        {
-                            sw.Write(elementsXaml);
-                            sw.Flush();
-                            fs.Flush(true);
-                        }
-                        if (File.Exists(elementsFilePath)) File.Delete(elementsFilePath);
-                        File.Move(tmpFilePath, elementsFilePath);
+                        sw.Write(elementsXaml);
+                        sw.Flush();
+                        fs.Flush(true);
                     }
+                    if (File.Exists(elementsFilePath)) File.Delete(elementsFilePath);
+                    File.Move(tmpFilePath, elementsFilePath);
+                }
 
-                    // 依赖文件（图像/媒体源）复制到 File Dependency 子文件夹。
-                    // 此拷贝在后台线程执行（纯磁盘 IO），不阻塞 UI 线程，避免退出白板 / 换页时卡顿。
-                    // 文档分块照片已在 CollectDocumentPageDependencyFiles 中剔除（其源即持久化缓存文件）。
-                    if (dependencyFiles != null && dependencyFiles.Count > 0)
+                // 依赖文件（图像/媒体源）复制到 File Dependency 子文件夹。
+                // 文档分块照片已在 CollectDocumentPageDependencyFiles 中剔除（其源即持久化缓存文件）。
+                if (dependencyFiles != null && dependencyFiles.Count > 0)
+                {
+                    string dependencyFolder = System.IO.Path.Combine(folderPath, "File Dependency");
+                    if (!Directory.Exists(dependencyFolder))
+                        Directory.CreateDirectory(dependencyFolder);
+                    foreach (var src in dependencyFiles)
                     {
-                        string dependencyFolder = System.IO.Path.Combine(folderPath, "File Dependency");
-                        if (!Directory.Exists(dependencyFolder))
-                            Directory.CreateDirectory(dependencyFolder);
-                        foreach (var src in dependencyFiles)
+                        try
                         {
-                            try
+                            if (File.Exists(src))
                             {
-                                if (File.Exists(src))
-                                {
-                                    string destPath = System.IO.Path.Combine(dependencyFolder, System.IO.Path.GetFileName(src));
-                                    File.Copy(src, destPath, true);
-                                }
+                                string destPath = System.IO.Path.Combine(dependencyFolder, System.IO.Path.GetFileName(src));
+                                File.Copy(src, destPath, true);
                             }
-                            catch (Exception copyEx)
-                            {
-                                LogHelper.WriteLogToFile($"复制依赖文件失败 [{src}]: {copyEx.Message}", LogHelper.LogType.Error);
-                            }
+                        }
+                        catch (Exception copyEx)
+                        {
+                            LogHelper.WriteLogToFile($"复制依赖文件失败 [{src}]: {copyEx.Message}", LogHelper.LogType.Error);
                         }
                     }
                 }
-                catch (Exception ex)
-                {
-                    LogHelper.WriteLogToFile($"后台保存文档页失败: {ex.Message}", LogHelper.LogType.Error);
-                }
-            });
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"保存文档页失败: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         /// <summary>
