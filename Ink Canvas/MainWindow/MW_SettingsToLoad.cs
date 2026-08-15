@@ -98,7 +98,7 @@ namespace Ink_Canvas
             if (Settings.Automation == null) Settings.Automation = new Automation();
             if (string.IsNullOrWhiteSpace(Settings.Automation.AutoSavedStrokesLocation))
             {
-                Settings.Automation.AutoSavedStrokesLocation = @"D:\Ink Canvas";
+                Settings.Automation.AutoSavedStrokesLocation = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Ink Canvas";
             }
             if (Settings.PowerPointSettings == null) Settings.PowerPointSettings = new PowerPointSettings();
             if (Settings.Canvas == null) Settings.Canvas = new Canvas();

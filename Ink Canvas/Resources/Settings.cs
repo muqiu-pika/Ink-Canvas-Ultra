@@ -1,4 +1,5 @@
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
 
 #pragma warning disable IDE0130 // 命名空间"Ink_Canvas"与文件夹结构不匹配
@@ -292,7 +293,7 @@ namespace Ink_Canvas
         public int MinimumAutomationStrokeNumber { get; set; } = 0;
 
         [JsonProperty("autoSavedStrokesLocation")]
-        public string AutoSavedStrokesLocation = @"D:\Ink Canvas";
+        public string AutoSavedStrokesLocation = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Ink Canvas";
 
         [JsonProperty("autoDelSavedFiles")]
         public bool AutoDelSavedFiles = false;
