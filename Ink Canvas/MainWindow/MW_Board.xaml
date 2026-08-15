@@ -1537,6 +1537,8 @@
 
                                                                         <ui:ToggleSwitch
 
+                                                                            x:Name="ToggleSwitchEnableInkToShapeBoard"
+
                                                                             Width="70"
 
                                                                             MinWidth="0"
@@ -1544,8 +1546,6 @@
                                                                             ui:ThemeManager.RequestedTheme="{DynamicResource BoardTheme}"
 
                                                                             Foreground="{DynamicResource BoardBarForeground}"
-
-                                                                            IsOn="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ToggleSwitchEnableInkToShapeBridge.IsOn}"
 
                                                                             OffContent="关"
 

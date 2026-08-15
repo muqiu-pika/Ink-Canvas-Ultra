@@ -717,13 +717,13 @@
 
                                                                         <ui:ToggleSwitch
 
+                                                                            x:Name="ToggleSwitchEnableInkToShapeFloatBar"
+
                                                                             Width="70"
 
                                                                             MinWidth="0"
 
                                                                             Foreground="{DynamicResource FloatBarForeground}"
-
-                                                                            IsOn="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ToggleSwitchEnableInkToShapeBridge.IsOn}"
 
                                                                             OffContent="关"
 

@@ -264,6 +264,8 @@ namespace Ink_Canvas
 
                 LineStraightenSensitivitySlider.Value = Settings.InkToShape.LineStraightenSensitivity;
             }
+            // 根据主开关初始化子开关的可见性与状态
+            UpdateInkRecognitionSubOptionsVisibility(Settings.InkToShape?.IsInkToShapeEnabled ?? true);
             if (Settings.Canvas != null)
             {
                 ToggleSwitchAutoStraightenLine.IsOn = Settings.Canvas.AutoStraightenLine;

@@ -16,7 +16,8 @@ namespace Ink_Canvas
         }
 
         public MW_FloatBar FloatBarHostBridge => MWFloatBarHost;
-        public dynamic ToggleSwitchEnableInkToShapeBridge => ToggleSwitchEnableInkToShape;
+        private dynamic ToggleSwitchEnableInkToShapeFloatBar => FindXamlPart(MWFloatBarHost, nameof(ToggleSwitchEnableInkToShapeFloatBar));
+        private dynamic ToggleSwitchEnableInkToShapeBoard => FindXamlPart(MWBoardHost, nameof(ToggleSwitchEnableInkToShapeBoard));
 
         private MW_Settings SettingsWindow => System.Windows.Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
 
@@ -136,6 +137,7 @@ namespace Ink_Canvas
         private dynamic ToggleSwitchAutoSwitchTwoFingerGesture => FindXamlPart(SettingsWindow, nameof(ToggleSwitchAutoSwitchTwoFingerGesture));
         private dynamic ToggleSwitchEnableTwoFingerRotationOnSelection => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableTwoFingerRotationOnSelection));
         private dynamic GroupBoxInkRecognition => FindXamlPart(SettingsWindow, nameof(GroupBoxInkRecognition));
+        private dynamic InkRecognitionSubOptions => FindXamlPart(SettingsWindow, nameof(InkRecognitionSubOptions));
         private dynamic ToggleSwitchEnableInkToShape => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableInkToShape));
         private dynamic ToggleSwitchEnableTriangleRecognition => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableTriangleRecognition));
         private dynamic ToggleSwitchEnableRectangleRecognition => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableRectangleRecognition));

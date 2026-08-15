@@ -953,11 +953,106 @@ namespace Ink_Canvas
 
         #region Ink To Shape
 
+        // 主开关状态写入的防重入标记，避免三处开关互相触发 Toggled 造成死循环
+        private bool _syncingInkToShapeToggles = false;
+
         private void ToggleSwitchEnableInkToShape_Toggled(object sender, RoutedEventArgs e)
         {
             if (!isLoaded || _isLoadingSettings) return;
-            Settings.InkToShape.IsInkToShapeEnabled = ToggleSwitchEnableInkToShape.IsOn;
+            if (_syncingInkToShapeToggles) return;
+
+            // 以触发事件的开关状态为准（设置窗口 / 浮动栏 / 白板任一开关都能触发）
+            bool isOn = false;
+            try
+            {
+                if (sender is iNKORE.UI.WPF.Modern.Controls.ToggleSwitch ts)
+                    isOn = ts.IsOn;
+            }
+            catch { }
+
+            Settings.InkToShape.IsInkToShapeEnabled = isOn;
             SaveSettingsToFile();
+
+            // 联动：设置窗口 / 浮动栏 / 白板三处开关保持同一状态
+            _syncingInkToShapeToggles = true;
+            try
+            {
+                if (ToggleSwitchEnableInkToShape != null)
+                    ToggleSwitchEnableInkToShape.IsOn = isOn;
+                if (ToggleSwitchEnableInkToShapeFloatBar != null)
+                    ToggleSwitchEnableInkToShapeFloatBar.IsOn = isOn;
+                if (ToggleSwitchEnableInkToShapeBoard != null)
+                    ToggleSwitchEnableInkToShapeBoard.IsOn = isOn;
+            }
+            catch { }
+            finally
+            {
+                _syncingInkToShapeToggles = false;
+            }
+
+            // 主开关关闭时隐藏子开关并置为关闭；重新启用时恢复显示并还原之前状态
+            UpdateInkRecognitionSubOptionsVisibility(isOn);
+        }
+
+        // 子开关状态备份（关闭主开关前记住，重新启用时还原）
+        private bool _inkSubOptionsBackedUp = false;
+        private bool _backupTriangle = false;
+        private bool _backupRectangle = false;
+        private bool _backupAutoStraighten = false;
+        private bool _backupLineEndpointSnapping = false;
+        private bool _backupStopTiming = false;
+
+        private void UpdateInkRecognitionSubOptionsVisibility(bool enabled)
+        {
+            try
+            {
+                if (InkRecognitionSubOptions == null) return;
+
+                if (enabled)
+                {
+                    // 重新启用：显示子开关并还原之前备份的状态
+                    if (_inkSubOptionsBackedUp)
+                    {
+                        if (ToggleSwitchEnableTriangleRecognition != null)
+                            ToggleSwitchEnableTriangleRecognition.IsOn = _backupTriangle;
+                        if (ToggleSwitchEnableRectangleRecognition != null)
+                            ToggleSwitchEnableRectangleRecognition.IsOn = _backupRectangle;
+                        if (ToggleSwitchAutoStraightenLine != null)
+                            ToggleSwitchAutoStraightenLine.IsOn = _backupAutoStraighten;
+                        if (ToggleSwitchLineEndpointSnapping != null)
+                            ToggleSwitchLineEndpointSnapping.IsOn = _backupLineEndpointSnapping;
+                        if (ToggleSwitchStopTimingStraighten != null)
+                            ToggleSwitchStopTimingStraighten.IsOn = _backupStopTiming;
+                        _inkSubOptionsBackedUp = false;
+                    }
+                    InkRecognitionSubOptions.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    // 关闭主开关：备份当前子开关状态，然后全部置为关闭并隐藏
+                    if (!_inkSubOptionsBackedUp)
+                    {
+                        _backupTriangle = ToggleSwitchEnableTriangleRecognition?.IsOn ?? false;
+                        _backupRectangle = ToggleSwitchEnableRectangleRecognition?.IsOn ?? false;
+                        _backupAutoStraighten = ToggleSwitchAutoStraightenLine?.IsOn ?? false;
+                        _backupLineEndpointSnapping = ToggleSwitchLineEndpointSnapping?.IsOn ?? false;
+                        _backupStopTiming = ToggleSwitchStopTimingStraighten?.IsOn ?? false;
+                        _inkSubOptionsBackedUp = true;
+                    }
+                    if (ToggleSwitchEnableTriangleRecognition != null)
+                        ToggleSwitchEnableTriangleRecognition.IsOn = false;
+                    if (ToggleSwitchEnableRectangleRecognition != null)
+                        ToggleSwitchEnableRectangleRecognition.IsOn = false;
+                    if (ToggleSwitchAutoStraightenLine != null)
+                        ToggleSwitchAutoStraightenLine.IsOn = false;
+                    if (ToggleSwitchLineEndpointSnapping != null)
+                        ToggleSwitchLineEndpointSnapping.IsOn = false;
+                    if (ToggleSwitchStopTimingStraighten != null)
+                        ToggleSwitchStopTimingStraighten.IsOn = false;
+                    InkRecognitionSubOptions.Visibility = Visibility.Collapsed;
+                }
+            }
+            catch { }
         }
 
         #endregion

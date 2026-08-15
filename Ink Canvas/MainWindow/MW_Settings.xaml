@@ -1396,6 +1396,8 @@
 
                                 </ikw:SimpleStackPanel>
 
+                                <ikw:SimpleStackPanel x:Name="InkRecognitionSubOptions" Spacing="5">
+
                                 <ikw:SimpleStackPanel Orientation="Horizontal">
 
                                     <ikw:SimpleStackPanel Width="50">
@@ -1606,6 +1608,7 @@
 
                                 </StackPanel>
 
+                                </ikw:SimpleStackPanel>
 
 
                             </ikw:SimpleStackPanel>
