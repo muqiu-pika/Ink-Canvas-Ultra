@@ -87,15 +87,25 @@
 
 	</ItemGroup>
 	<ItemGroup>
-		<!-- 临时构建用：MSB4803 环境下用已生成的 Interop DLL 替代 COMReference（构建后需还原为 COMReference） -->
-		<Reference Include="Interop.IWshRuntimeLibrary">
-			<HintPath>bin\Release\Interop.IWshRuntimeLibrary.dll</HintPath>
+		<!-- 原始 COM 互操作引用（VS 的 msbuild 可解析；dotnet build 不支持 ResolveComReference） -->
+		<COMReference Include="IWshRuntimeLibrary">
+			<Guid>{F935DC20-1CF0-11D0-ADB9-00C04FD58A0B}</Guid>
+			<VersionMajor>1</VersionMajor>
+			<VersionMinor>0</VersionMinor>
+			<Lcid>0</Lcid>
+			<WrapperTool>tlbimp</WrapperTool>
+			<Isolated>False</Isolated>
 			<EmbedInteropTypes>False</EmbedInteropTypes>
-		</Reference>
-		<Reference Include="stdole">
-			<HintPath>bin\Release\stdole.dll</HintPath>
+		</COMReference>
+		<COMReference Include="stdole">
+			<Guid>{00020430-0000-0000-C000-000000000046}</Guid>
+			<VersionMajor>2</VersionMajor>
+			<VersionMinor>0</VersionMinor>
+			<Lcid>0</Lcid>
+			<WrapperTool>primary</WrapperTool>
+			<Isolated>False</Isolated>
 			<EmbedInteropTypes>False</EmbedInteropTypes>
-		</Reference>
+		</COMReference>
 	</ItemGroup>
 	<ItemGroup>
 		<WCFMetadata Include="Connected Services\" />

@@ -9,7 +9,7 @@ on:
 jobs:
 
   build:
-    runs-on: windows-2022
+    runs-on: windows-2025
 
     steps:
     - name: Checkout
@@ -17,13 +17,11 @@ jobs:
       with:
         fetch-depth: 0
 
-    # 安装 .NET SDK（global.json 锁定 10.0.400，需安装对应的 .NET 10 SDK）
+    # 安装 .NET 10 SDK（windows-2025 镜像自带 VS2026 / MSBuild 18，可载 global.json 锁定的 10.0.400）
     - name: Install .NET SDK
       uses: actions/setup-dotnet@v5.2.0
       with:
-        dotnet-version: |
-          6.0.x
-          10.0.x
+        dotnet-version: '10.0.x'
         
     # 安装 NuGet
     - name: Setup NuGet
