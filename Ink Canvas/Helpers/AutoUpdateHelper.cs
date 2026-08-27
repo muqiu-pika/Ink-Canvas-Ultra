@@ -165,7 +165,12 @@ namespace Ink_Canvas.Helpers
                     return;
                 }
 
-                string InstallCommand = $"\"{setupFilePath}\" /SILENT";
+                // /SILENT、/VERYSILENT：无界面安装。
+                // /SUPPRESSMSGBOXES：压制询问/提示框，避免静默安装卡死在确认框。
+                // /CLOSEAPPLICATIONS：关闭正在运行的应用（配合 iss 的 CloseApplications），
+                //   避免主程序文件被占用导致安装失败。
+                // /NORESTART：安装后不自动重启。
+                string InstallCommand = $"\"{setupFilePath}\" /SILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /NORESTART";
                 if (isInSilence) InstallCommand += " /VERYSILENT";
                 ExecuteCommandLine(InstallCommand);
             }

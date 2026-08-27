@@ -5,6 +5,9 @@ namespace Ink_Canvas
 {
     public partial class MainWindow : Window
     {
+        // 启动阶段是否已触发过自动更新检查（避免与设置窗口触发重复）
+        private bool _startupUpdateChecked;
+
         private async void AutoUpdate()
         {
             if (Settings.Startup.IsAutoUpdateWithProxy) AvailableLatestVersion = await AutoUpdateHelper.CheckForUpdates(Settings.Startup.AutoUpdateProxy);

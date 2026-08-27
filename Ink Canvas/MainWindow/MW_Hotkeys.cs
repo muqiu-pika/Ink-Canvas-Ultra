@@ -1,7 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
+using Ink_Canvas.Helpers;
 using System.Windows.Controls;
 using System.Windows.Ink;
 using System.Windows.Input;
@@ -13,17 +15,37 @@ namespace Ink_Canvas
 {
     public partial class MainWindow : Window
     {
+        /// <summary>内置快捷键管理中心（插件可通过 IPluginHost 重绑定/复位）</summary>
+        public HotkeyService HotkeyService { get; private set; }
+
         private void RegisterGlobalHotkeys()
         {
-            Hotkey.Regist(this, HotkeyModifiers.MOD_SHIFT, Key.Escape, HotKey_ExitPPTSlideShow);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_CONTROL, Key.E, HotKey_Clear);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.C, HotKey_Capture);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.V, HotKey_Hide);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.D, HotKey_DrawTool);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.Q, HotKey_QuitDrawMode);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_ALT, Key.B, HotKey_Board);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_CONTROL | HotkeyModifiers.MOD_SHIFT, Key.V, HotKey_Paste);
-            Hotkey.Regist(this, HotkeyModifiers.MOD_CONTROL, Key.Q, HotKey_Exit);
+            if (HotkeyService != null) return; // 已在构造函数中初始化，避免重复注册
+
+            // 使用 HotkeyService 统一管理内置快捷键，便于插件「自定义快捷键」重绑定与复位默认。
+            HotkeyService = new HotkeyService(this);
+            HotkeyService.RegisterAction("exit-ppt", "退出PPT放映", "放映 PPT 时按快捷键退出放映", HotkeyModifiers.MOD_SHIFT, Key.Escape, HotKey_ExitPPTSlideShow);
+            HotkeyService.RegisterAction("clear", "清屏", "清除画布内容", HotkeyModifiers.MOD_CONTROL, Key.E, HotKey_Clear);
+            HotkeyService.RegisterAction("capture", "截图", "截图并插入画布", HotkeyModifiers.MOD_ALT, Key.C, HotKey_Capture);
+            HotkeyService.RegisterAction("toggle-visibility", "隐藏/显示", "隐藏或显示主窗口", HotkeyModifiers.MOD_ALT, Key.V, HotKey_Hide);
+            HotkeyService.RegisterAction("draw-tool", "画笔", "切换到画笔", HotkeyModifiers.MOD_ALT, Key.D, HotKey_DrawTool);
+            HotkeyService.RegisterAction("quit-draw-mode", "退出书写模式", "退出白板并切换到鼠标选择", HotkeyModifiers.MOD_ALT, Key.Q, HotKey_QuitDrawMode);
+            HotkeyService.RegisterAction("board", "白板", "进入/退出白板模式", HotkeyModifiers.MOD_ALT, Key.B, HotKey_Board);
+            HotkeyService.RegisterAction("paste", "粘贴", "从剪贴板粘贴图片", HotkeyModifiers.MOD_CONTROL | HotkeyModifiers.MOD_SHIFT, Key.V, HotKey_Paste);
+            HotkeyService.RegisterAction("exit", "退出", "退出软件", HotkeyModifiers.MOD_CONTROL, Key.Q, HotKey_Exit);
+
+            // 窗口级快捷键（窗口聚焦时生效，走 Window.InputBindings 的 KeyBinding）
+            HotkeyService.RegisterWindowAction("undo", "撤销", "撤销上一步操作", FindCommand("HotKey_Command_Undo"));
+            HotkeyService.RegisterWindowAction("redo", "重做", "重做被撤销的操作", FindCommand("HotKey_Command_Redo"));
+            HotkeyService.RegisterWindowAction("select", "选择", "切换到选择模式", FindCommand("HotKey_ChangeToSelect"));
+            HotkeyService.RegisterWindowAction("eraser", "橡皮擦", "切换到橡皮擦（面积擦/墨迹擦）", FindCommand("HotKey_ChangeToEraser"));
+            HotkeyService.RegisterWindowAction("line", "直线", "切换到单次直线绘制", FindCommand("HotKey_DrawLine"));
+        }
+
+        private System.Windows.Input.RoutedCommand FindCommand(string resourceKey)
+        {
+            try { return FindResource(resourceKey) as System.Windows.Input.RoutedCommand; } catch { }
+            return null;
         }
 
         private void HotKey_ExitPPTSlideShow()
@@ -276,15 +298,90 @@ namespace Ink_Canvas
 
         private void Window_MouseWheel(object sender, MouseWheelEventArgs e)
         {
-            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
-            if (e.Delta >= 120)
+            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
             {
-                BtnPPTSlidesUp_Click(null, null);
+                if (e.Delta >= 120)
+                {
+                    BtnPPTSlidesUp_Click(null, null);
+                }
+                else if (e.Delta <= -120)
+                {
+                    BtnPPTSlidesDown_Click(null, null);
+                }
+                e.Handled = true;
+                return;
             }
-            else if (e.Delta <= -120)
+
+            // 白板模式下切换到“选择”状态后，可通过滚轮操控整页内容
+            if (currentMode == 1 && inkCanvas.EditingMode == InkCanvasEditingMode.Select)
             {
-                BtnPPTSlidesDown_Click(null, null);
+                HandleBoardSelectModeMouseWheel(e);
             }
+        }
+
+        /// <summary>
+        /// 白板“选择”状态下的滚轮操控：
+        /// Ctrl+滚轮缩放、Shift+滚轮左右平移、普通滚轮上下平移（效果与双指手势一致）。
+        /// </summary>
+        private void HandleBoardSelectModeMouseWheel(MouseWheelEventArgs e)
+        {
+            if (e == null) return;
+            bool isCtrl = (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control;
+            bool isShift = (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift;
+
+            List<UIElement> elements = InkCanvasElementsHelper.GetAllElements(inkCanvas);
+
+            if (isCtrl)
+            {
+                // 缩放：与双指放大/缩小效果一致
+                double scale = e.Delta > 0 ? 1.1 : 0.9;
+                Point mousePoint = e.GetPosition(inkCanvas);
+                Point center = GetMatrixTransformCenterPoint(mousePoint, inkCanvas);
+                Matrix m = new Matrix();
+                m.ScaleAt(scale, scale, center.X, center.Y);
+
+                foreach (UIElement element in elements)
+                {
+                    double left = InkCanvas.GetLeft(element);
+                    double top = InkCanvas.GetTop(element);
+                    if (double.IsNaN(left)) left = 0;
+                    if (double.IsNaN(top)) top = 0;
+                    Matrix elementMatrix = new Matrix();
+                    elementMatrix.ScaleAt(scale, scale, center.X - left, center.Y - top);
+                    ApplyElementMatrixTransform(element, elementMatrix);
+                }
+
+                foreach (Stroke stroke in inkCanvas.Strokes)
+                {
+                    stroke.Transform(m, false);
+                    try
+                    {
+                        stroke.DrawingAttributes.Width *= scale;
+                        stroke.DrawingAttributes.Height *= scale;
+                    }
+                    catch { }
+                }
+            }
+            else
+            {
+                // 平移：Shift+滚轮左右平移，普通滚轮上下平移
+                double dx = isShift ? e.Delta : 0;
+                double dy = isShift ? 0 : e.Delta;
+                Matrix m = new Matrix();
+                m.Translate(dx, dy);
+
+                foreach (UIElement element in elements)
+                {
+                    ApplyElementMatrixTransform(element, m);
+                }
+
+                foreach (Stroke stroke in inkCanvas.Strokes)
+                {
+                    stroke.Transform(m, false);
+                }
+            }
+
+            e.Handled = true;
         }
 
         private void Main_Grid_PreviewKeyDown(object sender, KeyEventArgs e)

@@ -102,6 +102,56 @@ namespace Ink_Canvas.Plugins
         /// <summary>注销之前注册的选择控制条</summary>
         void UnregisterSelectionControlBar(UIElement controlBar);
 
+        // ===== 快捷键重绑定 =====
+
+        /// <summary>
+        /// 获取软件内置快捷动作的当前信息列表。
+        /// 插件可用它做「自定义快捷键」设置界面。
+        /// </summary>
+        IReadOnlyList<HotkeyActionInfo> GetHotkeyActions();
+
+        /// <summary>
+        /// 为一个内置快捷动作重新绑定组合键。
+        /// </summary>
+        /// <param name="actionId">动作标识（来自 GetHotkeyActions 的 Id）</param>
+        /// <param name="combo">组合键文本，如 "Ctrl+Shift+V"；空串/空值表示禁用该动作。</param>
+        /// <returns>是否设置成功。</returns>
+        bool SetHotkey(string actionId, string combo);
+
+        /// <summary>将一个内置快捷动作恢复为软件默认按键。</summary>
+        bool ResetHotkey(string actionId);
+
+        /// <summary>将所有内置快捷动作恢复为软件默认按键。</summary>
+        void ResetAllHotkeys();
+
+        /// <summary>
+        /// 返回与指定组合键冲突的其他快捷键动作（供「自定义快捷键」在设置前检测重复）。
+        /// 不包含 actionId 本身；combo 非法或没有冲突时返回空列表。
+        /// </summary>
+        IReadOnlyList<HotkeyActionInfo> GetConflictingHotkeys(string actionId, string combo);
+
+        /// <summary>
+        /// 暂时挂起软件的全部快捷键（全局注销 + 窗口级移除 KeyBinding）。
+        /// 用于「捕获新快捷键」期间，避免按下与现有键冲突的按键时执行对应功能。
+        /// 长时间未调用 ResumeHotkeys 会由宿主自动恢复，防止卡死。
+        /// </summary>
+        void SuspendHotkeys();
+
+        /// <summary>恢复被 SuspendHotkeys 挂起的所有快捷键并按当前配置重新注册。</summary>
+        void ResumeHotkeys();
+
+        // ===== 插件工坊设置面板 =====
+
+        /// <summary>
+        /// 注册一个「工厂方法」用来构建插件在插件工坊里显示的设置面板 UI。
+        /// 插件被禁用/卸载时自动移除。工坊在该插件条目下展示，并用同一位置的图标展开/折叠。
+        /// 每次展开工坊会重新调用该工厂以刷新 UI。
+        /// </summary>
+        void RegisterSettingsPanel(Func<UIElement> panelFactory);
+
+        /// <summary>注销之前注册的设置面板工厂。</summary>
+        void UnregisterSettingsPanel();
+
         // ===== 事件订阅 =====
 
         /// <summary>主程序即将退出</summary>

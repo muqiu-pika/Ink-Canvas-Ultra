@@ -1,4 +1,4 @@
-﻿using Ink_Canvas.Helpers;
+using Ink_Canvas.Helpers;
 using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
@@ -252,6 +252,18 @@ namespace Ink_Canvas
             centeredTransformGroup.Children.Add(new MatrixTransform(matrix));
             transformGroup.Children.Add(centeredTransformGroup);
 
+            // 防性能退化：滚轮/双指不断平移缩放时，每步都会向 RenderTransform 追加一个矩阵。
+            // 元素越多、操作越久，TransformGroup 越长，渲染时需合成的矩阵越多，必然渐进变卡。
+            // 子项超过阈值时压缩为单个等价的 MatrixTransform，值与之前完全一致，仅折叠链长度。
+            const int maxTransformAppendSteps = 16;
+            if (transformGroup.Children.Count > maxTransformAppendSteps)
+            {
+                var compactedMatrix = new MatrixTransform(transformGroup.Value);
+                transformGroup = new TransformGroup();
+                transformGroup.Children.Add(compactedMatrix);
+                frameworkElement.RenderTransform = transformGroup;
+            }
+
             if (ElementsManipulationHistory == null)
             {
                 ElementsManipulationHistory = new Dictionary<string, Tuple<object, TransformGroup>>();
@@ -398,6 +410,13 @@ namespace Ink_Canvas
 
         private void GridInkCanvasSelectionCover_MouseWheel(object sender, MouseWheelEventArgs e)
         {
+            // 白板模式下已切换到“选择”状态时，滚轮交由 Window_MouseWheel 统一操控整页内容，
+            // 这里不再单独缩放“选中内容”，避免与整页平移/缩放双重叠加导致元素相对漂移。
+            if (currentMode == 1 && inkCanvas.EditingMode == InkCanvasEditingMode.Select)
+            {
+                return;
+            }
+
             double scale = e.Delta > 0 ? 1.1 : 0.9;
             Point center = InkCanvasElementsHelper.GetAllElementsBoundsCenterPoint(inkCanvas);
             Matrix m = new Matrix();

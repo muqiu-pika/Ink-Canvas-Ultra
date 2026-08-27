@@ -124,6 +124,6 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 ## 🔄 版本信息
 
-当前版本：**V8.0.1**
+当前版本：**V8.0.2**
 
 完整更新日志请访问：https://doc.muqiu.eu.org/article/changelog/

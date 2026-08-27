@@ -82,8 +82,23 @@ namespace Ink_Canvas
         bool isDragDropInEffect = false;
         Point pos = new Point();
         Point downPos = new Point();
-        Point pointDesktop = new Point(-1, -1); //用于记录上次在桌面时的坐标
+        Point pointDesktop = new Point(-1, -1); //用于记录上次在桌面时的坐标（用户拖动后会锁定在此）
         Point pointPPT = new Point(-1, -1); //用于记录上次在PPT中的坐标
+        bool _floatingBarPositionLoadedFromSettings = false;
+
+        /// <summary>用户手动拖动结束后，锁定并持久化浮动栏的桌面位置。</summary>
+        private void PersistFloatingBarDesktopPosition()
+        {
+            try
+            {
+                if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) return; // PPT 中的位置不覆盖桌面锁定
+                if (pointDesktop.X < 0 || pointDesktop.Y < 0) return; // 未实际移动过则不锁定
+                Settings.Appearance.FloatingBarPositionLockedX = pointDesktop.X;
+                Settings.Appearance.FloatingBarPositionLockedY = pointDesktop.Y;
+                SaveSettingsToFile();
+            }
+            catch { }
+        }
 
         void SymbolIconEmoji_MouseMove(object sender, MouseEventArgs e)
         {
@@ -140,6 +155,9 @@ namespace Ink_Canvas
 
             // 释放触摸捕获
             e.TouchDevice.Capture(null);
+
+            // 拖动结束：锁定并持久化桌面位置
+            PersistFloatingBarDesktopPosition();
 
             // 隐藏快捷按钮窗口
             if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
@@ -199,6 +217,9 @@ namespace Ink_Canvas
             }
 
             isDragDropInEffect = false;
+
+            // 拖动结束：锁定并持久化桌面位置
+            PersistFloatingBarDesktopPosition();
 
             // 如果长按已触发，则不执行点击操作
             if (_emojiBtnLongPressFired)
@@ -1232,6 +1253,7 @@ namespace Ink_Canvas
             }
             
             Point newPos = new Point();
+            Point target = new Point();
             
             await Dispatcher.InvokeAsync(() =>
             {
@@ -1298,16 +1320,29 @@ namespace Ink_Canvas
                 // 需要减去浮动栏的实际渲染高度，确保底部边距是从浮动栏底部到屏幕底部的距离
                 newPos.Y = screenHeight - MarginFromEdge - floatingBarHeight;
 
-                // 自动吸附功能：如果之前保存的位置偏离较大（说明用户移动过），恢复到之前的位置
-                if (MarginFromEdge != -60)
+                // 首次定位时，从设置读取用户已锁定的位置（NaN 表示从未手动移动过）
+                if (!_floatingBarPositionLoadedFromSettings)
                 {
-                    if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
+                    _floatingBarPositionLoadedFromSettings = true;
+                    if (!double.IsNaN(Settings.Appearance.FloatingBarPositionLockedX)
+                        && !double.IsNaN(Settings.Appearance.FloatingBarPositionLockedY))
                     {
-                        pointPPT = newPos;
+                        pointDesktop = new Point(Settings.Appearance.FloatingBarPositionLockedX,
+                                                 Settings.Appearance.FloatingBarPositionLockedY);
                     }
-                    else
+                }
+
+                // 最终目标位置：
+                // - 黑板模式：使用 newPos（离屏 -60，隐藏）
+                // - PPT 放映：返回其「对应位置」（底部居中新算），不受用户桌面位置影响
+                // - 其余（桌面/批注）：若用户已拖动锁定过则用 pointDesktop，否则居中
+                bool isPPT = BtnPPTSlideShowEnd.Visibility == Visibility.Visible;
+                target = newPos;
+                if (Topmost != false || isPPT)
+                {
+                    if (!isPPT && pointDesktop.X >= 0 && pointDesktop.Y >= 0)
                     {
-                        pointDesktop = newPos;
+                        target = pointDesktop;
                     }
                 }
 
@@ -1327,7 +1362,7 @@ namespace Ink_Canvas
                 {
                     Duration = TimeSpan.FromSeconds(0.5),
                     From = fromMargin,
-                    To = new Thickness(newPos.X, newPos.Y, -2000, -200),
+                    To = new Thickness(target.X, target.Y, -2000, -200),
                     EasingFunction = new CircleEase()
                 };
                 ViewboxFloatingBar.BeginAnimation(FrameworkElement.MarginProperty, marginAnimation);
@@ -1337,8 +1372,8 @@ namespace Ink_Canvas
 
             await Dispatcher.InvokeAsync(() =>
             {
-                ViewboxFloatingBar.Margin = new Thickness(newPos.X, newPos.Y, -2000, -200);
-                pos = newPos;
+                ViewboxFloatingBar.Margin = new Thickness(target.X, target.Y, -2000, -200);
+                pos = target;
                 // 折叠时隐藏浮动栏
                 if (isFloatingBarFolded)
                 {

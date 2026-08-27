@@ -21,6 +21,35 @@ namespace Ink_Canvas.Plugins
         // ===== 单例 =====
         public static PluginHost Instance { get; private set; }
 
+        // ===== 主程序版本与插件最低版本校验 =====
+        /// <summary>主程序（ICU）程序集版本，作为插件 minHostVersion 比较基准。缓存一次，避免每次加载都反射。</summary>
+        private static readonly Version HostVersion =
+            typeof(PluginHost).Assembly.GetName().Version ?? new Version(0, 0, 0, 0);
+
+        /// <summary>
+        /// 判断主程序版本是否满足插件要求的最低版本（manifest.minHostVersion）。
+        /// 规则：minHostVersion 为空 → 不限制（兼容）；解析失败 → 放行并告警（fail-open，避免清单笔误导致插件永久无法加载）；
+        /// 当前版本 &lt; 最低要求 → 不兼容。
+        /// </summary>
+        public static bool IsHostVersionCompatible(string minHostVersion)
+        {
+            if (string.IsNullOrWhiteSpace(minHostVersion)) return true;
+            if (!Version.TryParse(minHostVersion, out var min))
+            {
+                LogHelper.WriteLogToFile($"plugin 的 minHostVersion 非法: {minHostVersion}", LogHelper.LogType.Warning);
+                return true;
+            }
+            return HostVersion.CompareTo(min) >= 0;
+        }
+
+        /// <summary>重载：直接传入 manifest。</summary>
+        public static bool IsHostVersionCompatible(PluginManifest manifest)
+            => IsHostVersionCompatible(manifest?.MinHostVersion);
+
+        /// <summary>若主程序版本不满足插件要求，返回需要的版本字符串；满足则返回 null（用于 UI 提示）。</summary>
+        public static string GetRequiredHostVersionIfIncompatible(string minHostVersion)
+            => IsHostVersionCompatible(minHostVersion) ? null : minHostVersion;
+
         // ===== 状态 =====
         private readonly Window _mainWindow;
         private readonly string _pluginsRoot;           // Plugins 根目录
@@ -39,6 +68,8 @@ namespace Ink_Canvas.Plugins
         private readonly Dictionary<string, string> _routeOwners = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         // pluginId -> 插件注册的选择控制条 UI 列表
         private readonly Dictionary<string, List<UIElement>> _pluginControlBars = new Dictionary<string, List<UIElement>>(StringComparer.OrdinalIgnoreCase);
+        // pluginId -> 插件在插件工坊里显示的设置面板工厂
+        private readonly Dictionary<string, Func<UIElement>> _pluginSettingsPanels = new Dictionary<string, Func<UIElement>>(StringComparer.OrdinalIgnoreCase);
 
         // ===== 事件 =====
         public event EventHandler ApplicationExiting;
@@ -312,6 +343,76 @@ namespace Ink_Canvas.Plugins
             catch { }
         }
 
+        // ===== 快捷键重绑定 =====
+
+        public IReadOnlyList<HotkeyActionInfo> GetHotkeyActions()
+        {
+            try { return _opts.GetHotkeyActions?.Invoke() ?? new List<HotkeyActionInfo>(); } catch { }
+            return new List<HotkeyActionInfo>();
+        }
+
+        public bool SetHotkey(string actionId, string combo)
+        {
+            try { return _opts.SetHotkey?.Invoke(actionId, combo) ?? false; } catch { }
+            return false;
+        }
+
+        public bool ResetHotkey(string actionId)
+        {
+            try { return _opts.ResetHotkey?.Invoke(actionId) ?? false; } catch { }
+            return false;
+        }
+
+        public void ResetAllHotkeys()
+        {
+            try { _opts.ResetAllHotkeys?.Invoke(); } catch { }
+        }
+
+        public IReadOnlyList<HotkeyActionInfo> GetConflictingHotkeys(string actionId, string combo)
+        {
+            try { return _opts.GetConflictingHotkeys?.Invoke(actionId, combo) ?? new List<HotkeyActionInfo>(); } catch { }
+            return new List<HotkeyActionInfo>();
+        }
+
+        public void SuspendHotkeys()
+        {
+            try { _opts.SuspendHotkeys?.Invoke(); } catch { }
+        }
+
+        public void ResumeHotkeys()
+        {
+            try { _opts.ResumeHotkeys?.Invoke(); } catch { }
+        }
+
+        // ===== 插件工坊设置面板 =====
+
+        public void RegisterSettingsPanel(Func<UIElement> panelFactory)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_currentLoadingPluginId) || panelFactory == null) return;
+                _pluginSettingsPanels[_currentLoadingPluginId] = panelFactory;
+            }
+            catch { }
+        }
+
+        public void UnregisterSettingsPanel()
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(_currentLoadingPluginId)) return;
+                _pluginSettingsPanels.Remove(_currentLoadingPluginId);
+            }
+            catch { }
+        }
+
+        /// <summary>获取指定 plugin 在插件工坊里使用的设置面板工厂（未注册返回 null）。</summary>
+        public Func<UIElement> GetSettingsPanelFactory(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return null;
+            return _pluginSettingsPanels.TryGetValue(pluginId, out var factory) ? factory : null;
+        }
+
         // ===== 事件触发（主程序调用） =====
 
         public void RaiseBoardModeChanged(int newMode)
@@ -352,6 +453,7 @@ namespace Ink_Canvas.Plugins
                     return;
                 }
 
+                var incompatibleSkipped = new List<string>();
                 foreach (var dir in Directory.GetDirectories(_pluginsRoot, "*", SearchOption.TopDirectoryOnly))
                 {
                     var manifest = TryReadManifest(dir);
@@ -366,8 +468,26 @@ namespace Ink_Canvas.Plugins
                     }
                     if (enabled)
                     {
+                        // 版本不兼容：跳过加载并登记，供启动后提示用户
+                        if (!IsHostVersionCompatible(manifest))
+                        {
+                            incompatibleSkipped.Add(manifest.Name);
+                            continue;
+                        }
                         LoadPluginFromDirectory(dir);
                     }
+                }
+
+                if (incompatibleSkipped.Count > 0)
+                {
+                    // 手动放入/启用的高版本插件被静默忽略，给出可见提示
+                    try
+                    {
+                        string names = string.Join("、", incompatibleSkipped);
+                        if (_mainWindow is MainWindow mw)
+                            mw.ShowNotificationAsync($"以下插件因需要更高版本软件而无法加载：{names}。请升级后才能使用。");
+                    }
+                    catch { }
                 }
             }
             catch (Exception ex)
@@ -449,6 +569,8 @@ namespace Ink_Canvas.Plugins
                 _pluginControlBars.Remove(pluginId);
             }
 
+            _pluginSettingsPanels.Remove(pluginId);
+
             _loaded.RemoveAt(idx);
             LogHelper.WriteLogToFile($"plugin 已软卸载: {p.Manifest.Id}", LogHelper.LogType.Event);
             RaisePluginListChanged();
@@ -462,20 +584,36 @@ namespace Ink_Canvas.Plugins
             return _enabledState.TryGetValue(pluginId, out var enabled) ? enabled : true;
         }
 
-        /// <summary>设置 plugin 启用状态并持久化；true → LoadPlugin，false → UnloadPlugin</summary>
-        public void SetPluginEnabled(string pluginId, bool enabled)
+        /// <summary>
+        /// 设置 plugin 启用状态并持久化；true → LoadPlugin，false → UnloadPlugin。
+        /// 返回是否成功（启用时不兼容/加载失败会回滚启用状态并返回 false，供 UI 提示）。
+        /// </summary>
+        public bool SetPluginEnabled(string pluginId, bool enabled)
         {
-            if (string.IsNullOrEmpty(pluginId)) return;
-            _enabledState[pluginId] = enabled;
-            SaveEnabledState();
+            if (string.IsNullOrEmpty(pluginId)) return false;
 
             if (enabled)
             {
-                LoadPlugin(pluginId);
+                bool ok = LoadPlugin(pluginId);
+                if (ok)
+                {
+                    _enabledState[pluginId] = true;
+                    SaveEnabledState();
+                }
+                else
+                {
+                    // 未成功加载（如版本不兼容）：不持久化启用，使 UI 可见其仍为禁用且可标"不兼容"
+                    _enabledState[pluginId] = false;
+                    SaveEnabledState();
+                }
+                return ok;
             }
             else
             {
+                _enabledState[pluginId] = false;
+                SaveEnabledState();
                 UnloadPlugin(pluginId);
+                return true;
             }
         }
 
@@ -525,7 +663,8 @@ namespace Ink_Canvas.Plugins
                     Manifest = manifest,
                     Directory = dir,
                     IsEnabled = IsPluginEnabled(manifest.Id),
-                    IsLoaded = IsPluginLoaded(manifest.Id)
+                    IsLoaded = IsPluginLoaded(manifest.Id),
+                    IsCompatible = IsHostVersionCompatible(manifest)
                 });
             }
             return result;
@@ -571,6 +710,15 @@ namespace Ink_Canvas.Plugins
                 if (manifest == null || string.IsNullOrWhiteSpace(manifest.Id))
                 {
                     LogHelper.WriteLogToFile($"plugin manifest 无效 [{pluginDir}]", LogHelper.LogType.Warning);
+                    return;
+                }
+
+                // 最低主程序版本校验：主程序版本低于插件要求时跳过加载（不进 _loaded，避免被误判为已加载而拒绝重装）
+                if (!IsHostVersionCompatible(manifest))
+                {
+                    LogHelper.WriteLogToFile(
+                        $"plugin 因主程序版本过低跳过加载: {manifest.Id} 需要主程序 ≥ {manifest.MinHostVersion}，当前 {HostVersion}",
+                        LogHelper.LogType.Warning);
                     return;
                 }
 
@@ -688,6 +836,7 @@ namespace Ink_Canvas.Plugins
                 _pluginRouteHandlers.Clear();
                 _routeOwners.Clear();
                 _pluginControlBars.Clear();
+                _pluginSettingsPanels.Clear();
             }
             catch (Exception ex)
             {
@@ -756,6 +905,13 @@ namespace Ink_Canvas.Plugins
         public Func<string, bool> HasCapturedPhotoForFile { get; set; }
         public Action<UIElement> RegisterSelectionControlBar { get; set; }
         public Action<UIElement> UnregisterSelectionControlBar { get; set; }
+        public Func<IReadOnlyList<HotkeyActionInfo>> GetHotkeyActions { get; set; }
+        public Func<string, string, bool> SetHotkey { get; set; }
+        public Func<string, bool> ResetHotkey { get; set; }
+        public Action ResetAllHotkeys { get; set; }
+        public Func<string, string, IReadOnlyList<HotkeyActionInfo>> GetConflictingHotkeys { get; set; }
+        public Action SuspendHotkeys { get; set; }
+        public Action ResumeHotkeys { get; set; }
     }
 
     /// <summary>已安装 plugin 信息（含启用/加载状态），用于插件工坊展示</summary>
@@ -765,5 +921,7 @@ namespace Ink_Canvas.Plugins
         public string Directory { get; set; }
         public bool IsEnabled { get; set; }
         public bool IsLoaded { get; set; }
+        /// <summary>主程序版本是否满足该插件要求的最低版本（false 时不应启用/加载）</summary>
+        public bool IsCompatible { get; set; }
     }
 }

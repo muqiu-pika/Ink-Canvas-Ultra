@@ -102,9 +102,12 @@ namespace Ink_Canvas
                     // 显示插入选项对话框
                     if (screenshotBitmap != null || screenshotBitmapSource != null)
                     {
+                        // 记录进入对话框前主窗口的 Topmost 状态，用于结束后恢复
+                        bool wasTopmost = true;
                         // 确保主窗口已显示并激活
                         await Dispatcher.BeginInvoke(new Action(() =>
                         {
+                            wasTopmost = this.Topmost;
                             this.Visibility = Visibility.Visible;
                             this.Activate();
                             this.Topmost = true;
@@ -118,10 +121,12 @@ namespace Ink_Canvas
                         // 显示对话框
                         bool? result = optionWindow.ShowDialog();
                         
-                        // 恢复主窗口的Topmost状态
+                        // 恢复主窗口原有的 Topmost 状态（不能固定置 false）：
+                        // 批注/浮动栏模式默认 Topmost=True，若截图后写死为 false，
+                        // 下次 ViewboxFloatingBarMarginAnimation 会误判为黑板模式并把浮动栏隐藏（状态栏消失）。
                         await Dispatcher.BeginInvoke(new Action(() =>
                         {
-                            this.Topmost = false;
+                            this.Topmost = wasTopmost;
                         }));
                         
                         if (result == true)

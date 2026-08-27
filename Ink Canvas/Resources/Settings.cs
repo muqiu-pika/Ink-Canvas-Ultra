@@ -160,6 +160,12 @@ namespace Ink_Canvas
         [JsonProperty("floatingBarBottomMargin")]
         public double FloatingBarBottomMargin { get; set; } = 50.0;
 
+        // 用户手动拖动浮动栏后「锁定」的（桌面/批注）位置，double.NaN 表示未自定义
+        [JsonProperty("floatingBarPositionLockedX")]
+        public double FloatingBarPositionLockedX { get; set; } = double.NaN;
+        [JsonProperty("floatingBarPositionLockedY")]
+        public double FloatingBarPositionLockedY { get; set; } = double.NaN;
+
         [JsonProperty("isTransparentButtonBackground")]
         public bool IsTransparentButtonBackground { get; set; } = true;
 

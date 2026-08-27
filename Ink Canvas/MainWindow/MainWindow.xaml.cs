@@ -109,6 +109,9 @@ namespace Ink_Canvas
             // 注册窗口大小变化事件
             this.SizeChanged += MainWindow_SizeChanged;
 
+            // 提前初始化内置快捷键，确保插件加载(Initialize)时即可查询/重绑定快捷键
+            RegisterGlobalHotkeys();
+
             // ===== 初始化 plugin 系统 =====
             InitializePluginSystem();
         }
@@ -192,6 +195,37 @@ namespace Ink_Canvas
                             }
                             catch { }
                         });
+                    },
+                    // 内置快捷键重绑定（供「自定义快捷键」插件调用）
+                    GetHotkeyActions = () =>
+                    {
+                        return Dispatcher.Invoke(() =>
+                            (IReadOnlyList<HotkeyActionInfo>)HotkeyService.GetActions());
+                    },
+                    SetHotkey = (actionId, combo) =>
+                    {
+                        return Dispatcher.Invoke(() => HotkeyService.SetHotkey(actionId, combo));
+                    },
+                    ResetHotkey = (actionId) =>
+                    {
+                        return Dispatcher.Invoke(() => HotkeyService.ResetHotkey(actionId));
+                    },
+                    ResetAllHotkeys = () =>
+                    {
+                        Dispatcher.Invoke(() => HotkeyService.ResetAllHotkeys());
+                    },
+                    GetConflictingHotkeys = (actionId, combo) =>
+                    {
+                        return Dispatcher.Invoke(() =>
+                            (IReadOnlyList<HotkeyActionInfo>)HotkeyService.GetConflictingHotkeys(actionId, combo));
+                    },
+                    SuspendHotkeys = () =>
+                    {
+                        Dispatcher.Invoke(() => HotkeyService.SuspendAll());
+                    },
+                    ResumeHotkeys = () =>
+                    {
+                        Dispatcher.Invoke(() => HotkeyService.ResumeAll());
                     }
                 };
 
@@ -1003,6 +1037,15 @@ namespace Ink_Canvas
             isLoaded = true;
             StartSingleInstanceCommandServer();
             RegisterGlobalHotkeys();
+            // 窗口句柄此时才可用，真正注册内置（含插件已改写的）快捷键
+            HotkeyService?.SyncRegistrations();
+
+            // 启动即检查自动更新（无需打开设置窗口），仅执行一次
+            if (!_startupUpdateChecked)
+            {
+                _startupUpdateChecked = true;
+                if (Settings.Startup.IsAutoUpdate) AutoUpdate();
+            }
             timerFixFloatingBarZOrder?.Start();
             HookInputDeviceNotifications();
 

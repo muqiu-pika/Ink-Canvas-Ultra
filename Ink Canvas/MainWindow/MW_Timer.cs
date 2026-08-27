@@ -132,17 +132,23 @@ namespace Ink_Canvas
 
         private void TimerCheckAutoUpdateWithSilence_Elapsed(object sender, ElapsedEventArgs e)
         {
+            bool shouldSkipSilentUpdate = false;
             Dispatcher.Invoke(() =>
             {
                 try
                 {
-                    if ((!Topmost) || (inkCanvas.Strokes.Count > 0)) return;
+                    // 在 UI 线程读取前台/笔迹状态，结果透出到外层方法决定是否跳过本 tick。
+                    // 不再依赖 Topmost：批注等模式下 Topmost 为 false，若以此为准会永不被触发，
+                    // 导致静默更新永远装不上。这里只要求当前无笔迹（避免安装关窗破坏书写内容）。
+                    shouldSkipSilentUpdate = (inkCanvas.Strokes.Count > 0);
                 }
                 catch (Exception ex)
                 {
                     LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
                 }
             });
+            // 必须先于静默安装判断——方法级 return 才能真的阻止安装
+            if (shouldSkipSilentUpdate) return;
             try
             {
                 if (AutoUpdateWithSilenceTimeComboBox.CheckIsInSilencePeriod(Settings.Startup.AutoUpdateWithSilenceStartTime, Settings.Startup.AutoUpdateWithSilenceEndTime))

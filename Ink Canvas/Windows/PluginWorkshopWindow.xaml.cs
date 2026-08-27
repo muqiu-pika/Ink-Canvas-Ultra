@@ -235,6 +235,14 @@ namespace Ink_Canvas
                 return;
             }
 
+            // 安装前校验：主程序版本是否满足插件要求的最低版本（不满足则直接拒绝，不解压、不留残留）
+            var pkgManifest = TryReadManifestFromPackage(sourceFile);
+            if (pkgManifest != null && !PluginHost.IsHostVersionCompatible(pkgManifest))
+            {
+                ShowInlineMessage($"无法安装：插件「{pkgManifest.Name}」需要主程序 ≥ {pkgManifest.MinHostVersion}，请先升级软件至该版本及以上。");
+                return;
+            }
+
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile);
             string destDir = Path.Combine(PluginDirectory, fileNameWithoutExt);
             bool exists = Directory.Exists(destDir);
@@ -472,12 +480,18 @@ namespace Ink_Canvas
 
             var update = FindOnlineUpdate(info);
 
+            // 该插件是否注册了「设置面板」工厂（如自定义快捷键插件）
+            Func<UIElement> settingsFactory = null;
+            try { settingsFactory = PluginHost.Instance?.GetSettingsPanelFactory(pluginId); } catch { }
+
             var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            if (update != null)
-                grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // 0 标题
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // 1 状态标签
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // 2 启用/禁用开关
+            // 4、5 列固定宽度且始终存在：即便某行没有「设置」或「更新」按钮，
+            // 也保留同样宽度，使第 2 列开关在每行处于同一纵向直线。
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });                 // 3 设置按钮占位
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });                 // 4 更新按钮占位
 
             var titlePanel = new StackPanel
             {
@@ -516,7 +530,9 @@ namespace Ink_Canvas
             };
             var statusText = new TextBlock
             {
-                Text = info.IsLoaded ? "运行中" : (info.IsEnabled ? "已启用" : "已禁用"),
+                Text = !info.IsCompatible
+                    ? "版本不兼容"
+                    : (info.IsLoaded ? "运行中" : (info.IsEnabled ? "已启用" : "已禁用")),
                 FontSize = 11,
                 Foreground = TryFindResource("PopupWindowDarkBlueBorderForeground") as Brush
             };
@@ -524,18 +540,54 @@ namespace Ink_Canvas
             Grid.SetColumn(statusTag, 1);
             grid.Children.Add(statusTag);
 
-            // 启用/禁用开关
+            // 启用/禁用开关（版本不兼容时禁用开关，需先升级软件）
             var toggle = new CheckBox
             {
-                IsChecked = info.IsEnabled,
+                IsChecked = info.IsCompatible ? (bool?)info.IsEnabled : (bool?)false,
+                IsEnabled = info.IsCompatible,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(12, 0, 0, 0),
-                ToolTip = "启用 / 禁用此 plugin（立即生效）"
+                ToolTip = info.IsCompatible
+                    ? "启用 / 禁用此 plugin（立即生效）"
+                    : "该插件需要更高版本软件，请先升级后才能启用"
             };
             toggle.Checked += (s, e) => OnPluginToggleChanged(pluginId, true);
             toggle.Unchecked += (s, e) => OnPluginToggleChanged(pluginId, false);
             Grid.SetColumn(toggle, 2);
             grid.Children.Add(toggle);
+
+            // 设置图标：有设置面板的插件显示「设置」图标，点击展开/折叠其下方面板（同一位置两个图标状态）
+            Border settingsPanelHost = null;
+            if (settingsFactory != null)
+            {
+                var settingsBtn = new Button
+                {
+                    Width = 30,
+                    Height = 30,
+                    Padding = new Thickness(0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(8, 0, 0, 0),
+                    ToolTip = "设置"
+                };
+                settingsBtn.Content = BuildSettingsGlyph("\uE713");
+                Grid.SetColumn(settingsBtn, 3);
+                grid.Children.Add(settingsBtn);
+
+                // 折叠在插件条目下方的设置面板（默认收起）
+                settingsPanelHost = new Border
+                {
+                    Margin = new Thickness(0, 0, 0, 6),
+                    Padding = new Thickness(12, 10, 12, 10),
+                    BorderBrush = TryFindResource("PopupWindowBorderBrush") as Brush,
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(6),
+                    Visibility = Visibility.Collapsed
+                };
+                // 记录工厂，展开时用其重建 UI 以获得最新状态
+                settingsPanelHost.Tag = settingsFactory;
+
+                setupSettingsPanelToggle(settingsBtn, settingsPanelHost);
+            }
 
             // 在线有更新时显示「更新」按钮
             if (update != null)
@@ -550,15 +602,68 @@ namespace Ink_Canvas
                     ToolTip = $"更新到 v{update.Version}"
                 };
                 updateBtn.Click += async (s, e) => await UpdatePluginAsync(update, info);
-                Grid.SetColumn(updateBtn, 3);
+                Grid.SetColumn(updateBtn, 4);
                 grid.Children.Add(updateBtn);
             }
 
             border.Child = grid;
+
+            // 若存在设置面板，将卡片与可折叠面板打包为一个条目整体
+            if (settingsPanelHost != null)
+            {
+                var item = new StackPanel { Margin = new Thickness(0) };
+                item.Children.Add(border);
+                item.Children.Add(settingsPanelHost);
+                return item;
+            }
             return border;
         }
 
-        /// <summary>插件开关切换：立即加载或软卸载</summary>
+        /// <summary>构建一个 Segoe Fluent Icons 字体的图标文本块。</summary>
+        private TextBlock BuildSettingsGlyph(string glyph)
+        {
+            var icon = new TextBlock
+            {
+                Text = glyph,
+                FontSize = 15,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            try { icon.FontFamily = TryFindResource("FluentIconFontFamily") as FontFamily ?? new FontFamily("Segoe Fluent Icons"); } catch { icon.FontFamily = new FontFamily("Segoe Fluent Icons"); }
+            return icon;
+        }
+
+        /// <summary>设置图标的点击切换：展开/折叠插件设置面板，并在同一位置切换图标。</summary>
+        private void setupSettingsPanelToggle(Button settingsBtn, Border panelHost)
+        {
+            if (settingsBtn == null || panelHost == null) return;
+            settingsBtn.Click += (s, e) =>
+            {
+                if (panelHost.Visibility == Visibility.Visible)
+                {
+                    // 折叠：图标切回「设置」
+                    panelHost.Visibility = Visibility.Collapsed;
+                    settingsBtn.Content = BuildSettingsGlyph("\uE713");
+                    settingsBtn.ToolTip = "设置";
+                }
+                else
+                {
+                    // 展开：用工厂重建 UI（刷新最新绑定），图标切换为「折叠」
+                    panelHost.Child = null;
+                    try
+                    {
+                        var factory = panelHost.Tag as Func<UIElement>;
+                        if (factory != null) panelHost.Child = factory();
+                    }
+                    catch { }
+                    panelHost.Visibility = Visibility.Visible;
+                    settingsBtn.Content = BuildSettingsGlyph("\uE70D");
+                    settingsBtn.ToolTip = "收起设置";
+                }
+            };
+        }
+
+        /// <summary>插件开关切换：立即加载或软卸载，启用前校验版本兼容性。</summary>
         private void OnPluginToggleChanged(string pluginId, bool enabled)
         {
             try
@@ -569,8 +674,30 @@ namespace Ink_Canvas
                     ShowInlineMessage("PluginHost 未初始化");
                     return;
                 }
-                host.SetPluginEnabled(pluginId, enabled);
-                ShowInlineMessage(enabled ? $"已启用 plugin：{pluginId}" : $"已禁用 plugin：{pluginId}");
+
+                if (enabled)
+                {
+                    // 启用前校验：主程序版本不足则拦截并提示，而不是“假启用”
+                    var info = host.GetAllInstalledPlugins()
+                        .FirstOrDefault(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+                    string required = PluginHost.GetRequiredHostVersionIfIncompatible(info?.Manifest?.MinHostVersion);
+                    if (required != null)
+                    {
+                        ShowInlineMessage($"无法启用「{info?.Manifest?.Name ?? pluginId}」：需要主程序 ≥ {required}，请先升级软件。");
+                        RefreshPluginList(silent: true); // 复位开关为实际状态
+                        return;
+                    }
+                }
+
+                bool ok = host.SetPluginEnabled(pluginId, enabled);
+                if (enabled && !ok)
+                {
+                    ShowInlineMessage($"启用失败：plugin「{pluginId}」未能加载（可能版本不兼容或入口无效）。");
+                }
+                else
+                {
+                    ShowInlineMessage(enabled ? $"已启用 plugin：{pluginId}" : $"已禁用 plugin：{pluginId}");
+                }
                 RefreshPluginList(silent: true);
             }
             catch (Exception ex)
@@ -647,6 +774,7 @@ namespace Ink_Canvas
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
 
             var titlePanel = new StackPanel { Orientation = Orientation.Vertical };
 
@@ -683,6 +811,7 @@ namespace Ink_Canvas
             Grid.SetColumn(titlePanel, 0);
             grid.Children.Add(titlePanel);
 
+            var required = PluginHost.GetRequiredHostVersionIfIncompatible(plugin.MinHostVersion);
             var installBtn = new Button
             {
                 Content = "安装",
@@ -691,9 +820,34 @@ namespace Ink_Canvas
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(12, 0, 0, 0)
             };
-            installBtn.Click += async (s, e) => await InstallOnlinePluginAsync(plugin);
+            if (required != null)
+            {
+                // 主程序版本低于插件要求：安装按钮置灰，并提示需要升级软件
+                installBtn.IsEnabled = false;
+                installBtn.Opacity = 0.5;
+                installBtn.ToolTip = $"需要升级软件至 {required} 及以上";
+            }
+            else
+            {
+                installBtn.Click += async (s, e) => await InstallOnlinePluginAsync(plugin);
+            }
             Grid.SetColumn(installBtn, 1);
             grid.Children.Add(installBtn);
+
+            if (required != null)
+            {
+                var hint = new TextBlock
+                {
+                    Text = $"需升级软件至 {required} 及以上",
+                    FontSize = 11,
+                    Foreground = TryFindResource("PopupWindowAnnotationForeground") as Brush,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(8, 0, 0, 0),
+                    TextWrapping = TextWrapping.Wrap
+                };
+                Grid.SetColumn(hint, 2);
+                grid.Children.Add(hint);
+            }
 
             border.Child = grid;
             return border;
@@ -749,6 +903,13 @@ namespace Ink_Canvas
             if (string.IsNullOrWhiteSpace(plugin.DownloadUrl) && string.IsNullOrWhiteSpace(plugin.FallbackUrl))
             {
                 ShowInlineMessage("该插件未提供下载地址");
+                return;
+            }
+
+            // 主程序版本不满足插件最低要求时拒绝下载安装（按钮已置灰，此处为二次防护）
+            if (!PluginHost.IsHostVersionCompatible(plugin.MinHostVersion))
+            {
+                ShowInlineMessage($"无法安装：该插件需要主程序 ≥ {plugin.MinHostVersion}，请先升级软件。");
                 return;
             }
 
@@ -840,6 +1001,15 @@ namespace Ink_Canvas
                     if (string.IsNullOrEmpty(tempFile))
                     {
                         UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", "所有下载源均不可用");
+                        await Task.Delay(1500);
+                        return;
+                    }
+
+                    // 主程序版本不满足插件最低要求时拒绝更新（避免覆盖安装后无法加载）
+                    var updateManifest = TryReadManifestFromPackage(tempFile);
+                    if (updateManifest != null && !PluginHost.IsHostVersionCompatible(updateManifest))
+                    {
+                        UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", $"需要主程序 ≥ {updateManifest.MinHostVersion}");
                         await Task.Delay(1500);
                         return;
                     }
@@ -979,6 +1149,24 @@ namespace Ink_Canvas
                 if (!File.Exists(manifestFile)) return null;
                 string json = File.ReadAllText(manifestFile, System.Text.Encoding.UTF8);
                 return Newtonsoft.Json.JsonConvert.DeserializeObject<PluginManifest>(json);
+            }
+            catch { return null; }
+        }
+
+        /// <summary>直接从 .icplugin 安装包（ZIP）内读取 plugin.icplugin 清单，用于安装前版本校验（避免先解压再发现不兼容）。</summary>
+        private static PluginManifest TryReadManifestFromPackage(string packageFile)
+        {
+            try
+            {
+                using (var archive = System.IO.Compression.ZipFile.OpenRead(packageFile))
+                {
+                    var entry = archive.GetEntry("plugin.icplugin");
+                    if (entry == null) return null;
+                    using (var sr = new StreamReader(entry.Open()))
+                    {
+                        return Newtonsoft.Json.JsonConvert.DeserializeObject<PluginManifest>(sr.ReadToEnd());
+                    }
+                }
             }
             catch { return null; }
         }
