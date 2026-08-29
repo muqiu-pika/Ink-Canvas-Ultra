@@ -362,6 +362,8 @@ namespace Ink_Canvas
         public bool IsInkToShapeTriangle { get; set; } = true;
         [JsonProperty("isInkToShapeRectangle")]
         public bool IsInkToShapeRectangle { get; set; } = true;
+        [JsonProperty("isInkToShapeCircle")]
+        public bool IsInkToShapeCircle { get; set; } = true;
 
         [JsonProperty("lineStraightenSensitivity")]
         public double LineStraightenSensitivity { get; set; } = 0.8;

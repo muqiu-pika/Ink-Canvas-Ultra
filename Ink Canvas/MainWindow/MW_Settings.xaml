@@ -1444,6 +1444,26 @@
 
                                         <ui:ToggleSwitch
 
+                                            Name="ToggleSwitchEnableCircleRecognition"
+
+                                            OffContent="关"
+
+                                            OnContent="开"
+
+                                            Toggled="ToggleSwitchEnableCircleRecognition_Toggled" />
+
+                                    </ikw:SimpleStackPanel>
+
+                                    <TextBlock Margin="0,0,14,0" VerticalAlignment="Center" FontSize="14" Foreground="{DynamicResource PopupWindowForeground}" Text="启用圆/椭圆识别" />
+
+                                </ikw:SimpleStackPanel>
+
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+
+                                    <ikw:SimpleStackPanel Width="50">
+
+                                        <ui:ToggleSwitch
+
                                             Name="ToggleSwitchAutoStraightenLine"
 
                                             OffContent="关"

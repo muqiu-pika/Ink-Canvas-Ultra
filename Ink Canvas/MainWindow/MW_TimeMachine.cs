@@ -458,7 +458,7 @@ namespace Ink_Canvas
             }
             StrokeManipulationHistory[stroke] =
                 new Tuple<StylusPointCollection, StylusPointCollection>(initial, stroke.StylusPoints.Clone());
-            if (StrokeManipulationHistory.Count == count && dec.Count == 0 && !isGridInkCanvasSelectionCoverMouseDown)
+            if (StrokeManipulationHistory.Count == count && dec.Count == 0 && !isGridInkCanvasSelectionCoverMouseDown && !isResizing && !isCornerTransform)
             {
                 ToCommitStrokeManipulationHistoryAfterMouseUp();
             }

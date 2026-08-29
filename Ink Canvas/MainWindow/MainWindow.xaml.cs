@@ -61,6 +61,22 @@ namespace Ink_Canvas
 
             GridInkCanvasSelectionCover.Visibility = Visibility.Collapsed;
 
+            // 选中覆盖层一旦被折叠，同步隐藏圈选设置框与折叠小按钮（避免残留）
+            try
+            {
+                System.ComponentModel.DependencyPropertyDescriptor.FromProperty(UIElement.VisibilityProperty, typeof(UIElement))
+                    .AddValueChanged((UIElement)GridInkCanvasSelectionCover, (s, e2) =>
+                    {
+                        if (GridInkCanvasSelectionCover != null &&
+                            GridInkCanvasSelectionCover.Visibility != Visibility.Visible)
+                        {
+                            if (BorderStrokeSelectionControl != null) BorderStrokeSelectionControl.Visibility = Visibility.Collapsed;
+                            if (BorderStrokeSelectionExpand != null) BorderStrokeSelectionExpand.Visibility = Visibility.Collapsed;
+                        }
+                    });
+            }
+            catch { }
+
             ViewboxFloatingBar.Margin = new Thickness((SystemParameters.WorkArea.Width - 284) / 2, SystemParameters.WorkArea.Height - 60, -2000, -200);
             ViewboxFloatingBarMarginAnimation();
 
@@ -392,21 +408,7 @@ namespace Ink_Canvas
 		private void InkCanvas_EditingModeChanged(object sender, RoutedEventArgs e)
         {
 			if (!(sender is InkCanvas inkCanvas1)) return;
-            if (Settings.Canvas.IsShowCursor)
-            {
-                if (inkCanvas1.EditingMode == InkCanvasEditingMode.Ink || drawingShapeMode != 0)
-                {
-                    inkCanvas1.ForceCursor = true;
-                }
-                else
-                {
-                    inkCanvas1.ForceCursor = false;
-                }
-            }
-            else
-            {
-                inkCanvas1.ForceCursor = false;
-            }
+            SetCursorBasedOnEditingMode(inkCanvas1);
             if (inkCanvas1.EditingMode == InkCanvasEditingMode.Ink && !_isCancellingActiveStroke) forcePointEraser = !forcePointEraser;
         }
 

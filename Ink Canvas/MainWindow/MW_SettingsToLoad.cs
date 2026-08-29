@@ -261,6 +261,7 @@ namespace Ink_Canvas
                 ToggleSwitchEnableInkToShape.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
                 ToggleSwitchEnableTriangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeTriangle;
                 ToggleSwitchEnableRectangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeRectangle;
+                ToggleSwitchEnableCircleRecognition.IsOn = Settings.InkToShape.IsInkToShapeCircle;
 
                 LineStraightenSensitivitySlider.Value = Settings.InkToShape.LineStraightenSensitivity;
             }

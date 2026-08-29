@@ -452,6 +452,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(ToggleSwitchEnableTriangleRecognition_Toggled), sender, e);
         }
 
+        private void ToggleSwitchEnableCircleRecognition_Toggled(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ToggleSwitchEnableCircleRecognition_Toggled), sender, e);
+        }
+
         private void ToggleSwitchEnableTwoFingerGestureInPresentationMode_Toggled(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(ToggleSwitchEnableTwoFingerGestureInPresentationMode_Toggled), sender, e);

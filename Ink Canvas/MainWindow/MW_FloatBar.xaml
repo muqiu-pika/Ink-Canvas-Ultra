@@ -1973,9 +1973,15 @@
 
                                     x:Name="BorderDrawShape"
 
-                                    Height="230"
+                                    Width="320"
 
-                                    Margin="-112,-240,-88,28"
+                                    Height="300"
+
+                                    HorizontalAlignment="Left"
+
+                                    VerticalAlignment="Top"
+
+                                    Margin="-240,-300,-80,28"
 
                                     Background="{DynamicResource FloatBarBackground}"
 
@@ -1993,7 +1999,7 @@
 
                                             Margin="-1,-1,-1,0"
 
-                                            Padding="15,5,0,5"
+                                            Padding="8,5,0,5"
 
                                             Background="{DynamicResource FloatBarTitleBackground}"
 
@@ -2003,43 +2009,135 @@
 
                                             CornerRadius="5,5,0,0">
 
-                                            <ikw:SimpleStackPanel Orientation="Horizontal">
+                                            <Grid>
 
-                                                <TextBlock
+                                                <ikw:SimpleStackPanel
 
-                                                    FontSize="10"
+                                                    HorizontalAlignment="Left"
 
-                                                    FontWeight="Bold"
+                                                    Orientation="Horizontal">
 
-                                                    Foreground="{DynamicResource FloatBarForeground}"
+                                                    <Grid
 
-                                                    Text="图形(第一行支持长按保持选中)" />
+                                                        x:Name="BorderDrawShapeDragHandle"
 
-                                                <ui:FontIcon
+                                                        Width="18"
 
-                                                    x:Name="BorderDrawShapePin"
+                                                        Height="18"
 
-                                                    Width="16"
+                                                        Margin="0,-1,6,-1"
 
-                                                    Height="16"
+                                                        VerticalAlignment="Center"
 
-                                                    Margin="22,-1,0,-1"
+                                                        Background="Transparent"
 
-                                                    VerticalAlignment="Center"
+                                                        ToolTip="按住拖动"
 
-                                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                                        MouseDown="ShapePanelDragHandle_MouseDown"
 
-                                                    FontSize="16"
+                                                        MouseMove="ShapePanelDragHandle_MouseMove"
 
-                                                    Foreground="{DynamicResource FloatBarForeground}"
+                                                        MouseUp="ShapePanelDragHandle_MouseUp"
 
-                                                    Glyph="&#xe718;"
+                                                        TouchDown="ShapePanelDragHandle_TouchDown"
 
-                                                    MouseDown="Border_MouseDown"
+                                                        TouchMove="ShapePanelDragHandle_TouchMove"
 
-                                                    MouseUp="SymbolIconPinBorderDrawShape_MouseUp" />
+                                                        TouchUp="ShapePanelDragHandle_TouchUp">
 
-                                            </ikw:SimpleStackPanel>
+                                                        <Path
+
+                                                            Width="14"
+
+                                                            Height="14"
+
+                                                            Stretch="Uniform"
+
+                                                            Fill="{DynamicResource FloatBarForeground}"
+
+                                                            Data="M8,6 L12,0 L16,6 Z M8,18 L12,24 L16,18 Z M6,8 L0,12 L6,16 Z M18,8 L24,12 L18,16 Z" />
+
+                                                    </Grid>
+
+                                                    <TextBlock
+
+                                                        Margin="0,0,0,0"
+
+                                                        VerticalAlignment="Center"
+
+                                                        FontSize="11"
+
+                                                        FontWeight="Bold"
+
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+
+                                                        Text="图形(第一行支持长按保持选中)" />
+
+                                                </ikw:SimpleStackPanel>
+
+                                                <ikw:SimpleStackPanel
+
+                                                    HorizontalAlignment="Right"
+
+                                                    Orientation="Horizontal">
+
+                                                    <ui:FontIcon
+
+                                                        x:Name="BorderDrawShapePin"
+
+                                                        Width="16"
+
+                                                        Height="16"
+
+                                                        Margin="0,-1,10,-1"
+
+                                                        VerticalAlignment="Center"
+
+                                                        FontFamily="{StaticResource FluentIconFontFamily}"
+
+                                                        FontSize="16"
+
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+
+                                                        Glyph="&#xe718;"
+
+                                                        MouseDown="Border_MouseDown"
+
+                                                        MouseUp="SymbolIconPinBorderDrawShape_MouseUp" />
+
+                                                    <ui:FontIcon
+
+                                                        x:Name="BorderDrawShapeRestore"
+
+                                                        Width="16"
+
+                                                        Height="16"
+
+                                                        Margin="0,-1,8,-1"
+
+                                                        VerticalAlignment="Center"
+
+                                                        FontFamily="{StaticResource FluentIconFontFamily}"
+
+                                                        FontSize="16"
+
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+
+                                                        Glyph="&#xe777;"
+
+                                                        ToolTip="恢复原位"
+
+                                                        MouseDown="ShapePanelRestore_MouseDown"
+
+                                                        MouseUp="ShapePanelRestore_MouseUp"
+
+                                                        TouchDown="ShapePanelRestore_TouchDown"
+
+                                                        TouchUp="ShapePanelRestore_TouchUp" />
+
+                                                </ikw:SimpleStackPanel>
+
+                                            </Grid>
 
                                         </Border>
 
@@ -2087,7 +2185,7 @@
 
                                         </ikw:SimpleStackPanel>
 
-                                        <Viewbox Width="200">
+                                        <Viewbox Width="270" HorizontalAlignment="Left">
 
                                             <ikw:SimpleStackPanel Spacing="-8">
 

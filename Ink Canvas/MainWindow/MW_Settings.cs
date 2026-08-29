@@ -900,6 +900,7 @@ namespace Ink_Canvas
         private bool _inkSubOptionsBackedUp = false;
         private bool _backupTriangle = false;
         private bool _backupRectangle = false;
+        private bool _backupCircle = false;
         private bool _backupAutoStraighten = false;
         private bool _backupLineEndpointSnapping = false;
         private bool _backupStopTiming = false;
@@ -919,6 +920,8 @@ namespace Ink_Canvas
                             ToggleSwitchEnableTriangleRecognition.IsOn = _backupTriangle;
                         if (ToggleSwitchEnableRectangleRecognition != null)
                             ToggleSwitchEnableRectangleRecognition.IsOn = _backupRectangle;
+                        if (ToggleSwitchEnableCircleRecognition != null)
+                            ToggleSwitchEnableCircleRecognition.IsOn = _backupCircle;
                         if (ToggleSwitchAutoStraightenLine != null)
                             ToggleSwitchAutoStraightenLine.IsOn = _backupAutoStraighten;
                         if (ToggleSwitchLineEndpointSnapping != null)
@@ -936,6 +939,7 @@ namespace Ink_Canvas
                     {
                         _backupTriangle = ToggleSwitchEnableTriangleRecognition?.IsOn ?? false;
                         _backupRectangle = ToggleSwitchEnableRectangleRecognition?.IsOn ?? false;
+                        _backupCircle = ToggleSwitchEnableCircleRecognition?.IsOn ?? false;
                         _backupAutoStraighten = ToggleSwitchAutoStraightenLine?.IsOn ?? false;
                         _backupLineEndpointSnapping = ToggleSwitchLineEndpointSnapping?.IsOn ?? false;
                         _backupStopTiming = ToggleSwitchStopTimingStraighten?.IsOn ?? false;
@@ -945,6 +949,8 @@ namespace Ink_Canvas
                         ToggleSwitchEnableTriangleRecognition.IsOn = false;
                     if (ToggleSwitchEnableRectangleRecognition != null)
                         ToggleSwitchEnableRectangleRecognition.IsOn = false;
+                    if (ToggleSwitchEnableCircleRecognition != null)
+                        ToggleSwitchEnableCircleRecognition.IsOn = false;
                     if (ToggleSwitchAutoStraightenLine != null)
                         ToggleSwitchAutoStraightenLine.IsOn = false;
                     if (ToggleSwitchLineEndpointSnapping != null)
@@ -1195,6 +1201,13 @@ namespace Ink_Canvas
         {
             if (!isLoaded || _isLoadingSettings) return;
             Settings.InkToShape.IsInkToShapeRectangle = ToggleSwitchEnableRectangleRecognition.IsOn;
+            SaveSettingsToFile();
+        }
+
+        private void ToggleSwitchEnableCircleRecognition_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.InkToShape.IsInkToShapeCircle = ToggleSwitchEnableCircleRecognition.IsOn;
             SaveSettingsToFile();
         }
 

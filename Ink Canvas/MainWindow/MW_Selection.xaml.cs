@@ -197,5 +197,45 @@ namespace Ink_Canvas
         {
             InvokeMainWindowHandler(nameof(GridPenWidthRestore_Click), sender, e);
         }
+
+        private void BorderStrokeSelectionExpand_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BorderStrokeSelectionExpand_MouseUp), sender, e);
+        }
+
+        private void Border_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(Border_MouseDown), sender, e);
+        }
+
+        private void SelectionHandle_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SelectionHandle_MouseDown), sender, e);
+        }
+
+        private void SelectionHandle_MouseMove(object sender, MouseEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SelectionHandle_MouseMove), sender, e);
+        }
+
+        private void SelectionHandle_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SelectionHandle_MouseUp), sender, e);
+        }
+
+        private void SelectionHandle_TouchDown(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SelectionHandle_TouchDown), sender, e);
+        }
+
+        private void SelectionHandle_TouchMove(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SelectionHandle_TouchMove), sender, e);
+        }
+
+        private void SelectionHandle_TouchUp(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SelectionHandle_TouchUp), sender, e);
+        }
     }
 }

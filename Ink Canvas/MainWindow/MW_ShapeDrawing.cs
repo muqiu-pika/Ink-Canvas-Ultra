@@ -7,6 +7,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Media.Animation;
 using MessageBox = System.Windows.MessageBox;
 using Point = System.Windows.Point;
@@ -17,7 +18,7 @@ namespace Ink_Canvas
     {
         #region Floating Bar Control
 
-        private void ImageDrawShape_Click(object sender, RoutedEventArgs e)
+        private async void ImageDrawShape_Click(object sender, RoutedEventArgs e)
         {
             if (BorderDrawShape.Visibility == Visibility.Visible)
             {
@@ -25,11 +26,15 @@ namespace Ink_Canvas
             }
             else
             {
+                BorderDrawShape.RenderTransform = Transform.Identity;
                 AnimationsHelper.ShowWithSlideFromBottomAndFade(BorderDrawShape);
+                await Task.Delay(300);
+                GetShapePanelDragOffset(BorderDrawShape as FrameworkElement, out double ox, out double oy);
+                if (ox != 0 || oy != 0) ApplyShapePanelDragOffset(BorderDrawShape as FrameworkElement, ox, oy);
             }
         }
 
-        private void BoardImageDrawShape_Click(object sender, RoutedEventArgs e)
+        private async void BoardImageDrawShape_Click(object sender, RoutedEventArgs e)
         {
             if (BoardBorderDrawShape.Visibility == Visibility.Visible)
             {
@@ -37,7 +42,11 @@ namespace Ink_Canvas
             }
             else
             {
+                BoardBorderDrawShape.RenderTransform = Transform.Identity;
                 AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardBorderDrawShape);
+                await Task.Delay(300);
+                GetShapePanelDragOffset(BoardBorderDrawShape as FrameworkElement, out double ox, out double oy);
+                if (ox != 0 || oy != 0) ApplyShapePanelDragOffset(BoardBorderDrawShape as FrameworkElement, ox, oy);
             }
         }
 
@@ -63,6 +72,194 @@ namespace Ink_Canvas
                 BoardBorderDrawShapePin.Glyph = "\uE77a";
             }
         }
+
+        #region 图形面板可移动（拖动 + 恢复原位）
+
+        Point shapePanelDragStartPos = new Point();
+        bool isShapePanelDragging = false;
+        FrameworkElement shapePanelDraggingTarget = null;
+
+        /// <summary>根据事件源确定对应的图形面板（浮动栏 BorderDrawShape 或画板 BoardBorderDrawShape）</summary>
+        private FrameworkElement GetShapePanelFromSender(object sender)
+        {
+            if (sender is DependencyObject d)
+            {
+                var floatPanel = BorderDrawShape as FrameworkElement;
+                if (floatPanel != null && IsElementDescendantOf(d, floatPanel)) return floatPanel;
+                var boardPanel = BoardBorderDrawShape as FrameworkElement;
+                if (boardPanel != null && IsElementDescendantOf(d, boardPanel)) return boardPanel;
+            }
+            return null;
+        }
+
+        private static bool IsElementDescendantOf(DependencyObject child, DependencyObject ancestor)
+        {
+            DependencyObject current = child;
+            while (current != null)
+            {
+                if (current == ancestor) return true;
+                current = VisualTreeHelper.GetParent(current);
+            }
+            return false;
+        }
+
+        // 拖动偏移量（用 RenderTransform 实现，避免拖动时频繁触发布局导致卡顿）
+        double shapePanelFloatDragOffsetX = 0, shapePanelFloatDragOffsetY = 0;
+        double shapePanelBoardDragOffsetX = 0, shapePanelBoardDragOffsetY = 0;
+
+        private void GetShapePanelDragOffset(FrameworkElement panel, out double x, out double y)
+        {
+            if (panel == (BorderDrawShape as FrameworkElement))
+            {
+                x = shapePanelFloatDragOffsetX; y = shapePanelFloatDragOffsetY;
+            }
+            else
+            {
+                x = shapePanelBoardDragOffsetX; y = shapePanelBoardDragOffsetY;
+            }
+        }
+
+        private void SetShapePanelDragOffset(FrameworkElement panel, double x, double y)
+        {
+            if (panel == (BorderDrawShape as FrameworkElement))
+            {
+                shapePanelFloatDragOffsetX = x; shapePanelFloatDragOffsetY = y;
+            }
+            else
+            {
+                shapePanelBoardDragOffsetX = x; shapePanelBoardDragOffsetY = y;
+            }
+        }
+
+        /// <summary>用 RenderTransform 平移面板（视觉变换，不触发布局、不改变大小），并清除显示动画残留</summary>
+        private void ApplyShapePanelDragOffset(FrameworkElement panel, double ox, double oy)
+        {
+            if (panel == null) return;
+            var t = panel.RenderTransform as TranslateTransform;
+            if (t == null)
+            {
+                t = new TranslateTransform();
+                panel.RenderTransform = t;
+            }
+            t.BeginAnimation(TranslateTransform.XProperty, null);
+            t.BeginAnimation(TranslateTransform.YProperty, null);
+            t.X = ox;
+            t.Y = oy;
+        }
+
+        private void MoveShapePanelByDrag(FrameworkElement panel, double dx, double dy)
+        {
+            GetShapePanelDragOffset(panel, out var ox, out var oy);
+            ox += dx;
+            oy += dy;
+            SetShapePanelDragOffset(panel, ox, oy);
+            ApplyShapePanelDragOffset(panel, ox, oy);
+        }
+
+        private void ShapePanelDragHandle_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            var panel = GetShapePanelFromSender(sender);
+            if (panel == null || !(sender is UIElement handle)) return;
+            var parent = panel.Parent as IInputElement;
+            if (parent == null) return;
+            shapePanelDraggingTarget = panel;
+            shapePanelDragStartPos = e.GetPosition(parent);
+            isShapePanelDragging = true;
+            handle.CaptureMouse();
+            lastBorderMouseDownObject = sender;
+        }
+
+        private void ShapePanelDragHandle_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (!isShapePanelDragging || shapePanelDraggingTarget == null) return;
+            var parent = shapePanelDraggingTarget.Parent as IInputElement;
+            if (parent == null) return;
+            Point current = e.GetPosition(parent);
+            double dx = current.X - shapePanelDragStartPos.X;
+            double dy = current.Y - shapePanelDragStartPos.Y;
+            if (dx == 0 && dy == 0) return;
+            // 用 RenderTransform 平移（不触发布局、不改变大小，拖动更流畅）
+            MoveShapePanelByDrag(shapePanelDraggingTarget, dx, dy);
+            shapePanelDragStartPos = current;
+        }
+
+        private void ShapePanelDragHandle_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is UIElement handle) handle.ReleaseMouseCapture();
+            isShapePanelDragging = false;
+            shapePanelDraggingTarget = null;
+        }
+
+        private void ShapePanelDragHandle_TouchDown(object sender, TouchEventArgs e)
+        {
+            var panel = GetShapePanelFromSender(sender);
+            if (panel == null || !(sender is UIElement handle)) return;
+            var parent = panel.Parent as IInputElement;
+            if (parent == null) return;
+            shapePanelDraggingTarget = panel;
+            shapePanelDragStartPos = e.GetTouchPoint(parent).Position;
+            isShapePanelDragging = true;
+            handle.CaptureTouch(e.TouchDevice);
+            lastBorderMouseDownObject = sender;
+            e.Handled = true;
+        }
+
+        private void ShapePanelDragHandle_TouchMove(object sender, TouchEventArgs e)
+        {
+            if (!isShapePanelDragging || shapePanelDraggingTarget == null) return;
+            var parent = shapePanelDraggingTarget.Parent as IInputElement;
+            if (parent == null) return;
+            Point current = e.GetTouchPoint(parent).Position;
+            double dx = current.X - shapePanelDragStartPos.X;
+            double dy = current.Y - shapePanelDragStartPos.Y;
+            if (dx == 0 && dy == 0) return;
+            // 用 RenderTransform 平移（不触发布局、不改变大小，拖动更流畅）
+            MoveShapePanelByDrag(shapePanelDraggingTarget, dx, dy);
+            shapePanelDragStartPos = current;
+            e.Handled = true;
+        }
+
+        private void ShapePanelDragHandle_TouchUp(object sender, TouchEventArgs e)
+        {
+            if (sender is UIElement handle && e.TouchDevice != null) handle.ReleaseTouchCapture(e.TouchDevice);
+            isShapePanelDragging = false;
+            shapePanelDraggingTarget = null;
+            e.Handled = true;
+        }
+
+        private void ShapePanelRestore_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            lastBorderMouseDownObject = sender;
+        }
+
+        private void ShapePanelRestore_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (lastBorderMouseDownObject != sender) return;
+            RestoreShapePanelPosition(sender);
+        }
+
+        private void ShapePanelRestore_TouchDown(object sender, TouchEventArgs e)
+        {
+            lastBorderMouseDownObject = sender;
+            e.Handled = true;
+        }
+
+        private void ShapePanelRestore_TouchUp(object sender, TouchEventArgs e)
+        {
+            if (lastBorderMouseDownObject != sender) return;
+            RestoreShapePanelPosition(sender);
+            e.Handled = true;
+        }
+
+        private void RestoreShapePanelPosition(object sender)
+        {
+            var panel = GetShapePanelFromSender(sender);
+            if (panel == null) return;
+            SetShapePanelDragOffset(panel, 0, 0);
+            ApplyShapePanelDragOffset(panel, 0, 0);
+        }
+
+        #endregion
 
         object lastMouseDownSender = null;
         DateTime lastMouseDownTime = DateTime.MinValue;

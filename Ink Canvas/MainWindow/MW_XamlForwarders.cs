@@ -23,6 +23,17 @@ namespace Ink_Canvas
 
         private dynamic GridInkCanvasSelectionCover => FindXamlPart(MWSelectionHost, nameof(GridInkCanvasSelectionCover));
         private dynamic BorderStrokeSelectionControl => FindXamlPart(MWSelectionHost, nameof(BorderStrokeSelectionControl));
+        private dynamic BorderStrokeSelectionExpand => FindXamlPart(MWSelectionHost, nameof(BorderStrokeSelectionExpand));
+        private dynamic SelectionRectangle => FindXamlPart(MWSelectionHost, nameof(SelectionRectangle));
+        private dynamic SelectionHandlesCanvas => FindXamlPart(MWSelectionHost, nameof(SelectionHandlesCanvas));
+        private dynamic TopLeftHandle => FindXamlPart(MWSelectionHost, nameof(TopLeftHandle));
+        private dynamic TopRightHandle => FindXamlPart(MWSelectionHost, nameof(TopRightHandle));
+        private dynamic BottomLeftHandle => FindXamlPart(MWSelectionHost, nameof(BottomLeftHandle));
+        private dynamic BottomRightHandle => FindXamlPart(MWSelectionHost, nameof(BottomRightHandle));
+        private dynamic TopHandle => FindXamlPart(MWSelectionHost, nameof(TopHandle));
+        private dynamic BottomHandle => FindXamlPart(MWSelectionHost, nameof(BottomHandle));
+        private dynamic LeftHandle => FindXamlPart(MWSelectionHost, nameof(LeftHandle));
+        private dynamic RightHandle => FindXamlPart(MWSelectionHost, nameof(RightHandle));
         private dynamic ToggleButtonStrokeSelectionClone => FindXamlPart(MWSelectionHost, nameof(ToggleButtonStrokeSelectionClone));
         private dynamic IconStrokeSelectionClone => FindXamlPart(MWSelectionHost, nameof(IconStrokeSelectionClone));
         private dynamic TextSelectionCloneToNewBoard => FindXamlPart(MWSelectionHost, nameof(TextSelectionCloneToNewBoard));
@@ -141,6 +152,7 @@ namespace Ink_Canvas
         private dynamic ToggleSwitchEnableInkToShape => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableInkToShape));
         private dynamic ToggleSwitchEnableTriangleRecognition => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableTriangleRecognition));
         private dynamic ToggleSwitchEnableRectangleRecognition => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableRectangleRecognition));
+        private dynamic ToggleSwitchEnableCircleRecognition => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableCircleRecognition));
         private dynamic ToggleSwitchAutoStraightenLine => FindXamlPart(SettingsWindow, nameof(ToggleSwitchAutoStraightenLine));
         private dynamic AutoStraightenLineThresholdSlider => FindXamlPart(SettingsWindow, nameof(AutoStraightenLineThresholdSlider));
         private dynamic LineStraightenSensitivitySlider => FindXamlPart(SettingsWindow, nameof(LineStraightenSensitivitySlider));

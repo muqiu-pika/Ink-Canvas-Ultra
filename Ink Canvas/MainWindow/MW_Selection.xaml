@@ -12,35 +12,86 @@
     <Grid>
         <!--  // 选择选项窗口 //  -->
         <Grid>
-            <Grid
-                Name="GridInkCanvasSelectionCover"
-                Background="#01FFFFFF"
-                IsManipulationEnabled="True"
-                ManipulationCompleted="GridInkCanvasSelectionCover_ManipulationCompleted"
-                ManipulationDelta="GridInkCanvasSelectionCover_ManipulationDelta"
-                ManipulationStarting="GridInkCanvasSelectionCover_ManipulationStarting"
-                MouseDown="GridInkCanvasSelectionCover_MouseDown"
-                MouseMove="GridInkCanvasSelectionCover_MouseMove"
-                MouseUp="GridInkCanvasSelectionCover_MouseUp"
-                MouseWheel="GridInkCanvasSelectionCover_MouseWheel"
-                Opacity="0.01"
-                PreviewTouchDown="GridInkCanvasSelectionCover_PreviewTouchDown"
-                PreviewTouchUp="GridInkCanvasSelectionCover_PreviewTouchUp"
-                Visibility="Visible" />
-            <Border
-                x:Name="BorderStrokeSelectionControl"
-                Height="104"
-                Margin="0,50,0,0"
-                HorizontalAlignment="Left"
-                VerticalAlignment="Top"
-                Background="{DynamicResource FloatBarBackground}"
-                BorderBrush="{DynamicResource FloatBarBorderBrush}"
-                BorderThickness="1"
-                CornerRadius="5"
-                Visibility="{Binding ElementName=GridInkCanvasSelectionCover, Path=Visibility}">
-                <Viewbox>
-                    <ikw:SimpleStackPanel>
-                        <ikw:SimpleStackPanel
+            <Grid
+                Name="GridInkCanvasSelectionCover"
+                Background="#01FFFFFF"
+                IsManipulationEnabled="True"
+                ManipulationCompleted="GridInkCanvasSelectionCover_ManipulationCompleted"
+                ManipulationDelta="GridInkCanvasSelectionCover_ManipulationDelta"
+                ManipulationStarting="GridInkCanvasSelectionCover_ManipulationStarting"
+                MouseDown="GridInkCanvasSelectionCover_MouseDown"
+                MouseMove="GridInkCanvasSelectionCover_MouseMove"
+                MouseUp="GridInkCanvasSelectionCover_MouseUp"
+                MouseWheel="GridInkCanvasSelectionCover_MouseWheel"
+                PreviewTouchDown="GridInkCanvasSelectionCover_PreviewTouchDown"
+                PreviewTouchUp="GridInkCanvasSelectionCover_PreviewTouchUp"
+                Visibility="Visible">
+
+                <!-- 墨迹选择框（虚线边框，不参与命中测试，仅显示） -->
+                <Rectangle
+                    Name="SelectionRectangle"
+                    HorizontalAlignment="Left"
+                    VerticalAlignment="Top"
+                    Stroke="#1a73e8"
+                    StrokeDashArray="4,3"
+                    StrokeThickness="1.5"
+                    IsHitTestVisible="False"
+                    Visibility="Collapsed" />
+
+                <!-- 墨迹选择把手：四角点 + 四边中点，共 8 个可拖动点 -->
+                <Canvas Name="SelectionHandlesCanvas" Visibility="Collapsed">
+                    <!-- 四个角选择点（拖动为同时缩放+旋转，以水平对边中点为枢轴） -->
+                    <Rectangle Name="TopLeftHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
+                               Cursor="Cross" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
+                               TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
+                    <Rectangle Name="TopRightHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
+                               Cursor="Cross" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
+                               TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
+                    <Rectangle Name="BottomLeftHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
+                               Cursor="Cross" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
+                               TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
+                    <Rectangle Name="BottomRightHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
+                               Cursor="Cross" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
+                               TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
+
+                    <!-- 四个边选择点（拖动为缩放，对边固定） -->
+                    <Rectangle Name="TopHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
+                               Cursor="SizeNS" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
+                               TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
+                    <Rectangle Name="BottomHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
+                               Cursor="SizeNS" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
+                               TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
+                    <Rectangle Name="LeftHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
+                               Cursor="SizeWE" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
+                               TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
+                    <Rectangle Name="RightHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
+                               Cursor="SizeWE" HorizontalAlignment="Left" VerticalAlignment="Top"
+                               MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
+                               TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
+                </Canvas>
+            </Grid>
+
+            <Border
+                x:Name="BorderStrokeSelectionControl"
+                Height="104"
+                Margin="0,50,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Background="{DynamicResource FloatBarBackground}"
+                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="5"
+                Visibility="Collapsed">
+                <Viewbox StretchDirection="DownOnly">
+                    <ikw:SimpleStackPanel>
+                        <ikw:SimpleStackPanel
                             Height="80"
                             Orientation="Horizontal"
                             Spacing="6">
@@ -657,9 +708,33 @@
 
                         </ikw:SimpleStackPanel>
                         <!-- 插件插槽：视频控件 plugin 通过 host.RegisterSelectionControlBar 注册到此容器 -->
-                        <StackPanel x:Name="VideoControlContainer" Margin="0,4,0,0" />
-                    </ikw:SimpleStackPanel>
+                        <StackPanel x:Name="VideoControlContainer" Margin="0,4,0,0" />
+                    </ikw:SimpleStackPanel>
                 </Viewbox>
+            </Border>
+
+            <!-- 圈选后默认折叠成的小按钮：点击展开/收起上方设置框 -->
+            <Border
+                x:Name="BorderStrokeSelectionExpand"
+                Width="44"
+                Height="44"
+                Margin="0,0,0,0"
+                HorizontalAlignment="Left"
+                VerticalAlignment="Top"
+                Background="{DynamicResource FloatBarBackground}"
+                BorderBrush="{DynamicResource FloatBarBorderBrush}"
+                BorderThickness="1"
+                CornerRadius="22"
+                MouseDown="Border_MouseDown"
+                MouseUp="BorderStrokeSelectionExpand_MouseUp"
+                Visibility="Collapsed">
+                <ui:FontIcon
+                    Width="22"
+                    Height="22"
+                    FontFamily="{StaticResource FluentIconFontFamily}"
+                    FontSize="22"
+                    Foreground="{DynamicResource FloatBarForeground}"
+                    Glyph="&#xe713;" />
             </Border>
         </Grid>
     </Grid>

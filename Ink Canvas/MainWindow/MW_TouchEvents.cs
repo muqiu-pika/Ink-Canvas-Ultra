@@ -356,7 +356,11 @@ namespace Ink_Canvas
                     isLastTouchEraser = false;
                     inkCanvas.EraserShape = forcePointEraser ? new EllipseStylusShape(50, 50) : new EllipseStylusShape(5, 5);
                     if (forceEraser) return;
-                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                    // 保持选择状态：当前处于选择模式时不强行切回笔
+                    if (inkCanvas.EditingMode != InkCanvasEditingMode.Select)
+                    {
+                        inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                    }
                 }
             }
             catch (Exception ex)
@@ -511,7 +515,11 @@ namespace Ink_Canvas
             if (e.Manipulators.Count() == 0)
             {
                 if (forceEraser) return;
-                inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                // 保持选择状态：当前处于选择模式时不强行切回笔
+                if (inkCanvas.EditingMode != InkCanvasEditingMode.Select)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                }
                 twoFingerGestureType = TwoFingerGestureType.None;
                 translateAccum = new Vector(0, 0);
                 

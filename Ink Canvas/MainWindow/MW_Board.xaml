@@ -2775,7 +2775,15 @@
 
                                 x:Name="BoardBorderDrawShape"
 
-                                Margin="-162,-293,-89,58"
+                                Width="320"
+
+                                Height="320"
+
+                                HorizontalAlignment="Left"
+
+                                VerticalAlignment="Top"
+
+                                Margin="-240,-320,-80,58"
 
                                 Background="{DynamicResource BoardBarBackground}"
 
@@ -2803,17 +2811,77 @@
 
                                         CornerRadius="5,5,0,0">
 
-                                        <ikw:SimpleStackPanel Orientation="Horizontal">
+                                        <Grid>
+
+                                            <ikw:SimpleStackPanel
+
+                                                HorizontalAlignment="Left"
+
+                                                Orientation="Horizontal">
+
+                                            <Grid
+
+                                                x:Name="BoardBorderDrawShapeDragHandle"
+
+                                                Width="20"
+
+                                                Height="20"
+
+                                                Margin="0,0,0,0"
+
+                                                VerticalAlignment="Center"
+
+                                                Background="Transparent"
+
+                                                ToolTip="按住拖动"
+
+                                                MouseDown="ShapePanelDragHandle_MouseDown"
+
+                                                MouseMove="ShapePanelDragHandle_MouseMove"
+
+                                                MouseUp="ShapePanelDragHandle_MouseUp"
+
+                                                TouchDown="ShapePanelDragHandle_TouchDown"
+
+                                                TouchMove="ShapePanelDragHandle_TouchMove"
+
+                                                TouchUp="ShapePanelDragHandle_TouchUp">
+
+                                                <Path
+
+                                                    Width="16"
+
+                                                    Height="16"
+
+                                                    Stretch="Uniform"
+
+                                                    Fill="{DynamicResource BoardBarForeground}"
+
+                                                    Data="M8,6 L12,0 L16,6 Z M8,18 L12,24 L16,18 Z M6,8 L0,12 L6,16 Z M18,8 L24,12 L18,16 Z" />
+
+                                            </Grid>
 
                                             <TextBlock
 
-                                                FontSize="14"
+                                                Margin="0,0,0,0"
+
+                                                VerticalAlignment="Center"
+
+                                                FontSize="12"
 
                                                 FontWeight="Bold"
 
                                                 Foreground="{DynamicResource BoardBarForeground}"
 
                                                 Text="图形(第一行支持长按保持选中)" />
+
+                                            </ikw:SimpleStackPanel>
+
+                                            <ikw:SimpleStackPanel
+
+                                                HorizontalAlignment="Right"
+
+                                                Orientation="Horizontal">
 
                                             <ui:FontIcon
 
@@ -2839,11 +2907,43 @@
 
                                                 MouseUp="SymbolIconPinBorderDrawShape_MouseUp" />
 
-                                        </ikw:SimpleStackPanel>
+                                            <ui:FontIcon
+
+                                                x:Name="BoardBorderDrawShapeRestore"
+
+                                                Width="18"
+
+                                                Height="18"
+
+                                                Margin="16,0,0,0"
+
+                                                VerticalAlignment="Center"
+
+                                                FontFamily="{StaticResource FluentIconFontFamily}"
+
+                                                FontSize="18"
+
+                                                Foreground="{DynamicResource BoardBarForeground}"
+
+                                                Glyph="&#xe777;"
+
+                                                ToolTip="恢复原位"
+
+                                                MouseDown="ShapePanelRestore_MouseDown"
+
+                                                MouseUp="ShapePanelRestore_MouseUp"
+
+                                                TouchDown="ShapePanelRestore_TouchDown"
+
+                                                TouchUp="ShapePanelRestore_TouchUp" />
+
+                                            </ikw:SimpleStackPanel>
+
+                                        </Grid>
 
                                     </Border>
 
-                                    <Viewbox Width="240" Margin="0,10,0,0">
+                                    <Viewbox Width="270" HorizontalAlignment="Left" Margin="0,10,0,0">
 
                                         <ikw:SimpleStackPanel Spacing="-8">
 

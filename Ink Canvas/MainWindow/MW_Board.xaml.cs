@@ -403,6 +403,56 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(SymbolIconPinBorderDrawShape_MouseUp), sender, e);
         }
 
+        private void ShapePanelDragHandle_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_MouseDown), sender, e);
+        }
+
+        private void ShapePanelDragHandle_MouseMove(object sender, MouseEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_MouseMove), sender, e);
+        }
+
+        private void ShapePanelDragHandle_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_MouseUp), sender, e);
+        }
+
+        private void ShapePanelDragHandle_TouchDown(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_TouchDown), sender, e);
+        }
+
+        private void ShapePanelDragHandle_TouchMove(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_TouchMove), sender, e);
+        }
+
+        private void ShapePanelDragHandle_TouchUp(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_TouchUp), sender, e);
+        }
+
+        private void ShapePanelRestore_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelRestore_MouseDown), sender, e);
+        }
+
+        private void ShapePanelRestore_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelRestore_MouseUp), sender, e);
+        }
+
+        private void ShapePanelRestore_TouchDown(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelRestore_TouchDown), sender, e);
+        }
+
+        private void ShapePanelRestore_TouchUp(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapePanelRestore_TouchUp), sender, e);
+        }
+
         private void SymbolIconRandOne_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(SymbolIconRandOne_Click), sender, e);

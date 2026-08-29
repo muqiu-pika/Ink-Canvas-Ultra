@@ -188,7 +188,7 @@ namespace Ink_Canvas
                                 }
                             }
                             // 修正：防止result为null或InkDrawingNode为null时抛出异常
-                            if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName() == "Circle")
+                            if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName() == "Circle" && Settings.InkToShape.IsInkToShapeCircle)
                             {
                                 var shape = result.InkDrawingNode.GetShape();
                                 if (shape.Width > 75)
@@ -247,7 +247,7 @@ namespace Ink_Canvas
                                     newStrokes = new StrokeCollection();
                                 }
                             }
-                            else if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName().Contains("Ellipse"))
+                            else if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName().Contains("Ellipse") && Settings.InkToShape.IsInkToShapeCircle)
                             {
                                 var shape = result.InkDrawingNode.GetShape();
                                 //var shape1 = result.InkDrawingNode.GetShape();
