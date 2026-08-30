@@ -6,6 +6,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Ink;
 using iNKORE.UI.WPF.Modern;
+using Ink_Canvas.Helpers;
 
 namespace Ink_Canvas
 {
@@ -23,7 +24,7 @@ namespace Ink_Canvas
         {
             // 轻量信息立即填充（几乎不耗时）
             if (AppVersionTextBlock != null)
-                AppVersionTextBlock.Text = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+                AppVersionTextBlock.Text = AutoUpdateHelper.GetDisplayVersion();
 
             // 同步「文档转照片清晰度」滑块与数值显示
             try

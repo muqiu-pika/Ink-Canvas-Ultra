@@ -206,7 +206,7 @@ namespace Ink_Canvas
                     Source = imageSource,
                     Stretch = Stretch.Uniform
                 };
-                RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+                RenderOptimizationHelper.EnableHighQualityCaching(image);
 
                 string timestamp = "paste_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff");
                 image.Name = timestamp;

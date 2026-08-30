@@ -1976,17 +1976,9 @@ namespace Ink_Canvas
                 }
             }
 
-            if (inkCanvas.Strokes.Count != 0)
-            {
-                int whiteboardIndex = CurrentWhiteboardIndex;
-                if (currentMode == 0)
-                {
-                    whiteboardIndex = 0;
-                }
-                strokeCollections[whiteboardIndex] = inkCanvas.Strokes.Clone();
-
-            }
-
+            // 原此处会判断笔迹非空后执行 strokeCollections[whiteboardIndex] = inkCanvas.Strokes.Clone()，
+            // 即整页笔迹的一次全量深拷贝。该数组全仓无读取（见 MW_BoardControls 注释），
+            // 纯粹浪费一次 Clone 的 CPU 并把整页笔迹长期钉住，已移除。
             ClearStrokes(false);
             inkCanvas.Children.Clear();
 

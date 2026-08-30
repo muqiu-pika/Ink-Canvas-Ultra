@@ -331,6 +331,9 @@ namespace Ink_Canvas
                 List<UIElement> elementsList = InkCanvasElementsHelper.GetSelectedElements(inkCanvas);
                 isProgramChangeStrokeSelection = true;
                 ElementsSelectionClone = InkCanvasElementsHelper.CloneSelectedElements(inkCanvas, ref ElementsInitialHistory);
+                // 克隆会往 ElementsInitialHistory 写入新条目，而 ElementData 强引用元素
+                //（内含全分辨率位图）。这里顺带清掉已失效的旧条目，防止长期累积。
+                PruneElementsInitialHistory();
                 inkCanvas.Select(new StrokeCollection());
                 StrokesSelectionClone = strokes.Clone();
                 inkCanvas.Strokes.Add(StrokesSelectionClone);
@@ -1298,6 +1301,8 @@ namespace Ink_Canvas
                     List<UIElement> elementsList = InkCanvasElementsHelper.GetSelectedElements(inkCanvas);
                     isProgramChangeStrokeSelection = true;
                     ElementsSelectionClone = InkCanvasElementsHelper.CloneSelectedElements(inkCanvas, ref ElementsInitialHistory);
+                    // 同上：克隆写入新条目后，顺带清理已失效的旧条目
+                    PruneElementsInitialHistory();
                     inkCanvas.Select(new StrokeCollection());
                     StrokesSelectionClone = strokes.Clone();
                     inkCanvas.Strokes.Add(StrokesSelectionClone);

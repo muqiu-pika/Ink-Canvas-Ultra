@@ -897,7 +897,7 @@ namespace Ink_Canvas
             });
         }
 
-        /// <summary>从网络下载 .icplugin（支持主下载源 + fallback）并安装，安装前校验大小与 SHA256。</summary>
+        /// <summary>从网络下载 .icplugin（支持主下载源 + fallback）并安装，安装前校验 SHA256。</summary>
         private async Task InstallOnlinePluginAsync(OnlinePluginInfo plugin)
         {
             if (string.IsNullOrWhiteSpace(plugin.DownloadUrl) && string.IsNullOrWhiteSpace(plugin.FallbackUrl))
@@ -917,37 +917,13 @@ namespace Ink_Canvas
             string tempFile = null;
             try
             {
-                tempFile = await DownloadPluginWithFallbackAsync(plugin);
+                var download = await DownloadAndVerifyPluginAsync(plugin);
+                tempFile = download.TempFile;
                 if (string.IsNullOrEmpty(tempFile))
                 {
-                    UpdateInstallProgress(-1, $"下载 {plugin.Name} 失败", "所有下载源均不可用");
+                    UpdateInstallProgress(-1, $"安装 {plugin.Name} 失败", download.FailureReason);
                     await Task.Delay(1500);
                     return;
-                }
-
-                // 校验文件大小
-                SetInstallProgressIndeterminate($"正在校验 {plugin.Name}", "校验文件大小...");
-                var fileInfo = new FileInfo(tempFile);
-                if (plugin.Size > 0 && fileInfo.Length != plugin.Size)
-                {
-                    UpdateInstallProgress(-1, $"安装 {plugin.Name} 失败", "文件大小校验失败");
-                    await Task.Delay(1500);
-                    return;
-                }
-
-                // 校验 SHA256
-                UpdateInstallProgress(-1, $"正在校验 {plugin.Name}", "校验 SHA256...");
-                if (plugin.Checksum != null &&
-                    !string.IsNullOrWhiteSpace(plugin.Checksum.Value) &&
-                    string.Equals(plugin.Checksum.Algorithm, "SHA256", StringComparison.OrdinalIgnoreCase))
-                {
-                    string fileHash = CalculateSHA256(tempFile);
-                    if (!string.Equals(fileHash, plugin.Checksum.Value, StringComparison.OrdinalIgnoreCase))
-                    {
-                        UpdateInstallProgress(-1, $"安装 {plugin.Name} 失败", "SHA256 校验失败");
-                        await Task.Delay(1500);
-                        return;
-                    }
                 }
 
                 // 安装
@@ -966,7 +942,7 @@ namespace Ink_Canvas
             finally
             {
                 HideInstallProgress();
-                try { if (tempFile != null && File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+                TryDeleteTempFile(tempFile);
             }
         }
 
@@ -997,10 +973,11 @@ namespace Ink_Canvas
                 string tempFile = null;
                 try
                 {
-                    tempFile = await DownloadPluginWithFallbackAsync(plugin);
+                    var download = await DownloadAndVerifyPluginAsync(plugin);
+                    tempFile = download.TempFile;
                     if (string.IsNullOrEmpty(tempFile))
                     {
-                        UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", "所有下载源均不可用");
+                        UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", download.FailureReason);
                         await Task.Delay(1500);
                         return;
                     }
@@ -1012,31 +989,6 @@ namespace Ink_Canvas
                         UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", $"需要主程序 ≥ {updateManifest.MinHostVersion}");
                         await Task.Delay(1500);
                         return;
-                    }
-
-                    // 校验文件大小
-                    SetInstallProgressIndeterminate($"正在校验 {plugin.Name}", "校验文件大小...");
-                    var fileInfo = new FileInfo(tempFile);
-                    if (plugin.Size > 0 && fileInfo.Length != plugin.Size)
-                    {
-                        UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", "文件大小校验失败");
-                        await Task.Delay(1500);
-                        return;
-                    }
-
-                    // 校验 SHA256
-                    UpdateInstallProgress(-1, $"正在校验 {plugin.Name}", "校验 SHA256...");
-                    if (plugin.Checksum != null &&
-                        !string.IsNullOrWhiteSpace(plugin.Checksum.Value) &&
-                        string.Equals(plugin.Checksum.Algorithm, "SHA256", StringComparison.OrdinalIgnoreCase))
-                    {
-                        string fileHash = CalculateSHA256(tempFile);
-                        if (!string.Equals(fileHash, plugin.Checksum.Value, StringComparison.OrdinalIgnoreCase))
-                        {
-                            UpdateInstallProgress(-1, $"更新 {plugin.Name} 失败", "SHA256 校验失败");
-                            await Task.Delay(1500);
-                            return;
-                        }
                     }
 
                     // 3. 安装新版本（直接覆盖原目录，不弹确认框）
@@ -1061,7 +1013,7 @@ namespace Ink_Canvas
                 }
                 finally
                 {
-                    try { if (tempFile != null && File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+                    TryDeleteTempFile(tempFile);
                 }
             }
             catch (Exception ex)
@@ -1076,20 +1028,40 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>依次尝试 downloadUrl 与 fallbackUrl 下载插件包，返回临时文件路径。</summary>
-        private async Task<string> DownloadPluginWithFallbackAsync(OnlinePluginInfo plugin)
+        /// <summary>下载并校验插件包的结果。</summary>
+        private sealed class PluginDownloadResult
+        {
+            /// <summary>通过校验的临时文件路径；失败时为 null。</summary>
+            public string TempFile { get; set; }
+
+            /// <summary>失败原因；成功时为 null。</summary>
+            public string FailureReason { get; set; }
+        }
+
+        /// <summary>
+        /// 依次尝试 downloadUrl 与 fallbackUrl 下载插件包，并在下载后就地校验。
+        /// 目录记录的 size 仅作参考（插件重新打包后 size 可能未同步），不一致时只记警告并继续；
+        /// 完整性以 SHA256 为准，某一源校验不通过会自动尝试下一个源。
+        /// </summary>
+        /// <param name="plugin">在线插件信息</param>
+        /// <returns>成功时 TempFile 为临时文件路径；全部源均失败时 TempFile 为 null 并给出 FailureReason</returns>
+        private async Task<PluginDownloadResult> DownloadAndVerifyPluginAsync(OnlinePluginInfo plugin)
         {
             var urls = new List<string>();
             if (!string.IsNullOrWhiteSpace(plugin.DownloadUrl)) urls.Add(plugin.DownloadUrl);
             if (!string.IsNullOrWhiteSpace(plugin.FallbackUrl) && !urls.Contains(plugin.FallbackUrl, StringComparer.OrdinalIgnoreCase))
                 urls.Add(plugin.FallbackUrl);
 
+            bool anyDownloaded = false;
+
             for (int i = 0; i < urls.Count; i++)
             {
                 var url = urls[i];
+                string tempFile = Path.Combine(Path.GetTempPath(), $"{plugin.Id}-{plugin.Version}{PluginFileExtension}");
+
+                // 下载
                 try
                 {
-                    string tempFile = Path.Combine(Path.GetTempPath(), $"{plugin.Id}-{plugin.Version}{PluginFileExtension}");
                     using (var client = new WebClient())
                     {
                         client.DownloadProgressChanged += (s, e) =>
@@ -1100,14 +1072,55 @@ namespace Ink_Canvas
                         };
                         await client.DownloadFileTaskAsync(new Uri(url), tempFile);
                     }
-                    return tempFile;
+                    anyDownloaded = true;
                 }
                 catch (Exception ex)
                 {
                     LogHelper.WriteLogToFile($"下载 plugin 源失败 [{plugin.Id}] {url}: {ex.Message}", LogHelper.LogType.Warning);
+                    TryDeleteTempFile(tempFile);
+                    continue;
                 }
+
+                // 校验文件大小：仅警告，不中断安装。
+                // 目录里的 size 可能在插件重新打包后未同步，此时以 SHA256 为唯一判据。
+                long actualSize = new FileInfo(tempFile).Length;
+                if (plugin.Size > 0 && actualSize != plugin.Size)
+                {
+                    LogHelper.WriteLogToFile(
+                        $"插件 [{plugin.Id}] 文件大小与目录记录不一致：实际 {actualSize} 字节，记录 {plugin.Size} 字节（以 SHA256 为准）",
+                        LogHelper.LogType.Warning);
+                }
+
+                // 校验 SHA256：不通过则丢弃本源，继续尝试下一个源
+                if (plugin.Checksum != null &&
+                    !string.IsNullOrWhiteSpace(plugin.Checksum.Value) &&
+                    string.Equals(plugin.Checksum.Algorithm, "SHA256", StringComparison.OrdinalIgnoreCase))
+                {
+                    UpdateInstallProgress(-1, $"正在校验 {plugin.Name}", "校验 SHA256...");
+                    string fileHash = CalculateSHA256(tempFile);
+                    if (!string.Equals(fileHash, plugin.Checksum.Value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        LogHelper.WriteLogToFile(
+                            $"插件 [{plugin.Id}] 源 {url} 的 SHA256 不匹配：实际 {fileHash}，期望 {plugin.Checksum.Value}",
+                            LogHelper.LogType.Warning);
+                        TryDeleteTempFile(tempFile);
+                        continue;
+                    }
+                }
+
+                return new PluginDownloadResult { TempFile = tempFile };
             }
-            return null;
+
+            return new PluginDownloadResult
+            {
+                FailureReason = anyDownloaded ? "所有下载源的文件校验均未通过" : "所有下载源均不可用"
+            };
+        }
+
+        /// <summary>删除下载过程中的临时文件，删除失败时静默忽略。</summary>
+        private static void TryDeleteTempFile(string path)
+        {
+            try { if (!string.IsNullOrEmpty(path) && File.Exists(path)) File.Delete(path); } catch { }
         }
 
         /// <summary>计算文件 SHA256 校验值（大写十六进制）。</summary>

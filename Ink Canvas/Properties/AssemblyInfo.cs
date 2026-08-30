@@ -49,6 +49,9 @@ using System.Windows;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("5.0.2.0")]
-[assembly: AssemblyVersion("8.0.2.0")]
-[assembly: AssemblyFileVersion("8.0.2.0")]
+// 自 2026/8/30 起，版本号采用「年份 + 月份 + 当月第几个版本」三段式命名：
+// 26.8.1 = 2026 年 8 月第 1 个版本。程序集版本末段固定为 0，
+// 更新检测与界面展示时统一按前三段处理（见 Helpers/AutoUpdateHelper.cs）。
+[assembly: AssemblyVersion("26.8.1.0")]
+[assembly: AssemblyFileVersion("26.8.1.0")]
 

@@ -483,16 +483,9 @@ namespace Ink_Canvas
                 if (dec.Count == 0)
                 {
                     twoFingerGestureType = TwoFingerGestureType.None;
-                    if (lastTouchDownStrokeCollection.Count() != inkCanvas.Strokes.Count() &&
-                        !(drawingShapeMode == 9 && !isFirstTouchCuboid))
-                    {
-                        int whiteboardIndex = CurrentWhiteboardIndex;
-                        if (currentMode == 0)
-                        {
-                            whiteboardIndex = 0;
-                        }
-                        strokeCollections[whiteboardIndex] = lastTouchDownStrokeCollection;
-                    }
+                    // 原此处还有一段：比较 lastTouchDownStrokeCollection 与当前笔迹数后，写入
+                    // strokeCollections[whiteboardIndex]。该数组全仓无读取（见 MW_BoardControls 注释），
+                    // 整个分支除了这次写入没有其它作用，已移除。
                 }
             }
             catch (Exception ex)

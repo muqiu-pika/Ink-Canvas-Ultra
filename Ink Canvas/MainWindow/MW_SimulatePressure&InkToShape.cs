@@ -645,12 +645,9 @@ namespace Ink_Canvas
         private void SetNewBackupOfStroke()
         {
             lastTouchDownStrokeCollection = inkCanvas.Strokes.Clone();
-            int whiteboardIndex = CurrentWhiteboardIndex;
-            if (currentMode == 0)
-            {
-                whiteboardIndex = 0;
-            }
-            strokeCollections[whiteboardIndex] = lastTouchDownStrokeCollection;
+            // 原此处另存一份到 strokeCollections[whiteboardIndex]，该数组全仓无读取，已移除。
+            // 注意 lastTouchDownStrokeCollection 本身仍被使用（MW_TouchEvents 用它的笔迹数做比较），
+            // 因此上面这一行 Clone 不能一并去掉。
         }
 
         public double GetDistance(Point point1, Point point2)

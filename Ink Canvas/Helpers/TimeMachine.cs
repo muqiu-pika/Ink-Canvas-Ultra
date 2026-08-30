@@ -21,6 +21,16 @@ namespace Ink_Canvas.Helpers
 
         public event OnRedoStateChange OnRedoStateChanged;
 
+        /// <summary>
+        /// 撤销栈保留的最大记录数。
+        /// 原先这个栈没有任何上限：每条 TimeMachineHistory 都强引用一份 StrokeCollection 或
+        /// UIElement（ElementInsert 类型的 Element 内含全分辨率位图），而只有 redo 分支截断时会
+        /// 移除元素。于是长时间书写/反复擦除/插入图片后，被擦掉的笔迹与已删除的图片都因仍被
+        /// 历史强引用而永不回收，内存单调增长。
+        /// 超过上限时从最早的记录开始丢弃，这符合撤销栈的语义：最早的先变得不可撤销。
+        /// </summary>
+        public const int MaxHistoryCount = 100;
+
         private void CheckHistoryIndex()
         {
             if (_currentIndex + 1 < _currentStrokeHistory.Count)
@@ -29,19 +39,38 @@ namespace Ink_Canvas.Helpers
             }
         }
 
+        /// <summary>追加一条历史记录，并把栈裁剪到上限以内，最后通知撤销/重做状态变化。</summary>
+        private void AppendHistory(TimeMachineHistory item)
+        {
+            _currentStrokeHistory.Add(item);
+            _currentIndex = _currentStrokeHistory.Count - 1;
+            TrimHistoryToLimit();
+            NotifyUndoRedoState();
+        }
+
+        /// <summary>
+        /// 把撤销栈裁剪到 MaxHistoryCount：从头部（最早的记录）移除，并同步修正当前索引，
+        /// 使 Undo/Redo 落点仍然指向同一条记录。
+        /// </summary>
+        private void TrimHistoryToLimit()
+        {
+            if (_currentStrokeHistory.Count <= MaxHistoryCount) return;
+
+            int excess = _currentStrokeHistory.Count - MaxHistoryCount;
+            _currentStrokeHistory.RemoveRange(0, excess);
+            _currentIndex -= excess;
+            if (_currentIndex < -1) _currentIndex = -1;
+        }
+
         public void CommitStrokeUserInputHistory(StrokeCollection stroke)
         {
-            _currentStrokeHistory.Add(new TimeMachineHistory(stroke, TimeMachineHistoryType.UserInput, false));
-            _currentIndex = _currentStrokeHistory.Count - 1;
-            NotifyUndoRedoState();
+            AppendHistory(new TimeMachineHistory(stroke, TimeMachineHistoryType.UserInput, false));
         }
 
         public void CommitStrokeShapeHistory(StrokeCollection strokeToBeReplaced, StrokeCollection generatedStroke)
         {
             CheckHistoryIndex();
-            _currentStrokeHistory.Add(new TimeMachineHistory(generatedStroke, TimeMachineHistoryType.ShapeRecognition, false, strokeToBeReplaced));
-            _currentIndex = _currentStrokeHistory.Count - 1;
-            NotifyUndoRedoState();
+            AppendHistory(new TimeMachineHistory(generatedStroke, TimeMachineHistoryType.ShapeRecognition, false, strokeToBeReplaced));
         }
 
         public void CommitStrokeManipulationHistory(
@@ -49,33 +78,25 @@ namespace Ink_Canvas.Helpers
             Dictionary<string, Tuple<object, TransformGroup>> ElementsManipulationHistory)
         {
             CheckHistoryIndex();
-            _currentStrokeHistory.Add(new TimeMachineHistory(stylusPointDictionary, ElementsManipulationHistory, TimeMachineHistoryType.Manipulation));
-            _currentIndex = _currentStrokeHistory.Count - 1;
-            NotifyUndoRedoState();
+            AppendHistory(new TimeMachineHistory(stylusPointDictionary, ElementsManipulationHistory, TimeMachineHistoryType.Manipulation));
         }
 
         public void CommitStrokeDrawingAttributesHistory(Dictionary<Stroke, Tuple<DrawingAttributes, DrawingAttributes>> drawingAttributes)
         {
             CheckHistoryIndex();
-            _currentStrokeHistory.Add(new TimeMachineHistory(drawingAttributes, TimeMachineHistoryType.DrawingAttributes));
-            _currentIndex = _currentStrokeHistory.Count - 1;
-            NotifyUndoRedoState();
+            AppendHistory(new TimeMachineHistory(drawingAttributes, TimeMachineHistoryType.DrawingAttributes));
         }
 
         public void CommitStrokeEraseHistory(StrokeCollection stroke, StrokeCollection sourceStroke = null)
         {
             CheckHistoryIndex();
-            _currentStrokeHistory.Add(new TimeMachineHistory(stroke, TimeMachineHistoryType.Clear, true, sourceStroke));
-            _currentIndex = _currentStrokeHistory.Count - 1;
-            NotifyUndoRedoState();
+            AppendHistory(new TimeMachineHistory(stroke, TimeMachineHistoryType.Clear, true, sourceStroke));
         }
 
         public void CommitElementInsertHistory(UIElement element, bool strokeHasBeenCleared = false)
         {
             CheckHistoryIndex();
-            _currentStrokeHistory.Add(new TimeMachineHistory(element, TimeMachineHistoryType.ElementInsert, strokeHasBeenCleared));
-            _currentIndex = _currentStrokeHistory.Count - 1;
-            NotifyUndoRedoState();
+            AppendHistory(new TimeMachineHistory(element, TimeMachineHistoryType.ElementInsert, strokeHasBeenCleared));
         }
 
         public void ClearStrokeHistory()
@@ -108,6 +129,27 @@ namespace Ink_Canvas.Helpers
         {
             CheckHistoryIndex();
             return _currentStrokeHistory.ToArray();
+        }
+
+        /// <summary>
+        /// 收集当前撤销栈中所有 Manipulation 历史引用的元素 key，追加到调用方集合。
+        /// 与 ExportTimeMachineHistory 不同，本方法不会调用 CheckHistoryIndex（即不会截断
+        /// 重做分支），因此没有副作用，可以安全地用于判断某条数据是否仍被撤销栈引用。
+        /// </summary>
+        public void CollectManipulationElementKeys(HashSet<string> keys)
+        {
+            if (keys == null) return;
+
+            for (int i = 0; i < _currentStrokeHistory.Count; i++)
+            {
+                var history = _currentStrokeHistory[i];
+                if (history == null || history.ElementsManipulationHistory == null) continue;
+
+                foreach (var pair in history.ElementsManipulationHistory)
+                {
+                    if (!string.IsNullOrEmpty(pair.Key)) keys.Add(pair.Key);
+                }
+            }
         }
 
         public bool ImportTimeMachineHistory(TimeMachineHistory[] sourceHistory)

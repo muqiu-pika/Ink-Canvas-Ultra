@@ -13,35 +13,76 @@ namespace Ink_Canvas.Helpers
 {
     internal class AutoUpdateHelper
     {
+        /// <summary>
+        /// 程序集版本是四段（末段固定为 0），而版本号命名是三段（年份 + 月份 + 当月第几个版本）。
+        /// 比较前统一归一化为三段，避免末段 0 影响比较结果。
+        /// </summary>
+        private static Version NormalizeToThreeParts(Version version)
+        {
+            if (version == null) return null;
+            return new Version(version.Major, version.Minor, Math.Max(version.Build, 0));
+        }
+
+        /// <summary>
+        /// 供界面展示的版本号（三段式，如 26.8.1）。
+        /// </summary>
+        public static string GetDisplayVersion()
+        {
+            return GetDisplayVersion(Assembly.GetExecutingAssembly().GetName().Version);
+        }
+
+        private static string GetDisplayVersion(Version version)
+        {
+            if (version == null) return "0.0.0";
+            return string.Format("{0}.{1}.{2}", version.Major, version.Minor, Math.Max(version.Build, 0));
+        }
+
+        /// <summary>
+        /// 清理远端版本号文本：它是纯文本文件，可能带 BOM / 首尾空白 / 换行 / v 前缀。
+        /// 不清理的话，拼出来的下载地址与状态文件名都会带上脏字符导致更新失败。
+        /// </summary>
+        private static string SanitizeRemoteVersion(string rawVersion)
+        {
+            if (string.IsNullOrEmpty(rawVersion)) return null;
+            return rawVersion.Trim().Trim('\uFEFF').TrimStart('v', 'V').Trim();
+        }
+
         public static async Task<string> CheckForUpdates(string proxy = null)
         {
             try
             {
-                string localVersion = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+                Version local = NormalizeToThreeParts(Assembly.GetExecutingAssembly().GetName().Version);
                 string remoteAddress = proxy;
                 remoteAddress += "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
-                string remoteVersion = await GetRemoteVersion(remoteAddress);
+                string remoteVersion = SanitizeRemoteVersion(await GetRemoteVersion(remoteAddress));
 
-                if (remoteVersion != null)
-                {
-                    Version local = new Version(localVersion);
-                    Version remote = new Version(remoteVersion);
-                    if (remote > local)
-                    {
-                        LogHelper.WriteLogToFile("AutoUpdate | New version Available: " + remoteVersion);
-                        return remoteVersion;
-                    }
-                    else return null;
-                }
-                else
+                if (string.IsNullOrEmpty(remoteVersion))
                 {
                     LogHelper.WriteLogToFile("Failed to retrieve remote version.", LogHelper.LogType.Error);
                     return null;
                 }
+
+                Version remote;
+                if (!Version.TryParse(remoteVersion, out remote))
+                {
+                    LogHelper.WriteLogToFile($"AutoUpdate | 远端版本号无法解析：{remoteVersion}", LogHelper.LogType.Error);
+                    return null;
+                }
+                remote = NormalizeToThreeParts(remote);
+
+                // 必须按 Version（逐段数值）比较，不能按字符串比较：
+                // 字符串比较下 "26.8.1" < "8.0.2"，会把新版本误判成旧版本。
+                if (remote > local)
+                {
+                    LogHelper.WriteLogToFile("AutoUpdate | New version Available: " + remoteVersion);
+                    return remoteVersion;
+                }
+
+                return null;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"AutoUpdate | Error: {ex.Message}");
+                LogHelper.WriteLogToFile($"AutoUpdate | Error: {ex.Message}", LogHelper.LogType.Error);
                 return null;
             }
         }
@@ -122,12 +163,12 @@ namespace Ink_Canvas.Helpers
                 }
                 catch (HttpRequestException ex)
                 {
-                    Console.WriteLine($"AutoUpdate | HTTP request error: {ex.Message}");
+                    LogHelper.WriteLogToFile($"AutoUpdate | HTTP request error: {ex.Message}", LogHelper.LogType.Error);
                     throw;
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"AutoUpdate | Error: {ex.Message}");
+                    LogHelper.WriteLogToFile($"AutoUpdate | Error: {ex.Message}", LogHelper.LogType.Error);
                     throw;
                 }
             }

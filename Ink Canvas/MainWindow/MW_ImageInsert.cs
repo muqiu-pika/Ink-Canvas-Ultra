@@ -339,7 +339,7 @@ namespace Ink_Canvas
                     Source = bitmapSource,
                     Stretch = Stretch.Uniform
                 };
-                RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+                RenderOptimizationHelper.EnableHighQualityCaching(image);
 
                 // 生成唯一名称
                 string timestamp = "screenshot_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff");
@@ -403,7 +403,7 @@ namespace Ink_Canvas
                     Source = bitmapSource,
                     Stretch = Stretch.Uniform
                 };
-                RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+                RenderOptimizationHelper.EnableHighQualityCaching(image);
 
                 // 生成唯一名称
                 string timestamp = "camera_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff");

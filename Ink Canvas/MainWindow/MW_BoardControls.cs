@@ -7,7 +7,9 @@ namespace Ink_Canvas
 {
     public partial class MainWindow : Window
     {
-        StrokeCollection[] strokeCollections = new StrokeCollection[101];
+        // 原 strokeCollections[101] 已移除：全仓只有 3 处写入、0 处读取，是纯死状态。
+        // 其中 MW_FloatBarIcons 清空画板时会 inkCanvas.Strokes.Clone() 把整页笔迹存进来，
+        // 既付出一次全量深拷贝的 CPU，又把整页笔迹长期钉住（最多 101 份 StrokeCollection）。
         StrokeCollection lastTouchDownStrokeCollection = new StrokeCollection();
 
         int CurrentWhiteboardIndex = 1, WhiteboardTotalCount = 1;
@@ -197,8 +199,32 @@ namespace Ink_Canvas
                 CurrentWhiteboardIndex--;
             }
             WhiteboardTotalCount--;
+            // 删页后数组尾部会残留失效引用：上面的上移循环把 i+1 拷到 i，
+            // 拷完之后旧 WhiteboardTotalCount 与 WhiteboardTotalCount+1 两个槽位仍持有
+            // 被删页（及其后继页）的历史，而它们已落在新的页码范围之外，
+            // 永远不会被 RestoreStrokes 读取。显式置 null 让 GC 可以回收。
+            ClearStalePageHistories();
             RestoreStrokes();
             UpdateIndexInfoDisplay();
+        }
+
+        /// <summary>
+        /// 把页码范围之外的历史槽位置 null，释放删除页面后残留的引用。
+        ///
+        /// 重要：TimeMachineHistories 对普通白板页而言就是内容存储本身——
+        /// RestoreStrokes 靠回放历史重建画布，而普通页并不落盘
+        /// （只有文档页会经 SaveDocumentPageIfNeeded 写入磁盘，也正因如此换页时
+        ///  只有 pageDocumentMapping 中的页才会被置 null）。
+        /// 因此只能清理超出 WhiteboardTotalCount 的槽位，范围内的页一律不能动，否则会丢内容。
+        /// </summary>
+        private void ClearStalePageHistories()
+        {
+            if (WhiteboardTotalCount < 1) return;
+
+            for (int i = WhiteboardTotalCount + 1; i < TimeMachineHistories.Length; i++)
+            {
+                TimeMachineHistories[i] = null;
+            }
         }
 
         private void UpdateIndexInfoDisplay()

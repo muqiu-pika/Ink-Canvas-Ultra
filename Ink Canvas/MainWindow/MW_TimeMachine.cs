@@ -35,6 +35,64 @@ namespace Ink_Canvas
         // object maybe TransformGroup or ElementData
         private Dictionary<string, object> ElementsInitialHistory = new Dictionary<string, object>();
 
+        /// <summary>
+        /// 清理 ElementsInitialHistory 中已经失效的条目。
+        ///
+        /// 这个字典原先全仓只写不删：而 ElementData 直接强引用 FrameworkElement
+        /// （克隆出的图片元素内含全分辨率 BitmapSource），于是每克隆/粘贴一次图片，
+        /// 就会永久钉住一个元素，长时间使用下内存单调增长。
+        ///
+        /// 判定为死条目需要「两条都不能满足」，缺一不可：
+        ///   1) 元素仍在画布上——之后还可能被操作，需要它的初始变换；
+        ///   2) 撤销栈中仍有引用该 key 的 Manipulation 历史——撤销删除元素时要靠
+        ///      ElementData 把元素重新加回画布（见本文件 Undo 分支对 ElementData 的使用）。
+        /// 只按第 1 条删会让「撤销删除元素」失效，因此必须同时检查第 2 条。
+        /// </summary>
+        public void PruneElementsInitialHistory()
+        {
+            try
+            {
+                if (ElementsInitialHistory == null || ElementsInitialHistory.Count == 0) return;
+
+                var liveKeys = new HashSet<string>();
+
+                // 1) 仍然挂在画布上的元素
+                foreach (UIElement child in inkCanvas.Children)
+                {
+                    var frameworkElement = child as FrameworkElement;
+                    if (frameworkElement != null && !string.IsNullOrEmpty(frameworkElement.Name))
+                    {
+                        liveKeys.Add(frameworkElement.Name);
+                    }
+                }
+
+                // 2) 仍被撤销栈引用的元素 key
+                timeMachine?.CollectManipulationElementKeys(liveKeys);
+
+                List<string> deadKeys = null;
+                foreach (var key in ElementsInitialHistory.Keys)
+                {
+                    if (!liveKeys.Contains(key))
+                    {
+                        if (deadKeys == null) deadKeys = new List<string>();
+                        deadKeys.Add(key);
+                    }
+                }
+
+                if (deadKeys != null)
+                {
+                    foreach (var key in deadKeys)
+                    {
+                        ElementsInitialHistory.Remove(key);
+                    }
+                }
+            }
+            catch
+            {
+                // 清理失败不应影响正常功能
+            }
+        }
+
         private Dictionary<Stroke, Tuple<DrawingAttributes, DrawingAttributes>> DrawingAttributesHistory = new Dictionary<Stroke, Tuple<DrawingAttributes, DrawingAttributes>>();
         private Dictionary<Guid, List<Stroke>> DrawingAttributesHistoryFlag = new Dictionary<Guid, List<Stroke>>()
         {

@@ -212,10 +212,18 @@ namespace Ink_Canvas
                     currentFrame = (Bitmap)e.Frame.Clone();
                 }
                 
+                // 仅在确实存在订阅者时才复制帧。
+                // 此前无论是否有订阅者都会调用 GetFrameCopy()：它内部 new Bitmap(...) 会新建一张
+                // 全分辨率 GDI+ 位图，在无订阅者时被直接丢弃且从未 Dispose，只能等 finalizer 回收，
+                // 于是摄像头开启期间以约 30fps 持续泄漏非托管内存与 GDI 句柄。
+                // 注意 currentFrame 仍需在上方无条件更新，定时器取帧路径（30fps 刷新）依赖它。
+                var handler = OnNewFrameProcessed;
+                if (handler == null) return;
+
                 var frameCopy = GetFrameCopy();
                 if (frameCopy != null)
                 {
-                    OnNewFrameProcessed?.Invoke(frameCopy);
+                    handler(frameCopy);
                 }
             }
             catch (Exception ex)
@@ -238,6 +246,32 @@ namespace Ink_Canvas
                 {
                     Console.WriteLine($"复制帧失败: {ex.Message}");
                     return null;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 在帧锁内直接把当前帧的像素拷入调用方提供的可复用缓冲，全程不新建 Bitmap。
+        /// 这是 30fps 刷新路径应使用的取帧方式：旧的 GetFrameCopy() 会 new 一整张全分辨率
+        /// Bitmap，而旧调用方拿到后还要再 PNG 编码+解码一次，等于每帧两次大块分配。
+        /// </summary>
+        /// <returns>成功取到一帧返回 true；相机未启动或帧尚未就绪返回 false。</returns>
+        public bool TryFillFrameBuffer(Helpers.CameraFrameBuffer buffer)
+        {
+            if (buffer == null) return false;
+
+            lock (frameLock)
+            {
+                if (currentFrame == null) return false;
+
+                try
+                {
+                    buffer.CopyFrom(currentFrame);
+                    return true;
+                }
+                catch
+                {
+                    return false;
                 }
             }
         }

@@ -51,15 +51,17 @@ namespace Ink_Canvas.Helpers
         {
             if (window == null) return;
 
-            window.Topmost = isTopmost;
-            
-            // 强制更新窗口层级
-            if (isTopmost)
+            // 先比较再赋值：WPF 的 Topmost 每次真实变更都会走 SetWindowPos 重写扩展窗口样式
+            // （WS_EX_TOPMOST）并触发合成层重排。本方法由 900ms 定时器高频调用，
+            // 值未变化时直接跳过，避免每轮无意义的窗口样式重建。
+            if (window.Topmost != isTopmost)
             {
-                window.Topmost = false;
-                window.Topmost = true;
+                window.Topmost = isTopmost;
             }
 
+            // 重新压 Z 序统一交给下面的 SetWindowPos(HWND_TOPMOST)。
+            // 原先这里用「Topmost=false → true」翻转来强制刷新层级，属于重复劳动：
+            // 翻转本身要付两次窗口样式变更，而紧随其后的 SetWindowPos 已经能保证置顶。
             IntPtr hWnd = new WindowInteropHelper(window).Handle;
             if (hWnd == IntPtr.Zero) return;
             SetWindowPos(

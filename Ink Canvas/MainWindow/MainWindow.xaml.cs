@@ -1016,7 +1016,7 @@ namespace Ink_Canvas
             SystemEvents_UserPreferenceChanged(null, null);
 
             if (AppVersionTextBlock != null)
-                AppVersionTextBlock.Text = Assembly.GetExecutingAssembly().GetName().Version.ToString();
+                AppVersionTextBlock.Text = AutoUpdateHelper.GetDisplayVersion();
             LogHelper.WriteLogToFile("Ink Canvas Loaded", LogHelper.LogType.Event);
             
             // 初始化摄像头设备管理器
@@ -1430,6 +1430,12 @@ namespace Ink_Canvas
         private Dictionary<int, System.Windows.Controls.Image> cameraFramesByPage = new Dictionary<int, System.Windows.Controls.Image>();
         // 摄像头画面更新定时器
         private DispatcherTimer cameraFrameTimer;
+        // 摄像头帧的可复用像素缓冲：替代原先「每帧 PNG 编码再解码」的取帧方式。
+        // 稳态下每帧零分配，仅在分辨率或像素格式变化时重建缓冲与 WriteableBitmap。
+        private readonly CameraFrameBuffer cameraFrameBuffer = new CameraFrameBuffer();
+        // 上一帧尚未提交完成时置 true，用于在 UI 繁忙时丢弃中间帧，
+        // 避免 Dispatcher 回调排队堆积并长期持有帧引用。
+        private bool cameraFrameBusy;
 
         #region Photo Capture Functions
 
@@ -3232,7 +3238,7 @@ namespace Ink_Canvas
                     SnapsToDevicePixels = true,
                     UseLayoutRounding = true
                 };
-                System.Windows.Media.RenderOptions.SetBitmapScalingMode(imageElement, System.Windows.Media.BitmapScalingMode.HighQuality);
+                RenderOptimizationHelper.EnableHighQualityCaching(imageElement);
                 CenterAndScaleDocumentPhoto(imageElement);
                 return imageElement;
             }
@@ -3443,8 +3449,8 @@ namespace Ink_Canvas
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // 提升缩放质量，减少缩略图缩放时的模糊
-            System.Windows.Media.RenderOptions.SetBitmapScalingMode(image, System.Windows.Media.BitmapScalingMode.HighQuality);
+            // 提升缩放质量，减少缩略图缩放时的模糊；配合渲染缓存避免每次重绘都重算
+            RenderOptimizationHelper.EnableHighQualityCaching(image);
 
             // 选中叠加层：居中显示天蓝色☑
             var checkOverlay = new TextBlock
@@ -4432,7 +4438,7 @@ namespace Ink_Canvas
                     SnapsToDevicePixels = true,
                     UseLayoutRounding = true
                 };
-                System.Windows.Media.RenderOptions.SetBitmapScalingMode(imageElement, System.Windows.Media.BitmapScalingMode.HighQuality);
+                RenderOptimizationHelper.EnableHighQualityCaching(imageElement);
 
                 // 缩放到合理大小（以鼠标位置为中心）
                 // 文档照片无论如何都不调整缩放比例，保持原始尺寸，避免按比例缩小导致模糊
@@ -4615,7 +4621,7 @@ namespace Ink_Canvas
                     SnapsToDevicePixels = true,
                     UseLayoutRounding = true
                 };
-                System.Windows.Media.RenderOptions.SetBitmapScalingMode(imageElement, System.Windows.Media.BitmapScalingMode.HighQuality);
+                RenderOptimizationHelper.EnableHighQualityCaching(imageElement);
 
                 // 居中并缩放
                 if (IsDocumentPhoto(photo))
@@ -5043,6 +5049,13 @@ namespace Ink_Canvas
             cameraFramesByPage.Clear();
             currentCameraImage = null;
             currentPhotoImage = null;
+            // 释放摄像头帧缓冲（含 WriteableBitmap），避免清空画布后仍长期占着一整帧像素内存
+            cameraFrameBuffer.Reset();
+
+            // 清空元素初始状态缓存：上方步骤 4/5 已重置撤销历史并清空画布，
+            // 此时所有条目都不再可能被查用。ElementData 强引用元素（内含全分辨率位图），
+            // 不清会让整批图片元素一直驻留。
+            ElementsInitialHistory.Clear();
 
             // 10. 恢复默认画笔状态（如果在白板模式下），不展开墨迹选项面板
             if (currentMode == 1)
@@ -5704,7 +5717,11 @@ namespace Ink_Canvas
         {
             if (cameraDeviceManager == null) return;
 
-            Bitmap frame = null;
+            // 上一帧尚未提交完成则丢弃本帧：只保留最新一帧。
+            // 这样既能避免 UI 繁忙时 Dispatcher 回调排队堆积并长期持有帧引用，
+            // 也省去处理已过期中间帧的 CPU 与拷贝开销。
+            if (cameraFrameBusy) return;
+
             try
             {
                 if (currentCameraImage == null)
@@ -5727,10 +5744,36 @@ namespace Ink_Canvas
                     return;
                 }
 
-                frame = cameraDeviceManager.GetFrameCopy();
-                if (frame != null && currentCameraImage != null)
+                cameraFrameBusy = true;
+
+                // 后台线程：在帧锁内把当前帧像素直接拷进可复用缓冲，全程不新建 Bitmap。
+                // 旧实现在这里先调 GetFrameCopy()（在 UI 线程上 new 一整张全分辨率 Bitmap），
+                // 再交给 UpdateCameraFrameAsync 做一次全图 PNG 编码 + BitmapImage 解码，
+                // 等于每帧两次大块分配；现在两者都被消除，稳态下每帧零分配。
+                int frameWidth = 0;
+                int frameHeight = 0;
+                bool filled = await Task.Run(() =>
                 {
-                    await UpdateCameraFrameAsync(frame);
+                    var buffer = cameraFrameBuffer;
+                    if (!cameraDeviceManager.TryFillFrameBuffer(buffer)) return false;
+                    frameWidth = buffer.Width;
+                    frameHeight = buffer.Height;
+                    return frameWidth > 0 && frameHeight > 0;
+                });
+
+                if (!filled) return;
+                if (currentCameraImage == null) return;
+
+                // await 之后已回到 UI 线程：在此创建/更新 WriteableBitmap 并写入像素。
+                // WriteableBitmap 是 DispatcherObject，创建与 WritePixels 都必须在 UI 线程，
+                // 所以提交动作不能放进上面的后台任务里。
+                if (cameraFrameBuffer.Commit(frameWidth, frameHeight))
+                {
+                    var source = cameraFrameBuffer.Bitmap;
+                    if (!ReferenceEquals(currentCameraImage.Source, source))
+                    {
+                        currentCameraImage.Source = source;
+                    }
                 }
             }
             catch (Exception ex)
@@ -5739,7 +5782,7 @@ namespace Ink_Canvas
             }
             finally
             {
-                frame?.Dispose();
+                cameraFrameBusy = false;
             }
         }
 
@@ -5798,52 +5841,9 @@ namespace Ink_Canvas
             }
         }
 
-        // 更新摄像头画面
-        private async Task UpdateCameraFrameAsync(Bitmap frame)
-        {
-            try
-            {
-                if (currentCameraImage == null) return;
-
-                // 转换Bitmap到BitmapImage
-                var bitmapImage = await Task.Run(() =>
-                {
-                    if (frame == null) return null;
-                    
-                    using (var memoryStream = new MemoryStream())
-                    {
-                        frame.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
-                        memoryStream.Position = 0;
-
-                        var bitmap = new BitmapImage();
-                        bitmap.BeginInit();
-                        bitmap.StreamSource = memoryStream;
-                        bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                        bitmap.EndInit();
-                        bitmap.Freeze();
-
-                        return bitmap;
-                    }
-                });
-
-                // 在UI线程更新图片源
-                if (bitmapImage != null && currentCameraImage != null)
-                {
-                    await Dispatcher.BeginInvoke(new Action(() =>
-                    {
-                        if (currentCameraImage != null)
-                        {
-                            currentCameraImage.Source = bitmapImage;
-                        }
-                    }));
-                }
-            }
-            catch (Exception ex)
-            {
-                // 静默处理更新错误，避免频繁弹窗
-                Console.WriteLine($"更新摄像头画面失败: {ex.Message}");
-            }
-        }
+        // 原 UpdateCameraFrameAsync 已移除。它对每一帧做整图 PNG 编码 + BitmapImage 解码，
+        // 是摄像头预览最大的 CPU 与 GC 热点。30fps 刷新现由 CameraFrameTimer_Tick 经
+        // CameraFrameBuffer（LockBits 直拷 + 复用 WriteableBitmap）完成，稳态下每帧零分配。
 
         /// <summary>侧栏"插入媒体"按钮：导入图片/视频后统一显示在照片列表中</summary>
         private async void BtnInsertMediaInSidebar_Click(object sender, RoutedEventArgs e)
