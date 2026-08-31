@@ -23,9 +23,18 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={localappdata}\Programs\{#MyAppName}
+; 使用按用户安装目录（localappdata\Programs）：无需管理员权限，静默更新不会触发 UAC 弹窗。
+; 若要恢复为全机安装，请改回 {autopf}\{#MyAppName}（但静默更新将因需要提权而无法后台完成）。
 ChangesAssociations=yes
 DisableProgramGroupPage=yes
+; 静默更新时让 Inno 主动关闭正在运行的应用（配合 /CLOSEAPPLICATIONS 命令行参数），
+; 避免主程序 exe 被占用导致安装降级为"重启后替换"（下次打开仍是旧版本）。
+CloseApplications=yes
+; 与 App.xaml.cs 的单实例互斥体同名，安装器据此识别并关闭正在运行的 Ink Canvas Ultra。
+AppMutex=Ink_Canvas_Ultra
+; 关闭应用后不自动重启（由 [Run] 段的 postinstall 启动新版本，避免重复拉起）。
+RestartApplications=no
 ; Remove the following line to run in administrative install mode (install for all users.)
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog

@@ -833,6 +833,77 @@
 
                                 </Border>
 
+                                <!-- 立即检查更新（手动触发版本检测，忽略静默设置） -->
+                                <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="12">
+
+                                    <TextBlock
+
+                                        Margin="0,0,14,0"
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="14"
+
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+
+                                        Text="立即检查更新" />
+
+                                    <Button
+
+                                        x:Name="BtnCheckUpdateNow"
+
+                                        Padding="15,7.5"
+
+                                        VerticalAlignment="Center"
+
+                                        Click="BtnCheckUpdateNow_Click"
+
+                                        Content="立即检查" />
+
+                                    <TextBlock
+
+                                        x:Name="TextBlockUpdateCheckInfo"
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="12"
+
+                                        Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+
+                                        Text="当前版本号：26.8.1"
+
+                                        TextWrapping="Wrap" />
+
+                                </ikw:SimpleStackPanel>
+
+                                <ikw:SimpleStackPanel
+
+                                    x:Name="ManualUpdateProgressBlock"
+
+                                    Spacing="4"
+
+                                    Visibility="Collapsed">
+
+                                    <ProgressBar
+
+                                        x:Name="ProgressBarManualUpdate"
+
+                                        Height="6"
+
+                                        Maximum="100" />
+
+                                    <TextBlock
+
+                                        x:Name="TextBlockManualUpdateStatus"
+
+                                        FontSize="12"
+
+                                        Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+
+                                        TextWrapping="Wrap" />
+
+                                </ikw:SimpleStackPanel>
+
                                 <ikw:SimpleStackPanel Orientation="Horizontal">
 
                                     <ikw:SimpleStackPanel Width="50">

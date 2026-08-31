@@ -283,6 +283,9 @@ namespace Ink_Canvas
                     if (oldManifest != null && host != null)
                     {
                         host.UnloadPlugin(oldManifest.Id);
+                        // 覆盖安装后旧依赖 DLL 会被新版本替换：使该目录解析过的程序集缓存失效，
+                        // 否则重新加载时 AssemblyResolve 仍命中旧程序集（B4）。
+                        host.InvalidateAssemblyCacheForPlugin(destDir);
                     }
                     Directory.Delete(destDir, recursive: true);
                 }
@@ -314,13 +317,19 @@ namespace Ink_Canvas
                 {
                     if (autoEnable)
                     {
-                        // 默认启用新装的 plugin
-                        host.SetPluginEnabled(manifest.Id, true);
+                        // 默认启用新装的 plugin；启用失败（如版本不兼容）时不能误报"已启用"（B5）
+                        bool enabledOk = host.SetPluginEnabled(manifest.Id, true);
+                        if (enabledOk)
+                        {
+                            // 若是视频展台 plugin，在桌面创建指向软件安装位置的快捷方式
+                            TryCreateVideoPresenterDesktopShortcut(manifest);
 
-                        // 若是视频展台 plugin，在桌面创建指向软件安装位置的快捷方式
-                        TryCreateVideoPresenterDesktopShortcut(manifest);
-
-                        ShowInlineMessage($"plugin 已安装并启用：{manifest.Name}");
+                            ShowInlineMessage($"plugin 已安装并启用：{manifest.Name}");
+                        }
+                        else
+                        {
+                            ShowInlineMessage($"plugin 已安装，但启用失败：{manifest.Name}（可能版本不兼容或入口无效，请升级软件后再启用）");
+                        }
                     }
                     else
                     {
@@ -488,11 +497,12 @@ namespace Ink_Canvas
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) }); // 0 标题
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // 1 状态标签
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // 2 启用/禁用开关
-            // 4、5 列固定宽度且始终存在：即便某行没有「设置」或「更新」按钮，
+            // 3、4、5 列固定宽度且始终存在：即便某行没有「设置」「更新」或「卸载」按钮，
             // 也保留同样宽度，使第 2 列开关在每行处于同一纵向直线。
-            // 宽度需能容纳按钮本身 + 左边距（设置：30+8=38；更新：60+12=72），避免右侧被裁剪。
+            // 宽度需能容纳按钮本身 + 左边距（设置：30+8=38；更新/卸载：60+12=72），避免右侧被裁剪。
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });                 // 3 设置按钮占位
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });                 // 4 更新按钮占位
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });                 // 5 卸载按钮占位
 
             var titlePanel = new StackPanel
             {
@@ -607,6 +617,20 @@ namespace Ink_Canvas
                 grid.Children.Add(updateBtn);
             }
 
+            // 卸载/删除按钮：始终可用（不兼容的插件也可删除，仅删除目录，不涉及加载）
+            var uninstallBtn = new Button
+            {
+                Content = "卸载",
+                Width = 60,
+                Height = 32,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 0, 0),
+                ToolTip = "卸载并删除此 plugin"
+            };
+            uninstallBtn.Click += (s, e) => OnPluginUninstallClicked(pluginId, displayName);
+            Grid.SetColumn(uninstallBtn, 5);
+            grid.Children.Add(uninstallBtn);
+
             border.Child = grid;
 
             // 若存在设置面板，将卡片与可折叠面板打包为一个条目整体
@@ -705,6 +729,39 @@ namespace Ink_Canvas
             {
                 LogHelper.WriteLogToFile($"切换 plugin 状态失败: {ex.Message}", LogHelper.LogType.Error);
                 ShowInlineMessage("切换失败：" + ex.Message);
+            }
+        }
+
+        /// <summary>卸载并删除 plugin（含不兼容插件）：确认后卸载、删除目录并刷新列表。</summary>
+        private void OnPluginUninstallClicked(string pluginId, string displayName)
+        {
+            try
+            {
+                var confirm = new YesOrNoNotificationWindow(
+                    $"确定要卸载并删除 plugin「{displayName}」吗？",
+                    yesAction: () =>
+                    {
+                        var host = PluginHost.Instance;
+                        if (host == null)
+                        {
+                            ShowInlineMessage("PluginHost 未初始化");
+                            return;
+                        }
+                        bool ok = host.UninstallPlugin(pluginId);
+                        ShowInlineMessage(ok
+                            ? $"已卸载 plugin：{displayName}"
+                            : $"卸载 plugin 失败：{displayName}（可能目录被占用）");
+                        RefreshPluginList(silent: true);
+                    },
+                    noAction: () => { });
+                confirm.Owner = this;
+                Helpers.WindowMemoryHelper.ReleaseOnClose(confirm);
+                confirm.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"卸载 plugin 失败: {ex.Message}", LogHelper.LogType.Error);
+                ShowInlineMessage("卸载失败：" + ex.Message);
             }
         }
 
@@ -1006,10 +1063,15 @@ namespace Ink_Canvas
                     if (host != null && !string.IsNullOrEmpty(pluginId) && wasEnabled)
                     {
                         UpdateInstallProgress(100, $"正在启用 {plugin.Name}", "加载新版本...");
-                        host.SetPluginEnabled(pluginId, true);
+                        // 校验返回值：新版插件若仍无法加载（如入口无效），不能误报"已启用"（与安装分支一致）
+                        bool reEnabled = host.SetPluginEnabled(pluginId, true);
+                        UpdateInstallProgress(100, $"更新 {plugin.Name} 完成",
+                            reEnabled ? "插件已更新并启用" : "插件已更新，但启用失败（请检查插件与软件版本兼容性）");
                     }
-
-                    UpdateInstallProgress(100, $"更新 {plugin.Name} 完成", wasEnabled ? "插件已更新并启用" : "插件已更新（保持禁用）");
+                    else
+                    {
+                        UpdateInstallProgress(100, $"更新 {plugin.Name} 完成", "插件已更新（保持禁用）");
+                    }
                     await Task.Delay(800);
                 }
                 finally

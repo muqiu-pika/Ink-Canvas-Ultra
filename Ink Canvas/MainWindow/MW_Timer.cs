@@ -14,6 +14,9 @@ namespace Ink_Canvas
         Timer timerCheckAutoFold = new Timer();
         Timer timerFixFloatingBarZOrder = new Timer();
         string AvailableLatestVersion = null;
+        // 待静默安装的版本：仅在"下载成功"时赋值，避免被后续检查（如网络抖动返回 null）
+        // 覆盖 AvailableLatestVersion 后，定时器拿 null 拼安装包路径导致静默更新永远不触发。
+        string _silentInstallVersion = null;
         Timer timerCheckAutoUpdateWithSilence = new Timer();
         bool isHidingSubPanelsWhenInking = false; // 避免书写时触发二次关闭二级菜单导致动画不连续
         DateTime _lastFixFloatingBarZOrderTimeUtc = DateTime.MinValue;
@@ -130,7 +133,7 @@ namespace Ink_Canvas
             catch { }
         }
 
-        private void TimerCheckAutoUpdateWithSilence_Elapsed(object sender, ElapsedEventArgs e)
+        private async void TimerCheckAutoUpdateWithSilence_Elapsed(object sender, ElapsedEventArgs e)
         {
             bool shouldSkipSilentUpdate = false;
             Dispatcher.Invoke(() =>
@@ -153,7 +156,28 @@ namespace Ink_Canvas
             {
                 if (AutoUpdateWithSilenceTimeComboBox.CheckIsInSilencePeriod(Settings.Startup.AutoUpdateWithSilenceStartTime, Settings.Startup.AutoUpdateWithSilenceEndTime))
                 {
-                    AutoUpdateHelper.InstallNewVersionApp(AvailableLatestVersion, true);
+                    // 使用"静默分支记录"的 _silentInstallVersion，而非共享字段 AvailableLatestVersion：
+                    // 后者会被后续检查无条件覆盖（网络异常时为 null），拿 null 拼路径会永远安装不上。
+                    if (string.IsNullOrEmpty(_silentInstallVersion))
+                    {
+                        // 待安装版本缺失（异常兜底）：停止定时器，避免永久空转
+                        timerCheckAutoUpdateWithSilence.Stop();
+                        return;
+                    }
+
+                    // 静默时段到点：先下载安装包（若此前未下载/下载失败会重新下载；已下载完成则直接复用）。
+                    bool downloaded = false;
+                    if (Settings.Startup.IsAutoUpdateWithProxy) downloaded = await AutoUpdateHelper.DownloadSetupFileAndSaveStatus(_silentInstallVersion, Settings.Startup.AutoUpdateProxy);
+                    else downloaded = await AutoUpdateHelper.DownloadSetupFileAndSaveStatus(_silentInstallVersion);
+
+                    if (!downloaded)
+                    {
+                        // 本次下载失败：不停止定时器，等下一个 tick（10 分钟后）自动重试
+                        LogHelper.WriteLogToFile($"静默更新下载失败，将于 10 分钟后自动重试: v{_silentInstallVersion}", LogHelper.LogType.Warning);
+                        return;
+                    }
+
+                    AutoUpdateHelper.InstallNewVersionApp(_silentInstallVersion, true);
                     timerCheckAutoUpdateWithSilence.Stop();
                 }
             }

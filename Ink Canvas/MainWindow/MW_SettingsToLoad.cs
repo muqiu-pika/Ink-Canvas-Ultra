@@ -250,6 +250,19 @@ namespace Ink_Canvas
                 AutoUpdateWithSilenceStartTimeComboBox.SelectedItem = Settings.Startup.AutoUpdateWithSilenceStartTime;
                 AutoUpdateWithSilenceEndTimeComboBox.SelectedItem = Settings.Startup.AutoUpdateWithSilenceEndTime;
 
+                // 手动检查更新：每次打开设置窗口都复位按钮为"立即检查"并刷新提示文本（上次检测时间 + 当前版本号）
+                try
+                {
+                    if (BtnCheckUpdateNow != null)
+                    {
+                        BtnCheckUpdateNow.Content = "立即检查";
+                        BtnCheckUpdateNow.IsEnabled = true;
+                    }
+                    UpdateManualCheckInfoText();
+                    HideManualUpdateProgress();
+                }
+                catch { }
+
                 ToggleSwitchFoldAtStartup.IsOn = Settings.Startup.IsFoldAtStartup;
             }
             else

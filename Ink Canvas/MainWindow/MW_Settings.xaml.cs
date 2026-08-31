@@ -131,6 +131,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BtnCheckAutoUpdateProxyReturnedData_Click), sender, e);
         }
 
+        private void BtnCheckUpdateNow_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BtnCheckUpdateNow_Click), sender, e);
+        }
+
         private void BtnExit_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BtnExit_Click), sender, e);

@@ -135,6 +135,11 @@ namespace Ink_Canvas
         private dynamic AutoUpdateTimePeriodBlock => FindXamlPart(SettingsWindow, nameof(AutoUpdateTimePeriodBlock));
         private dynamic AutoUpdateWithSilenceStartTimeComboBox => FindXamlPart(SettingsWindow, nameof(AutoUpdateWithSilenceStartTimeComboBox));
         private dynamic AutoUpdateWithSilenceEndTimeComboBox => FindXamlPart(SettingsWindow, nameof(AutoUpdateWithSilenceEndTimeComboBox));
+        private dynamic BtnCheckUpdateNow => FindXamlPart(SettingsWindow, nameof(BtnCheckUpdateNow));
+        private dynamic TextBlockUpdateCheckInfo => FindXamlPart(SettingsWindow, nameof(TextBlockUpdateCheckInfo));
+        private dynamic ManualUpdateProgressBlock => FindXamlPart(SettingsWindow, nameof(ManualUpdateProgressBlock));
+        private dynamic ProgressBarManualUpdate => FindXamlPart(SettingsWindow, nameof(ProgressBarManualUpdate));
+        private dynamic TextBlockManualUpdateStatus => FindXamlPart(SettingsWindow, nameof(TextBlockManualUpdateStatus));
         private dynamic ToggleSwitchRunAtStartup => FindXamlPart(SettingsWindow, nameof(ToggleSwitchRunAtStartup));
         private dynamic ToggleSwitchFoldAtStartup => FindXamlPart(SettingsWindow, nameof(ToggleSwitchFoldAtStartup));
         private dynamic SettingsSection_Board => FindXamlPart(SettingsWindow, nameof(SettingsSection_Board));

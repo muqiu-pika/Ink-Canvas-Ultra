@@ -23,6 +23,12 @@ namespace Ink_Canvas
             if (!isLoaded || _isLoadingSettings) return;
             Settings.Startup.IsAutoUpdate = ToggleSwitchIsAutoUpdate.IsOn;
             IsAutoUpdateWithSilenceBlock.Visibility = ToggleSwitchIsAutoUpdate.IsOn ? Visibility.Visible : Visibility.Collapsed;
+            // 关闭"自动检查更新"时一并停止已排期的静默安装定时器，避免到点仍被自动下载安装
+            if (!ToggleSwitchIsAutoUpdate.IsOn)
+            {
+                try { timerCheckAutoUpdateWithSilence.Stop(); } catch { }
+                _silentInstallVersion = null;
+            }
             SaveSettingsToFile();
             var wizard = System.Windows.Application.Current.Windows.OfType<InitialSetupWindow>().FirstOrDefault();
             wizard?.Dispatcher.Invoke(() =>
@@ -45,6 +51,12 @@ namespace Ink_Canvas
             if (!isLoaded || _isLoadingSettings) return;
             Settings.Startup.IsAutoUpdateWithSilence = ToggleSwitchIsAutoUpdateWithSilence.IsOn;
             AutoUpdateTimePeriodBlock.Visibility = Settings.Startup.IsAutoUpdateWithSilence ? Visibility.Visible : Visibility.Collapsed;
+            // 关闭"静默更新"时停止已启动的静默安装定时器，尊重用户"不再静默更新"的明确意图
+            if (!ToggleSwitchIsAutoUpdateWithSilence.IsOn)
+            {
+                try { timerCheckAutoUpdateWithSilence.Stop(); } catch { }
+                _silentInstallVersion = null;
+            }
             SaveSettingsToFile();
             var wizard = System.Windows.Application.Current.Windows.OfType<InitialSetupWindow>().FirstOrDefault();
             wizard?.Dispatcher.Invoke(() =>
@@ -84,6 +96,158 @@ namespace Ink_Canvas
         {
             string ProxyReturnedData = await AutoUpdateHelper.GetRemoteVersion(Settings.Startup.AutoUpdateProxy + "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt");
             ShowNotificationAsync(ProxyReturnedData);
+        }
+
+        /// <summary>设置窗口"立即检查更新"：忽略静默设置，手动对比版本号并执行更新。</summary>
+        private async void BtnCheckUpdateNow_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                // 记录本次检测时间并刷新按钮旁提示
+                Settings.Startup.LastUpdateCheckTime = DateTime.Now.ToString("yyyy/M/d");
+                SaveSettingsToFile();
+                UpdateManualCheckInfoText();
+
+                // 防止重复点击
+                try { if (BtnCheckUpdateNow != null) BtnCheckUpdateNow.IsEnabled = false; } catch { }
+                ShowManualUpdateStatus("正在检查更新...", isIndeterminate: true);
+
+                string latest = null;
+                AutoUpdateHelper.UpdateCheckResult checkResult;
+                if (Settings.Startup.IsAutoUpdateWithProxy) checkResult = await AutoUpdateHelper.CheckForUpdatesDetailed(Settings.Startup.AutoUpdateProxy);
+                else checkResult = await AutoUpdateHelper.CheckForUpdatesDetailed();
+
+                // 区分"网络异常"与"确实没有新版本"，避免断网时误报"您已安装最新版"
+                if (checkResult.IsNetworkError)
+                {
+                    HideManualUpdateProgress();
+                    ShowNotificationAsync("检查更新失败：无法连接服务器，请检查网络后重试。");
+                    return;
+                }
+                latest = checkResult.LatestVersion;
+
+                if (string.IsNullOrEmpty(latest))
+                {
+                    // 无更新：提示已是最新版本（与插件启用提示同一种通知），按钮改为"您已是最新版！"（本次设置窗口会话内有效）
+                    string currentVersion = AutoUpdateHelper.GetDisplayVersion();
+                    ShowNotificationAsync($"您已安装最新版 v{currentVersion}");
+                    try { if (BtnCheckUpdateNow != null) BtnCheckUpdateNow.Content = "您已是最新版！"; } catch { }
+                    HideManualUpdateProgress();
+                    return;
+                }
+
+                // 有更新：忽略静默设置，弹窗询问是否更新（与自动更新/静默更新共用的提示弹窗一致）
+                var confirm = MessageBox.Show(
+                    $"检测到 Ink Canvas Ultra 新版本 v{latest}，是否立即更新？",
+                    "Ink Canvas Ultra New Version Available",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (confirm != MessageBoxResult.Yes)
+                {
+                    HideManualUpdateProgress();
+                    return;
+                }
+
+                // 下载安装包并显示更新进度
+                ShowManualUpdateStatus("正在下载更新安装包...", isIndeterminate: true);
+                bool downloadOk;
+                if (Settings.Startup.IsAutoUpdateWithProxy)
+                    downloadOk = await AutoUpdateHelper.DownloadSetupFileAndSaveStatus(latest, Settings.Startup.AutoUpdateProxy, pct => UpdateManualDownloadProgress(pct));
+                else
+                    downloadOk = await AutoUpdateHelper.DownloadSetupFileAndSaveStatus(latest, "", pct => UpdateManualDownloadProgress(pct));
+
+                if (!downloadOk)
+                {
+                    HideManualUpdateProgress();
+                    ShowNotificationAsync("更新安装包下载失败，请检查网络后重试。");
+                    return;
+                }
+
+                // 下载完成：询问是否安装并重启以启用最新版（提示重启可能导致笔迹丢失）
+                var restart = MessageBox.Show(
+                    "更新安装包已下载完成。是否立即安装并重启以启用最新版本？\n\n提示：重启可能会导致未保存的笔迹丢失。",
+                    "Ink Canvas Ultra New Version Available",
+                    MessageBoxButton.YesNo, MessageBoxImage.Question);
+                if (restart == MessageBoxResult.Yes)
+                {
+                    AutoUpdateHelper.InstallNewVersionApp(latest, false);
+                }
+                else
+                {
+                    HideManualUpdateProgress();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"手动检查更新失败: {ex.Message}", LogHelper.LogType.Error);
+                HideManualUpdateProgress();
+                ShowNotificationAsync("检查更新失败，请检查网络后重试。");
+            }
+            finally
+            {
+                // 应用可能已被 InstallNewVersionApp 关闭，此处仅兜底恢复按钮
+                try { if (BtnCheckUpdateNow != null) BtnCheckUpdateNow.IsEnabled = true; } catch { }
+            }
+        }
+
+        /// <summary>刷新"立即检查更新"按钮旁的提示（上次检测时间 + 当前版本号）。</summary>
+        private void UpdateManualCheckInfoText()
+        {
+            try
+            {
+                if (TextBlockUpdateCheckInfo == null) return;
+                string lastCheck = string.IsNullOrEmpty(Settings.Startup.LastUpdateCheckTime) ? "从未检测" : Settings.Startup.LastUpdateCheckTime;
+                TextBlockUpdateCheckInfo.Text = $"上次检测：{lastCheck} · 当前版本号：{AutoUpdateHelper.GetDisplayVersion()}";
+            }
+            catch { }
+        }
+
+        private void ShowManualUpdateStatus(string status, bool isIndeterminate)
+        {
+            try
+            {
+                if (ManualUpdateProgressBlock == null) return;
+                ManualUpdateProgressBlock.Visibility = Visibility.Visible;
+                if (TextBlockManualUpdateStatus != null) TextBlockManualUpdateStatus.Text = status;
+                if (ProgressBarManualUpdate != null)
+                {
+                    ProgressBarManualUpdate.IsIndeterminate = isIndeterminate;
+                    ProgressBarManualUpdate.Value = 0;
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>更新下载进度条（进度回调来自后台线程，需切回 UI 线程）。</summary>
+        private void UpdateManualDownloadProgress(double pct)
+        {
+            Dispatcher.Invoke(() =>
+            {
+                try
+                {
+                    if (ManualUpdateProgressBlock == null) return;
+                    ManualUpdateProgressBlock.Visibility = Visibility.Visible;
+                    if (ProgressBarManualUpdate != null)
+                    {
+                        ProgressBarManualUpdate.IsIndeterminate = pct < 0;
+                        if (pct >= 0) ProgressBarManualUpdate.Value = Math.Min(100, pct);
+                    }
+                    if (TextBlockManualUpdateStatus != null)
+                        TextBlockManualUpdateStatus.Text = pct >= 0
+                            ? $"正在下载更新安装包 {Math.Min(100, (int)pct)}%..."
+                            : "正在下载更新安装包...";
+                }
+                catch { }
+            });
+        }
+
+        private void HideManualUpdateProgress()
+        {
+            try
+            {
+                if (ManualUpdateProgressBlock == null) return;
+                ManualUpdateProgressBlock.Visibility = Visibility.Collapsed;
+            }
+            catch { }
         }
 
         private void AutoUpdateWithSilenceStartTimeComboBox_SelectionChanged(object sender, RoutedEventArgs e)

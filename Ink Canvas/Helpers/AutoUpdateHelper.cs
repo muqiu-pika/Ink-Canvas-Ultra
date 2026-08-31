@@ -49,6 +49,25 @@ namespace Ink_Canvas.Helpers
 
         public static async Task<string> CheckForUpdates(string proxy = null)
         {
+            var result = await CheckForUpdatesDetailed(proxy);
+            return result.HasNewVersion ? result.LatestVersion : null;
+        }
+
+        /// <summary>手动检查更新结果：区分"有新版本 / 已是最新 / 网络异常"。</summary>
+        public class UpdateCheckResult
+        {
+            public bool HasNewVersion { get; set; }
+            public bool IsNetworkError { get; set; }
+            public string LatestVersion { get; set; }
+        }
+
+        /// <summary>
+        /// 详细版本检测：能区分"确实没有新版本"与"网络异常/远端内容无效"，
+        /// 供手动检查使用——避免断网时误报"您已安装最新版"。
+        /// </summary>
+        public static async Task<UpdateCheckResult> CheckForUpdatesDetailed(string proxy = null)
+        {
+            var result = new UpdateCheckResult();
             try
             {
                 Version local = NormalizeToThreeParts(Assembly.GetExecutingAssembly().GetName().Version);
@@ -56,17 +75,20 @@ namespace Ink_Canvas.Helpers
                 remoteAddress += "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
                 string remoteVersion = SanitizeRemoteVersion(await GetRemoteVersion(remoteAddress));
 
+                // 拉取失败/返回空 → 网络异常（而非"无更新"）
                 if (string.IsNullOrEmpty(remoteVersion))
                 {
                     LogHelper.WriteLogToFile("Failed to retrieve remote version.", LogHelper.LogType.Error);
-                    return null;
+                    result.IsNetworkError = true;
+                    return result;
                 }
 
                 Version remote;
                 if (!Version.TryParse(remoteVersion, out remote))
                 {
                     LogHelper.WriteLogToFile($"AutoUpdate | 远端版本号无法解析：{remoteVersion}", LogHelper.LogType.Error);
-                    return null;
+                    result.IsNetworkError = true;
+                    return result;
                 }
                 remote = NormalizeToThreeParts(remote);
 
@@ -75,15 +97,20 @@ namespace Ink_Canvas.Helpers
                 if (remote > local)
                 {
                     LogHelper.WriteLogToFile("AutoUpdate | New version Available: " + remoteVersion);
-                    return remoteVersion;
+                    result.HasNewVersion = true;
+                    result.LatestVersion = remoteVersion;
                 }
-
-                return null;
+                else
+                {
+                    // 已是最新（HasNewVersion 保持 false）
+                }
+                return result;
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"AutoUpdate | Error: {ex.Message}", LogHelper.LogType.Error);
-                return null;
+                result.IsNetworkError = true;
+                return result;
             }
         }
 
@@ -113,25 +140,26 @@ namespace Ink_Canvas.Helpers
         }
 
         private static string updatesFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ink Canvas Ultra", "AutoUpdate");
-        private static string statusFilePath = null;
 
-        public static async Task<bool> DownloadSetupFileAndSaveStatus(string version, string proxy = "")
+        public static async Task<bool> DownloadSetupFileAndSaveStatus(string version, string proxy = "", Action<double> progressCallback = null)
         {
+            // 状态文件路径按本次调用计算（局部变量），避免与其它并发的下载调用（如静默定时器）
+            // 通过共享的 static 字段互相覆盖，导致把成功/失败状态写到对方的文件。
+            string statusFile = Path.Combine(updatesFolderPath, $"DownloadV{version}Status.txt");
             try
             {
-                statusFilePath = Path.Combine(updatesFolderPath, $"DownloadV{version}Status.txt");
-
-                if (File.Exists(statusFilePath) && File.ReadAllText(statusFilePath).Trim().ToLower() == "true")
+                if (File.Exists(statusFile) && File.ReadAllText(statusFile).Trim().ToLower() == "true")
                 {
                     LogHelper.WriteLogToFile("AutoUpdate | Setup file already downloaded.");
+                    progressCallback?.Invoke(100);
                     return true;
                 }
 
                 string downloadUrl = $"{proxy}https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/download/v{version}/Ink.Canvas.Ultra.V{version}.Setup.exe";
 
-                SaveDownloadStatus(false);
-                await DownloadFile(downloadUrl, $"{updatesFolderPath}\\Ink.Canvas.Ultra.V{version}.Setup.exe");
-                SaveDownloadStatus(true);
+                SaveDownloadStatus(statusFile, false);
+                await DownloadFile(downloadUrl, $"{updatesFolderPath}\\Ink.Canvas.Ultra.V{version}.Setup.exe", progressCallback);
+                SaveDownloadStatus(statusFile, true);
 
                 LogHelper.WriteLogToFile("AutoUpdate | Setup file successfully downloaded.");
                 return true;
@@ -140,25 +168,45 @@ namespace Ink_Canvas.Helpers
             {
                 LogHelper.WriteLogToFile($"AutoUpdate | Error downloading and installing update: {ex.Message}", LogHelper.LogType.Error);
 
-                SaveDownloadStatus(false);
+                SaveDownloadStatus(statusFile, false);
                 return false;
             }
         }
 
-        private static async Task DownloadFile(string fileUrl, string destinationPath)
+        private static async Task DownloadFile(string fileUrl, string destinationPath, Action<double> progressCallback = null)
         {
             using (HttpClient client = new HttpClient())
             {
                 try
                 {
-                    client.Timeout = TimeSpan.FromSeconds(15);
-                    HttpResponseMessage response = await client.GetAsync(fileUrl);
-                    response.EnsureSuccessStatusCode();
+                    // 安装包可达几十 MB：下载统一放宽到 30 分钟，不再与"是否传进度回调"绑定。
+                    // 此前静默/自动更新不传进度回调、只有 15 秒超时，大包几乎必然 TaskCanceledException。
+                    client.Timeout = TimeSpan.FromMinutes(30);
 
-                    using (FileStream fileStream = File.Create(destinationPath))
+                    using (HttpResponseMessage response = await client.GetAsync(fileUrl, HttpCompletionOption.ResponseHeadersRead))
                     {
-                        await response.Content.CopyToAsync(fileStream);
-                        fileStream.Close();
+                        response.EnsureSuccessStatusCode();
+                        long totalBytes = response.Content.Headers.ContentLength ?? -1;
+
+                        using (FileStream fileStream = File.Create(destinationPath))
+                        using (Stream contentStream = await response.Content.ReadAsStreamAsync())
+                        {
+                            byte[] buffer = new byte[81920];
+                            long receivedBytes = 0;
+                            int read;
+                            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
+                            {
+                                await fileStream.WriteAsync(buffer, 0, read);
+                                receivedBytes += read;
+                                if (progressCallback != null)
+                                {
+                                    // 服务器未给出总长度时回调 -1（由调用方决定如何展示）
+                                    double pct = totalBytes > 0 ? (double)receivedBytes / totalBytes * 100.0 : -1;
+                                    progressCallback(pct);
+                                }
+                            }
+                            fileStream.Close();
+                        }
                     }
                 }
                 catch (HttpRequestException ex)
@@ -174,11 +222,11 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        private static void SaveDownloadStatus(bool isSuccess)
+        private static void SaveDownloadStatus(string statusFilePath, bool isSuccess)
         {
             try
             {
-                if (statusFilePath == null) return;
+                if (string.IsNullOrEmpty(statusFilePath)) return;
 
                 string directory = Path.GetDirectoryName(statusFilePath);
                 if (!Directory.Exists(directory))
@@ -260,6 +308,29 @@ namespace Ink_Canvas.Helpers
             {
                 LogHelper.WriteLogToFile($"AutoUpdate clearing| Error deleting updates folder: {ex.Message}", LogHelper.LogType.Error);
             }
+        }
+
+        /// <summary>
+        /// 是否存在已下载完成、待（静默）安装的安装包（任一 DownloadV*Status.txt 内容为 true）。
+        /// 供清理目录前判断：检查返回 null 可能是网络异常，不能据此删除待安装的安装包，
+        /// 否则会破坏已排期的静默更新。
+        /// </summary>
+        public static bool HasPendingDownload()
+        {
+            try
+            {
+                if (!Directory.Exists(updatesFolderPath)) return false;
+                foreach (string file in Directory.GetFiles(updatesFolderPath, "DownloadV*Status.txt"))
+                {
+                    try
+                    {
+                        if (File.ReadAllText(file).Trim().ToLower() == "true") return true;
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+            return false;
         }
     }
 

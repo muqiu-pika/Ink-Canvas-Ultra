@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media.Imaging;
@@ -91,6 +92,8 @@ namespace Ink_Canvas.Plugins
 
         // 缓存已从插件目录解析加载的程序集，避免重复读取文件
         private readonly Dictionary<string, Assembly> _resolvedAssemblies = new Dictionary<string, Assembly>();
+        // 记录每个缓存程序集的实际来源路径，用于插件覆盖安装/卸载时按目录失效缓存
+        private readonly Dictionary<string, string> _resolvedAssemblyPaths = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         private PluginHost(Window mainWindow, PluginHostOptions options)
         {
@@ -137,6 +140,9 @@ namespace Ink_Canvas.Plugins
                         lock (_resolvedAssemblies)
                         {
                             _resolvedAssemblies[simpleName] = asm;
+                            // 记录来源路径，供插件覆盖安装/卸载时按目录失效缓存，
+                            // 否则覆盖安装后依赖 DLL 仍会命中旧程序集缓存，需重启才生效。
+                            _resolvedAssemblyPaths[simpleName] = candidatePath;
                         }
                         LogHelper.WriteLogToFile($"已从插件目录解析依赖: {simpleName} -> {candidatePath}", LogHelper.LogType.Trace);
                         return asm;
@@ -153,6 +159,40 @@ namespace Ink_Canvas.Plugins
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// 按插件目录使程序集缓存失效：覆盖安装/卸载后，该目录下解析过的依赖程序集
+        /// 必须从缓存移除，才能保证下一次 AssemblyResolve 重新从磁盘加载新版本的 DLL。
+        /// </summary>
+        public void InvalidateAssemblyCacheForPlugin(string pluginDir)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(pluginDir)) return;
+                string normalized = pluginDir.TrimEnd('\\', '/') + "\\";
+
+                lock (_resolvedAssemblies)
+                {
+                    var toRemove = _resolvedAssemblyPaths
+                        .Where(kv => kv.Value.StartsWith(normalized, StringComparison.OrdinalIgnoreCase))
+                        .Select(kv => kv.Key)
+                        .ToList();
+                    foreach (var key in toRemove)
+                    {
+                        _resolvedAssemblies.Remove(key);
+                        _resolvedAssemblyPaths.Remove(key);
+                    }
+                    if (toRemove.Count > 0)
+                    {
+                        LogHelper.WriteLogToFile($"程序集缓存失效 [{pluginDir}]: {toRemove.Count} 个依赖程序集将重新加载", LogHelper.LogType.Trace);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"使程序集缓存失效失败 [{pluginDir}]: {ex.Message}", LogHelper.LogType.Warning);
+            }
         }
 
         /// <summary>初始化全局唯一 PluginHost 实例。仅应调用一次。</summary>
@@ -485,7 +525,16 @@ namespace Ink_Canvas.Plugins
                     {
                         string names = string.Join("、", incompatibleSkipped);
                         if (_mainWindow is MainWindow mw)
-                            mw.ShowNotificationAsync($"以下插件因需要更高版本软件而无法加载：{names}。请升级后才能使用。");
+                        {
+                            // LoadAll 在 MainWindow 构造阶段执行，此时窗口尚未显示：
+                            // 直接 ShowNotificationAsync 会在窗口可见前就结束/被启动流程覆盖，用户看不到。
+                            // 改为延迟到界面空闲（窗口已显示）后再提示，并多等几秒避开其它启动通知。
+                            mw.Dispatcher.BeginInvoke((Action)(async () =>
+                            {
+                                await Task.Delay(3000);
+                                try { mw.ShowNotificationAsync($"以下插件因需要更高版本软件而无法加载：{names}。请升级后才能使用。"); } catch { }
+                            }), System.Windows.Threading.DispatcherPriority.ApplicationIdle);
+                        }
                     }
                     catch { }
                 }
@@ -498,14 +547,14 @@ namespace Ink_Canvas.Plugins
 
         // ===== 运行时加载 / 卸载（供插件工坊调用） =====
 
-        /// <summary>运行时加载指定 id 的 plugin（若已加载则返回 false）</summary>
+        /// <summary>运行时加载指定 id 的 plugin（若已加载则视为成功返回 true，避免调用方误判为失败而把启用状态写反）</summary>
         public bool LoadPlugin(string pluginId)
         {
             if (string.IsNullOrEmpty(pluginId)) return false;
 
             if (_loaded.Any(p => string.Equals(p.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase)))
             {
-                return false;
+                return true;
             }
 
             var dir = FindPluginDirectory(pluginId);
@@ -574,6 +623,46 @@ namespace Ink_Canvas.Plugins
             _loaded.RemoveAt(idx);
             LogHelper.WriteLogToFile($"plugin 已软卸载: {p.Manifest.Id}", LogHelper.LogType.Event);
             RaisePluginListChanged();
+            return true;
+        }
+
+        /// <summary>
+        /// 彻底卸载并删除指定 plugin：软卸载（若已加载）→ 清理启用状态 → 使程序集缓存失效 → 删除插件目录。
+        /// 不兼容（未加载）的插件同样可删除；返回是否成功删除目录。
+        /// </summary>
+        public bool UninstallPlugin(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return false;
+
+            var dir = FindPluginDirectory(pluginId);
+            if (dir == null) return false;
+
+            // 已加载则先软卸载（未加载如"版本不兼容"时 UnloadPlugin 返回 false，但无需因此失败）
+            UnloadPlugin(pluginId);
+
+            // 清理启用状态并持久化，避免重装同名插件时仍沿用旧的禁用记录
+            _enabledState.Remove(pluginId);
+            SaveEnabledState();
+
+            // 使该目录解析过的依赖程序集缓存失效（若之后重新安装同目录插件，需从磁盘重新加载 DLL）
+            InvalidateAssemblyCacheForPlugin(dir);
+
+            try
+            {
+                if (Directory.Exists(dir))
+                {
+                    Directory.Delete(dir, recursive: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"删除 plugin 目录失败 [{dir}]: {ex.Message}", LogHelper.LogType.Error);
+                RaisePluginListChanged();
+                return false;
+            }
+
+            RaisePluginListChanged();
+            LogHelper.WriteLogToFile($"plugin 已卸载删除: {pluginId}", LogHelper.LogType.Event);
             return true;
         }
 

@@ -126,6 +126,10 @@ namespace Ink_Canvas
         [JsonProperty("isAutoUpdateWithSilenceEndTime")]
         public string AutoUpdateWithSilenceEndTime { get; set; } = "00:00";
 
+        // 上次执行更新检测的时间（含启动/打开设置时的自动检测与手动"立即检查"），格式 yyyy/M/d
+        [JsonProperty("lastUpdateCheckTime")]
+        public string LastUpdateCheckTime { get; set; } = "";
+
         [JsonProperty("isEnableNibMode")]
         public bool IsEnableNibMode { get; set; } = false;
         /*
