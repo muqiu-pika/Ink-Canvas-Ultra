@@ -1973,15 +1973,15 @@
 
                                     x:Name="BorderDrawShape"
 
-                                    Width="320"
+                                    Width="280"
 
-                                    Height="300"
+                                    Height="260"
 
                                     HorizontalAlignment="Left"
 
                                     VerticalAlignment="Top"
 
-                                    Margin="-240,-300,-80,28"
+                                    Margin="-200,-268,-80,28"
 
                                     Background="{DynamicResource FloatBarBackground}"
 
@@ -2025,7 +2025,7 @@
 
                                                         Height="18"
 
-                                                        Margin="0,-1,6,-1"
+                                                        Margin="0,0,8,0"
 
                                                         VerticalAlignment="Center"
 
@@ -2039,11 +2039,9 @@
 
                                                         MouseUp="ShapePanelDragHandle_MouseUp"
 
-                                                        TouchDown="ShapePanelDragHandle_TouchDown"
-
-                                                        TouchMove="ShapePanelDragHandle_TouchMove"
-
-                                                        TouchUp="ShapePanelDragHandle_TouchUp">
+                                                        PreviewTouchDown="ShapePanelDragHandle_PreviewTouchDown"
+                                                        PreviewTouchMove="ShapePanelDragHandle_PreviewTouchMove"
+                                                        PreviewTouchUp="ShapePanelDragHandle_PreviewTouchUp">
 
                                                         <Path
 
@@ -2061,11 +2059,11 @@
 
                                                     <TextBlock
 
-                                                        Margin="0,0,0,0"
+                                                        Margin="0,0,8,0"
 
                                                         VerticalAlignment="Center"
 
-                                                        FontSize="11"
+                                                        FontSize="12"
 
                                                         FontWeight="Bold"
 
@@ -2089,7 +2087,7 @@
 
                                                         Height="16"
 
-                                                        Margin="0,-1,10,-1"
+                                                        Margin="0,0,12,0"
 
                                                         VerticalAlignment="Center"
 
@@ -2113,7 +2111,7 @@
 
                                                         Height="16"
 
-                                                        Margin="0,-1,8,-1"
+                                                        Margin="0,0,8,0"
 
                                                         VerticalAlignment="Center"
 
@@ -2185,7 +2183,7 @@
 
                                         </ikw:SimpleStackPanel>
 
-                                        <Viewbox Width="270" HorizontalAlignment="Left">
+                                        <Viewbox Width="235" MaxHeight="230" HorizontalAlignment="Left">
 
                                             <ikw:SimpleStackPanel Spacing="-8">
 

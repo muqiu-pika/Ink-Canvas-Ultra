@@ -405,19 +405,19 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(ShapePanelDragHandle_MouseUp), sender, e);
         }
 
-        private void ShapePanelDragHandle_TouchDown(object sender, TouchEventArgs e)
+        private void ShapePanelDragHandle_PreviewTouchDown(object sender, TouchEventArgs e)
         {
-            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_TouchDown), sender, e);
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_PreviewTouchDown), sender, e);
         }
 
-        private void ShapePanelDragHandle_TouchMove(object sender, TouchEventArgs e)
+        private void ShapePanelDragHandle_PreviewTouchMove(object sender, TouchEventArgs e)
         {
-            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_TouchMove), sender, e);
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_PreviewTouchMove), sender, e);
         }
 
-        private void ShapePanelDragHandle_TouchUp(object sender, TouchEventArgs e)
+        private void ShapePanelDragHandle_PreviewTouchUp(object sender, TouchEventArgs e)
         {
-            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_TouchUp), sender, e);
+            InvokeMainWindowHandler(nameof(ShapePanelDragHandle_PreviewTouchUp), sender, e);
         }
 
         private void ShapePanelRestore_MouseDown(object sender, MouseButtonEventArgs e)

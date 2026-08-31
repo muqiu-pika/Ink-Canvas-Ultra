@@ -490,8 +490,9 @@ namespace Ink_Canvas
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });                     // 2 启用/禁用开关
             // 4、5 列固定宽度且始终存在：即便某行没有「设置」或「更新」按钮，
             // 也保留同样宽度，使第 2 列开关在每行处于同一纵向直线。
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(30) });                 // 3 设置按钮占位
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(64) });                 // 4 更新按钮占位
+            // 宽度需能容纳按钮本身 + 左边距（设置：30+8=38；更新：60+12=72），避免右侧被裁剪。
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(40) });                 // 3 设置按钮占位
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(76) });                 // 4 更新按钮占位
 
             var titlePanel = new StackPanel
             {

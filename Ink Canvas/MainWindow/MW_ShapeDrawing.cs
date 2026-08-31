@@ -77,6 +77,7 @@ namespace Ink_Canvas
 
         Point shapePanelDragStartPos = new Point();
         bool isShapePanelDragging = false;
+        bool isShapePanelTouchDragging = false;
         FrameworkElement shapePanelDraggingTarget = null;
 
         /// <summary>根据事件源确定对应的图形面板（浮动栏 BorderDrawShape 或画板 BoardBorderDrawShape）</summary>
@@ -158,6 +159,7 @@ namespace Ink_Canvas
 
         private void ShapePanelDragHandle_MouseDown(object sender, MouseButtonEventArgs e)
         {
+            if (isShapePanelTouchDragging) return;
             var panel = GetShapePanelFromSender(sender);
             if (panel == null || !(sender is UIElement handle)) return;
             var parent = panel.Parent as IInputElement;
@@ -171,7 +173,7 @@ namespace Ink_Canvas
 
         private void ShapePanelDragHandle_MouseMove(object sender, MouseEventArgs e)
         {
-            if (!isShapePanelDragging || shapePanelDraggingTarget == null) return;
+            if (isShapePanelTouchDragging || !isShapePanelDragging || shapePanelDraggingTarget == null) return;
             var parent = shapePanelDraggingTarget.Parent as IInputElement;
             if (parent == null) return;
             Point current = e.GetPosition(parent);
@@ -185,43 +187,46 @@ namespace Ink_Canvas
 
         private void ShapePanelDragHandle_MouseUp(object sender, MouseButtonEventArgs e)
         {
+            if (isShapePanelTouchDragging) return;
             if (sender is UIElement handle) handle.ReleaseMouseCapture();
             isShapePanelDragging = false;
             shapePanelDraggingTarget = null;
         }
 
-        private void ShapePanelDragHandle_TouchDown(object sender, TouchEventArgs e)
+        private void ShapePanelDragHandle_PreviewTouchDown(object sender, TouchEventArgs e)
         {
             var panel = GetShapePanelFromSender(sender);
             if (panel == null || !(sender is UIElement handle)) return;
-            var parent = panel.Parent as IInputElement;
-            if (parent == null) return;
+            var win = Window.GetWindow(panel);
+            if (win == null) return;
+            isShapePanelTouchDragging = true;
             shapePanelDraggingTarget = panel;
-            shapePanelDragStartPos = e.GetTouchPoint(parent).Position;
+            shapePanelDragStartPos = e.GetTouchPoint(win).Position;
             isShapePanelDragging = true;
             handle.CaptureTouch(e.TouchDevice);
             lastBorderMouseDownObject = sender;
             e.Handled = true;
         }
 
-        private void ShapePanelDragHandle_TouchMove(object sender, TouchEventArgs e)
+        private void ShapePanelDragHandle_PreviewTouchMove(object sender, TouchEventArgs e)
         {
-            if (!isShapePanelDragging || shapePanelDraggingTarget == null) return;
-            var parent = shapePanelDraggingTarget.Parent as IInputElement;
-            if (parent == null) return;
-            Point current = e.GetTouchPoint(parent).Position;
+            if (!isShapePanelTouchDragging || !isShapePanelDragging || shapePanelDraggingTarget == null) return;
+            var win = Window.GetWindow(shapePanelDraggingTarget);
+            if (win == null) return;
+            Point current = e.GetTouchPoint(win).Position;
             double dx = current.X - shapePanelDragStartPos.X;
             double dy = current.Y - shapePanelDragStartPos.Y;
-            if (dx == 0 && dy == 0) return;
+            if (dx == 0 && dy == 0) { e.Handled = true; return; }
             // 用 RenderTransform 平移（不触发布局、不改变大小，拖动更流畅）
             MoveShapePanelByDrag(shapePanelDraggingTarget, dx, dy);
             shapePanelDragStartPos = current;
             e.Handled = true;
         }
 
-        private void ShapePanelDragHandle_TouchUp(object sender, TouchEventArgs e)
+        private void ShapePanelDragHandle_PreviewTouchUp(object sender, TouchEventArgs e)
         {
             if (sender is UIElement handle && e.TouchDevice != null) handle.ReleaseTouchCapture(e.TouchDevice);
+            isShapePanelTouchDragging = false;
             isShapePanelDragging = false;
             shapePanelDraggingTarget = null;
             e.Handled = true;
