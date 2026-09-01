@@ -1224,7 +1224,10 @@ namespace Ink_Canvas
                 if (string.IsNullOrEmpty(reason) || (reason != "settings" && reason != "silent" && reason != "crash")) return;
                 string metaPath = basePath + @"\SessionMeta.txt";
                 string icartPath = basePath + @"\LastSession.icart";
-                if (!File.Exists(metaPath) || !File.Exists(icartPath)) return;
+                // 只要元信息存在即说明曾保存过会话（reason 标记为 silent/crash/settings），就应弹出恢复询问；
+                // 即使 icart 快照因保存失败而缺失，也应让用户看到恢复流程（恢复失败时由分支给出提示），
+                // 而不应在此处静默返回导致“崩溃重启后毫无提示”。
+                if (!File.Exists(metaPath)) return;
 
                 var notificationWindow = new YesOrNoNotificationWindow("检测到上次会话快照，是否恢复？",
                     yesAction: () =>
@@ -3610,8 +3613,10 @@ namespace Ink_Canvas
                     }
                     selectedPhotoTimestamp = photo.Timestamp;
                     UpdateCapturedPhotosDisplay();
+                    // 与照片插入一致：先新建一页，切换过去，再把视频插入到新页
+                    BtnWhiteBoardAdd_Click(null, null);
                     host.TriggerRoute("video-insert", photo.VideoFilePath);
-                    Console.WriteLine($"视频已通过路由插入：{photo.VideoFilePath}");
+                    Console.WriteLine($"视频已在新页面通过路由插入：{photo.VideoFilePath}");
                     return;
                 }
 
@@ -4765,10 +4770,11 @@ namespace Ink_Canvas
                 // 非文档照片：元素已入画布且布局完成，此时 ActualWidth/ActualHeight 才有效，
                 // 再据此居中缩放（此前在加入画布前计算，新建页面时画布尺寸为 0，
                 // 算出负偏移会把图片平移到画布外，表现为"画板中无任何显示"）。
+                // 与插入媒体一致，用绝对定位居中，保证白板模式下照片列表选中插入的照片精确居中。
                 // 文档照片的居中已由 CenterAndScaleDocumentPhoto 处理，不在此重复。
                 if (!IsDocumentPhoto(photo))
                 {
-                    CenterAndScaleElement(imageElement);
+                    CenterAndFitMedia(imageElement);
                 }
 
                 // 记录当前照片元素引用
@@ -5951,10 +5957,112 @@ namespace Ink_Canvas
                 capturedPhotos.Insert(0, captured);
                 UpdateCapturedPhotosDisplay();
                 Console.WriteLine($"视频已导入照片列表：{videoFilePath}");
+
+                // 真正解码视频并截取第一帧作为缩略图（保留“视频”角标样式），失败时保持占位图。
+                // 不用系统文件缩略图，而是用 WPF MediaPlayer 解码后抓帧，保证显示的是真实首帧。
+                TryLoadVideoFirstFrame(videoFilePath, captured);
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"导入视频到照片列表失败：{ex.Message}");
+            }
+        }
+
+        /// <summary>异步解码视频并截取第一帧作为照片列表缩略图（保留“视频”角标样式）</summary>
+        private void TryLoadVideoFirstFrame(string videoFilePath, CapturedImage captured)
+        {
+            try
+            {
+                // 在后台线程解码视频首帧，避免阻塞 UI
+                System.Threading.Tasks.Task.Run(() =>
+                {
+                    try
+                    {
+                        var player = new MediaPlayer();
+                        try
+                        {
+                            player.Open(new Uri(videoFilePath));
+                            player.Pause();
+
+                            // 等待媒体打开完成（最多等待 5 秒）
+                            int waitCount = 0;
+                            while (player.NaturalDuration == Duration.Automatic && waitCount < 50)
+                            {
+                                System.Threading.Thread.Sleep(100);
+                                waitCount++;
+                            }
+
+                            if (player.NaturalDuration == Duration.Automatic)
+                            {
+                                Console.WriteLine($"视频 {videoFilePath} 无法获取时长，可能不支持该格式");
+                                return;
+                            }
+
+                            // 定位到首帧（0 秒位置）
+                            player.Position = TimeSpan.Zero;
+
+                            // 依据视频原始宽高比例生成缩略图（最长边 320px，保持纵横比）
+                            double originalWidth = player.NaturalVideoWidth;
+                            double originalHeight = player.NaturalVideoHeight;
+                            if (originalWidth <= 0 || originalHeight <= 0)
+                            {
+                                Console.WriteLine($"视频 {videoFilePath} 无有效视频流");
+                                return;
+                            }
+
+                            double scale = Math.Min(320.0 / originalWidth, 320.0 / originalHeight);
+                            int thumbnailWidth = (int)(originalWidth * scale);
+                            int thumbnailHeight = (int)(originalHeight * scale);
+
+                            // 将解码出的首帧绘制到 DrawingVisual
+                            var visual = new DrawingVisual();
+                            using (var dc = visual.RenderOpen())
+                            {
+                                dc.DrawVideo(player, new Rect(0, 0, thumbnailWidth, thumbnailHeight));
+                            }
+
+                            // 渲染成位图
+                            var rtb = new RenderTargetBitmap(thumbnailWidth, thumbnailHeight, 96, 96, PixelFormats.Pbgra32);
+                            rtb.Render(visual);
+
+                            var encoder = new PngBitmapEncoder();
+                            encoder.Frames.Add(BitmapFrame.Create(rtb));
+
+                            using (var ms = new MemoryStream())
+                            {
+                                encoder.Save(ms);
+                                ms.Position = 0;
+
+                                var frame = new BitmapImage();
+                                frame.BeginInit();
+                                frame.StreamSource = ms;
+                                frame.CacheOption = BitmapCacheOption.OnLoad;
+                                frame.EndInit();
+                                frame.Freeze();
+
+                                // 切回 UI 线程更新缩略图
+                                Dispatcher.BeginInvoke(new Action(() =>
+                                {
+                                    captured.UpdateImage(frame);
+                                    UpdateCapturedPhotosDisplay();
+                                }));
+                            }
+                        }
+                        finally
+                        {
+                            player.Close();
+                            player.Freeze();
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"提取视频 {videoFilePath} 首帧失败：{ex.Message}");
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"启动视频首帧提取失败：{ex.Message}");
             }
         }
 

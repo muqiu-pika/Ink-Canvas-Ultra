@@ -719,6 +719,8 @@ namespace Ink_Canvas
             if (isDisplayingOrHidingBlackboard) return;
             isDisplayingOrHidingBlackboard = true;
 
+            try
+            {
             // 切换模式前先排空残留输入并开启过渡窗口，再取消进行中的笔画：
             // 排空让“卡顿残留”的延迟笔画先在旧画布落地并计入旧历史，
             // 过渡窗口兜底拦截仍可能延迟到达的笔迹，防止其混入/替换白板笔迹。
@@ -979,6 +981,12 @@ namespace Ink_Canvas
             })).Start();
 
             CheckColorTheme(true);
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile($"ImageBlackboard_Click(模式切换)异常已拦截: {ex}");
+                try { isDisplayingOrHidingBlackboard = false; } catch { }
+            }
         }
 
         /// <summary>
@@ -1395,6 +1403,8 @@ namespace Ink_Canvas
 
         private async void CursorIcon_Click(object sender, RoutedEventArgs e)
         {
+            try
+            {
             // 切换前自动截图保存墨迹
             if (inkCanvas.Strokes.Count > 0 && inkCanvas.Strokes.Count > Settings.Automation.MinimumAutomationStrokeNumber)
             {
@@ -1467,6 +1477,24 @@ namespace Ink_Canvas
                         ViewboxFloatingBarMarginAnimation();
                     }
                 }
+            }
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile($"CursorIcon_Click(切换到鼠标模式)异常已拦截: {ex}");
+                // 即使中途异常，也强制完成切换到鼠标模式的最小状态，避免按钮“点击无反应”。
+                try
+                {
+                    if (!Dispatcher.CheckAccess()) Dispatcher.Invoke(new Action(() => { }));
+                    try { inkCanvas.EditingMode = InkCanvasEditingMode.Select; } catch { }
+                    try { inkCanvas.IsHitTestVisible = false; } catch { }
+                    try { Main_Grid.Background = Brushes.Transparent; } catch { }
+                    try { GridInkCanvasSelectionCover.Visibility = Visibility.Collapsed; } catch { }
+                    try { StackPanelCanvasControls.Visibility = Visibility.Collapsed; } catch { }
+                    try { CheckEnableTwoFingerGestureBtnVisibility(false); } catch { }
+                    try { HideSubPanels("cursor", false); } catch { }
+                }
+                catch { }
             }
         }
 
@@ -1563,8 +1591,23 @@ namespace Ink_Canvas
 
         private void CursorWithDelIcon_Click(object sender, RoutedEventArgs e)
         {
-            SymbolIconDelete_MouseUp(sender, null);
-            CursorIcon_Click(null, null);
+            try
+            {
+                SymbolIconDelete_MouseUp(sender, null);
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile($"CursorWithDelIcon_Click(清并鼠)删除阶段异常已拦截: {ex}");
+            }
+            // 无论删除阶段是否成功，都继续切换到鼠标模式，避免“清并鼠”按钮因删除异常而整个失去响应或崩溃
+            try
+            {
+                CursorIcon_Click(null, null);
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile($"CursorWithDelIcon_Click(清并鼠)切换鼠标阶段异常已拦截: {ex}");
+            }
         }
 
         private void SelectIcon_MouseUp(object sender, RoutedEvent e)
@@ -2027,6 +2070,11 @@ namespace Ink_Canvas
                 // 导致再次点击“批注”时出现白色画布而不是直接透明批注。
                 if (_currentMode == 0 && GridBackgroundCover != null)
                     GridBackgroundCover.Visibility = Visibility.Collapsed;
+                // 退出白板时恢复被折叠的浮动栏显示。注释原依赖 ViewboxFloatingBarMarginAnimation
+                // 负责恢复，但并非所有退出入口都会调用该动画，导致“退出白板后浮动栏消失”。
+                // 在此统一兜底恢复可见，位置修正由调用方（退出入口）的定位动画负责。
+                if (_currentMode == 0 && ViewboxFloatingBar != null)
+                    ViewboxFloatingBar.Visibility = Visibility.Visible;
             }
         }
 
@@ -2112,6 +2160,8 @@ namespace Ink_Canvas
             }
             else
             {
+                try
+                {
                 // Auto-clear Strokes 要等待截图完成再清理笔记
                 if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
                 {
@@ -2170,17 +2220,29 @@ namespace Ink_Canvas
                     RestoreStrokes(true);
                 }
             }
-
-            if (Main_Grid.Background == Brushes.Transparent)
-            {
-                StackPanelCanvasControls.Visibility = Visibility.Collapsed;
-                CheckEnableTwoFingerGestureBtnVisibility(false);
-                HideSubPanels("cursor");
+                catch (Exception ex)
+                {
+                    Helpers.LogHelper.WriteLogToFile($"BtnHideInkCanvas_Click(退出批注/切换到鼠标模式)异常已拦截: {ex}");
+                }
             }
-            else
+
+            try
             {
-                AnimationsHelper.ShowWithSlideFromLeftAndFade(StackPanelCanvasControls);
-                CheckEnableTwoFingerGestureBtnVisibility(true);
+                if (Main_Grid.Background == Brushes.Transparent)
+                {
+                    StackPanelCanvasControls.Visibility = Visibility.Collapsed;
+                    CheckEnableTwoFingerGestureBtnVisibility(false);
+                    HideSubPanels("cursor");
+                }
+                else
+                {
+                    AnimationsHelper.ShowWithSlideFromLeftAndFade(StackPanelCanvasControls);
+                    CheckEnableTwoFingerGestureBtnVisibility(true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile($"BtnHideInkCanvas_Click(退出批注/切换到鼠标模式)尾段异常已拦截: {ex}");
             }
         }
         #endregion

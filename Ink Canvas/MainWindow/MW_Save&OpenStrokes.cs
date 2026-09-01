@@ -611,6 +611,16 @@ namespace Ink_Canvas
                     Directory.CreateDirectory(basePath);
                 }
 
+                // 先独立写入元信息，与 icart 快照解耦：即使附带依赖文件的 icart 保存失败，
+                // 元信息（模式/白板页/PPT/总页数）也已落盘，重启后 PromptRestoreLastSessionOnStartup
+                // 仍能识别到本次会话并弹窗提示恢复，避免“崩溃重启后无任何提示”。
+                try
+                {
+                    string metaPath = basePath + @"\SessionMeta.txt";
+                    File.WriteAllText(metaPath, $"mode={currentMode}\nwhiteboard={CurrentWhiteboardIndex}\nppt={(BtnPPTSlideShowEnd.Visibility == Visibility.Visible ? 1 : 0)}\nwhiteboard_total={WhiteboardTotalCount}");
+                }
+                catch { }
+
                 string savePathWithName = basePath + @"\LastSession.icart";
                 using (FileStream fs = new FileStream(savePathWithName, FileMode.Create))
                 using (var archive = new ZipArchive(fs, ZipArchiveMode.Create))
@@ -648,14 +658,6 @@ namespace Ink_Canvas
                         SaveRelatedUrlFilesForCanvas(archive, pageCanvas, pageFolder + "/File Dependency");
                     }
                 }
-
-                // 保存元信息（模式与白板页索引、是否处于PPT放映）
-                string metaPath = basePath + @"\SessionMeta.txt";
-                try
-                {
-                    File.WriteAllText(metaPath, $"mode={currentMode}\nwhiteboard={CurrentWhiteboardIndex}\nppt={(BtnPPTSlideShowEnd.Visibility == Visibility.Visible ? 1 : 0)}\nwhiteboard_total={WhiteboardTotalCount}");
-                }
-                catch { }
 
                 LogHelper.WriteLogToFile($"Saved Last Session Snapshot: {savePathWithName}", LogHelper.LogType.Event);
             }

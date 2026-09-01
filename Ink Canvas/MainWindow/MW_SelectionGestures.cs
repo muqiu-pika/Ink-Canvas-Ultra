@@ -575,11 +575,14 @@ namespace Ink_Canvas
             if (inkCanvas == null || SelectionRectangle == null) return;
 
             Rect selectionBounds = inkCanvas.GetSelectionBounds();
-            bool strokesSelected = inkCanvas.GetSelectedStrokes().Count > 0;
+            // 划线元素选中或图片/元素选中时都显示圈选设置框；
+            // 此前仅当选中了笔迹(Strokes)时才显示，导致仅选中图片元素时看不到设置栏按钮。
+            bool anySelection = inkCanvas.GetSelectedStrokes().Count > 0 ||
+                                inkCanvas.GetSelectedElements().Count > 0;
             bool coverVisible = GridInkCanvasSelectionCover != null &&
                                 GridInkCanvasSelectionCover.Visibility == Visibility.Visible;
 
-            if (!strokesSelected || !coverVisible)
+            if (!anySelection || !coverVisible)
             {
                 if (BorderStrokeSelectionControl != null) BorderStrokeSelectionControl.Visibility = Visibility.Collapsed;
                 if (BorderStrokeSelectionExpand != null) BorderStrokeSelectionExpand.Visibility = Visibility.Collapsed;
@@ -791,7 +794,10 @@ namespace Ink_Canvas
             if (inkCanvas == null) return;
             if (SelectionRectangle == null || SelectionHandlesCanvas == null) return;
 
-            if (inkCanvas.GetSelectedStrokes().Count == 0)
+            // 没有任何选中（既无笔迹也无元素）时隐藏选择框与把手；
+            // 此前仅判断笔迹，导致只选中图片元素时把手被隐藏。
+            if (inkCanvas.GetSelectedStrokes().Count == 0 &&
+                inkCanvas.GetSelectedElements().Count == 0)
             {
                 HideSelectionDisplay();
                 return;
@@ -995,6 +1001,11 @@ namespace Ink_Canvas
 
                 var strokes = inkCanvas.GetSelectedStrokes();
                 foreach (var s in strokes) s.Transform(m, false);
+
+                // 同步缩放+旋转选中的媒体/图片元素（与笔迹一致的角点组合变换）
+                var elements = inkCanvas.GetSelectedElements();
+                foreach (var el in elements) ApplyElementMatrixTransform(el, m);
+
                 cornerAppliedScale = targetScale;
                 cornerAppliedAngle = targetAngle;
 
@@ -1006,7 +1017,7 @@ namespace Ink_Canvas
 
             var delta = new Point(currentPoint.X - resizeStartPoint.X, currentPoint.Y - resizeStartPoint.Y);
             var newBounds = CalculateNewBounds(originalSelectionBounds, delta, currentResizeHandle);
-            ApplyBoundsToStrokes(newBounds);
+            ApplyBoundsToSelection(newBounds);
             UpdateBorderStrokeSelectionControlLocation();
         }
 
@@ -1089,12 +1100,9 @@ namespace Ink_Canvas
             return new Rect(newX, newY, newWidth, newHeight);
         }
 
-        /// <summary>将新的选区矩形应用到选中的墨迹（对边固定的整体缩放）</summary>
-        private void ApplyBoundsToStrokes(Rect newBounds)
+        /// <summary>将新的选区矩形应用到选中的内容（对边固定的整体缩放），笔迹与媒体元素同时生效</summary>
+        private void ApplyBoundsToSelection(Rect newBounds)
         {
-            var selectedStrokes = inkCanvas.GetSelectedStrokes();
-            if (selectedStrokes.Count == 0) return;
-
             Rect currentBounds = inkCanvas.GetSelectionBounds();
             if (currentBounds.Width < 1 || currentBounds.Height < 1) return;
 
@@ -1107,9 +1115,17 @@ namespace Ink_Canvas
             matrix.Translate(translateX, translateY);
             matrix.ScaleAt(scaleX, scaleY, currentBounds.X + currentBounds.Width / 2, currentBounds.Y + currentBounds.Height / 2);
 
+            var selectedStrokes = inkCanvas.GetSelectedStrokes();
             foreach (var stroke in selectedStrokes)
             {
                 stroke.Transform(matrix, false);
+            }
+
+            // 媒体/图片元素同样按选区缩放（通过 RenderTransform 叠加矩阵实现）
+            var selectedElements = inkCanvas.GetSelectedElements();
+            foreach (var element in selectedElements)
+            {
+                ApplyElementMatrixTransform(element, matrix);
             }
         }
 

@@ -17,23 +17,64 @@ namespace Ink_Canvas
         #region Image
         private async Task<Image> CreateAndCompressImageAsync(string filePath)
         {
-            string savePath = Path.Combine(Settings.Automation.AutoSavedStrokesLocation, "File Dependency");
-            if (!Directory.Exists(savePath))
+            // 图库副本目录优先使用自动保存位置；该目录不可写（Access denied）时回退到系统临时目录，
+            // 避免在安装到受限环境（如非当前用户可写的路径）时插入媒体即报"访问被拒绝"。
+            string savePath = null;
+            try
             {
+                savePath = Path.Combine(Settings.Automation.AutoSavedStrokesLocation, "File Dependency");
                 Directory.CreateDirectory(savePath);
             }
+            catch
+            {
+                savePath = null;
+            }
 
+            string copyPath = null;
             string fileExtension = Path.GetExtension(filePath);
-            string timestamp = "img_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff");
-            string newFilePath = Path.Combine(savePath, timestamp + fileExtension);
 
-            await Task.Run(() => File.Copy(filePath, newFilePath, true));
+            if (!string.IsNullOrEmpty(savePath))
+            {
+                try
+                {
+                    string timestamp = "img_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff");
+                    copyPath = Path.Combine(savePath, timestamp + fileExtension);
+                }
+                catch { copyPath = null; }
+            }
+
+            if (string.IsNullOrEmpty(copyPath))
+            {
+                try
+                {
+                    string tmpDir = Path.Combine(Path.GetTempPath(), "Ink Canvas Media");
+                    Directory.CreateDirectory(tmpDir);
+                    string timestamp = "img_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff");
+                    copyPath = Path.Combine(tmpDir, timestamp + fileExtension);
+                }
+                catch { copyPath = null; }
+            }
+
+            // 优先解码副本（保持独立快照）；副本无法建立或复制失败时，直接解码原文件（只读即可）。
+            string sourcePath = filePath;
+            if (!string.IsNullOrEmpty(copyPath))
+            {
+                try
+                {
+                    await Task.Run(() => File.Copy(filePath, copyPath, true));
+                    sourcePath = copyPath;
+                }
+                catch
+                {
+                    sourcePath = filePath;
+                }
+            }
 
             return await Dispatcher.InvokeAsync(() =>
             {
                 BitmapImage bitmapImage = new BitmapImage();
                 bitmapImage.BeginInit();
-                bitmapImage.UriSource = new Uri(newFilePath);
+                bitmapImage.UriSource = new Uri(sourcePath, UriKind.Absolute);
                 bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
                 bitmapImage.EndInit();
 
@@ -85,10 +126,9 @@ namespace Ink_Canvas
             if (canvasWidth <= 0) canvasWidth = SystemParameters.PrimaryScreenWidth;
             if (canvasHeight <= 0) canvasHeight = SystemParameters.PrimaryScreenHeight;
 
-            // 以画布为基准缩放并留约 5% 边距，保证图片始终能放入画板内。
-            // 此前以"主屏幕一半"为基准缩放，在画板比它小或比例不同时图片会超出画板，
-            // 配合下方钳制会被顶到左上角，表现为"插入后没有居中"。
-            const double marginRatio = 0.95;
+            // 以画布为基准缩放并留约 20% 边距，让插入的媒体/图片不要铺满整个画板，
+            // 四周留白更美观，也避免上下左右贴边。
+            const double marginRatio = 0.8;
             double maxWidth = canvasWidth * marginRatio;
             double maxHeight = canvasHeight * marginRatio;
 
@@ -113,6 +153,43 @@ namespace Ink_Canvas
             transformGroup.Children.Add(new ScaleTransform(scale, scale));
 
             element.RenderTransform = transformGroup;
+        }
+
+        /// <summary>
+        /// 将插入的媒体图片在画板上居中放置，并按画板比例缩小留一圈边距（不铺满屏幕）。
+        /// 采用直接设置 Width/Height + InkCanvas 绝对定位的方式，避免依赖 RenderTransform
+        /// 的叠加顺序，保证最终横向/纵向都精确居中于画布（即屏幕）中央。
+        /// </summary>
+        private System.Windows.Controls.Image CenterAndFitMedia(System.Windows.Controls.Image image)
+        {
+            try
+            {
+                if (image == null) return image;
+                double oldWidth = image.Width;
+                double oldHeight = image.Height;
+                if (oldWidth <= 0 || oldHeight <= 0 || double.IsNaN(oldWidth) || double.IsNaN(oldHeight)) return image;
+
+                double canvasW = inkCanvas.ActualWidth;
+                double canvasH = inkCanvas.ActualHeight;
+                if (canvasW <= 0) canvasW = SystemParameters.PrimaryScreenWidth;
+                if (canvasH <= 0) canvasH = SystemParameters.PrimaryScreenHeight;
+
+                // 比屏幕小一圈：占画布的 80%，四周各留约 10%
+                const double marginRatio = 0.8;
+                double scale = Math.Min((canvasW * marginRatio) / oldWidth, (canvasH * marginRatio) / oldHeight);
+                if (double.IsNaN(scale) || double.IsInfinity(scale) || scale <= 0) return image;
+
+                double newWidth = oldWidth * scale;
+                double newHeight = oldHeight * scale;
+
+                image.Width = newWidth;
+                image.Height = newHeight;
+                image.RenderTransform = null;
+                InkCanvas.SetLeft(image, (canvasW - newWidth) / 2);
+                InkCanvas.SetTop(image, (canvasH - newHeight) / 2);
+            }
+            catch { }
+            return image;
         }
 
         // 初始化InkCanvas选择设置

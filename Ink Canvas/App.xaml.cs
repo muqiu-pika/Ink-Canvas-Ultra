@@ -124,6 +124,71 @@ namespace Ink_Canvas
                 }
             }
             catch { }
+
+            // 后台线程 / 损坏状态异常（ACCESS_VIOLATION 等）不经过 UI 线程的
+            // DispatcherUnhandledException，若不做处理则进程直接终止：既不会触发
+            // “崩溃静默重启”，也不会写入 RestartReason.txt，导致重启后无法弹出恢复询问。
+            // 因此这里同样执行：保存会话快照 → 写静默重启标记 → 重启新进程。
+            try
+            {
+                var mw = Application.Current?.MainWindow as Ink_Canvas.MainWindow;
+                TrySnapshotRestartAndExit(mw, "silent");
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 保存会话快照并静默重启。先写 RestartReason 标记（尽量在任何可能的中断前完成），
+        /// 再写快照（内部先写 meta），最后启动新进程。供 UI 线程与后台线程崩溃时共用。
+        /// </summary>
+        private bool TrySnapshotRestartAndExit(Ink_Canvas.MainWindow mw, string reason)
+        {
+            bool silentRestart = true;
+            if (Ink_Canvas.MainWindow.Settings?.Advanced != null)
+            {
+                silentRestart = Ink_Canvas.MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash;
+            }
+            if (!silentRestart) return false;
+
+            // 1) 先写 reason（最轻量，确保重启后能识别“需要恢复询问”）
+            WriteRestartReason(reason);
+
+            // 2) 尽量在进程终止前把快照落盘（后台线程需要切到 UI 线程访问画布）
+            if (mw != null)
+            {
+                try
+                {
+                    if (Dispatcher.CheckAccess())
+                    {
+                        try { mw.SaveLastSessionSnapshot(); } catch { }
+                    }
+                    else
+                    {
+                        try { Dispatcher.BeginInvoke(new Action(() => { try { mw.SaveLastSessionSnapshot(); } catch { } })); } catch { }
+                        // BeginInvoke 不等待；进程即将终止，交给编辑器尽可能排队的动作执行。
+                    }
+                }
+                catch { }
+            }
+
+            // 3) 重启新进程
+            try { RestartApplication(); } catch { }
+            return true;
+        }
+
+        private void WriteRestartReason(string reason)
+        {
+            try
+            {
+                string autoPath = (Ink_Canvas.MainWindow.Settings?.Automation != null
+                                   && !string.IsNullOrEmpty(Ink_Canvas.MainWindow.Settings.Automation.AutoSavedStrokesLocation))
+                    ? Ink_Canvas.MainWindow.Settings.Automation.AutoSavedStrokesLocation
+                    : (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Ink Canvas");
+                var basePath = autoPath + @"\Auto Saved - Session";
+                try { if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath); } catch { }
+                File.WriteAllText(basePath + @"\RestartReason.txt", reason);
+            }
+            catch { }
         }
 
         private void App_DispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
@@ -134,51 +199,25 @@ namespace Ink_Canvas
             }
             catch { }
 
-            bool shouldSilentRestart = false;
-            string autoSavePath = null;
-
             try
             {
                 var mw = Application.Current?.MainWindow as Ink_Canvas.MainWindow;
                 if (mw != null)
                 {
-                    if (Ink_Canvas.MainWindow.Settings != null && Ink_Canvas.MainWindow.Settings.Advanced != null)
+                    // 复用共享逻辑：写理由 → 保存快照 → 重启。若已静默重启走 e.Handled=true 直接返回。
+                    if (TrySnapshotRestartAndExit(mw, "silent"))
                     {
-                        shouldSilentRestart = Ink_Canvas.MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash;
-                        autoSavePath = Ink_Canvas.MainWindow.Settings.Automation?.AutoSavedStrokesLocation;
-                    }
-
-                    if (shouldSilentRestart)
-                    {
-                        try { mw.SaveLastSessionSnapshot(); } catch { }
+                        e.Handled = true;
+                        return;
                     }
                 }
             }
             catch { }
 
-            if (shouldSilentRestart)
-            {
-                try
-                {
-                    if (!string.IsNullOrEmpty(autoSavePath))
-                    {
-                        var basePath = autoSavePath + @"\Auto Saved - Session";
-                        try { if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath); } catch { }
-                        var reasonPath = basePath + @"\RestartReason.txt";
-                        try { File.WriteAllText(reasonPath, "silent"); } catch { }
-                    }
-                }
-                catch { }
-
-                try { RestartApplication(); } catch { }
-                e.Handled = true;
-                return;
-            }
-
             try
             {
-                var mw = Application.Current?.MainWindow as Ink_Canvas.MainWindow;
-                if (mw != null)
+                var mw2 = Application.Current?.MainWindow as Ink_Canvas.MainWindow;
+                if (mw2 != null)
                 {
                     Ink_Canvas.MainWindow.ShowNewMessage("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", true);
                 }
