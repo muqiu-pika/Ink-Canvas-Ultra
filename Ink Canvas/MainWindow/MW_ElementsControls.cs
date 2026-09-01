@@ -67,22 +67,50 @@ namespace Ink_Canvas
 
         private void CenterAndScaleElement(FrameworkElement element)
         {
-            double maxWidth = SystemParameters.PrimaryScreenWidth / 2;
-            double maxHeight = SystemParameters.PrimaryScreenHeight / 2;
+            double elementWidth = element.Width;
+            double elementHeight = element.Height;
 
-            double scaleX = maxWidth / element.Width;
-            double scaleY = maxHeight / element.Height;
-            double scale = Math.Min(scaleX, scaleY);
+            // 尺寸无效时放弃变换：否则后续除法会产生 Infinity/NaN，
+            // 元素尺寸被污染为 NaN 后将彻底无法渲染（表现为"插入了但看不见"）。
+            if (elementWidth <= 0 || elementHeight <= 0 ||
+                double.IsNaN(elementWidth) || double.IsNaN(elementHeight))
+            {
+                return;
+            }
 
-            TransformGroup transformGroup = new TransformGroup();
-            transformGroup.Children.Add(new ScaleTransform(scale, scale));
-
+            // 画布尺寸兜底：新建页面或尚未完成布局时 ActualWidth/ActualHeight 可能为 0，
+            // 直接参与计算会使居中偏移变成负数，元素被平移到画布左上方之外而完全不可见。
             double canvasWidth = inkCanvas.ActualWidth;
             double canvasHeight = inkCanvas.ActualHeight;
-            double centerX = (canvasWidth - element.Width * scale) / 2;
-            double centerY = (canvasHeight - element.Height * scale) / 2;
+            if (canvasWidth <= 0) canvasWidth = SystemParameters.PrimaryScreenWidth;
+            if (canvasHeight <= 0) canvasHeight = SystemParameters.PrimaryScreenHeight;
 
+            // 以画布为基准缩放并留约 5% 边距，保证图片始终能放入画板内。
+            // 此前以"主屏幕一半"为基准缩放，在画板比它小或比例不同时图片会超出画板，
+            // 配合下方钳制会被顶到左上角，表现为"插入后没有居中"。
+            const double marginRatio = 0.95;
+            double maxWidth = canvasWidth * marginRatio;
+            double maxHeight = canvasHeight * marginRatio;
+
+            double scaleX = maxWidth / elementWidth;
+            double scaleY = maxHeight / elementHeight;
+            double scale = Math.Min(scaleX, scaleY);
+            if (double.IsNaN(scale) || double.IsInfinity(scale) || scale <= 0)
+            {
+                return;
+            }
+
+            // 缩放后尺寸必然不大于画布（见上式含边距），居中偏移非负，天然居中，
+            // 不再需要 Math.Max 钳制（钳制会把超出的图片顶到左上角）。
+            double centerX = (canvasWidth - elementWidth * scale) / 2;
+            double centerY = (canvasHeight - elementHeight * scale) / 2;
+
+            // 变换顺序：TransformGroup 的矩阵按 Children 顺序右乘（M = 前 × 后）。
+            // 若 Scale 在前，平移量会被再乘一次 scale（实际平移 centerX*scale），落点偏左上；
+            // 因此必须先 Translate 后 Scale，平移量才是预期的 centerX/centerY。
+            TransformGroup transformGroup = new TransformGroup();
             transformGroup.Children.Add(new TranslateTransform(centerX, centerY));
+            transformGroup.Children.Add(new ScaleTransform(scale, scale));
 
             element.RenderTransform = transformGroup;
         }

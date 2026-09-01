@@ -64,7 +64,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "Ink Canvas\bin\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; 插件（Plugins 目录）不随安装包分发：文档转照片等需要安装插件才能运行的功能已全部迁移到插件中，
 ; 用户在安装后可从「插件工坊」按需在线下载安装，从而显著减小安装包体积。
-Source: "Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Plugins"
+; 排除 *.vbs：视频展台已插件化，旧的「视频展台.vbs」启动脚本不再随包分发，
+; 改由插件启用时直接在桌面创建指向主程序（--video-presenter）的快捷方式。
+Source: "Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Plugins,*.vbs"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]
@@ -83,6 +85,15 @@ Root: HKA; Subkey: "Software\Classes\{#MyAppAssocKey2}\shell\open\command"; Valu
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autoprograms}\视频展台"; Filename: "{app}\{#MyAppExeName}"; Parameters: "--video-presenter"; WorkingDir: "{app}"; IconFilename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+
+[UninstallDelete]
+; 桌面的「视频展台」快捷方式由插件运行时创建（不属于 [Icons] 条目），
+; Inno 卸载时不会自动清理，必须在此显式删除，否则卸载后会残留一个无效快捷方式。
+; 必须用 {userdesktop} 而非 {autodesktop}：代码侧使用 Environment.SpecialFolder.Desktop（当前用户桌面），
+; 而 {autodesktop} 在管理员安装模式下会解析为公共桌面 {commondesktop}，二者不一致将导致快捷方式残留。
+Type: files; Name: "{userdesktop}\视频展台.lnk"
+; 旧版本曾随包分发「视频展台.vbs」启动脚本，此处清理升级后遗留的旧文件。
+Type: files; Name: "{app}\视频展台.vbs"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall

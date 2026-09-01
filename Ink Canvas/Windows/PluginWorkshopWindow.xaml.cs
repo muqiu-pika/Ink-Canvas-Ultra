@@ -322,7 +322,10 @@ namespace Ink_Canvas
                         if (enabledOk)
                         {
                             // 若是视频展台 plugin，在桌面创建指向软件安装位置的快捷方式
-                            TryCreateVideoPresenterDesktopShortcut(manifest);
+                            if (VideoPresenterShortcutHelper.IsVideoPresenterPlugin(manifest))
+                            {
+                                VideoPresenterShortcutHelper.Create();
+                            }
 
                             ShowInlineMessage($"plugin 已安装并启用：{manifest.Name}");
                         }
@@ -700,15 +703,19 @@ namespace Ink_Canvas
                     return;
                 }
 
+                var info = host.GetAllInstalledPlugins()
+                    .FirstOrDefault(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+
                 if (enabled)
                 {
                     // 启用前校验：主程序版本不足则拦截并提示，而不是“假启用”
-                    var info = host.GetAllInstalledPlugins()
-                        .FirstOrDefault(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
                     string required = PluginHost.GetRequiredHostVersionIfIncompatible(info?.Manifest?.MinHostVersion);
                     if (required != null)
                     {
                         ShowInlineMessage($"无法启用「{info?.Manifest?.Name ?? pluginId}」：需要主程序 ≥ {required}，请先升级软件。");
+                        // 插件仍处于禁用状态，视频展台不应残留桌面快捷方式
+                        if (VideoPresenterShortcutHelper.IsVideoPresenterPlugin(info?.Manifest))
+                            VideoPresenterShortcutHelper.Delete();
                         RefreshPluginList(silent: true); // 复位开关为实际状态
                         return;
                     }
@@ -723,6 +730,15 @@ namespace Ink_Canvas
                 {
                     ShowInlineMessage(enabled ? $"已启用 plugin：{pluginId}" : $"已禁用 plugin：{pluginId}");
                 }
+
+                // 视频展台：只有「启用且确实成功」才保留桌面快捷方式；
+                // 禁用、或启用失败（版本不兼容 / 加载异常）一律删除，避免残留点了没反应的无效入口。
+                if (VideoPresenterShortcutHelper.IsVideoPresenterPlugin(info?.Manifest))
+                {
+                    if (enabled && ok) VideoPresenterShortcutHelper.Create();
+                    else VideoPresenterShortcutHelper.Delete();
+                }
+
                 RefreshPluginList(silent: true);
             }
             catch (Exception ex)
@@ -747,7 +763,16 @@ namespace Ink_Canvas
                             ShowInlineMessage("PluginHost 未初始化");
                             return;
                         }
+                        // 卸载前先取到清单，目录删除后就读不到了
+                        var target = host.GetAllInstalledPlugins()
+                            .FirstOrDefault(p => string.Equals(p.Manifest?.Id, pluginId, StringComparison.OrdinalIgnoreCase));
+
                         bool ok = host.UninstallPlugin(pluginId);
+                        if (ok && VideoPresenterShortcutHelper.IsVideoPresenterPlugin(target?.Manifest))
+                        {
+                            // 插件已移除，同步删除桌面快捷方式
+                            VideoPresenterShortcutHelper.Delete();
+                        }
                         ShowInlineMessage(ok
                             ? $"已卸载 plugin：{displayName}"
                             : $"卸载 plugin 失败：{displayName}（可能目录被占用）");
@@ -1021,9 +1046,12 @@ namespace Ink_Canvas
             try
             {
                 // 1. 禁用插件（卸载并持久化禁用状态）
+                //    视频展台同步移除快捷方式：若后续下载/校验失败，插件将保持禁用，快捷方式也不应残留
                 if (host != null && !string.IsNullOrEmpty(pluginId))
                 {
                     host.SetPluginEnabled(pluginId, false);
+                    if (VideoPresenterShortcutHelper.IsVideoPresenterPlugin(installed.Manifest))
+                        VideoPresenterShortcutHelper.Delete();
                 }
 
                 // 2. 下载最新版本
@@ -1065,6 +1093,10 @@ namespace Ink_Canvas
                         UpdateInstallProgress(100, $"正在启用 {plugin.Name}", "加载新版本...");
                         // 校验返回值：新版插件若仍无法加载（如入口无效），不能误报"已启用"（与安装分支一致）
                         bool reEnabled = host.SetPluginEnabled(pluginId, true);
+                        // 更新前已删除快捷方式，重新启用成功后必须重建：
+                        // 否则插件处于启用态、桌面入口却消失（更新一次就丢快捷方式）。
+                        if (reEnabled && VideoPresenterShortcutHelper.IsVideoPresenterPlugin(installed.Manifest))
+                            VideoPresenterShortcutHelper.Create();
                         UpdateInstallProgress(100, $"更新 {plugin.Name} 完成",
                             reEnabled ? "插件已更新并启用" : "插件已更新，但启用失败（请检查插件与软件版本兼容性）");
                     }
@@ -1245,50 +1277,6 @@ namespace Ink_Canvas
                 }
             }
             catch { return null; }
-        }
-
-        /// <summary>
-        /// 若安装的 plugin 是视频展台，则在桌面创建快捷方式，目标指向当前软件安装位置。
-        /// </summary>
-        private static void TryCreateVideoPresenterDesktopShortcut(PluginManifest manifest)
-        {
-            if (manifest == null) return;
-
-            bool isVideoPresenter =
-                string.Equals(manifest.Id, "ink-canvas.visualpresenter", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(manifest.Name, "视频展台", StringComparison.OrdinalIgnoreCase) ||
-                (manifest.EntryPoints != null && manifest.EntryPoints.Any(ep =>
-                    string.Equals(ep?.Route, "video-presenter", StringComparison.OrdinalIgnoreCase)));
-
-            if (!isVideoPresenter) return;
-
-            try
-            {
-                string exePath = Path.Combine(App.RootPath, "Ink Canvas Ultra.exe");
-                if (!File.Exists(exePath))
-                {
-                    LogHelper.WriteLogToFile($"创建视频展台快捷方式失败：未找到主程序 {exePath}", LogHelper.LogType.Warning);
-                    return;
-                }
-
-                string desktopPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-                string shortcutPath = Path.Combine(desktopPath, "视频展台.lnk");
-
-                var shell = new IWshRuntimeLibrary.WshShell();
-                var shortcut = (IWshRuntimeLibrary.IWshShortcut)shell.CreateShortcut(shortcutPath);
-                shortcut.TargetPath = exePath;
-                shortcut.Arguments = App.VideoPresenterLaunchArgument;
-                shortcut.WorkingDirectory = App.RootPath;
-                shortcut.IconLocation = $"{exePath},0";
-                shortcut.Description = "Ink Canvas Ultra - 视频展台";
-                shortcut.Save();
-
-                LogHelper.WriteLogToFile($"视频展台桌面快捷方式已创建: {shortcutPath}", LogHelper.LogType.Event);
-            }
-            catch (Exception ex)
-            {
-                LogHelper.WriteLogToFile($"创建视频展台桌面快捷方式失败: {ex.Message}", LogHelper.LogType.Error);
-            }
         }
 
         // ===== 简易内联提示 =====

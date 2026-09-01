@@ -268,6 +268,10 @@ namespace Ink_Canvas
                 // 扫描并加载所有 plugin
                 host.LoadAll();
 
+                // 启动时单向同步视频展台桌面快捷方式：
+                // 仅在插件未安装 / 已禁用 / 版本不兼容时清理残留，插件已启用但快捷方式缺失时不重建。
+                VideoPresenterShortcutHelper.SyncOnStartup();
+
                 // 根据已安装的 plugin 显示对应入口按钮
                 UpdatePluginBasedButtonVisibility();
 
@@ -4430,7 +4434,7 @@ namespace Ink_Canvas
                 // 创建图片元素
                 var imageElement = new System.Windows.Controls.Image
                 {
-                    Source = CreateBitmapImageFromFileOrMemory(photo),
+                    Source = CreateBitmapImageFromFileOrMemory(photo, forceOnLoad: !IsDocumentPhoto(photo)),
                     Width = photo.PixelWidth,
                     Height = photo.PixelHeight,
                     Name = GeneratePhotoName(),
@@ -4613,7 +4617,7 @@ namespace Ink_Canvas
                 // 创建图片元素
                 var imageElement = new System.Windows.Controls.Image
                 {
-                    Source = CreateBitmapImageFromFileOrMemory(photo),
+                    Source = CreateBitmapImageFromFileOrMemory(photo, forceOnLoad: !IsDocumentPhoto(photo)),
                     Width = photo.PixelWidth,
                     Height = photo.PixelHeight,
                     Name = GeneratePhotoName(),
@@ -4738,7 +4742,8 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    CenterAndScaleElement(imageElement);
+                    // 非文档照片（拍照 / 视频展台拍摄）：居中缩放延后到下方布局完成后执行，
+                    // 此处只给一个左上角基准位置，避免用尚未生效的画布尺寸算出负偏移。
                     InkCanvas.SetLeft(imageElement, 0);
                     InkCanvas.SetTop(imageElement, 0);
                 }
@@ -4755,6 +4760,15 @@ namespace Ink_Canvas
                 catch (Exception ex)
                 {
                     Console.WriteLine($"照片插入后布局更新失败: {ex.Message}");
+                }
+
+                // 非文档照片：元素已入画布且布局完成，此时 ActualWidth/ActualHeight 才有效，
+                // 再据此居中缩放（此前在加入画布前计算，新建页面时画布尺寸为 0，
+                // 算出负偏移会把图片平移到画布外，表现为"画板中无任何显示"）。
+                // 文档照片的居中已由 CenterAndScaleDocumentPhoto 处理，不在此重复。
+                if (!IsDocumentPhoto(photo))
+                {
+                    CenterAndScaleElement(imageElement);
                 }
 
                 // 记录当前照片元素引用
@@ -5119,18 +5133,22 @@ namespace Ink_Canvas
             return false;
         }
 
-        private BitmapImage CreateBitmapImageFromFileOrMemory(CapturedImage photo)
+        private BitmapImage CreateBitmapImageFromFileOrMemory(CapturedImage photo, bool forceOnLoad = false)
         {
             try
             {
                 if (!string.IsNullOrEmpty(photo.FilePath) && File.Exists(photo.FilePath))
                 {
+                    // 分块照片量很大时使用 OnDemand 仅在渲染时解码像素，避免内存激增。
+                    // 单张照片插入（forceOnLoad=true）必须 OnLoad 立即完整解码并冻结：
+                    // 否则 OnDemand 会延迟到渲染线程异步解码，若插入后相机被停掉、UI 不再产生新的
+                    // 渲染失效，异步解码完成的像素就永远不会被绘制，表现就是"页面翻过去了但画板上没有照片"。
+                    BitmapCacheOption cacheOption = forceOnLoad ? BitmapCacheOption.OnLoad : BitmapCacheOption.OnDemand;
+
                     var bi = new BitmapImage();
                     bi.BeginInit();
                     bi.UriSource = new Uri(photo.FilePath, UriKind.Absolute);
-                    // OnDemand：仅在真正渲染时解码像素，且支持按需释放，
-                    // 避免大量分块照片同时保留完整像素数据导致内存激增
-                    bi.CacheOption = BitmapCacheOption.OnDemand;
+                    bi.CacheOption = cacheOption;
                     bi.EndInit();
                     bi.Freeze();
                     return bi;
@@ -5147,6 +5165,8 @@ namespace Ink_Canvas
             {
                 if (photo.Image != null && photo.Image.PixelWidth > 0)
                 {
+                    BitmapCacheOption memoryCacheOption = forceOnLoad ? BitmapCacheOption.OnLoad : BitmapCacheOption.OnDemand;
+
                     var encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(photo.Image));
                     using (var ms = new System.IO.MemoryStream())
@@ -5156,7 +5176,7 @@ namespace Ink_Canvas
                         var bi = new BitmapImage();
                         bi.BeginInit();
                         bi.StreamSource = ms;
-                        bi.CacheOption = BitmapCacheOption.OnDemand;
+                        bi.CacheOption = memoryCacheOption;
                         bi.EndInit();
                         bi.Freeze();
                         return bi;
