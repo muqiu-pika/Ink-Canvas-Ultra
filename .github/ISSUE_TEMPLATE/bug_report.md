@@ -1,22 +1,31 @@
 ---
-name: Bug report
-about: Create a report to help us improve
+name: Bug 反馈
+about: 提交一个问题报告，帮助我们改进产品
 title: ''
 labels: bug
 assignees: ''
 
 ---
 
-## Description
+## 问题描述
 
+请清晰简洁地描述你遇到的问题。
 
-## Reproduction
+## 复现步骤
 
+请列出能稳定复现该问题的步骤：
+1.
+2.
+3.
 
-## Expected behavior
+## 期望行为
 
+请描述你期望发生的行为。
 
-## Screenshots
+## 截图
 
+如果适用，请在此处粘贴相关截图以帮助说明问题。
 
-## Additional context
+## 其他信息
+
+请补充任何有助于排查问题的额外信息（例如系统版本、软件版本、错误日志等）。

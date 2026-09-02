@@ -1,10 +1,20 @@
 ---
-name: Feature request
-about: Suggest an idea for this project
+name: 功能建议
+about: 为这个项目提出一个新功能或改进建议
 title: ''
 labels: enhancement
 assignees: ''
 
 ---
 
-## Description
+## 功能描述
+
+请清晰简洁地描述你希望新增的功能或改进点。
+
+## 使用场景
+
+请说明这个功能会在什么场景下使用，解决什么实际问题。
+
+## 附加说明
+
+（可选）请补充任何相关的参考资料、截图或示例。
