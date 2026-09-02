@@ -36,6 +36,13 @@ namespace Ink_Canvas
         {
             _currentCommitType = CommitReason.ClearingCanvas;
             if (isErasedByCode) _currentCommitType = CommitReason.CodeInput;
+            // 先清空进行中的触摸/实时墨迹跟踪状态（StrokeVisualList / VisualCanvasList /
+            // TouchDownPointsList / StylusPreviewModeByDeviceId / dec 等），
+            // 再清理 inkCanvas.Children。否则 inkCanvas.Children.Clear() 会把预览 VisualCanvas
+            // 直接从可视树移除，却仍被跟踪字典引用（悬空），且 dec/isWaitUntilNextTouchDown 残留，
+            // 导致翻页/清屏后在新页写第一笔长笔画时，后半段输入被丢（断触）。
+            try { ResetTouchState(); } catch { }
+            isWaitUntilNextTouchDown = false;
             inkCanvas.Strokes.Clear();
             inkCanvas.Children.Clear();
 
