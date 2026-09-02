@@ -1491,39 +1491,28 @@ namespace Ink_Canvas
         bool isWaitUntilNextTouchDown = false;
 
         /// <summary>
-        /// 复用预览笔画，消除图形拖拽时的每帧分配与整层重绘。
-        ///
-        /// 旧实现：每次 MouseTouchMove 都 `new Stroke(point){ DrawingAttributes=Clone() }` +
-        /// `inkCanvas.Strokes.Remove(old)` + `inkCanvas.Strokes.Add(new)`。拖拽过程中每帧
-        /// 都会重建 Stroke / StylusPointCollection / DrawingAttributes，并被移出/加入 inkCanvas.Strokes，
-        /// 触发墨迹层（StrokeCollection）的增删变更通知与 StrokeVisual 重建，是图形绘制时的卡顿来源之一。
-        ///
-        /// 新实现：在单次拖拽（drawingShapeMode 不变、且本方法在图形提交时被外部置空 lastTempStroke）内，
-        /// 复用同一个 Stroke 对象，仅原地替换其 StylusPoints / DrawingAttributes。stroke 入参仅用于读取几何，
-        /// 不会被加入 inkCanvas.Strokes，真正的可见对象始终是同一个持久 Stroke。
+        /// 预览单笔图形。每帧先移除上一个预览笔画，再添加新生成的笔画，
+        /// 保证 InkCanvas 正确重建/重绘预览视觉（原地改 StylusPoints 不会刷新已显示笔画）。
         /// </summary>
         private void PreviewSingleStroke(Stroke stroke)
         {
             if (stroke == null) return;
-            if (lastTempStroke == null)
+            // 复用旧实现：每帧移除上一个预览笔画，再添加新生成的笔画，
+            // 确保 InkCanvas 正确重建/重绘该笔画的视觉（原地改 StylusPoints 不会刷新已显示笔画，
+            // 导致矩形/椭圆等多点图形拖拽时残影、变成无法识别的形状）。
+            try
             {
-                lastTempStroke = stroke;
-                inkCanvas.Strokes.Add(lastTempStroke);
+                inkCanvas.Strokes.Remove(lastTempStroke);
             }
-            else
-            {
-                lastTempStroke.StylusPoints = stroke.StylusPoints;
-                if (stroke.DrawingAttributes != null)
-                {
-                    lastTempStroke.DrawingAttributes = stroke.DrawingAttributes;
-                }
-            }
+            catch { }
+
+            lastTempStroke = stroke;
+            inkCanvas.Strokes.Add(lastTempStroke);
         }
 
         /// <summary>
-        /// 多笔预览的复用版本（见 <see cref="PreviewSingleStroke"/> 的说明）。
-        /// 复用同一个 StrokeCollection 容器：首次创建并加入画布，之后仅 Clear + 重新加入本帧几何，
-        /// 不再对 inkCanvas.Strokes 做 Remove/Add，避免整层墨迹集合的增删通知与重绘。
+        /// 预览多笔图形。每帧先移除上一个预览笔画集合，再添加新生成的集合，
+        /// 保证 InkCanvas 正确重建/重绘预览视觉。
         ///
         /// 注意：跨步图形（hyperbola / cuboid / tetrahedron）在步间依赖「移除上一步集合、添加新集合」的语义，
         /// 且其提交逻辑会直接引用 lastTempStrokeCollection，故这些 case 不调用本方法，保留原逻辑。
@@ -1531,19 +1520,16 @@ namespace Ink_Canvas
         private void PreviewMultiStroke(StrokeCollection strokes)
         {
             if (strokes == null) return;
-            if (lastTempStrokeCollection == null)
+            // 复用旧实现：每帧移除上一个预览笔画集合，再添加新生成的集合。
+            // 与 PreviewSingleStroke 同理，原地 Clear+Add 无法可靠刷新 InkCanvas 已显示的多笔视觉。
+            try
             {
-                lastTempStrokeCollection = strokes;
-                inkCanvas.Strokes.Add(lastTempStrokeCollection);
+                inkCanvas.Strokes.Remove(lastTempStrokeCollection);
             }
-            else
-            {
-                lastTempStrokeCollection.Clear();
-                foreach (var s in strokes)
-                {
-                    lastTempStrokeCollection.Add(s);
-                }
-            }
+            catch { }
+
+            lastTempStrokeCollection = strokes;
+            inkCanvas.Strokes.Add(strokes);
         }
 
         private List<System.Windows.Point> GenerateEllipseGeometry(System.Windows.Point st, System.Windows.Point ed, bool isDrawTop = true, bool isDrawBottom = true)
