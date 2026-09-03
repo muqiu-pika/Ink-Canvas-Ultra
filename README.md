@@ -124,21 +124,21 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 ## 🔄 版本信息
 
-当前版本：**V26.8.1**
+当前版本：**V26.9.1**
 
 ### 版本号命名规则（2026/8/30 起）
 
 从 **2026/8/30** 开始，版本号统一采用 **年份 + 月份 + 当月第几个版本** 的三段式命名：
 
 ```
-26.8.1
+26.9.1
 │  │  └── 当月第 1 个版本
-│  └───── 8 月
+│  └───── 9 月
 └──────── 2026 年
 ```
 
-- `26.8.1` = 2026 年 8 月的第 1 个版本
-- `26.8.2` = 2026 年 8 月的第 2 个版本
+- `26.9.1` = 2026 年 9 月的第 1 个版本
+- `26.9.2` = 2026 年 9 月的第 2 个版本
 - `26.10.1` = 2026 年 10 月的第 1 个版本（月份不补零，跨月/跨年时按数值递增）
 - 2026/8/30 之前的旧版本号（`8.0.2` 及更早）不再沿用此规则
 
@@ -146,16 +146,16 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 | 文件 | 字段 | 示例值 |
 | --- | --- | --- |
-| `AutomaticUpdateVersionControl.txt` | 全文 | `26.8.1` |
-| `Ink Canvas/Properties/AssemblyInfo.cs` | `AssemblyVersion` / `AssemblyFileVersion` | `26.8.1.0`（末段固定为 0） |
-| `Ink Canvas.csproj`（根目录，AnyCPU） | `ApplicationVersion` | `26.8.1.%2a` |
-| `Ink Canvas/Ink Canvas.csproj`（x86） | `ApplicationVersion` | `26.8.1.%2a` |
-| `Ink Canvas/app.manifest` | `assemblyIdentity version` | `26.8.1.0` |
-| `Ink Canvas Ultra-AnyCPU.iss` | `MyAppVersion` | `26.8.1` |
-| `README.md` | 当前版本 | `V26.8.1` |
+| `AutomaticUpdateVersionControl.txt` | 全文 | `26.9.1` |
+| `Ink Canvas/Properties/AssemblyInfo.cs` | `AssemblyVersion` / `AssemblyFileVersion` | `26.9.1.0`（末段固定为 0） |
+| `Ink Canvas.csproj`（根目录，AnyCPU） | `ApplicationVersion` | `26.9.1.%2a` |
+| `Ink Canvas/Ink Canvas.csproj`（x86） | `ApplicationVersion` | `26.9.1.%2a` |
+| `Ink Canvas/app.manifest` | `assemblyIdentity version` | `26.9.1.0` |
+| `Ink Canvas Ultra-AnyCPU.iss` | `MyAppVersion` | `26.9.1` |
+| `README.md` | 当前版本 | `V26.9.1` |
 
 > 安装包由 Inno Setup 脚本按 `Ink.Canvas.Ultra.V{版本}.Setup.exe` 命名产出
-> （例如 `Ink.Canvas.Ultra.V26.8.1.Setup.exe`）。发布 Release 时，
-> **tag 必须为 `v26.8.1`、安装包文件名必须完全一致**，否则自动更新下载会 404。
+> （例如 `Ink.Canvas.Ultra.V26.9.1.Setup.exe`）。发布 Release 时，
+> **tag 必须为 `v26.9.1`、安装包文件名必须完全一致**，否则自动更新下载会 404。
 
 完整更新日志请访问：https://doc.muqiu.eu.org/article/changelog/

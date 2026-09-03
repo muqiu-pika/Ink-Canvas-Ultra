@@ -24,7 +24,7 @@ namespace Ink_Canvas.Helpers
         }
 
         /// <summary>
-        /// 供界面展示的版本号（三段式，如 26.8.1）。
+        /// 供界面展示的版本号（三段式，如 26.9.1）。
         /// </summary>
         public static string GetDisplayVersion()
         {
@@ -93,7 +93,7 @@ namespace Ink_Canvas.Helpers
                 remote = NormalizeToThreeParts(remote);
 
                 // 必须按 Version（逐段数值）比较，不能按字符串比较：
-                // 字符串比较下 "26.8.1" < "8.0.2"，会把新版本误判成旧版本。
+                // 字符串比较下 "26.9.1" < "8.0.2"，会把新版本误判成旧版本。
                 if (remote > local)
                 {
                     LogHelper.WriteLogToFile("AutoUpdate | New version Available: " + remoteVersion);
