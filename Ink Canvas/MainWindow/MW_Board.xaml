@@ -490,7 +490,7 @@
 
                     </Grid.Resources>
 
-                    <ikw:SimpleStackPanel Orientation="Horizontal">
+                    <ikw:SimpleStackPanel x:Name="BoardToolsPanel" Orientation="Horizontal">
 
 
 
@@ -1496,6 +1496,8 @@
                                                                             VerticalAlignment="Center"
 
                                                                             Content="笔尖模式"
+
+                                                                            Foreground="{DynamicResource BoardBarForeground}"
 
                                                                             FontSize="15" />
 

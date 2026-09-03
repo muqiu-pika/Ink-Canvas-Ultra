@@ -679,6 +679,8 @@
 
                                                                             Content="笔尖模式"
 
+                                                                            Foreground="{DynamicResource FloatBarForeground}"
+
                                                                             FontSize="15" />
 
                                                                         <ui:ToggleSwitch

@@ -89,7 +89,13 @@ namespace Ink_Canvas
 
         private void TimerCheckAutoFold_Elapsed(object sender, ElapsedEventArgs e)
         {
-            if (isFloatingBarChangingHideMode) return;
+            if (isFloatingBarChangingHideMode)
+            {
+                // 自愈：收起/展开锁应只持续一两秒；若超时仍未复位（如异常导致），
+                // 强制解锁，确保关闭 seewo 视频展台等外部窗口后仍能自动展开。
+                if (Environment.TickCount - _floatingBarHideModeChangeTick < 3000) return;
+                isFloatingBarChangingHideMode = false;
+            }
             try
             {
                 string windowProcessName = ForegroundWindowInfo.ProcessName();

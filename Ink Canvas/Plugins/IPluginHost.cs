@@ -152,6 +152,24 @@ namespace Ink_Canvas.Plugins
         /// <summary>注销之前注册的设置面板工厂。</summary>
         void UnregisterSettingsPanel();
 
+        // ===== 工具栏按钮排序 =====
+
+        /// <summary>
+        /// 获取当前可重排的工具栏分组（浮动工具栏 / 白板工具栏）。
+        /// 每个分组列出可在一个条带内调整顺序的功能按钮。
+        /// </summary>
+        IReadOnlyList<ToolbarReorderGroup> GetReorderableToolbarGroups();
+
+        /// <summary>
+        /// 将指定工具栏的功能按钮调整为给定的顺序（立即生效）。
+        /// orderedItemIds 必须是该分组当前按钮标识的一个完整排列（不增不减、不重复），
+        /// 否则视为无效并返回 false（不产生任何改动）。
+        /// </summary>
+        bool ApplyToolbarOrder(string placement, IReadOnlyList<string> orderedItemIds);
+
+        /// <summary>将指定工具栏恢复为默认按钮顺序。</summary>
+        void ResetToolbarPlacement(string placement);
+
         // ===== 事件订阅 =====
 
         /// <summary>主程序即将退出</summary>
@@ -199,5 +217,35 @@ namespace Ink_Canvas.Plugins
     {
         /// <summary>受影响的元素（若批量操作则为首个元素）</summary>
         public UIElement Element { get; set; }
+    }
+
+    /// <summary>
+    /// 工具栏分组内可重排的单个功能按钮。
+    /// </summary>
+    public class ToolbarReorderItem
+    {
+        /// <summary>稳定标识（功能按钮的唯一 id，跨重启保持不变）。</summary>
+        public string Id { get; set; }
+
+        /// <summary>用户可见名称（优先取按钮 ToolTip，否则用主程序映射的中文名）。</summary>
+        public string DisplayName { get; set; }
+
+        /// <summary>默认（原始）顺序下标，用于「恢复默认」排序。</summary>
+        public int DefaultIndex { get; set; }
+    }
+
+    /// <summary>
+    /// 一个可重排的工具栏分组（一个条带条）。
+    /// </summary>
+    public class ToolbarReorderGroup
+    {
+        /// <summary>分组成员标识：<c>float-bar</c>（浮动工具栏）或 <c>board-toolbar</c>（白板工具栏）。</summary>
+        public string Placement { get; set; }
+
+        /// <summary>分组展示名称（如「浮动工具栏」）。</summary>
+        public string Name { get; set; }
+
+        /// <summary>分组内可重排的功能按钮列表（按当前顺序）。</summary>
+        public IReadOnlyList<ToolbarReorderItem> Items { get; set; }
     }
 }

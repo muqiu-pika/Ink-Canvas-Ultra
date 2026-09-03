@@ -383,6 +383,25 @@ namespace Ink_Canvas.Plugins
             catch { }
         }
 
+        // ===== 工具栏按钮排序 =====
+
+        public IReadOnlyList<ToolbarReorderGroup> GetReorderableToolbarGroups()
+        {
+            try { return _opts.GetReorderableToolbarGroups?.Invoke() ?? new List<ToolbarReorderGroup>(); } catch { }
+            return new List<ToolbarReorderGroup>();
+        }
+
+        public bool ApplyToolbarOrder(string placement, IReadOnlyList<string> orderedItemIds)
+        {
+            try { return _opts.ApplyToolbarOrder?.Invoke(placement, orderedItemIds) ?? false; } catch { }
+            return false;
+        }
+
+        public void ResetToolbarPlacement(string placement)
+        {
+            try { _opts.ResetToolbarPlacement?.Invoke(placement); } catch { }
+        }
+
         // ===== 快捷键重绑定 =====
 
         public IReadOnlyList<HotkeyActionInfo> GetHotkeyActions()
@@ -994,6 +1013,9 @@ namespace Ink_Canvas.Plugins
         public Func<string, bool> HasCapturedPhotoForFile { get; set; }
         public Action<UIElement> RegisterSelectionControlBar { get; set; }
         public Action<UIElement> UnregisterSelectionControlBar { get; set; }
+        public Func<IReadOnlyList<ToolbarReorderGroup>> GetReorderableToolbarGroups { get; set; }
+        public Func<string, IReadOnlyList<string>, bool> ApplyToolbarOrder { get; set; }
+        public Action<string> ResetToolbarPlacement { get; set; }
         public Func<IReadOnlyList<HotkeyActionInfo>> GetHotkeyActions { get; set; }
         public Func<string, string, bool> SetHotkey { get; set; }
         public Func<string, bool> ResetHotkey { get; set; }

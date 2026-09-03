@@ -1567,7 +1567,7 @@
 
                                         Value="80" />
 
-                                    <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=AutoStraightenLineThresholdSlider, StringFormat={}{0:F0}}" />
+                                    <TextBlock Width="40" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=AutoStraightenLineThresholdSlider, StringFormat={}{0:F0}px}" />
 
                                 </StackPanel>
 
@@ -1631,7 +1631,7 @@
 
                                         Value="15" />
 
-                                    <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=LineEndpointSnappingThresholdSlider, StringFormat={}{0:F0}}" />
+                                    <TextBlock Width="40" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=LineEndpointSnappingThresholdSlider, StringFormat={}{0:F0}px}" />
 
                                 </StackPanel>
 
@@ -1673,7 +1673,7 @@
 
                                         Value="600" />
 
-                                    <TextBlock Width="50" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=StopTimingThresholdMsSlider, StringFormat={}{0:F0}}" />
+                                    <TextBlock Width="50" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=StopTimingThresholdMsSlider, StringFormat={}{0:F0}ms}" />
 
                                 </StackPanel>
 
@@ -1695,7 +1695,7 @@
 
                                         Value="5" />
 
-                                    <TextBlock Width="35" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=StopTimingErrorSlider, StringFormat={}{0:F0}}" />
+                                    <TextBlock Width="40" Margin="10,0,0,8" HorizontalAlignment="Right" VerticalAlignment="Bottom" FontSize="14" Text="{Binding Value, ElementName=StopTimingErrorSlider, StringFormat={}{0:F0}px}" />
 
                                 </StackPanel>
 
@@ -1856,7 +1856,7 @@
 
                                             FontSize="14"
 
-                                            Text="{Binding Value, ElementName=SliderFloatingBarScale, StringFormat={}{0:F0}}" />
+                                            Text="{Binding Value, ElementName=SliderFloatingBarScale, StringFormat={}{0:F0}%}" />
 
                                     </StackPanel>
 
@@ -1960,7 +1960,7 @@
 
                                             FontSize="14"
 
-                                            Text="{Binding Value, ElementName=SliderFloatingBarBottomMargin, StringFormat={}{0:F0}}" />
+                                            Text="{Binding Value, ElementName=SliderFloatingBarBottomMargin, StringFormat={}{0:F0}px}" />
 
                                     </StackPanel>
 
@@ -2072,7 +2072,7 @@
 
                                             FontSize="14"
 
-                                            Text="{Binding Value, ElementName=SliderBlackboardScale, StringFormat={}{0:F0}}" />
+                                            Text="{Binding Value, ElementName=SliderBlackboardScale, StringFormat={}{0:F0}%}" />
 
                                     </StackPanel>
 
@@ -2758,7 +2758,7 @@
 
                                         FontSize="14"
 
-                                        Text="{Binding Value, ElementName=TouchMultiplierSlider, Mode=OneWay}"
+                                        Text="{Binding Value, ElementName=TouchMultiplierSlider, StringFormat={}{0:F2}×}"
 
                                         Visibility="{Binding Path=Visibility, ElementName=TouchMultiplierSlider, Mode=OneWay}" />
 
@@ -2908,7 +2908,7 @@
 
                                         FontSize="14"
 
-                                        Text="{Binding Value, ElementName=NibModeBoundsWidthSlider, Mode=OneWay}" />
+                                        Text="{Binding Value, ElementName=NibModeBoundsWidthSlider, StringFormat={}{0:F0}px}" />
 
                                 </StackPanel>
 
@@ -2948,7 +2948,7 @@
 
                                         FontSize="14"
 
-                                        Text="{Binding Value, ElementName=FingerModeBoundsWidthSlider, Mode=OneWay}" />
+                                        Text="{Binding Value, ElementName=FingerModeBoundsWidthSlider, StringFormat={}{0:F0}px}" />
 
                                 </StackPanel>
 

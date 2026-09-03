@@ -276,6 +276,13 @@ namespace Ink_Canvas
                 ToggleSwitchEnableRectangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeRectangle;
                 ToggleSwitchEnableCircleRecognition.IsOn = Settings.InkToShape.IsInkToShapeCircle;
 
+                // 让浮动栏 / 白板模式下的墨迹识别主开关也与设置保持一致，
+                // 避免启动时左右两处开关停留在默认状态而与设置不同步。
+                if (ToggleSwitchEnableInkToShapeFloatBar != null)
+                    ToggleSwitchEnableInkToShapeFloatBar.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
+                if (ToggleSwitchEnableInkToShapeBoard != null)
+                    ToggleSwitchEnableInkToShapeBoard.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
+
                 LineStraightenSensitivitySlider.Value = Settings.InkToShape.LineStraightenSensitivity;
             }
             // 根据主开关初始化子开关的可见性与状态
@@ -725,6 +732,11 @@ namespace Ink_Canvas
                 {
                     ToggleSwitchEnableInkToShape.IsOn = false;
                 }
+                // 重置后同时同步浮动栏 / 白板主开关，避免三处状态不一致
+                if (ToggleSwitchEnableInkToShapeFloatBar != null)
+                    ToggleSwitchEnableInkToShapeFloatBar.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
+                if (ToggleSwitchEnableInkToShapeBoard != null)
+                    ToggleSwitchEnableInkToShapeBoard.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
             }
             else
             {

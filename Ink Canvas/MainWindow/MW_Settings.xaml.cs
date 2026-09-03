@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Ink;
+using System.Windows.Media;
 using iNKORE.UI.WPF.Modern;
 using Ink_Canvas.Helpers;
 
@@ -36,6 +37,11 @@ namespace Ink_Canvas
                     PhotoClarityDpiValueText.Text = dpi.ToString();
             }
             catch { }
+
+            // 触控优化：将本窗口内所有滑块设为 IsMoveToPointEnabled，
+            // 触屏上轻触轨道即可让缩略块跳到触点并跟随拖动，无需精确抓取极小缩略块。
+            // 仅设置该行为属性，不改模板/外观，外观与之前完全一致。
+            SetTouchFriendlySliders(this);
 
             // 将重量级设置填充（数百个控件赋值 + ApplyScaling 等）推迟到窗口首次绘制之后执行，
             // 这样点击设置后窗口会立即出现（此时透明），主线程不会被长时间占用而导致卡顿；
@@ -82,6 +88,87 @@ namespace Ink_Canvas
             }
 
             method.Invoke(window, args);
+        }
+
+        /// <summary>
+        /// 触控优化：把指定视觉子树中的所有 Slider 设为 IsMoveToPointEnabled=True，
+        /// 并禁用触摸"长按手势/轻拂"（否则按住滑块会被识别成长按/轻拂而无法拖动）。
+        /// 滑块按住期间会暂时关闭所在 ScrollViewer 的触摸平移，避免整页上下滑动抢占拖拽。
+        /// 仅设属性/事件，不改模板与外观。
+        /// </summary>
+        private static void SetTouchFriendlySliders(DependencyObject root)
+        {
+            try
+            {
+                int count = VisualTreeHelper.GetChildrenCount(root);
+                for (int i = 0; i < count; i++)
+                {
+                    var child = VisualTreeHelper.GetChild(root, i);
+                    if (child is Slider slider)
+                    {
+                        ConfigureTouchSlider(slider);
+                    }
+                    SetTouchFriendlySliders(child);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 为单个 Slider 配置触控拖动：关闭长按/轻拂手势，扩大命中区，
+        /// 并在按住期间屏蔽所在滚动容器的触摸平移（防止整页上下滑动）。
+        /// </summary>
+        private static void ConfigureTouchSlider(Slider slider)
+        {
+            slider.IsMoveToPointEnabled = true;
+            slider.MinHeight = 36; // 扩大轨道可点/可拖区域，便于手指命中
+            Stylus.SetIsPressAndHoldEnabled(slider, false); // 手指按住即可流畅拖动，不被长按手势拦截
+            Stylus.SetIsFlicksEnabled(slider, false);       // 避免横向拖拽被识别成"轻拂"手势
+
+            slider.PreviewStylusDown += Slider_PressStart;
+            slider.PreviewStylusUp += Slider_PressEnd;
+            slider.StylusUp += Slider_PressEnd;
+            slider.LostStylusCapture += Slider_PressEnd;
+        }
+
+        private static void Slider_PressStart(object sender, StylusEventArgs e)
+        {
+            try
+            {
+                var slider = sender as Slider;
+                if (slider == null) return;
+                var sv = FindAncestorScrollViewer(slider);
+                if (sv == null) return;
+                // 记录本次按住前的平移模式，把手抬起/捕获丢失后再恢复
+                if (slider.Tag == null) slider.Tag = sv.PanningMode;
+                sv.PanningMode = PanningMode.None; // 屏蔽触摸平移，避免整页上下滑动抢占拖拽
+            }
+            catch { }
+        }
+
+        private static void Slider_PressEnd(object sender, StylusEventArgs e)
+        {
+            try
+            {
+                var slider = sender as Slider;
+                if (slider == null) return;
+                var sv = FindAncestorScrollViewer(slider);
+                if (sv == null || slider.Tag == null) return;
+                sv.PanningMode = (PanningMode)slider.Tag; // 恢复滚动容器的触摸平移
+                slider.Tag = null;
+            }
+            catch { }
+        }
+
+        private static ScrollViewer FindAncestorScrollViewer(DependencyObject obj)
+        {
+            var cur = obj as DependencyObject;
+            while (cur != null)
+            {
+                if (cur is ScrollViewer sv) return sv;
+                cur = VisualTreeHelper.GetParent(cur) ?? LogicalTreeHelper.GetParent(cur);
+            }
+            return null;
         }
 
         private void AutoSavedStrokesLocationButton_Click(object sender, RoutedEventArgs e)

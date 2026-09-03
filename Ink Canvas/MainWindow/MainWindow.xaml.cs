@@ -242,6 +242,19 @@ namespace Ink_Canvas
                     ResumeHotkeys = () =>
                     {
                         Dispatcher.Invoke(() => HotkeyService.ResumeAll());
+                    },
+                    // 工具栏按钮排序（供「工具栏按钮排序」插件调用）
+                    GetReorderableToolbarGroups = () =>
+                    {
+                        return Dispatcher.Invoke((Func<IReadOnlyList<Plugins.ToolbarReorderGroup>>)BuildToolbarReorderGroups);
+                    },
+                    ApplyToolbarOrder = (placement, orderedIds) =>
+                    {
+                        return Dispatcher.Invoke(() => ApplyToolbarOrderInternal(placement, orderedIds));
+                    },
+                    ResetToolbarPlacement = (placement) =>
+                    {
+                        Dispatcher.Invoke(() => ResetToolbarPlacementInternal(placement));
                     }
                 };
 
@@ -950,6 +963,76 @@ namespace Ink_Canvas
             return false;
         }
 
+        /// <summary>
+        /// 触控优化：把指定视觉子树中的所有 Slider 设为 IsMoveToPointEnabled=True，
+        /// 并禁用触摸"长按手势/轻拂"（否则按住滑块会被识别成长按/轻拂而无法拖动）。
+        /// 滑块按住期间会暂时关闭所在 ScrollViewer 的触摸平移，避免整页上下滑动抢占拖拽。
+        /// 仅设属性/事件，不改模板与外观。
+        /// </summary>
+        private static void SetTouchFriendlySliders(DependencyObject root)
+        {
+            try
+            {
+                int count = VisualTreeHelper.GetChildrenCount(root);
+                for (int i = 0; i < count; i++)
+                {
+                    var child = VisualTreeHelper.GetChild(root, i);
+                    if (child is Slider slider)
+                    {
+                        slider.IsMoveToPointEnabled = true;
+                        slider.MinHeight = 36;
+                        Stylus.SetIsPressAndHoldEnabled(slider, false);
+                        Stylus.SetIsFlicksEnabled(slider, false);
+                        slider.PreviewStylusDown += Slider_PressStart;
+                        slider.PreviewStylusUp += Slider_PressEnd;
+                        slider.StylusUp += Slider_PressEnd;
+                        slider.LostStylusCapture += Slider_PressEnd;
+                    }
+                    SetTouchFriendlySliders(child);
+                }
+            }
+            catch { }
+        }
+
+        private static void Slider_PressStart(object sender, StylusEventArgs e)
+        {
+            try
+            {
+                var slider = sender as Slider;
+                if (slider == null) return;
+                var sv = FindAncestorScrollViewer(slider);
+                if (sv == null) return;
+                if (slider.Tag == null) slider.Tag = sv.PanningMode;
+                sv.PanningMode = PanningMode.None; // 屏蔽触摸平移，避免整页上下滑动抢占拖拽
+            }
+            catch { }
+        }
+
+        private static void Slider_PressEnd(object sender, StylusEventArgs e)
+        {
+            try
+            {
+                var slider = sender as Slider;
+                if (slider == null) return;
+                var sv = FindAncestorScrollViewer(slider);
+                if (sv == null || slider.Tag == null) return;
+                sv.PanningMode = (PanningMode)slider.Tag;
+                slider.Tag = null;
+            }
+            catch { }
+        }
+
+        private static ScrollViewer FindAncestorScrollViewer(DependencyObject obj)
+        {
+            var cur = obj as DependencyObject;
+            while (cur != null)
+            {
+                if (cur is ScrollViewer sv) return sv;
+                cur = VisualTreeHelper.GetParent(cur) ?? LogicalTreeHelper.GetParent(cur);
+            }
+            return null;
+        }
+
         private void RecoverFromInputDeviceChange()
         {
             LogHelper.WriteLogToFile("Input device change detected, starting recovery...", LogHelper.LogType.Info);
@@ -1094,6 +1177,10 @@ namespace Ink_Canvas
 
             // 注册触摸窗口以确保触摸事件正常工作
             TouchLockFix.ReRegisterTouchWindow(this);
+
+            // 触控优化：主界面（含浮动栏、白板等内嵌控件）中所有滑块支持点击轨道即定位，
+            // 触屏上便于直接拖动，免去精确抓取极小缩略块。仅设属性，不改外观。
+            SetTouchFriendlySliders(this);
 
             // 启动后提示是否恢复上次会话
             PromptRestoreLastSessionOnStartup();
