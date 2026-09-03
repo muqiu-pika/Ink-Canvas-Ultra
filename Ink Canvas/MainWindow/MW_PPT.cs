@@ -1,6 +1,7 @@
 using Ink_Canvas.Helpers;
 using Microsoft.Office.Interop.PowerPoint;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -221,7 +222,6 @@ namespace Ink_Canvas
                         bool gotCount = await RetryComAsync(() =>
                         {
                             slidescount = slides.Count;
-                            memoryStreams = new MemoryStream[slidescount + 2];
                         }, 4, 150);
                         if (!gotCount) return;
                         // 获得当前选中的幻灯片
@@ -244,7 +244,7 @@ namespace Ink_Canvas
                     }
                 }
 
-                if (pptApplication == null) return;
+                if (pptApplication == null || presentation == null || slides == null) return;
 
                 // 跳转到上次播放页
                         if (Settings.PowerPointSettings.IsNotifyPreviousPage)
@@ -255,7 +255,7 @@ namespace Ink_Canvas
                                 string folderPath = System.IO.Path.Combine(
                                     Settings.Automation.AutoSavedStrokesLocation,
                                     "Auto Saved - Presentations",
-                                    safePresentationName + "_" + presentation.Slides.Count);
+                                    safePresentationName);
                                 try
                                 {
                                     if (File.Exists(folderPath + "/Position"))
@@ -413,6 +413,10 @@ namespace Ink_Canvas
         int currentShowPosition = -1;
         private void PptApplication_SlideShowBegin(SlideShowWindow Wn)
         {
+            // 幂等保护：已在放映中则忽略重复的进入事件/定时器重连触发，
+            // 避免把进入放映后所画的当前页笔迹误当作桌面批注备份而被清除/还原。
+            if (_isPptSlideShowActive) return;
+
             if (Settings.Automation.IsAutoFoldInPPTSlideShow && !isFloatingBarFolded)
             {
                 FoldFloatingBar_Click(null, null);
@@ -425,6 +429,7 @@ namespace Ink_Canvas
             LogHelper.WriteLogToFile("PowerPoint Application Slide Show Begin", LogHelper.LogType.Event);
             Application.Current.Dispatcher.Invoke(() =>
             {
+                _isPptSlideShowActive = true;
                 ResetTouchState();
 
                 // 确保备份的笔迹是独立的，不会被后续操作影响
@@ -480,7 +485,9 @@ namespace Ink_Canvas
 
                 slidescount = Wn.Presentation.Slides.Count;
                 previousSlideID = 0;
-                memoryStreams = new MemoryStream[slidescount + 2];
+                currentSlideID = 0;
+                _strokeCacheBySlideId.Clear();
+                RebuildSlideIdMapping(Wn.Presentation.Slides);
 
                 pptName = Wn.Presentation.Name;
                 LogHelper.NewLog("Name: " + Wn.Presentation.Name);
@@ -490,34 +497,24 @@ namespace Ink_Canvas
                 if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
                 {
                     string safePresentationName = SanitizePathSegment(Wn.Presentation.Name);
-                    string folderPath = System.IO.Path.Combine(
+                    string folderBase = System.IO.Path.Combine(
                         Settings.Automation.AutoSavedStrokesLocation,
                         "Auto Saved - Presentations",
-                        safePresentationName + "_" + Wn.Presentation.Slides.Count);
-                    if (Directory.Exists(folderPath))
+                        safePresentationName);
+                    if (Directory.Exists(folderBase))
                     {
                         LogHelper.WriteLogToFile("Found saved strokes", LogHelper.LogType.Trace);
-                        var directory = new DirectoryInfo(folderPath);
-                        FileInfo[] files = directory.GetFiles();
-                        int count = 0;
-                        foreach (FileInfo file in files)
-                        {
-                            if (file.Name != "Position")
-                            {
-                                int i = -1;
-                                try
-                                {
-                                    i = int.Parse(System.IO.Path.GetFileNameWithoutExtension(file.Name));
-                                    memoryStreams[i] = new MemoryStream(File.ReadAllBytes(file.FullName)) { Position = 0 };
-                                    count++;
-                                }
-                                catch (Exception ex)
-                                {
-                                    LogHelper.WriteLogToFile(string.Format("Failed to load strokes on Slide {0}\n{1}", i, ex.ToString()), LogHelper.LogType.Error);
-                                }
-                            }
-                        }
+                        int count = LoadStrokeCacheFromFolder(folderBase);
                         LogHelper.WriteLogToFile(string.Format("Loaded {0} saved strokes", count.ToString()));
+                    }
+                    else
+                    {
+                        // 兼容旧版目录「名称_页数」：仅当新目录不存在时，将旧目录按位置迁移到当前 SlideID。
+                        string legacyPath = folderBase + "_" + Wn.Presentation.Slides.Count;
+                        if (Directory.Exists(legacyPath))
+                        {
+                            ImportLegacyPositionStrokes(legacyPath, Wn.Presentation.Slides);
+                        }
                     }
                 }
 
@@ -577,10 +574,13 @@ namespace Ink_Canvas
                 try
                 {
                     int currentSlideIndex = Wn.View.CurrentShowPosition;
-                    if (currentSlideIndex > 0 && currentSlideIndex < memoryStreams.Length && memoryStreams[currentSlideIndex] != null && memoryStreams[currentSlideIndex].Length > 0)
+                    int slideId = GetSlideIdForPosition(currentSlideIndex, Wn);
+                    currentSlideID = slideId;
+                    MemoryStream initialMs = GetCachedStrokes(slideId, currentSlideIndex);
+                    if (initialMs != null && initialMs.Length > 0)
                     {
-                        memoryStreams[currentSlideIndex].Position = 0;
-                        inkCanvas.Strokes.Add(new StrokeCollection(memoryStreams[currentSlideIndex]));
+                        initialMs.Position = 0;
+                        inkCanvas.Strokes.Add(new StrokeCollection(initialMs));
                     }
                     currentShowPosition = currentSlideIndex;
                     previousSlideID = currentSlideIndex;
@@ -627,10 +627,11 @@ namespace Ink_Canvas
             if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
             {
                 string safePresentationName = SanitizePathSegment(Pres.Name);
+                // 自动保存目录不再附加页数，插入/删除页后目录名不变，笔迹不会因页数变化而丢失。
                 string folderPath = System.IO.Path.Combine(
                     Settings.Automation.AutoSavedStrokesLocation,
                     "Auto Saved - Presentations",
-                    safePresentationName + "_" + Pres.Slides.Count);
+                    safePresentationName);
                 if (!Directory.Exists(folderPath))
                 {
                     Directory.CreateDirectory(folderPath);
@@ -647,53 +648,18 @@ namespace Ink_Canvas
                         MemoryStream ms = new MemoryStream();
                         inkCanvas.Strokes.Save(ms);
                         ms.Position = 0;
-                        memoryStreams[currentShowPosition] = ms;
+                        _strokeCacheBySlideId[GetStrokeCacheKey(currentSlideID, currentShowPosition)] = ms;
                     }
                     catch { }
                 });
-                for (int i = 1; i <= Pres.Slides.Count; i++)
-                {
-                    if (memoryStreams[i] != null)
-                    {
-                        try
-                        {
-                            string baseFilePath = folderPath + @"\" + i.ToString("0000");
-                            string icartFilePath = baseFilePath + ".icart";
-                            string icstkFilePath = baseFilePath + ".icstk";
-
-                            if (memoryStreams[i].Length > 8)
-                            {
-                                byte[] srcBuf = new byte[memoryStreams[i].Length];
-                                int byteLength = memoryStreams[i].Read(srcBuf, 0, srcBuf.Length);
-
-                                if (File.Exists(icartFilePath))
-                                {
-                                    File.WriteAllBytes(icartFilePath, srcBuf);
-                                    LogHelper.WriteLogToFile(string.Format("Saved strokes for Slide {0} as .icart, size={1}, byteLength={2}", i.ToString(), memoryStreams[i].Length, byteLength));
-                                }
-                                else
-                                {
-                                    File.WriteAllBytes(icstkFilePath, srcBuf);
-                                    LogHelper.WriteLogToFile(string.Format("Saved strokes for Slide {0} as .icstk, size={1}, byteLength={2}", i.ToString(), memoryStreams[i].Length, byteLength));
-                                }
-                            }
-                            else
-                            {
-                                File.Delete(icartFilePath);
-                                File.Delete(icstkFilePath);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            LogHelper.WriteLogToFile(string.Format("Failed to save strokes for Slide {0}\n{1}", i, ex.ToString()), LogHelper.LogType.Error);
-                            File.Delete(folderPath + @"\" + i.ToString("0000") + ".icstk");
-                        }
-                    }
-                }
+                // 保存前按当前演示文稿重建 SlideID 映射，再按 SlideID 写盘。
+                try { RebuildSlideIdMapping(Pres.Slides); } catch { }
+                SaveStrokeCacheToFolder(folderPath);
             }
 
             Application.Current.Dispatcher.Invoke(() =>
             {
+                _isPptSlideShowActive = false;
                 _isRestoringDesktopStrokesAfterPpt = true;
                 try
                 {
@@ -756,7 +722,7 @@ namespace Ink_Canvas
                     _desktopStrokesBackupStrokes = null;
                     _desktopStrokesBackup?.Dispose();
                     _desktopStrokesBackup = null;
-                    
+
                     LogHelper.WriteLogToFile("Desktop strokes restore " + (restored ? "successful" : "failed"), LogHelper.LogType.Trace);
 
                     if (Main_Grid.Background != Brushes.Transparent)
@@ -772,6 +738,20 @@ namespace Ink_Canvas
                     {
                         ViewboxFloatingBar.Opacity = 1;
                     }
+
+                    // 若开启了"退出画板模式后隐藏墨迹"（Settings.Canvas.HideStrokeWhenSelecting），
+                    // 退出放映后恢复的桌面批注应隐藏而非直接显示。
+                    // 隐藏方式与"批注→鼠标"一致：收起墨迹画布（保留笔迹，便于后续恢复），参考 CursorIcon_Click。
+                    if (Settings.Canvas.HideStrokeWhenSelecting && inkCanvas.Strokes.Count > 0)
+                    {
+                        try
+                        {
+                            inkCanvas.Visibility = Visibility.Collapsed;
+                            inkCanvas.Select(new StrokeCollection()); // 取消选中，避免后续再次显示时残留选择框
+                            GridInkCanvasSelectionCover.Visibility = Visibility.Collapsed;
+                        }
+                        catch (Exception ex) { LogHelper.WriteLogToFile("退出放映后隐藏桌面批注失败: " + ex.Message, LogHelper.LogType.Error); }
+                    }
                 }
                 finally
                 {
@@ -783,26 +763,201 @@ namespace Ink_Canvas
             ViewboxFloatingBarMarginAnimation();
         }
 
+        // 当前页位置与 SlideID。previousSlideID 仍表示"当前页码位置"（供跳转/截图命名使用），
+        // currentSlideID 表示当前页对应的 Slide.SlideID，在插入/删除页后保持稳定。
         int previousSlideID = 0;
-        MemoryStream[] memoryStreams = new MemoryStream[50];
+        int currentSlideID = 0;
         MemoryStream _desktopStrokesBackup = null;
         StrokeCollection _desktopStrokesBackupStrokes = null;
         bool _isRestoringDesktopStrokesAfterPpt = false;
+        bool _isPptSlideShowActive = false;
+
+        // 位置 -> SlideID 映射；按 SlideID 组织的笔迹缓存（键见 GetStrokeCacheKey）。
+        Dictionary<int, int> _positionToSlideId = new Dictionary<int, int>();
+        Dictionary<int, MemoryStream> _strokeCacheBySlideId = new Dictionary<int, MemoryStream>();
+
+        /// <summary>重建"位置 -> SlideID"映射；WPS/PowerPoint 均支持 Slide.SlideID。</summary>
+        private void RebuildSlideIdMapping(Slides slidesObj)
+        {
+            _positionToSlideId.Clear();
+            if (slidesObj == null) return;
+            try
+            {
+                int count = slidesObj.Count;
+                for (int i = 1; i <= count; i++)
+                {
+                    try { _positionToSlideId[i] = slidesObj[i].SlideID; }
+                    catch { _positionToSlideId[i] = 0; }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("重建 SlideID 映射失败: " + ex.Message, LogHelper.LogType.Error);
+            }
+        }
+
+        /// <summary>取某位置对应的 SlideID；映射缺失时回退读取放映视图的当前 Slide。</summary>
+        private int GetSlideIdForPosition(int position, SlideShowWindow Wn = null)
+        {
+            int id;
+            if (_positionToSlideId.TryGetValue(position, out id) && id != 0) return id;
+            if (Wn != null)
+            {
+                try { return Wn.View.Slide.SlideID; }
+                catch { }
+            }
+            return 0;
+        }
+
+        /// <summary>笔迹缓存键：优先 SlideID；读取失败时用负位置兜底，避免与真实小整数 SlideID 冲突。</summary>
+        private static int GetStrokeCacheKey(int slideId, int position)
+        {
+            return slideId != 0 ? slideId : -position;
+        }
+
+        /// <summary>按键取缓存笔迹。</summary>
+        private MemoryStream GetCachedStrokes(int slideId, int position)
+        {
+            MemoryStream ms;
+            if (_strokeCacheBySlideId.TryGetValue(GetStrokeCacheKey(slideId, position), out ms)) return ms;
+            return null;
+        }
+
+        /// <summary>从目录加载按 SlideID 命名的笔迹文件（{slideID:00000000}.icstk/.icart）。</summary>
+        private int LoadStrokeCacheFromFolder(string folderPath)
+        {
+            int loaded = 0;
+            try
+            {
+                if (!Directory.Exists(folderPath)) return loaded;
+                foreach (FileInfo file in new DirectoryInfo(folderPath).GetFiles())
+                {
+                    string name = Path.GetFileNameWithoutExtension(file.Name);
+                    if (name == "Position" || name == "SlideMap") continue;
+                    int sid;
+                    if (!int.TryParse(name, out sid) || sid <= 0) continue;
+                    try
+                    {
+                        _strokeCacheBySlideId[sid] = new MemoryStream(File.ReadAllBytes(file.FullName)) { Position = 0 };
+                        loaded++;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile("加载第 " + sid + " 页笔迹失败: " + ex.Message, LogHelper.LogType.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("从目录加载笔迹失败: " + ex.Message, LogHelper.LogType.Error);
+            }
+            return loaded;
+        }
+
+        /// <summary>迁移旧版"按位置命名"的笔迹目录（名称_页数）到当前 SlideID 缓存。</summary>
+        private void ImportLegacyPositionStrokes(string folderPath, Slides slidesObj)
+        {
+            try
+            {
+                if (!Directory.Exists(folderPath)) return;
+                foreach (FileInfo file in new DirectoryInfo(folderPath).GetFiles())
+                {
+                    string name = Path.GetFileNameWithoutExtension(file.Name);
+                    if (name == "Position" || name == "SlideMap") continue;
+                    int pos;
+                    if (!int.TryParse(name, out pos) || pos <= 0) continue;
+                    int sid = 0;
+                    try { if (slidesObj != null && pos <= slidesObj.Count) sid = slidesObj[pos].SlideID; } catch { }
+                    if (sid == 0) continue;
+                    try { _strokeCacheBySlideId[sid] = new MemoryStream(File.ReadAllBytes(file.FullName)) { Position = 0 }; } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("迁移旧版笔迹失败: " + ex.Message, LogHelper.LogType.Error);
+            }
+        }
+
+        /// <summary>将按 SlideID 组织的缓存笔迹写入目录，并输出 SlideMap.txt 便于诊断。</summary>
+        private void SaveStrokeCacheToFolder(string folderPath)
+        {
+            if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
+            foreach (var kv in _positionToSlideId)
+            {
+                int position = kv.Key;
+                int sid = kv.Value;
+                if (sid == 0) continue;
+                MemoryStream ms;
+                if (!_strokeCacheBySlideId.TryGetValue(sid, out ms) || ms == null) continue;
+                try
+                {
+                    string baseFilePath = folderPath + @"\" + sid.ToString("00000000");
+                    string icartFilePath = baseFilePath + ".icart";
+                    string icstkFilePath = baseFilePath + ".icstk";
+
+                    if (ms.Length > 8)
+                    {
+                        byte[] srcBuf = new byte[ms.Length];
+                        ms.Position = 0;
+                        int byteLength = ms.Read(srcBuf, 0, srcBuf.Length);
+
+                        if (File.Exists(icartFilePath))
+                        {
+                            File.WriteAllBytes(icartFilePath, srcBuf);
+                            LogHelper.WriteLogToFile(string.Format("Saved strokes for Slide {0} (pos {1}) as .icart, size={2}, byteLength={3}", sid.ToString(), position.ToString(), ms.Length, byteLength));
+                        }
+                        else
+                        {
+                            File.WriteAllBytes(icstkFilePath, srcBuf);
+                            LogHelper.WriteLogToFile(string.Format("Saved strokes for Slide {0} (pos {1}) as .icstk, size={2}, byteLength={3}", sid.ToString(), position.ToString(), ms.Length, byteLength));
+                        }
+                    }
+                    else
+                    {
+                        File.Delete(icartFilePath);
+                        File.Delete(icstkFilePath);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile("保存第 " + sid + " 页笔迹失败: " + ex.Message, LogHelper.LogType.Error);
+                }
+            }
+
+            // 输出 SlideID -> 位置 映射，便于诊断笔迹与页的对应关系
+            try
+            {
+                System.Text.StringBuilder map = new System.Text.StringBuilder();
+                foreach (var kv in _positionToSlideId)
+                {
+                    map.AppendLine(kv.Value + "=" + kv.Key);
+                }
+                File.WriteAllText(folderPath + "/SlideMap.txt", map.ToString());
+            }
+            catch { }
+        }
 
         private void PptApplication_SlideShowNextSlide(SlideShowWindow Wn)
         {
             LogHelper.WriteLogToFile(string.Format("PowerPoint Next Slide (Slide {0})", Wn.View.CurrentShowPosition), LogHelper.LogType.Event);
             if (Wn.View.CurrentShowPosition != previousSlideID)
             {
+                // 记录离开页的 SlideID（进入该页时写入的 currentSlideID）与旧位置，
+                // 切页回调触发时 Wn.View.CurrentShowPosition 已经是新位置。
+                int leavingSlideID = currentSlideID;
+                int oldPosition = previousSlideID;
+                int newPosition = Wn.View.CurrentShowPosition;
+
                 Application.Current.Dispatcher.Invoke(() =>
                 {
                     MemoryStream ms = new MemoryStream();
                     inkCanvas.Strokes.Save(ms);
                     ms.Position = 0;
-                    memoryStreams[previousSlideID] = ms;
+                    // 离开页的笔迹按该页 SlideID 缓存，插入/删除页后仍能正确对应。
+                    _strokeCacheBySlideId[GetStrokeCacheKey(leavingSlideID, oldPosition)] = ms;
 
                     if (inkCanvas.Strokes.Count > Settings.Automation.MinimumAutomationStrokeNumber && Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint && !_isPptClickingBtnTurned)
-                        SavePPTScreenshot(Wn.Presentation.Name + "/" + Wn.View.CurrentShowPosition);
+                        SavePPTScreenshot(Wn.Presentation.Name + "/" + newPosition);
                     _isPptClickingBtnTurned = false;
 
                     ClearStrokes(true);
@@ -810,17 +965,21 @@ namespace Ink_Canvas
 
                     try
                     {
-                        if (memoryStreams[Wn.View.CurrentShowPosition] != null && memoryStreams[Wn.View.CurrentShowPosition].Length > 0)
+                        int targetSlideId = GetSlideIdForPosition(newPosition, Wn);
+                        currentSlideID = targetSlideId;
+                        MemoryStream targetMs = GetCachedStrokes(targetSlideId, newPosition);
+                        if (targetMs != null && targetMs.Length > 0)
                         {
-                            inkCanvas.Strokes.Add(new StrokeCollection(memoryStreams[Wn.View.CurrentShowPosition]));
+                            targetMs.Position = 0;
+                            inkCanvas.Strokes.Add(new StrokeCollection(targetMs));
                         }
-                        currentShowPosition = Wn.View.CurrentShowPosition;
+                        currentShowPosition = newPosition;
                     }
                     catch { }
 
-                    PptNavigationTextBlockBottom.Text = $"{Wn.View.CurrentShowPosition}/{Wn.Presentation.Slides.Count}";
+                    PptNavigationTextBlockBottom.Text = $"{newPosition}/{Wn.Presentation.Slides.Count}";
                 });
-                previousSlideID = Wn.View.CurrentShowPosition;
+                previousSlideID = newPosition;
 
             }
         }
@@ -982,7 +1141,7 @@ namespace Ink_Canvas
                 try { pres = pptApplication?.SlideShowWindows[1]?.Presentation; } catch { pres = null; }
                 if (pres == null) return;
 
-                string folderPath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + pres.Name + "_" + pres.Slides.Count;
+                string folderPath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Presentations\" + pres.Name;
                 if (!Directory.Exists(folderPath))
                 {
                     Directory.CreateDirectory(folderPath);
@@ -1003,52 +1162,16 @@ namespace Ink_Canvas
                             MemoryStream ms = new MemoryStream();
                             inkCanvas.Strokes.Save(ms);
                             ms.Position = 0;
-                            memoryStreams[currentShowPosition] = ms;
+                            _strokeCacheBySlideId[GetStrokeCacheKey(currentSlideID, currentShowPosition)] = ms;
                         }
                         catch { }
                     });
                 }
                 catch { }
 
-                for (int i = 1; i <= pres.Slides.Count; i++)
-                {
-                    if (memoryStreams[i] != null)
-                    {
-                        try
-                        {
-                            string baseFilePath = folderPath + @"\" + i.ToString("0000");
-                            string icartFilePath = baseFilePath + ".icart";
-                            string icstkFilePath = baseFilePath + ".icstk";
-
-                            if (memoryStreams[i].Length > 8)
-                            {
-                                byte[] srcBuf = new byte[memoryStreams[i].Length];
-                                int byteLength = memoryStreams[i].Read(srcBuf, 0, srcBuf.Length);
-
-                                if (File.Exists(icartFilePath))
-                                {
-                                    File.WriteAllBytes(icartFilePath, srcBuf);
-                                    LogHelper.WriteLogToFile(string.Format("Saved strokes for Slide {0} as .icart, size={1}, byteLength={2}", i.ToString(), memoryStreams[i].Length, byteLength));
-                                }
-                                else
-                                {
-                                    File.WriteAllBytes(icstkFilePath, srcBuf);
-                                    LogHelper.WriteLogToFile(string.Format("Saved strokes for Slide {0} as .icstk, size={1}, byteLength={2}", i.ToString(), memoryStreams[i].Length, byteLength));
-                                }
-                            }
-                            else
-                            {
-                                File.Delete(icartFilePath);
-                                File.Delete(icstkFilePath);
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            LogHelper.WriteLogToFile(string.Format("Failed to save strokes for Slide {0}\n{1}", i, ex.ToString()), LogHelper.LogType.Error);
-                            File.Delete(folderPath + @"\" + i.ToString("0000") + ".icstk");
-                        }
-                    }
-                }
+                // 保存前按当前演示文稿重建 SlideID 映射，再按 SlideID 写盘。
+                try { RebuildSlideIdMapping(pres.Slides); } catch { }
+                SaveStrokeCacheToFolder(folderPath);
 
                 LogHelper.WriteLogToFile("Saved PPT slides snapshot before restart", LogHelper.LogType.Event);
             }
