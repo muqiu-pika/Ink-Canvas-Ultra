@@ -924,9 +924,46 @@ namespace Ink_Canvas
             }), DispatcherPriority.Background);
         }
 
+        /// <summary>
+        /// 当前是否有进行中的输入（正在书写的笔画 / 触摸 / 拖拽）。
+        /// 用于避免输入设备恢复流程在笔画中途抢断输入。
+        /// 若返回 true，说明用户正在书写，此时不应释放捕获或重注册触摸窗口。
+        /// </summary>
+        private bool IsInputEngaged()
+        {
+            try
+            {
+                if (isMouseDown) return true;
+                // dec / 预览字典覆盖了触摸预览笔画（非手写笔）的进行中状态
+                if (dec != null && dec.Count > 0) return true;
+                if (TouchDownPointsList != null && TouchDownPointsList.Count > 0) return true;
+                if (StrokeVisualList != null && StrokeVisualList.Count > 0) return true;
+                if (inkCanvas == null) return false;
+
+                // WPF 原生手写笔/鼠标笔画（未走预览字典）进行中时，墨迹画布持有捕获
+                var mouse = Mouse.Captured as Visual;
+                if (mouse != null && (ReferenceEquals(mouse, inkCanvas) || inkCanvas.IsAncestorOf(mouse))) return true;
+                var stylus = Stylus.Captured as Visual;
+                if (stylus != null && (ReferenceEquals(stylus, inkCanvas) || inkCanvas.IsAncestorOf(stylus))) return true;
+            }
+            catch { }
+            return false;
+        }
+
         private void RecoverFromInputDeviceChange()
         {
             LogHelper.WriteLogToFile("Input device change detected, starting recovery...", LogHelper.LogType.Info);
+
+            // 若当前正处于书写/触控/拖拽过程中，必须跳过本轮抢断式恢复：
+            // 恢复流程会先释放鼠标/触笔/触摸捕获，再清空笔迹预览状态并重注册触摸窗口，
+            // 若在笔画进行中执行，会把正在绘制的笔画从中间掐断——后半段不再渲染/提交。
+            // 典型触发场景：PPT 演示中点击“翻页”后，PowerPoint 抢回焦点再交还焦点时，
+            // WM_ACTIVATEAPP 触发的恢复恰落到新页面“第一笔”的书写过程中。
+            if (IsInputEngaged())
+            {
+                LogHelper.WriteLogToFile("Input recovery skipped: drawing/touch/drag input in progress", LogHelper.LogType.Info);
+                return;
+            }
 
             try
             {
