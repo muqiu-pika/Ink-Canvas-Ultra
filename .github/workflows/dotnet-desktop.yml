@@ -61,5 +61,5 @@ jobs:
     - name: Upload to artifact
       uses: actions/upload-artifact@v7
       with:
-        name: Ink.Canvas.Ultra.V.${{ steps.version.outputs.version }}
+        name: Ink.Canvas.Ultra.V${{ steps.version.outputs.version }}
         path: Ink Canvas/bin/Release
