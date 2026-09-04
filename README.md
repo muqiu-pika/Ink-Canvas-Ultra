@@ -4,8 +4,13 @@
 
 # Ink Canvas Ultra
 [![UPSTREAM](https://img.shields.io/badge/UpStream-WXRIW%2FInk--Canvas-red.svg "LICENSE")](https://github.com/WXRIW/Ink-Canvas)
-[![LICENSE](https://img.shields.io/badge/License-GPL--3.0-red.svg "LICENSE")](./LICENSE)
+![GitHub License](https://img.shields.io/github/license/muqiu-pika/Ink-Canvas-Ultra)
+![GitHub top language](https://img.shields.io/github/languages/top/muqiu-pika/Ink-Canvas-Ultra)
 [![Latest release](https://img.shields.io/github/release/muqiu-pika/Ink-Canvas-Ultra.svg?style=shield)](https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/latest)
+[![QQ](https://img.shields.io/badge/-617707731-white?logo=qq&label=QQ)](https://qm.qq.com/q/iMzFTuZgDS)
+
+![GitHub Repo stars](https://img.shields.io/github/stars/muqiu-pika/Ink-Canvas-Ultra)
+![GitHub forks](https://img.shields.io/github/forks/muqiu-pika/Ink-Canvas-Ultra)
 
 ![Screenshot-1](./Images/Screenshot1.png)
 ![Screenshot-2](./Images/Screenshot2.png)
