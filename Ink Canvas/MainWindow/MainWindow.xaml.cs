@@ -35,6 +35,15 @@ namespace Ink_Canvas
 
         public MainWindow()
         {
+            // 必须在 InitializeComponent() 之前补齐主题键：
+            // InitializeComponent() 会立刻构建浮动栏 / 白板栏并解析其中的 DynamicResource
+            // （FloatBar* 定义在 Light.xaml，BoardBar* 却定义在另一个 Light-Board.xaml），
+            // 此时键若不存在就会刷出成百上千条 "Resource not found" Warning。
+            // App_Startup 里只补了 Light.xaml（漏了 BoardBar 那一族），且在 Release 下还会被
+            // iNKORE 重建应用级资源字典冲刷掉，因此这里在 UI 构建前再兜一次底。
+            // 真实主题随后由 SetTheme/SetBoardTheme 纠正，二者之间无渲染帧，不会闪色。
+            Helpers.ResourceDictionaryHelper.EnsureStartupThemeKeys();
+
             InitializeComponent();
             InitializeStartupModes();
 

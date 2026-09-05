@@ -58,22 +58,32 @@ namespace Ink_Canvas
             var lightUri = new Uri("Resources/Styles/Light.xaml", UriKind.Relative);
             var darkUri = new Uri("Resources/Styles/Dark.xaml", UriKind.Relative);
 
-            SetBoardTheme();
-
+            // 先切换框架主题，再合并自定义主题字典。
+            // Release 下 ThemeManager.Current.ApplicationTheme 赋值会重建应用级资源字典，
+            // 若此前先 MergeOnce 加了自定义字典，会被这一步清空，导致浮动栏/设置面板里的
+            // DynamicResource（FloatBar*、SettingsPageAnnotationForeground 等）瞬间找不到键而刷 Warning。
+            // 后置合并保证刷新结束后自定义字典始终位于列表末尾、键一定可解析，且不影响外观。
             if (theme == "Light")
             {
-                Helpers.ResourceDictionaryHelper.MergeOnce(lightUri);
-                RemoveResourceDictionary(darkUri);
                 ThemeManager.SetRequestedTheme(window, ElementTheme.Light);
                 ThemeManager.Current.ApplicationTheme = ApplicationTheme.Light;
+                // 必须"先加后删"：反序会留下"目标字典尚未合并、旧字典已被移除"的空窗，
+                // 期间任何 DynamicResource 重新求值都会刷 "Resource not found"
+                // （ApplicationTheme 赋值会重建应用级资源字典，极易触发这种重新求值）。
+                // MergeOnce 内部会把已存在的字典挪到 MergedDictionaries 末尾，
+                // 因此先加目标主题仍可保证它优先级最高，最终外观不受影响。
+                Helpers.ResourceDictionaryHelper.MergeOnce(lightUri);
+                RemoveResourceDictionary(darkUri);
             }
             else if (theme == "Dark")
             {
-                Helpers.ResourceDictionaryHelper.MergeOnce(darkUri);
-                RemoveResourceDictionary(lightUri);
                 ThemeManager.SetRequestedTheme(window, ElementTheme.Dark);
                 ThemeManager.Current.ApplicationTheme = ApplicationTheme.Dark;
+                Helpers.ResourceDictionaryHelper.MergeOnce(darkUri);
+                RemoveResourceDictionary(lightUri);
             }
+
+            SetBoardTheme(); // 白板主题字典同样后置合并，避免被上方设置覆盖
 
             if (!Settings.Appearance.IsColorfulViewboxFloatingBar) // 还原浮动工具栏背景色
             {

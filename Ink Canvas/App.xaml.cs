@@ -269,6 +269,10 @@ namespace Ink_Canvas
 
         void App_Startup(object sender, StartupEventArgs e)
         {
+            // 尽早关闭 WPF "Resource not found" 调试噪音（只影响调试器输出，不影响任何运行行为）。
+            // 必须在资源初始化 / MainWindow 创建之前执行，否则 TraceResourceDictionary 已开始输出。
+            Helpers.SkipResourceNotFound.Install();
+
             /*if (!StoreHelper.IsStoreApp) */RootPath = AppDomain.CurrentDomain.SetupInformation.ApplicationBase;
 
             // RootPath 已就绪，初始化用户数据目录（含旧设置迁移）
@@ -304,6 +308,19 @@ namespace Ink_Canvas
 
             // 解析命令行参数
             ParseCommandLineArgs(e.Args);
+
+            // 在 MainWindow 创建前，确保应用级资源里存在自定义主题键。
+            // Release 下 iNKORE 的 XamlControlsResources 会重建应用级资源字典，可能把 App.xaml
+            // 静态合并的 Light.xaml 冲刷掉；若不在此及时补回，MainWindow 渲染浮动栏/白板栏时，
+            // 其中的 DynamicResource（FloatBar*/BoardBar*）会瞬间找不到键而刷一批
+            // "Resource not found" Warning，随后主题切换才恢复。
+            // 注意 FloatBar* 与 BoardBar* 分属 Light.xaml 与 Light-Board.xaml 两个文件，必须成对补齐。
+            // 随后 MainWindow 构造函数里的 SetTheme 会按设置自动纠正为正确主题，故此处默认 Light 即可。
+            try
+            {
+                Helpers.ResourceDictionaryHelper.EnsureStartupThemeKeys();
+            }
+            catch { }
         }
 
         private void ParseCommandLineArgs(string[] args)
