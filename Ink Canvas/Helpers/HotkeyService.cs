@@ -126,6 +126,16 @@ namespace Ink_Canvas
         }
 
         /// <summary>
+        /// 查询某个动作当前是否处于启用状态（未被禁用）。
+        /// 用于运行时按自定义状态决定是否响应（如滚轮翻页受 PPT 翻页动作启用状态约束）。
+        /// </summary>
+        public bool IsActionEnabled(string actionId)
+        {
+            if (string.IsNullOrWhiteSpace(actionId)) return false;
+            return _actions.TryGetValue(actionId, out var action) && !action.Disabled;
+        }
+
+        /// <summary>
         /// 为一个动作设置新的组合键。
         /// </summary>
         /// <param name="actionId">动作标识</param>
@@ -344,7 +354,7 @@ namespace Ink_Canvas
             if (string.IsNullOrWhiteSpace(combo)) return false;
 
             var rawParts = combo.Replace(" ", string.Empty).Split('+');
-            if (rawParts.Length < 2) return false; // 至少需要 修饰键 + 主键
+            if (rawParts.Length < 1) return false; // 至少需要一个主键（修饰键可选，便于绑定无修饰键如 PageDown/Escape）
 
             for (int i = 0; i < rawParts.Length - 1; i++)
             {

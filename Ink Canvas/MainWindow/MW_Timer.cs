@@ -197,21 +197,26 @@ namespace Ink_Canvas
         {
             try
             {
-                if (currentMode != 0) return;
-                if (ViewboxFloatingBar == null) return;
-                if (ViewboxFloatingBar.Visibility != Visibility.Visible) return;
-
-                var nowUtc = DateTime.UtcNow;
-                if (nowUtc - _lastFixFloatingBarZOrderTimeUtc < TimeSpan.FromMilliseconds(900)) return;
-
-                string className = ForegroundWindowInfo.WindowClassName();
-                if (className != "Progman" && className != "WorkerW" && className != "Shell_TrayWnd") return;
-
-                _lastFixFloatingBarZOrderTimeUtc = nowUtc;
+                // ViewboxFloatingBar 是 DispatcherObject（UI 元素）。System.Timers.Timer.Elapsed
+                // 在 ThreadPool 线程上触发，若直接读取其 .Visibility 会抛出 InvalidOperationException
+                // （"调用线程无法访问此对象，因为另一个线程拥有它"）。
+                // 把"判空 / 可见性 / 窗口类名 / 置顶"整体封送到 UI 线程执行：
+                // 既消除跨线程异常，也修复此前因提前抛异常而导致窗口置顶逻辑从未真正执行的问题。
                 Dispatcher.BeginInvoke((Action)(() =>
                 {
                     try
                     {
+                        if (currentMode != 0) return;
+                        if (ViewboxFloatingBar == null) return;
+                        if (ViewboxFloatingBar.Visibility != Visibility.Visible) return;
+
+                        var nowUtc = DateTime.UtcNow;
+                        if (nowUtc - _lastFixFloatingBarZOrderTimeUtc < TimeSpan.FromMilliseconds(900)) return;
+
+                        string className = ForegroundWindowInfo.WindowClassName();
+                        if (className != "Progman" && className != "WorkerW" && className != "Shell_TrayWnd") return;
+
+                        _lastFixFloatingBarZOrderTimeUtc = nowUtc;
                         WindowFocusHelper.EnsureWindowTopmost(this, true);
                     }
                     catch { }

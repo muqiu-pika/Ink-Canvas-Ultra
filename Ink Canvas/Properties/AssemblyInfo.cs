@@ -52,6 +52,6 @@ using System.Windows;
 // 自 2026/8/30 起，版本号采用「年份 + 月份 + 当月第几个版本」三段式命名：
 // 26.9.1 = 2026 年 9 月第 1 个版本。程序集版本末段固定为 0，
 // 更新检测与界面展示时统一按前三段处理（见 Helpers/AutoUpdateHelper.cs）。
-[assembly: AssemblyVersion("26.9.2.0")]
-[assembly: AssemblyFileVersion("26.9.2.0")]
+[assembly: AssemblyVersion("26.9.3.0")]
+[assembly: AssemblyFileVersion("26.9.3.0")]
 

@@ -124,6 +124,16 @@ namespace Ink_Canvas
             return false;
         }
 
+        private static bool IsPresentationProcessRunning()
+        {
+            // 仅当 PowerPoint / WPS 演示进程确实存在时才尝试 GetActiveObject，
+            // 避免"未打开 PPT"时每秒抛一次 COMException（RPC_E_SERVER_UNAVAILABLE）刷屏调试输出。
+            if (Process.GetProcessesByName("POWERPNT").Length > 0) return true;
+            if (IsWPSSupportOn && Process.GetProcessesByName("wpp").Length > 0) return true;
+            if (IsWPSSupportOn && Process.GetProcessesByName("et").Length > 0) return true;
+            return false;
+        }
+
         private static bool TryPingPptApplication(Microsoft.Office.Interop.PowerPoint.Application app)
         {
             if (app == null) return false;
@@ -174,6 +184,9 @@ namespace Ink_Canvas
                 }
 
                 if (pptApplication != null && TryPingPptApplication(pptApplication)) return;
+
+                // 进程都未运行，直接跳过，避免每秒 GetActiveObject 抛 COMException 刷屏
+                if (!IsPresentationProcessRunning()) return;
 
                 Microsoft.Office.Interop.PowerPoint.Application acquired = null;
                 for (int attempt = 0; attempt < 6; attempt++)

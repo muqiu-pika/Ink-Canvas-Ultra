@@ -34,12 +34,35 @@ namespace Ink_Canvas
             HotkeyService.RegisterAction("paste", "粘贴", "从剪贴板粘贴图片", HotkeyModifiers.MOD_CONTROL | HotkeyModifiers.MOD_SHIFT, Key.V, HotKey_Paste);
             HotkeyService.RegisterAction("exit", "退出", "退出软件", HotkeyModifiers.MOD_CONTROL, Key.Q, HotKey_Exit);
 
+            // 浮动工具栏功能快捷键（可被“自定义快捷键”插件重绑定/禁用）
+            HotkeyService.RegisterAction("insert-media", "插入媒体", "打开插入媒体对话框", HotkeyModifiers.MOD_ALT, Key.M, HotKey_InsertMedia);
+            HotkeyService.RegisterAction("countdown", "倒计时", "打开倒计时窗口", HotkeyModifiers.MOD_ALT, Key.T, HotKey_Countdown);
+            HotkeyService.RegisterAction("random-pick", "随机抽选", "随机抽取一个序号", HotkeyModifiers.MOD_ALT, Key.R, HotKey_RandomPick);
+            HotkeyService.RegisterAction("random-person", "随机选人", "随机选一名学生", HotkeyModifiers.MOD_ALT, Key.P, HotKey_RandomPerson);
+            HotkeyService.RegisterAction("save-ink", "保存墨迹", "保存当前画布墨迹", HotkeyModifiers.MOD_ALT, Key.I, HotKey_SaveInk);
+            HotkeyService.RegisterAction("open-ink", "打开墨迹", "打开已保存的墨迹文件", HotkeyModifiers.MOD_ALT, Key.O, HotKey_OpenInk);
+            HotkeyService.RegisterAction("play-ink", "播放墨迹", "重放当前墨迹", HotkeyModifiers.MOD_ALT, Key.W, HotKey_PlayInk);
+
             // 窗口级快捷键（窗口聚焦时生效，走 Window.InputBindings 的 KeyBinding）
             HotkeyService.RegisterWindowAction("undo", "撤销", "撤销上一步操作", FindCommand("HotKey_Command_Undo"));
             HotkeyService.RegisterWindowAction("redo", "重做", "重做被撤销的操作", FindCommand("HotKey_Command_Redo"));
             HotkeyService.RegisterWindowAction("select", "选择", "切换到选择模式", FindCommand("HotKey_ChangeToSelect"));
             HotkeyService.RegisterWindowAction("eraser", "橡皮擦", "切换到橡皮擦（面积擦/墨迹擦）", FindCommand("HotKey_ChangeToEraser"));
             HotkeyService.RegisterWindowAction("line", "直线", "切换到单次直线绘制", FindCommand("HotKey_DrawLine"));
+
+            // 画笔快捷键（Alt+1~Alt+5）：修复此前仅有 KeyBinding/无 Executed 处理器导致的“按键无效”问题，
+            // 并纳入自定义快捷键体系，使其可被用户重绑定/复位。
+            HotkeyService.RegisterWindowAction("pen1", "画笔1", "切换到第1支画笔（黑）", FindCommand("HotKey_ChangeToPen1"));
+            HotkeyService.RegisterWindowAction("pen2", "画笔2", "切换到第2支画笔（红）", FindCommand("HotKey_ChangeToPen2"));
+            HotkeyService.RegisterWindowAction("pen3", "画笔3", "切换到第3支画笔（绿）", FindCommand("HotKey_ChangeToPen3"));
+            HotkeyService.RegisterWindowAction("pen4", "画笔4", "切换到第4支画笔（蓝）", FindCommand("HotKey_ChangeToPen4"));
+            HotkeyService.RegisterWindowAction("pen5", "画笔5", "切换到第5支画笔（黄）", FindCommand("HotKey_ChangeToPen5"));
+
+            // PPT 放映翻页/退出：由原先硬编码（PreviewKeyDown/KeyDown）改为 HotkeyService 窗口动作，
+            // 使其可被“自定义快捷键”插件修改默认键（PageDown/PageUp/Escape）。
+            HotkeyService.RegisterWindowAction("ppt-next", "下一页", "PPT 放映时切换到下一页", FindCommand("HotKey_PPTNext"));
+            HotkeyService.RegisterWindowAction("ppt-prev", "上一页", "PPT 放映时切换到上一页", FindCommand("HotKey_PPTPrev"));
+            HotkeyService.RegisterWindowAction("ppt-exit", "退出放映", "退出 PPT 放映", FindCommand("HotKey_PPTExit"));
         }
 
         private System.Windows.Input.RoutedCommand FindCommand(string resourceKey)
@@ -97,8 +120,15 @@ namespace Ink_Canvas
 
         private async void HotKey_Paste()
         {
-            // 仅在批注模式或白板模式下处理粘贴
-            if (StackPanelCanvasControls.Visibility == Visibility.Visible || currentMode == 1)
+            // 放映 PPT 时不处理粘贴
+            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) return;
+            // 主窗口被隐藏(Alt+V)时不响应，避免在没有可见主窗口的情况下弹出对话框
+            if (this.Visibility != Visibility.Visible) return;
+
+            // 在批注模式(含浮动栏模式)、白板模式下处理粘贴
+            if (StackPanelCanvasControls.Visibility == Visibility.Visible 
+                || currentMode == 1 
+                || ViewboxFloatingBar.Visibility == Visibility.Visible)
             {
                 // 记录粘贴时的当前模式
                 int pasteMode = currentMode;
@@ -300,13 +330,21 @@ namespace Ink_Canvas
         {
             if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
             {
-                if (e.Delta >= 120)
+                // 滚轮翻页受“自定义快捷键”中的 ppt-next/ppt-prev 启用状态约束：
+                // 若用户在插件中禁用了对应动作，滚轮也不再翻页。
+                bool nextEnabled = HotkeyService != null && HotkeyService.IsActionEnabled("ppt-next");
+                bool prevEnabled = HotkeyService != null && HotkeyService.IsActionEnabled("ppt-prev");
+                if (e.Delta >= 120 && prevEnabled)
                 {
                     BtnPPTSlidesUp_Click(null, null);
                 }
-                else if (e.Delta <= -120)
+                else if (e.Delta <= -120 && nextEnabled)
                 {
                     BtnPPTSlidesDown_Click(null, null);
+                }
+                else
+                {
+                    return;
                 }
                 e.Handled = true;
                 return;
@@ -384,28 +422,6 @@ namespace Ink_Canvas
             e.Handled = true;
         }
 
-        private void Main_Grid_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
-
-            if (e.Key == Key.Down || e.Key == Key.PageDown || e.Key == Key.Right || e.Key == Key.N || e.Key == Key.Space)
-            {
-                BtnPPTSlidesDown_Click(null, null);
-            }
-            if (e.Key == Key.Up || e.Key == Key.PageUp || e.Key == Key.Left || e.Key == Key.P)
-            {
-                BtnPPTSlidesUp_Click(null, null);
-            }
-        }
-
-        private void Window_KeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Escape)
-            {
-                KeyExit(null, null);
-            }
-        }
-
         private void CommandBinding_CanExecute(object sender, CanExecuteRoutedEventArgs e)
         {
             e.CanExecute = true;
@@ -427,11 +443,6 @@ namespace Ink_Canvas
                 SymbolIconRedo_Click(null, null);
             }
             catch { }
-        }
-
-        private void KeyExit(object sender, ExecutedRoutedEventArgs e)
-        {
-            BtnPPTSlideShowEnd_Click(null, null);
         }
 
         private void KeyChangeToSelect(object sender, ExecutedRoutedEventArgs e)
@@ -464,5 +475,75 @@ namespace Ink_Canvas
                 BtnDrawLine_Click(lastMouseDownSender, null);
             }
         }
+
+        private void KeyChangeToPen1(object sender, ExecutedRoutedEventArgs e) => SwitchToPen(0);
+        private void KeyChangeToPen2(object sender, ExecutedRoutedEventArgs e) => SwitchToPen(1);
+        private void KeyChangeToPen3(object sender, ExecutedRoutedEventArgs e) => SwitchToPen(2);
+        private void KeyChangeToPen4(object sender, ExecutedRoutedEventArgs e) => SwitchToPen(3);
+        private void KeyChangeToPen5(object sender, ExecutedRoutedEventArgs e) => SwitchToPen(4);
+
+        /// <summary>
+        /// 通过快捷键切换画笔颜色：确保处于墨迹编辑态，并切换到指定的 inkColor 索引。
+        /// inkColor 映射（见 MW_PenColors.CheckLastColor）：0=黑 1=红 2=绿 3=蓝 4=黄，对应 Alt+1~Alt+5。
+        /// 同时兼容浮动栏模式（currentMode==0 且 ViewboxFloatingBar 可见、StackPanelCanvasControls 折叠）——此时仅切换颜色，不破坏浮动栏布局。
+        /// </summary>
+        private void SwitchToPen(int inkColor)
+        {
+            try
+            {
+                // 若当前处于选择/橡皮等非墨迹态，先切回墨迹
+                if (inkCanvas.EditingMode != InkCanvasEditingMode.Ink)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                    forceEraser = false;
+                }
+
+                // 仅在“批注栏与浮动栏都不可见”时，才通过画笔入口进入可书写界面，
+                // 避免破坏浮动栏布局（浮动栏模式下仅切换颜色即可）。
+                if (currentMode == 0
+                    && StackPanelCanvasControls.Visibility != Visibility.Visible
+                    && ViewboxFloatingBar.Visibility != Visibility.Visible)
+                {
+                    PenIcon_Click(null, null);
+                }
+
+                // 切换画笔颜色（内部会调用 ColorSwitchCheck 确保 Ink 态并刷新选中提示）
+                CheckLastColor(inkColor);
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile($"切换到画笔颜色{inkColor}异常已拦截: {ex}");
+            }
+        }
+
+        // ===== PPT 放映翻页/退出（原为硬编码 PreviewKeyDown/KeyDown，现交由 HotkeyService 管理，可自定义） =====
+
+        private void HotKey_PPTNext(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
+            BtnPPTSlidesDown_Click(null, null);
+        }
+
+        private void HotKey_PPTPrev(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
+            BtnPPTSlidesUp_Click(null, null);
+        }
+
+        private void HotKey_PPTExit(object sender, ExecutedRoutedEventArgs e)
+        {
+            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
+            BtnPPTSlideShowEnd_Click(null, null);
+        }
+
+        // ===== 浮动工具栏功能快捷键的回调（无参，转发到对应 Click 处理） =====
+
+        private void HotKey_InsertMedia() => BtnMediaInsertUnified_Click(null, null);
+        private void HotKey_Countdown() => ImageCountdownTimer_Click(null, null);
+        private void HotKey_RandomPick() => SymbolIconRand_Click(null, null);
+        private void HotKey_RandomPerson() => SymbolIconRandOne_Click(null, null);
+        private void HotKey_SaveInk() => SymbolIconSaveStrokes_Click(null, null);
+        private void HotKey_OpenInk() => SymbolIconOpenInkCanvasFile_Click(null, null);
+        private void HotKey_PlayInk() => GridInkReplayButton_Click(null, null);
     }
 }

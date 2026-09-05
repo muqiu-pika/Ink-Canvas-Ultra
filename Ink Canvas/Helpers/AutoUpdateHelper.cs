@@ -47,6 +47,12 @@ namespace Ink_Canvas.Helpers
             return rawVersion.Trim().Trim('\uFEFF').TrimStart('v', 'V').Trim();
         }
 
+        // 版本文件双源：GitHub raw（内容最新）+ jsDelivr CDN 镜像（兜底）。
+        // 部分网络直连 raw.githubusercontent.com 会一直挂起直到超时，单源时必然每次都
+        // 抛出 TaskCanceledException；主源失败后回落到可达性更好的 CDN，整体才不至于失败。
+        private const string VersionFileGitHubRaw = "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
+        private const string VersionFileJsDelivr = "https://cdn.jsdelivr.net/gh/muqiu-pika/Ink-Canvas-Ultra@master/AutomaticUpdateVersionControl.txt";
+
         public static async Task<string> CheckForUpdates(string proxy = null)
         {
             var result = await CheckForUpdatesDetailed(proxy);
@@ -64,21 +70,48 @@ namespace Ink_Canvas.Helpers
         /// <summary>
         /// 详细版本检测：能区分"确实没有新版本"与"网络异常/远端内容无效"，
         /// 供手动检查使用——避免断网时误报"您已安装最新版"。
+        /// 并发合并：启动时可能有多个入口同时触发检测（启动检测 / 设置页 / 定时器），
+        /// 在"超时"场景下会并发挂起多个请求、超时后一次性刷出多条 TaskCanceledException。
+        /// 这里让同一 proxy 的在途检测共享同一个 Task，真正只发出一次网络请求。
         /// </summary>
-        public static async Task<UpdateCheckResult> CheckForUpdatesDetailed(string proxy = null)
+        private static readonly object CheckGate = new object();
+        private static Task<UpdateCheckResult> _inFlightCheck;
+        private static string _inFlightProxy = string.Empty;
+
+        public static Task<UpdateCheckResult> CheckForUpdatesDetailed(string proxy = null)
+        {
+            string key = proxy ?? string.Empty;
+            lock (CheckGate)
+            {
+                if (_inFlightCheck != null && !_inFlightCheck.IsCompleted && _inFlightProxy == key)
+                    return _inFlightCheck;
+
+                _inFlightProxy = key;
+                _inFlightCheck = CheckForUpdatesCore(proxy);
+                return _inFlightCheck;
+            }
+        }
+
+        private static async Task<UpdateCheckResult> CheckForUpdatesCore(string proxy = null)
         {
             var result = new UpdateCheckResult();
             try
             {
                 Version local = NormalizeToThreeParts(Assembly.GetExecutingAssembly().GetName().Version);
-                string remoteAddress = proxy;
-                remoteAddress += "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
-                string remoteVersion = SanitizeRemoteVersion(await GetRemoteVersion(remoteAddress));
 
-                // 拉取失败/返回空 → 网络异常（而非"无更新"）
+                // 双源：主源 GitHub raw → 失败回落 jsDelivr CDN 镜像。
+                // 主源用 suppressLog=true 静默尝试：超时/不可达是预期内的，
+                // 只有两源全败才由这里统一记一条日志，避免同一故障刷出多条异常记录。
+                string remoteVersion = SanitizeRemoteVersion(await GetRemoteVersion(proxy + VersionFileGitHubRaw, true));
                 if (string.IsNullOrEmpty(remoteVersion))
                 {
-                    LogHelper.WriteLogToFile("Failed to retrieve remote version.", LogHelper.LogType.Error);
+                    remoteVersion = SanitizeRemoteVersion(await GetRemoteVersion(VersionFileJsDelivr, true));
+                }
+
+                // 两个源都拿不到 → 网络异常（而非"无更新"）
+                if (string.IsNullOrEmpty(remoteVersion))
+                {
+                    LogHelper.WriteLogToFile("Failed to retrieve remote version.", LogHelper.LogType.Warning);
                     result.IsNetworkError = true;
                     return result;
                 }
@@ -114,25 +147,50 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        public static async Task<string> GetRemoteVersion(string fileUrl)
+        /// <summary>拉取远端版本文件内容，失败返回 null。</summary>
+        public static Task<string> GetRemoteVersion(string fileUrl)
+        {
+            return GetRemoteVersion(fileUrl, false);
+        }
+
+        /// <summary>
+        /// 拉取远端版本文件内容，失败返回 null。
+        /// </summary>
+        /// <param name="suppressLog">
+        /// true = 静默失败（不写日志）。用于多源回退场景：主源超时/不可达是预期内的，
+        /// 只有所有源都失败才由调用方统一记一条日志，避免同一次故障刷出多条异常记录。
+        /// </param>
+        public static async Task<string> GetRemoteVersion(string fileUrl, bool suppressLog)
         {
             using (HttpClient client = new HttpClient())
             {
                 try
                 {
-                    client.Timeout = TimeSpan.FromSeconds(15);
+                    // 版本文件只有几十字节：8 秒足够。失败要"快"，才能尽早回落到备用源，
+                    // 而不是干等到超时（原 15 秒 × 并发多次 = 长时间卡顿 + 多条异常）。
+                    client.Timeout = TimeSpan.FromSeconds(8);
                     HttpResponseMessage response = await client.GetAsync(fileUrl);
                     response.EnsureSuccessStatusCode();
 
                     return await response.Content.ReadAsStringAsync();
                 }
+                catch (OperationCanceledException ex)
+                {
+                    // HttpClient.Timeout 触发时会抛出 TaskCanceledException（OperationCanceledException 的子类），
+                    // 其消息为"已取消一个任务"。本质是请求超时 / 网络不可达，并非程序错误；
+                    // 有备用源时整体静默，无备用源时才降级为 Warning。
+                    if (!suppressLog)
+                        LogHelper.WriteLogToFile($"AutoUpdate | 远端版本请求超时或被取消（网络不可达？）：{ex.Message}", LogHelper.LogType.Warning);
+                }
                 catch (HttpRequestException ex)
                 {
-                    LogHelper.WriteLogToFile($"AutoUpdate | HTTP request error: {ex.Message}", LogHelper.LogType.Error);
+                    if (!suppressLog)
+                        LogHelper.WriteLogToFile($"AutoUpdate | HTTP request error: {ex.Message}", LogHelper.LogType.Error);
                 }
                 catch (Exception ex)
                 {
-                    LogHelper.WriteLogToFile($"AutoUpdate | Error: {ex.Message}", LogHelper.LogType.Error);
+                    if (!suppressLog)
+                        LogHelper.WriteLogToFile($"AutoUpdate | Error: {ex.Message}", LogHelper.LogType.Error);
                 }
 
                 return null;

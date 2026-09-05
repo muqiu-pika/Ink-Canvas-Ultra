@@ -9,6 +9,10 @@ namespace Ink_Canvas.Helpers
     {
         public static string LogFile = "Log.txt";
 
+        // 跨线程/跨进程写日志时的同步锁：保证同一进程内多线程串行写，
+        // 配合 FileShare.ReadWrite 使用，从根因消除“文件正由另一进程使用”的 IOException。
+        private static readonly object _logLock = new object();
+
         public static void NewLog(string str)
         {
             WriteLogToFile(str, LogType.Info);
@@ -29,9 +33,15 @@ namespace Ink_Canvas.Helpers
                 {
                     Directory.CreateDirectory(App.RootPath);
                 }
-                using (StreamWriter sw = new StreamWriter(file, true))
+                lock (_logLock)
                 {
-                    sw.WriteLine(string.Format("{0} [{1}] {2}", DateTime.Now.ToString("O"), strLogType, str));
+                    // FileShare.ReadWrite 允许其他进程/线程同时读写该文件，
+                    // 从根因消除“文件正由另一进程使用”的 IOException。
+                    using (var fs = new FileStream(file, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                    using (var sw = new StreamWriter(fs))
+                    {
+                        sw.WriteLine(string.Format("{0} [{1}] {2}", DateTime.Now.ToString("O"), strLogType, str));
+                    }
                 }
             }
             catch (Exception ex)
@@ -50,22 +60,26 @@ namespace Ink_Canvas.Helpers
                 {
                     Directory.CreateDirectory(App.RootPath);
                 }
-                using (StreamWriter sw = new StreamWriter(file, true))
+                lock (_logLock)
                 {
-                    sw.WriteLine($"{DateTime.Now:O} [{strLogType}] Object Log:");
-                    if (obj != null)
+                    using (var fs = new FileStream(file, FileMode.Append, FileAccess.Write, FileShare.ReadWrite))
+                    using (var sw = new StreamWriter(fs))
                     {
-                        Type type = obj.GetType();
-                        PropertyInfo[] properties = type.GetProperties();
-                        foreach (PropertyInfo property in properties)
+                        sw.WriteLine($"{DateTime.Now:O} [{strLogType}] Object Log:");
+                        if (obj != null)
                         {
-                            object value = property.GetValue(obj, null);
-                            sw.WriteLine($"{property.Name}: {value}");
+                            Type type = obj.GetType();
+                            PropertyInfo[] properties = type.GetProperties();
+                            foreach (PropertyInfo property in properties)
+                            {
+                                object value = property.GetValue(obj, null);
+                                sw.WriteLine($"{property.Name}: {value}");
+                            }
                         }
-                    }
-                    else
-                    {
-                        sw.WriteLine("null");
+                        else
+                        {
+                            sw.WriteLine("null");
+                        }
                     }
                 }
             }

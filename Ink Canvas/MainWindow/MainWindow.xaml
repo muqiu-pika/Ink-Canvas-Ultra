@@ -36,13 +36,9 @@
 
     Foreground="Black"
 
-    KeyDown="Window_KeyDown"
-
     Loaded="Window_Loaded"
 
     MouseWheel="Window_MouseWheel"
-
-    PreviewKeyDown="Main_Grid_PreviewKeyDown"
 
     ResizeMode="NoResize"
 
@@ -93,6 +89,12 @@
             <RoutedUICommand x:Key="HotKey_ChangeToPen5" Text=" " />
 
             <RoutedUICommand x:Key="HotKey_DrawLine" Text=" " />
+
+            <RoutedUICommand x:Key="HotKey_PPTNext" Text=" " />
+
+            <RoutedUICommand x:Key="HotKey_PPTPrev" Text=" " />
+
+            <RoutedUICommand x:Key="HotKey_PPTExit" Text=" " />
 
         </ResourceDictionary>
 
@@ -182,6 +184,25 @@
 
             Modifiers="Alt" />
 
+        <!-- PPT 放映翻页：改为可由“自定义快捷键”插件修改（默认 PageDown/PageUp，无修饰键） -->
+        <KeyBinding
+
+            Key="PageDown"
+
+            Command="{StaticResource HotKey_PPTNext}" />
+
+        <KeyBinding
+
+            Key="PageUp"
+
+            Command="{StaticResource HotKey_PPTPrev}" />
+
+        <KeyBinding
+
+            Key="Escape"
+
+            Command="{StaticResource HotKey_PPTExit}" />
+
     </Window.InputBindings>
 
     <!--  命令执行方法绑定  -->
@@ -227,6 +248,70 @@
             Command="{StaticResource HotKey_DrawLine}"
 
             Executed="KeyDrawLine" />
+
+        <CommandBinding
+
+            CanExecute="CommandBinding_CanExecute"
+
+            Command="{StaticResource HotKey_ChangeToPen1}"
+
+            Executed="KeyChangeToPen1" />
+
+        <CommandBinding
+
+            CanExecute="CommandBinding_CanExecute"
+
+            Command="{StaticResource HotKey_ChangeToPen2}"
+
+            Executed="KeyChangeToPen2" />
+
+        <CommandBinding
+
+            CanExecute="CommandBinding_CanExecute"
+
+            Command="{StaticResource HotKey_ChangeToPen3}"
+
+            Executed="KeyChangeToPen3" />
+
+        <CommandBinding
+
+            CanExecute="CommandBinding_CanExecute"
+
+            Command="{StaticResource HotKey_ChangeToPen4}"
+
+            Executed="KeyChangeToPen4" />
+
+        <CommandBinding
+
+            CanExecute="CommandBinding_CanExecute"
+
+            Command="{StaticResource HotKey_ChangeToPen5}"
+
+            Executed="KeyChangeToPen5" />
+
+        <CommandBinding
+
+            CanExecute="CommandBinding_CanExecute"
+
+            Command="{StaticResource HotKey_PPTNext}"
+
+            Executed="HotKey_PPTNext" />
+
+        <CommandBinding
+
+            CanExecute="CommandBinding_CanExecute"
+
+            Command="{StaticResource HotKey_PPTPrev}"
+
+            Executed="HotKey_PPTPrev" />
+
+        <CommandBinding
+
+            CanExecute="CommandBinding_CanExecute"
+
+            Command="{StaticResource HotKey_PPTExit}"
+
+            Executed="HotKey_PPTExit" />
 
     </Window.CommandBindings>
 
