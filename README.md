@@ -12,6 +12,10 @@
 ![GitHub Repo stars](https://img.shields.io/github/stars/muqiu-pika/Ink-Canvas-Ultra)
 ![GitHub forks](https://img.shields.io/github/forks/muqiu-pika/Ink-Canvas-Ultra)
 
+## 如果觉得好用的话，麻烦给个Star🌟吧！
+如有疑惑或建议，欢迎在以下渠道与我们交流：
+- **QQ群**：[点击加入QQ群](https://qm.qq.com/q/PVJ56G0yOY)**Issues**：[点击提交 Issues](https://github.com/muqiu-pika/Ink-Canvas-Ultra/issues/new/choose)
+
 ![Screenshot-1](./Images/Screenshot1.png)
 ![Screenshot-2](./Images/Screenshot2.png)
 ![Screenshot-2](./Images/Screenshot3.png)
