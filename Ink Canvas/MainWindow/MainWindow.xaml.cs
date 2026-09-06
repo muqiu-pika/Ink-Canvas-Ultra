@@ -4569,7 +4569,7 @@ namespace Ink_Canvas
         }
 
         /// <summary>在画板指定位置插入照片并绑定到当前页码</summary>
-        private void InsertPhotoToCanvasAtPosition(CapturedImage photo, System.Windows.Point position)
+        private async void InsertPhotoToCanvasAtPosition(CapturedImage photo, System.Windows.Point position)
         {
             try
             {
@@ -4626,51 +4626,19 @@ namespace Ink_Canvas
                         double tileLeft = Math.Round(Math.Max(0, position.X - maxW / 2.0));
                         double tileTop = Math.Max(0, position.Y - 20);
 
-                        System.Windows.Controls.Image firstTileImg = null;
-                        // 分批异步插入瓦片：每批让出 UI 线程，避免大量 Image 一次性创建导致卡顿
-                        int tileTotal = tiles.Count;
-                        int tileDone = 0;
-                        const int batchSize = 4;
-                        for (int ti = 0; ti < tiles.Count; ti++)
+                        // 分批后台解码 + 插入（后台 OnLoad 完整解码，渲染线程零解码开销，画质不变）
+                        var firstTileImg = await InsertDocumentTilesCoreAsync(
+                            tiles, tileLeft, tileTop, currentPage, docPath, restoreAfterInsert: false);
+                        if (firstTileImg != null)
                         {
-                            var tile = tiles[ti];
-                            var tileImg = new System.Windows.Controls.Image
-                            {
-                                Source = CreateBitmapImageFromFileOrMemory(tile),
-                                Width = tile.PixelWidth,
-                                Height = tile.PixelHeight,
-                                Name = GeneratePhotoName(),
-                                Tag = tile.SourceFilePath,
-                                SnapsToDevicePixels = true,
-                                UseLayoutRounding = true
-                            };
-                            System.Windows.Media.RenderOptions.SetBitmapScalingMode(tileImg, System.Windows.Media.BitmapScalingMode.HighQuality);
-                            InkCanvas.SetLeft(tileImg, tileLeft);
-                            InkCanvas.SetTop(tileImg, Math.Round(tileTop));
-                            inkCanvas.Children.Add(tileImg);
-                            if (firstTileImg == null) firstTileImg = tileImg;
-                            photoPageMapping[tile.Timestamp] = currentPage;
-                            tileTop += tile.PixelHeight;
-                            tileDone++;
-
-                            // 每批插入后让出 UI 线程处理渲染，并反馈进度
-                            if (tileDone % batchSize == 0)
-                            {
-                                ShowNotificationAsync($"正在插入文档照片 {tileDone}/{tileTotal}", true);
-                                try { inkCanvas.UpdateLayout(); } catch { }
-                                System.Windows.Threading.Dispatcher.Yield(
-                                    System.Windows.Threading.DispatcherPriority.Background);
-                            }
+                            currentPhotoImage = firstTileImg;
+                            timeMachine.CommitElementInsertHistory(firstTileImg);
                         }
-
-                        currentPhotoImage = firstTileImg;
-                        pageDocumentMapping[currentPage] = docPath;
-                        timeMachine.CommitElementInsertHistory(firstTileImg);
                         selectedPhotoTimestamp = tiles[0].Timestamp;
                         UpdateCapturedPhotosDisplay();
                         SaveDocumentPageIfNeeded(currentPage);
                         Console.WriteLine($"文档照片瓦片化（拖拽）插入完成: {tiles.Count} 张, 文档: {docPath}");
-                        ShowNotificationAsync($"文档照片插入完成（{tileTotal} 张）", true);
+                        ShowNotificationAsync($"文档照片插入完成（{tiles.Count} 张）", true);
                         return;
                     }
                 }
@@ -4713,13 +4681,113 @@ namespace Ink_Canvas
             }
         }
 
+        /// <summary>
+        /// 分批插入文档瓦片（拖拽/点击两条插入路径共用）。
+        /// 关键优化：瓦片位图在后台线程完整解码（OnLoad + Freeze，原始分辨率，不压缩画质），
+        /// 避免几十张全分辨率 PNG 以 OnDemand 方式挤在渲染线程逐张同步解码造成整机假死；
+        /// UI 线程每批只做轻量的 Image 创建与 Children.Add，批间让出消息循环保证输入/渲染响应。
+        /// 页码在插入过程中被切换时立即中止，避免把剩余瓦片插到错误页面。
+        /// </summary>
+        /// <param name="tiles">按块序号升序排列的瓦片</param>
+        /// <param name="left">瓦片列的水平起点</param>
+        /// <param name="topStart">第一张瓦片的垂直起点</param>
+        /// <param name="currentPage">插入目标页码（用于映射与翻页中止检测）</param>
+        /// <param name="docPath">原始文档路径（用于 pageDocumentMapping）</param>
+        /// <param name="restoreAfterInsert">插入完成后是否尝试恢复该页已保存的笔迹（点击插入路径需要）</param>
+        /// <returns>第一张瓦片的 Image（用于 currentPhotoImage 与历史提交）；全部被中止时可能为 null</returns>
+        private async Task<System.Windows.Controls.Image> InsertDocumentTilesCoreAsync(
+            List<CapturedImage> tiles, double left, double topStart, int currentPage, string docPath, bool restoreAfterInsert)
+        {
+            int tileTotal = tiles.Count;
+            int tileDone = 0;
+            const int batchSize = 4;
+            // 预解码内存护栏：累计已解码像素超过该值后，剩余瓦片退回 OnDemand（渲染时解码），
+            // 防止极端大文档（数百页）一次性驻留全部解码位图导致内存失控
+            const long maxPrewarmBytes = 1_500_000_000;
+            long prewarmedBytes = 0;
+
+            System.Windows.Controls.Image firstImg = null;
+            double top = topStart;
+
+            for (int ti = 0; ti < tileTotal; ti++)
+            {
+                // 用户已切走页面：中止插入，剩余瓦片不再添加
+                if (GetCurrentPageIndex() != currentPage)
+                {
+                    Console.WriteLine($"插入文档瓦片时检测到页面切换，中止剩余插入: {docPath}（已完成 {tileDone}/{tileTotal}）");
+                    break;
+                }
+
+                var tile = tiles[ti];
+
+                System.Windows.Media.Imaging.BitmapImage source;
+                if (prewarmedBytes < maxPrewarmBytes)
+                {
+                    // 后台线程完整解码（OnLoad + Freeze），分辨率与原文件一致，UI/渲染线程零解码开销
+                    source = await System.Threading.Tasks.Task.Run(
+                        () => CreateBitmapImageFromFileOrMemory(tile, forceOnLoad: true));
+                    try { prewarmedBytes += (long)source.PixelWidth * source.PixelHeight * 4; } catch { }
+                }
+                else
+                {
+                    // 超出预解码护栏：退回 OnDemand，渲染时再解码
+                    source = CreateBitmapImageFromFileOrMemory(tile);
+                }
+
+                var tileImg = new System.Windows.Controls.Image
+                {
+                    Source = source,
+                    Width = tile.PixelWidth,
+                    Height = tile.PixelHeight,
+                    Name = GeneratePhotoName(),
+                    Tag = tile.SourceFilePath,
+                    SnapsToDevicePixels = true,
+                    UseLayoutRounding = true
+                };
+                System.Windows.Media.RenderOptions.SetBitmapScalingMode(tileImg, System.Windows.Media.BitmapScalingMode.HighQuality);
+                InkCanvas.SetLeft(tileImg, left);
+                InkCanvas.SetTop(tileImg, Math.Round(top));
+                inkCanvas.Children.Add(tileImg);
+
+                if (firstImg == null) firstImg = tileImg;
+
+                // 所有瓦片的时间戳关联到同一页码，点击任意瓦片都能跳转到正确页面
+                photoPageMapping[tile.Timestamp] = currentPage;
+                top += tile.PixelHeight;
+                tileDone++;
+
+                // 每批插入后让出 UI 线程处理渲染与输入，并反馈进度
+                if (tileDone % batchSize == 0)
+                {
+                    ShowNotificationAsync($"正在插入文档照片 {tileDone}/{tileTotal}", true);
+                    try { inkCanvas.UpdateLayout(); } catch { }
+                    await System.Threading.Tasks.Task.Delay(1);
+                }
+            }
+
+            // 记录文档页关联（使用原始文档路径，不含块序号），供后续保存/恢复使用
+            pageDocumentMapping[currentPage] = docPath;
+
+            // 文档页保存/恢复：点击插入路径需要恢复该页之前保存的笔迹
+            if (restoreAfterInsert && GetCurrentPageIndex() == currentPage)
+            {
+                bool restored = RestoreDocumentPageIfAvailable(currentPage);
+                if (!restored)
+                {
+                    SaveDocumentPageIfNeeded(currentPage);
+                }
+            }
+
+            return firstImg;
+        }
+
         private bool IsDocumentPhoto(CapturedImage photo)
         {
             // 分块照片的来源路径带 "#块序号"，剥离后按文档识别
             return photo != null && IsDocumentFilePath(StripChunkSuffix(photo.SourceFilePath));
         }
 
-        private void InsertPhotoToCanvas(CapturedImage photo)
+        private async void InsertPhotoToCanvas(CapturedImage photo)
         {
             try
             {
@@ -4824,76 +4892,24 @@ namespace Ink_Canvas
                         if (canvasWidth <= 0) canvasWidth = SystemParameters.PrimaryScreenWidth;
                         double left = Math.Round(Math.Max(0, (canvasWidth - maxW) / 2.0));
 
-                        double top = 0;
-                        System.Windows.Controls.Image firstImg = null;
-
-                        // 分批异步插入瓦片：每批让出 UI 线程，避免大量 Image 一次性创建导致卡顿，
-                        // 并通过进度提示反馈插入状态
-                        int tileTotal = tiles.Count;
-                        int tileDone = 0;
-                        const int batchSize = 4;
-                        for (int ti = 0; ti < tiles.Count; ti++)
+                        // 分批后台解码 + 插入（后台 OnLoad 完整解码，渲染线程零解码开销，画质不变）
+                        var firstImg = await InsertDocumentTilesCoreAsync(
+                            tiles, left, 0, currentPage, docPath, restoreAfterInsert: true);
+                        if (firstImg != null)
                         {
-                            var tile = tiles[ti];
-                            var tileImg = new System.Windows.Controls.Image
-                            {
-                                Source = CreateBitmapImageFromFileOrMemory(tile),
-                                Width = tile.PixelWidth,
-                                Height = tile.PixelHeight,
-                                Name = GeneratePhotoName(),
-                                Tag = tile.SourceFilePath,
-                                SnapsToDevicePixels = true,
-                                UseLayoutRounding = true
-                            };
-                            System.Windows.Media.RenderOptions.SetBitmapScalingMode(tileImg, System.Windows.Media.BitmapScalingMode.HighQuality);
-
-                            InkCanvas.SetLeft(tileImg, left);
-                            InkCanvas.SetTop(tileImg, Math.Round(top));
-                            inkCanvas.Children.Add(tileImg);
-
-                            if (firstImg == null) firstImg = tileImg;
-
-                            // 所有瓦片的时间戳关联到同一页码，点击任意瓦片都能跳转到正确页面
-                            photoPageMapping[tile.Timestamp] = currentPage;
-                            top += tile.PixelHeight;
-                            tileDone++;
-
-                            // 每批插入后让出 UI 线程处理渲染，并反馈进度
-                            if (tileDone % batchSize == 0)
-                            {
-                                ShowNotificationAsync($"正在插入文档照片 {tileDone}/{tileTotal}", true);
-                                try { inkCanvas.UpdateLayout(); } catch { }
-                                System.Windows.Threading.Dispatcher.Yield(
-                                    System.Windows.Threading.DispatcherPriority.Background);
-                            }
+                            currentPhotoImage = firstImg;
+                            timeMachine.CommitElementInsertHistory(firstImg);
                         }
 
-                        // 记录当前照片引用（指向第一张瓦片，用于后续 HasPhotoOnCurrentPage 等判断）
-                        currentPhotoImage = firstImg;
-
-                        Console.WriteLine($"文档照片瓦片化插入完成: {tiles.Count} 张, 文档: {docPath}, 总高度: {Math.Round(top)}px");
+                        Console.WriteLine($"文档照片瓦片化插入完成: {tiles.Count} 张, 文档: {docPath}");
 
                         // 选中第一张瓦片
                         selectedPhotoTimestamp = tiles[0].Timestamp;
                         UpdateCapturedPhotosDisplay();
 
-                        // 记录历史（只记录第一张瓦片，保存/恢复时整个 InkCanvas 被序列化，包含所有瓦片）
-                        timeMachine.CommitElementInsertHistory(firstImg);
-
-                        // 记录文档页关联（使用原始文档路径，不含块序号），供后续保存/恢复使用
-                        pageDocumentMapping[currentPage] = docPath;
-
-                        // 文档页保存/恢复
-                        bool restored = RestoreDocumentPageIfAvailable(currentPage);
-                        if (!restored)
-                        {
-                            SaveDocumentPageIfNeeded(currentPage);
-                        }
-
-                        // 强制布局更新
                         try { inkCanvas.UpdateLayout(); } catch { }
                         Console.WriteLine($"文档照片瓦片已成功插入白板: {docPath}");
-                        ShowNotificationAsync($"文档照片插入完成（{tileTotal} 张）", true);
+                        ShowNotificationAsync($"文档照片插入完成（{tiles.Count} 张）", true);
                         return; // 已处理完毕，跳过后续单张照片逻辑
                     }
                 }
