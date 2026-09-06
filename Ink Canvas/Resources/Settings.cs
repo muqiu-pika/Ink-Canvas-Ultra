@@ -293,6 +293,14 @@ namespace Ink_Canvas
         [JsonProperty("isAutoSaveStrokesAtScreenshot")]
         public bool IsAutoSaveStrokesAtScreenshot { get; set; } = false;
 
+        /// <summary>
+        /// 截图保存后是否同时复制到剪贴板。
+        /// 开启后，自动截图（清屏/换页/退出批注等）保存的 PNG 会一并写入剪贴板，
+        /// 用户可直接粘贴为图片，或在资源管理器中粘贴为文件复制到其它位置。
+        /// </summary>
+        [JsonProperty("isCopyScreenshotToClipboard")]
+        public bool IsCopyScreenshotToClipboard { get; set; } = false;
+
         [JsonProperty("isAutoSaveStrokesAtClear")]
         public bool IsAutoSaveStrokesAtClear { get; set; } = false;
 

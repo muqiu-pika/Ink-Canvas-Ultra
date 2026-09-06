@@ -650,6 +650,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(ToggleSwitchSaveScreenshotsInDateFolders_Toggled), sender, e);
         }
 
+        private void ToggleSwitchCopyScreenshotToClipboard_Toggled(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ToggleSwitchCopyScreenshotToClipboard_Toggled), sender, e);
+        }
+
         private void ToggleSwitchShowButtonPPTNavigationBottom_OnToggled(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(ToggleSwitchShowButtonPPTNavigationBottom_OnToggled), sender, e);

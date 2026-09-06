@@ -3574,6 +3574,45 @@ namespace Ink_Canvas
             }
         }
 
+        /// <summary>
+        /// 创建照片列表右上角的"视频"角标。
+        /// 调用方需把它放在缩略图之后添加（或设置更高的 ZIndex），否则角标会被缩略图图层盖住。
+        /// </summary>
+        private static Border CreateVideoBadge()
+        {
+            var badge = new Border
+            {
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Margin = new Thickness(0, 5, 5, 0),
+                Padding = new Thickness(5, 2, 5, 2),
+                CornerRadius = new CornerRadius(4),
+                IsHitTestVisible = false, // 角标不参与命中测试，点击穿透到下方的照片按钮
+                Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xCC, 0xE8, 0x3E, 0x3E))
+            };
+
+            var badgeContent = new StackPanel { Orientation = Orientation.Horizontal };
+            badgeContent.Children.Add(new TextBlock
+            {
+                Text = "\uE714",
+                FontFamily = (System.Windows.Media.FontFamily)Application.Current.TryFindResource("FluentIconFontFamily"),
+                FontSize = 10,
+                Foreground = System.Windows.Media.Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 2, 0)
+            });
+            badgeContent.Children.Add(new TextBlock
+            {
+                Text = "视频",
+                FontSize = 10,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = System.Windows.Media.Brushes.White,
+                VerticalAlignment = VerticalAlignment.Center
+            });
+            badge.Child = badgeContent;
+            return badge;
+        }
+
         private Button CreatePhotoButton(CapturedImage photo)
         {
             bool isSelected = selectedPhotoTimestamp != null && selectedPhotoTimestamp == photo.Timestamp;
@@ -3606,42 +3645,20 @@ namespace Ink_Canvas
 
             var contentGrid = new Grid();
 
-            // 视频条目：右上角添加视频标记徽章
+            contentGrid.Children.Add(image);
+
+            // 选中态叠加层（☑）
+            System.Windows.Controls.Panel.SetZIndex(checkOverlay, 1);
+            contentGrid.Children.Add(checkOverlay);
+
+            // 视频条目：右上角添加视频标记徽章。
+            // 必须在 image 之后添加（并显式设置 ZIndex），否则会被后加入的缩略图图层盖住。
             if (photo.IsVideo)
             {
-                var badge = new Border
-                {
-                    HorizontalAlignment = HorizontalAlignment.Right,
-                    VerticalAlignment = VerticalAlignment.Top,
-                    Margin = new Thickness(0, 5, 5, 0),
-                    Padding = new Thickness(5, 2, 5, 2),
-                    CornerRadius = new CornerRadius(4),
-                    Background = new SolidColorBrush(System.Windows.Media.Color.FromArgb(0xCC, 0xE8, 0x3E, 0x3E))
-                };
-                var badgeContent = new StackPanel { Orientation = Orientation.Horizontal };
-                badgeContent.Children.Add(new TextBlock
-                {
-                    Text = "\uE714",
-                    FontFamily = (System.Windows.Media.FontFamily)Application.Current.TryFindResource("FluentIconFontFamily"),
-                    FontSize = 10,
-                    Foreground = System.Windows.Media.Brushes.White,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(0, 0, 2, 0)
-                });
-                badgeContent.Children.Add(new TextBlock
-                {
-                    Text = "视频",
-                    FontSize = 10,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = System.Windows.Media.Brushes.White,
-                    VerticalAlignment = VerticalAlignment.Center
-                });
-                badge.Child = badgeContent;
+                var badge = CreateVideoBadge();
+                System.Windows.Controls.Panel.SetZIndex(badge, 2);
                 contentGrid.Children.Add(badge);
             }
-
-            contentGrid.Children.Add(image);
-            contentGrid.Children.Add(checkOverlay);
 
             // 操作覆盖层（排序 + 删除），初始隐藏
             // 3 秒自动隐藏计时器
@@ -3698,6 +3715,8 @@ namespace Ink_Canvas
 
             actionOverlay = CreatePhotoActionOverlay(photo, hideOverlay);
             actionOverlay.Tag = new Action(hideOverlay);
+            // 操作层置于最上层：长按/右键时完整盖住缩略图与角标
+            System.Windows.Controls.Panel.SetZIndex(actionOverlay, 3);
             contentGrid.Children.Add(actionOverlay);
 
             // 点击覆盖层背景（两个按钮之外）→ 隐藏
@@ -6004,8 +6023,11 @@ namespace Ink_Canvas
         // 是摄像头预览最大的 CPU 与 GC 热点。30fps 刷新现由 CameraFrameTimer_Tick 经
         // CameraFrameBuffer（LockBits 直拷 + 复用 WriteableBitmap）完成，稳态下每帧零分配。
 
-        /// <summary>侧栏"插入媒体"按钮：导入图片/视频后统一显示在照片列表中</summary>
-        private async void BtnInsertMediaInSidebar_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// 侧栏"插入媒体"按钮：支持一次选中多个图片/视频文件，
+        /// 导入后每个文件在照片列表中单独占一格（一张照片/一个视频 = 一格）。
+        /// </summary>
+        private void BtnInsertMediaInSidebar_Click(object sender, RoutedEventArgs e)
         {
             // 实时检查视频控件 plugin 是否可用
             var host = Plugins.PluginHost.Instance;
@@ -6021,181 +6043,275 @@ namespace Ink_Canvas
                 filter = "图片 (*.jpg;*.jpeg;*.png;*.bmp)|*.jpg;*.jpeg;*.png;*.bmp";
             }
 
-            var openFileDialog = new Microsoft.Win32.OpenFileDialog { Filter = filter };
+            // Multiselect：允许同时打开多张照片/多个视频，每个文件对应照片列表中的一格
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Filter = filter,
+                Multiselect = true
+            };
             if (openFileDialog.ShowDialog() != true) return;
 
-            string filePath = openFileDialog.FileName;
-            string ext = (System.IO.Path.GetExtension(filePath) ?? string.Empty).ToLowerInvariant();
-            var imageExts = new HashSet<string> { ".jpg", ".jpeg", ".png", ".bmp" };
-            var videoExts = new HashSet<string> { ".mp4", ".avi", ".wmv" };
+            string[] selectedFiles = openFileDialog.FileNames;
+            if (selectedFiles == null || selectedFiles.Length == 0) return;
 
-            if (imageExts.Contains(ext))
+            var imageExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".jpg", ".jpeg", ".png", ".bmp" };
+            var videoExts = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".mp4", ".avi", ".wmv" };
+
+            int imageCount = 0;
+            int videoCount = 0;
+            var failedFiles = new List<string>();
+            bool videoPluginMissing = false;
+
+            // 逆序遍历：导入方法统一插入到列表头部，逆序可让照片列表中的顺序与选择顺序一致
+            for (int i = selectedFiles.Length - 1; i >= 0; i--)
             {
-                // 图片：加载为 BitmapImage 后加入照片列表
-                try
-                {
-                    var bitmap = new BitmapImage();
-                    bitmap.BeginInit();
-                    bitmap.CacheOption = BitmapCacheOption.OnLoad;
-                    bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
-                    bitmap.EndInit();
-                    bitmap.Freeze();
+                string filePath = selectedFiles[i];
+                if (string.IsNullOrWhiteSpace(filePath)) continue;
 
-                    AddImportedImageToPhotoList(bitmap, filePath);
-                }
-                catch (Exception ex)
+                string ext = (System.IO.Path.GetExtension(filePath) ?? string.Empty).ToLowerInvariant();
+
+                if (imageExts.Contains(ext))
                 {
-                    MessageBox.Show($"加载图片失败：{ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    if (AddImportedImageToPhotoList(filePath)) imageCount++;
+                    else failedFiles.Add(filePath);
+                }
+                else if (videoExts.Contains(ext))
+                {
+                    if (!videoAvailable)
+                    {
+                        videoPluginMissing = true;
+                        continue;
+                    }
+                    if (AddImportedVideoToPhotoList(filePath)) videoCount++;
+                    else failedFiles.Add(filePath);
+                }
+                else
+                {
+                    failedFiles.Add(filePath);
                 }
             }
-            else if (videoExts.Contains(ext))
+
+            // 汇总提示（不逐条弹窗，避免选中大量文件时被打断）
+            int totalCount = imageCount + videoCount;
+            if (totalCount > 0)
             {
-                // 视频：检查插件可用性后加入照片列表（带视频标记）
-                if (!videoAvailable)
-                {
-                    MessageBox.Show("未安装视频控件 plugin，无法导入视频。请到插件工坊安装 videocontrols。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
-                    return;
-                }
-                AddImportedVideoToPhotoList(filePath);
+                string summary = (imageCount > 0 && videoCount > 0)
+                    ? $"已导入 {imageCount} 张图片、{videoCount} 个视频到照片列表"
+                    : (imageCount > 0
+                        ? $"已导入 {imageCount} 张图片到照片列表"
+                        : $"已导入 {videoCount} 个视频到照片列表");
+                ShowNotificationAsync(summary);
             }
-            else
+
+            if (failedFiles.Count > 0)
             {
-                MessageBox.Show("不支持的媒体格式", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Information);
+                if (totalCount > 0)
+                {
+                    // 部分失败：只提示数量，避免打断连续导入
+                    ShowNotificationAsync($"另有 {failedFiles.Count} 个文件导入失败");
+                }
+                else
+                {
+                    string detail = string.Join("\n", failedFiles.Take(8).Select(System.IO.Path.GetFileName));
+                    if (failedFiles.Count > 8) detail += $"\n……等共 {failedFiles.Count} 个文件";
+                    MessageBox.Show($"以下文件导入失败：\n{detail}", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            else if (videoPluginMissing && totalCount == 0)
+            {
+                MessageBox.Show("未安装视频控件 plugin，无法导入视频。请到插件工坊安装 videocontrols。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 
-        /// <summary>将导入的图片加入照片列表</summary>
-        private void AddImportedImageToPhotoList(BitmapImage bitmap, string filePath)
+        /// <summary>将导入的图片加入照片列表（每张图片单独占一格）</summary>
+        /// <returns>导入成功返回 true，失败返回 false</returns>
+        private bool AddImportedImageToPhotoList(string filePath)
         {
             try
             {
+                var bitmap = new BitmapImage();
+                bitmap.BeginInit();
+                bitmap.CacheOption = BitmapCacheOption.OnLoad;
+                bitmap.UriSource = new Uri(filePath, UriKind.Absolute);
+                bitmap.EndInit();
+                bitmap.Freeze();
+
                 var captured = new CapturedImage(bitmap, filePath);
+                EnsureUniqueTimestamp(captured);
                 capturedPhotos.Insert(0, captured);
                 UpdateCapturedPhotosDisplay();
-                Console.WriteLine($"图片已导入照片列表：{filePath}");
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"导入图片到照片列表失败：{ex.Message}");
+                LogHelper.WriteLogToFile($"导入图片到照片列表失败 [{filePath}]：{ex.Message}", LogHelper.LogType.Error);
+                return false;
             }
         }
 
-        /// <summary>将导入的视频加入照片列表（使用占位缩略图 + 视频标记）</summary>
-        private void AddImportedVideoToPhotoList(string videoFilePath)
+        /// <summary>
+        /// 保证照片时间戳全局唯一。
+        /// Timestamp 被用作照片列表 / 页码映射的主键，批量导入时多张照片可能落在同一毫秒内，
+        /// 若主键重复会导致选中、插入、换页绑定串到同一张照片上。
+        /// </summary>
+        private void EnsureUniqueTimestamp(CapturedImage captured)
+        {
+            try
+            {
+                if (captured == null) return;
+                var used = new HashSet<string>(capturedPhotos.Select(p => p.Timestamp).Where(t => !string.IsNullOrEmpty(t)), StringComparer.Ordinal);
+                if (!used.Contains(captured.Timestamp)) return;
+
+                string baseTimestamp = captured.Timestamp;
+                int index = 1;
+                string candidate;
+                do
+                {
+                    candidate = $"{baseTimestamp}-{index++}";
+                }
+                while (used.Contains(candidate));
+                captured.SetTimestamp(candidate);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 将导入的视频加入照片列表（每个视频单独占一格）：
+        /// 先用占位图占位，再异步解码首帧替换缩略图，失败时保持占位图。
+        /// </summary>
+        /// <returns>导入成功返回 true，失败返回 false</returns>
+        private bool AddImportedVideoToPhotoList(string videoFilePath)
         {
             try
             {
                 var placeholder = CapturedImage.CreateVideoPlaceholderThumbnail();
                 var captured = new CapturedImage(placeholder, videoFilePath, isVideo: true);
+                EnsureUniqueTimestamp(captured);
                 capturedPhotos.Insert(0, captured);
                 UpdateCapturedPhotosDisplay();
-                Console.WriteLine($"视频已导入照片列表：{videoFilePath}");
 
-                // 真正解码视频并截取第一帧作为缩略图（保留“视频”角标样式），失败时保持占位图。
-                // 不用系统文件缩略图，而是用 WPF MediaPlayer 解码后抓帧，保证显示的是真实首帧。
+                // 真正解码视频并截取第一帧作为缩略图（保留“视频”角标样式）
                 TryLoadVideoFirstFrame(videoFilePath, captured);
+                return true;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"导入视频到照片列表失败：{ex.Message}");
+                LogHelper.WriteLogToFile($"导入视频到照片列表失败 [{videoFilePath}]：{ex.Message}", LogHelper.LogType.Error);
+                return false;
             }
         }
 
-        /// <summary>异步解码视频并截取第一帧作为照片列表缩略图（保留“视频”角标样式）</summary>
-        private void TryLoadVideoFirstFrame(string videoFilePath, CapturedImage captured)
+        /// <summary>
+        /// 解码视频并截取第一帧作为照片列表缩略图（保留“视频”角标样式）。
+        /// MediaPlayer 是 DispatcherObject，必须在 UI 线程创建并通过事件驱动等待 MediaOpened；
+        /// 此前在后台线程创建时消息循环未启动，MediaOpened 永不触发，缩略图会一直停留在占位图。
+        /// 这里改为：UI 线程创建 → 等待 MediaOpened（带超时）→ 定位到 0 秒 → 渲染首帧。
+        /// </summary>
+        private async void TryLoadVideoFirstFrame(string videoFilePath, CapturedImage captured)
         {
+            MediaPlayer player = null;
             try
             {
-                // 在后台线程解码视频首帧，避免阻塞 UI
-                System.Threading.Tasks.Task.Run(() =>
+                if (string.IsNullOrWhiteSpace(videoFilePath) || !System.IO.File.Exists(videoFilePath)) return;
+
+                player = new MediaPlayer
                 {
-                    try
-                    {
-                        var player = new MediaPlayer();
-                        try
-                        {
-                            player.Open(new Uri(videoFilePath));
-                            player.Pause();
+                    ScrubbingEnabled = true, // 允许未播放时定位到指定位置并渲染该帧
+                    IsMuted = true,
+                    Volume = 0
+                };
 
-                            // 等待媒体打开完成（最多等待 5 秒）
-                            int waitCount = 0;
-                            while (player.NaturalDuration == Duration.Automatic && waitCount < 50)
-                            {
-                                System.Threading.Thread.Sleep(100);
-                                waitCount++;
-                            }
+                var openedCompletionSource = new TaskCompletionSource<bool>();
 
-                            if (player.NaturalDuration == Duration.Automatic)
-                            {
-                                Console.WriteLine($"视频 {videoFilePath} 无法获取时长，可能不支持该格式");
-                                return;
-                            }
+                EventHandler openedHandler = (s, args) => openedCompletionSource.TrySetResult(true);
+                EventHandler<ExceptionEventArgs> failedHandler = (s, args) =>
+                    openedCompletionSource.TrySetException(
+                        args?.ErrorException ?? new Exception("媒体打开失败"));
 
-                            // 定位到首帧（0 秒位置）
-                            player.Position = TimeSpan.Zero;
+                player.MediaOpened += openedHandler;
+                player.MediaFailed += failedHandler;
+                player.Open(new Uri(videoFilePath, UriKind.Absolute));
 
-                            // 依据视频原始宽高比例生成缩略图（最长边 320px，保持纵横比）
-                            double originalWidth = player.NaturalVideoWidth;
-                            double originalHeight = player.NaturalVideoHeight;
-                            if (originalWidth <= 0 || originalHeight <= 0)
-                            {
-                                Console.WriteLine($"视频 {videoFilePath} 无有效视频流");
-                                return;
-                            }
+                // 最多等待 5 秒
+                var finishedTask = await Task.WhenAny(openedCompletionSource.Task, Task.Delay(5000)).ConfigureAwait(true);
+                if (finishedTask != openedCompletionSource.Task)
+                {
+                    LogHelper.WriteLogToFile($"提取视频首帧超时：{videoFilePath}", LogHelper.LogType.Error);
+                    return;
+                }
 
-                            double scale = Math.Min(320.0 / originalWidth, 320.0 / originalHeight);
-                            int thumbnailWidth = (int)(originalWidth * scale);
-                            int thumbnailHeight = (int)(originalHeight * scale);
+                // 传播打开失败的异常
+                await openedCompletionSource.Task.ConfigureAwait(true);
 
-                            // 将解码出的首帧绘制到 DrawingVisual
-                            var visual = new DrawingVisual();
-                            using (var dc = visual.RenderOpen())
-                            {
-                                dc.DrawVideo(player, new Rect(0, 0, thumbnailWidth, thumbnailHeight));
-                            }
+                player.MediaOpened -= openedHandler;
+                player.MediaFailed -= failedHandler;
 
-                            // 渲染成位图
-                            var rtb = new RenderTargetBitmap(thumbnailWidth, thumbnailHeight, 96, 96, PixelFormats.Pbgra32);
-                            rtb.Render(visual);
+                // 定位到首帧并等待解码输出该帧
+                player.Pause();
+                player.Position = TimeSpan.Zero;
+                await Task.Delay(300).ConfigureAwait(true);
 
-                            var encoder = new PngBitmapEncoder();
-                            encoder.Frames.Add(BitmapFrame.Create(rtb));
+                double originalWidth = player.NaturalVideoWidth;
+                double originalHeight = player.NaturalVideoHeight;
+                if (originalWidth <= 0 || originalHeight <= 0)
+                {
+                    LogHelper.WriteLogToFile($"视频无有效视频流：{videoFilePath}", LogHelper.LogType.Error);
+                    return;
+                }
 
-                            using (var ms = new MemoryStream())
-                            {
-                                encoder.Save(ms);
-                                ms.Position = 0;
+                // 依据视频原始宽高比例生成缩略图（最长边 320px，保持纵横比）
+                double scale = Math.Min(320.0 / originalWidth, 320.0 / originalHeight);
+                int thumbnailWidth = Math.Max(1, (int)(originalWidth * scale));
+                int thumbnailHeight = Math.Max(1, (int)(originalHeight * scale));
 
-                                var frame = new BitmapImage();
-                                frame.BeginInit();
-                                frame.StreamSource = ms;
-                                frame.CacheOption = BitmapCacheOption.OnLoad;
-                                frame.EndInit();
-                                frame.Freeze();
+                // 将解码出的首帧绘制到 DrawingVisual
+                var visual = new DrawingVisual();
+                using (var dc = visual.RenderOpen())
+                {
+                    dc.DrawVideo(player, new Rect(0, 0, thumbnailWidth, thumbnailHeight));
+                }
 
-                                // 切回 UI 线程更新缩略图
-                                Dispatcher.BeginInvoke(new Action(() =>
-                                {
-                                    captured.UpdateImage(frame);
-                                    UpdateCapturedPhotosDisplay();
-                                }));
-                            }
-                        }
-                        finally
-                        {
-                            player.Close();
-                            player.Freeze();
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Console.WriteLine($"提取视频 {videoFilePath} 首帧失败：{ex.Message}");
-                    }
-                });
+                // 渲染成位图（MediaPlayer 在 UI 线程，DrawVideo 才能拿到已解码的画面）
+                var renderTarget = new RenderTargetBitmap(thumbnailWidth, thumbnailHeight, 96, 96, PixelFormats.Pbgra32);
+                renderTarget.Render(visual);
+
+                // 编码为 PNG 再解码成 BitmapImage：避免持有 RenderTargetBitmap 的渲染资源，
+                // 同时与照片列表其它条目保持同一类型
+                BitmapImage frame;
+                var encoder = new PngBitmapEncoder();
+                encoder.Frames.Add(BitmapFrame.Create(renderTarget));
+                using (var ms = new MemoryStream())
+                {
+                    encoder.Save(ms);
+                    ms.Position = 0;
+
+                    frame = new BitmapImage();
+                    frame.BeginInit();
+                    frame.StreamSource = ms;
+                    frame.CacheOption = BitmapCacheOption.OnLoad;
+                    frame.EndInit();
+                    frame.Freeze();
+                }
+
+                captured.UpdateImage(frame);
+                UpdateCapturedPhotosDisplay();
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"启动视频首帧提取失败：{ex.Message}");
+                // 失败时保持占位缩略图，不影响导入结果
+                LogHelper.WriteLogToFile($"提取视频 {videoFilePath} 首帧失败：{ex.Message}", LogHelper.LogType.Error);
+            }
+            finally
+            {
+                try
+                {
+                    if (player != null)
+                    {
+                        player.Close();
+                        if (player.CanFreeze) player.Freeze();
+                    }
+                }
+                catch { }
             }
         }
 

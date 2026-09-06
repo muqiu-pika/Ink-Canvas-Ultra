@@ -10,7 +10,11 @@ namespace Ink_Canvas.Models
         public BitmapImage Image { get; private set; }
         public BitmapImage Thumbnail { get; private set; }
         public StrokeCollection Strokes { get; }
-        public string Timestamp { get; }
+        /// <summary>
+        /// 照片唯一标识（同时用于页码映射与选中态）。
+        /// 正常情况下为创建时刻的时间戳，批量导入时若与已有条目撞在同一毫秒会被改写为「时间戳-序号」。
+        /// </summary>
+        public string Timestamp { get; private set; }
         public string FilePath { get; private set; }
 
         /// <summary>原始像素尺寸缓存。图片落盘后 Image 会被释放以节省内存，尺寸仍由此提供。</summary>
@@ -22,6 +26,12 @@ namespace Ink_Canvas.Models
 
         /// <summary>原始来源文件路径（例如导入的文档路径），与照片列表保存路径 FilePath 区分。</summary>
         public string SourceFilePath { get; }
+
+        /// <summary>校正时间戳（仅在批量导入出现同毫秒主键冲突时使用）</summary>
+        public void SetTimestamp(string timestamp)
+        {
+            if (!string.IsNullOrEmpty(timestamp)) Timestamp = timestamp;
+        }
 
         /// <summary>更新图片并重绘缩略图，保留时间戳等元数据。</summary>
         public void UpdateImage(BitmapImage newImage)

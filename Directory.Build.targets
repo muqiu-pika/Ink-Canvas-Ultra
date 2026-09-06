@@ -1,0 +1,18 @@
+<Project>
+  <!--
+    仅供 dotnet CLI (Core MSBuild) 构建使用：Core 版 MSBuild 不支持 ResolveComReference 任务 (MSB4803)，
+    这里用仓库内预生成的 COM Interop DLL 直接引用替代，使 dotnet build 能完成编译验证。
+    Condition 限定 Core 运行时，Visual Studio / .NET Framework MSBuild 的正常构建完全不受影响。
+  -->
+  <ItemGroup Condition="'$(MSBuildRuntimeType)' == 'Core'">
+    <COMReference Remove="@(COMReference)" />
+    <Reference Include="Interop.IWshRuntimeLibrary">
+      <HintPath>$(MSBuildThisFileDirectory)Ink Canvas\bin\Any CPU\Debug\Interop.IWshRuntimeLibrary.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+    <Reference Include="Interop.stdole">
+      <HintPath>$(MSBuildThisFileDirectory)Ink Canvas\bin\Any CPU\Debug\Interop.stdole.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

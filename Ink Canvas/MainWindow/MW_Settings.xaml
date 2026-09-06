@@ -870,7 +870,7 @@
 
                                         Foreground="{DynamicResource SettingsPageAnnotationForeground}"
 
-                                        Text="当前版本号：26.9.3"
+                                        Text="当前版本号：26.9.4"
 
                                         TextWrapping="Wrap" />
 
@@ -3911,6 +3911,40 @@
                                         Foreground="{DynamicResource PopupWindowForeground}"
 
                                         Text="截图时自动保存墨迹" />
+
+                                </ikw:SimpleStackPanel>
+
+                                <ikw:SimpleStackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+
+                                    <ikw:SimpleStackPanel Width="50">
+
+                                        <ui:ToggleSwitch
+
+                                            Name="ToggleSwitchCopyScreenshotToClipboard"
+
+                                            FontWeight="Bold"
+
+                                            IsOn="False"
+
+                                            OffContent="关"
+
+                                            OnContent="开"
+
+                                            Toggled="ToggleSwitchCopyScreenshotToClipboard_Toggled" />
+
+                                    </ikw:SimpleStackPanel>
+
+                                    <TextBlock
+
+                                        Margin="0,0,14,0"
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="14"
+
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+
+                                        Text="截图后复制到剪贴板" />
 
                                 </ikw:SimpleStackPanel>
 

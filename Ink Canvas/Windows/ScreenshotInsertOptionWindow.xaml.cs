@@ -23,7 +23,11 @@ namespace Ink_Canvas
             /// <summary>
             /// 插入到白板照片列表
             /// </summary>
-            InsertToBoard
+            InsertToBoard,
+            /// <summary>
+            /// 复制到剪贴板（同时生成图片文件，便于粘贴/复制到其他位置）
+            /// </summary>
+            CopyToClipboard
         }
 
         /// <summary>
@@ -52,6 +56,16 @@ namespace Ink_Canvas
         private void BtnInsertToBoard_Click(object sender, RoutedEventArgs e)
         {
             SelectedOption = InsertOption.InsertToBoard;
+            DialogResult = true;
+            Close();
+        }
+
+        /// <summary>
+        /// 复制到剪贴板
+        /// </summary>
+        private void BtnCopyToClipboard_Click(object sender, RoutedEventArgs e)
+        {
+            SelectedOption = InsertOption.CopyToClipboard;
             DialogResult = true;
             Close();
         }

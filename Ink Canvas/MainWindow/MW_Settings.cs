@@ -734,6 +734,13 @@ namespace Ink_Canvas
             SaveSettingsToFile();
         }
 
+        private void ToggleSwitchCopyScreenshotToClipboard_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.Automation.IsCopyScreenshotToClipboard = ToggleSwitchCopyScreenshotToClipboard.IsOn;
+            SaveSettingsToFile();
+        }
+
         private void ToggleSwitchAutoSaveStrokesAtClear_Toggled(object sender, RoutedEventArgs e)
         {
             if (!isLoaded || _isLoadingSettings) return;

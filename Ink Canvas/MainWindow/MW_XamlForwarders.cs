@@ -223,6 +223,7 @@ namespace Ink_Canvas
         private dynamic ToggleSwitchAutoSaveStrokesAtClear => FindXamlPart(SettingsWindow, nameof(ToggleSwitchAutoSaveStrokesAtClear));
         private dynamic ToggleSwitchSaveScreenshotsInDateFolders => FindXamlPart(SettingsWindow, nameof(ToggleSwitchSaveScreenshotsInDateFolders));
         private dynamic ToggleSwitchAutoSaveStrokesAtScreenshot => FindXamlPart(SettingsWindow, nameof(ToggleSwitchAutoSaveStrokesAtScreenshot));
+        private dynamic ToggleSwitchCopyScreenshotToClipboard => FindXamlPart(SettingsWindow, nameof(ToggleSwitchCopyScreenshotToClipboard));
         private dynamic ToggleSwitchClearExitingWritingMode => FindXamlPart(SettingsWindow, nameof(ToggleSwitchClearExitingWritingMode));
         private dynamic SideControlMinimumAutomationSlider => FindXamlPart(SettingsWindow, nameof(SideControlMinimumAutomationSlider));
         private dynamic AutoSavedStrokesLocation => FindXamlPart(SettingsWindow, nameof(AutoSavedStrokesLocation));

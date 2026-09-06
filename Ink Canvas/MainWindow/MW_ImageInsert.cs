@@ -131,33 +131,53 @@ namespace Ink_Canvas
                         
                         if (result == true)
                         {
-                            switch (optionWindow.SelectedOption)
+                            try
                             {
-                                case ScreenshotInsertOptionWindow.InsertOption.InsertToCanvas:
-                                    // 插入到截图时所处的画板模式
-                                    if (screenshotBitmapSource != null)
-                                    {
-                                        await InsertBitmapSourceToCanvas(screenshotBitmapSource, captureMode, captureWhiteboardIndex);
-                                    }
-                                    else if (screenshotBitmap != null)
-                                    {
-                                        await InsertScreenshotToCanvas(screenshotBitmap, captureMode, captureWhiteboardIndex);
-                                        screenshotBitmap.Dispose();
-                                    }
-                                    break;
+                                switch (optionWindow.SelectedOption)
+                                {
+                                    case ScreenshotInsertOptionWindow.InsertOption.InsertToCanvas:
+                                        // 插入到截图时所处的画板模式
+                                        if (screenshotBitmapSource != null)
+                                        {
+                                            await InsertBitmapSourceToCanvas(screenshotBitmapSource, captureMode, captureWhiteboardIndex);
+                                        }
+                                        else if (screenshotBitmap != null)
+                                        {
+                                            await InsertScreenshotToCanvas(screenshotBitmap, captureMode, captureWhiteboardIndex);
+                                        }
+                                        break;
 
-                                case ScreenshotInsertOptionWindow.InsertOption.InsertToBoard:
-                                    // 插入到白板照片列表
-                                    if (screenshotBitmapSource != null)
-                                    {
-                                        await InsertScreenshotToBoard(screenshotBitmapSource);
-                                    }
-                                    else if (screenshotBitmap != null)
-                                    {
-                                        await InsertScreenshotToBoard(screenshotBitmap);
-                                        screenshotBitmap.Dispose();
-                                    }
-                                    break;
+                                    case ScreenshotInsertOptionWindow.InsertOption.InsertToBoard:
+                                        // 插入到白板照片列表
+                                        if (screenshotBitmapSource != null)
+                                        {
+                                            await InsertScreenshotToBoard(screenshotBitmapSource);
+                                        }
+                                        else if (screenshotBitmap != null)
+                                        {
+                                            await InsertScreenshotToBoard(screenshotBitmap);
+                                        }
+                                        break;
+
+                                    case ScreenshotInsertOptionWindow.InsertOption.CopyToClipboard:
+                                        // 复制到剪贴板：同时写入图片数据与 PNG 文件路径，
+                                        // 用户可直接粘贴为图片，也可在资源管理器中粘贴为文件复制到其它位置。
+                                        if (screenshotBitmapSource != null)
+                                        {
+                                            CopyScreenshotToClipboard(screenshotBitmapSource);
+                                        }
+                                        else if (screenshotBitmap != null)
+                                        {
+                                            var sourceForClipboard = ConvertBitmapToBitmapSource(screenshotBitmap);
+                                            CopyScreenshotToClipboard(sourceForClipboard);
+                                        }
+                                        break;
+                                }
+                            }
+                            finally
+                            {
+                                // 统一释放截图位图（InsertScreenshotToCanvas 内部已释放，Bitmap.Dispose 可重复调用）
+                                screenshotBitmap?.Dispose();
                             }
                         }
                         else

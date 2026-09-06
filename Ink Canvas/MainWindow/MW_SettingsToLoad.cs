@@ -885,6 +885,14 @@ namespace Ink_Canvas
                 {
                     ToggleSwitchAutoSaveStrokesAtScreenshot.IsOn = false;
                 }
+                if (Settings.Automation.IsCopyScreenshotToClipboard)
+                {
+                    ToggleSwitchCopyScreenshotToClipboard.IsOn = true;
+                }
+                else
+                {
+                    ToggleSwitchCopyScreenshotToClipboard.IsOn = false;
+                }
                 SideControlMinimumAutomationSlider.Value = Settings.Automation.MinimumAutomationStrokeNumber;
 
                 AutoSavedStrokesLocation.Text = Settings.Automation.AutoSavedStrokesLocation;

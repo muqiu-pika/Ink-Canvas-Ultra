@@ -7,7 +7,7 @@
         xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
         mc:Ignorable="d"
         Title="截图插入选项"
-        Height="320"
+        Height="440"
         Width="440"
         WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize"
@@ -182,6 +182,37 @@
                                        Style="{StaticResource TitleTextStyle}"
                                        FontSize="17"/>
                             <TextBlock Text="将截图添加到白板右侧的照片列表中" 
+                                       Style="{StaticResource SubtitleTextStyle}"/>
+                        </StackPanel>
+                    </Grid>
+                </Button>
+
+                <Button x:Name="BtnCopyToClipboard" 
+                        Style="{StaticResource OptionButtonStyle}"
+                        Click="BtnCopyToClipboard_Click">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+                        
+                        <Border Width="48" Height="48" 
+                                Background="#FFF7ED" 
+                                CornerRadius="10"
+                                Margin="0,0,15,0">
+                            <TextBlock Text="&#xE8C8;" 
+                                       FontFamily="{StaticResource FluentIconFontFamily}"
+                                       FontSize="24" 
+                                       Foreground="#F59E0B"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"/>
+                        </Border>
+                        
+                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                            <TextBlock Text="复制到剪贴板" 
+                                       Style="{StaticResource TitleTextStyle}"
+                                       FontSize="17"/>
+                            <TextBlock Text="截图存为图片文件并复制到剪贴板，可粘贴或复制到其他地方" 
                                        Style="{StaticResource SubtitleTextStyle}"/>
                         </StackPanel>
                     </Grid>
