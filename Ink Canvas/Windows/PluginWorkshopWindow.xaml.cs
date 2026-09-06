@@ -30,13 +30,10 @@ namespace Ink_Canvas
                 {
                     try
                     {
-                        // 已存在实例，激活并前置
-                        // 窗口本身已设置 Topmost=True（与 MainWindow/MW_Settings 一致），
-                        // 因此 Activate() 能让它在 Topmost 窗口堆栈中浮到 MainWindow 之上
-                        if (_instance.WindowState == WindowState.Minimized)
-                            _instance.WindowState = WindowState.Normal;
-                        _instance.Activate();
-                        _instance.Focus();
+                        // 已存在实例：恢复到最前。
+                        // 窗口 Topmost=True 且与设置等窗口共享主窗口 Owner，
+                        // 因此置前只会让它排到同组最前，不会破坏彼此的先后关系
+                        Helpers.PopupWindowLayerHelper.BringToFront(_instance);
                         return _instance;
                     }
                     catch
@@ -47,10 +44,9 @@ namespace Ink_Canvas
                 }
 
                 _instance = new PluginWorkshopWindow();
-                if (owner != null)
-                {
-                    _instance.Owner = owner;
-                }
+                // Owner 由 PopupWindowLayerHelper 统一设为主窗口：
+                // 既保证插件工坊永不被画板/浮动栏/工具栏/侧栏覆盖，
+                // 又让它在与设置等窗口的相互层级中只跟随激活顺序（点谁谁在前）。
                 // 关闭后延时后台 GC，回收插件工坊窗口可视化树内存
                 Helpers.WindowMemoryHelper.ReleaseOnClose(_instance);
                 _instance.Closed += (s, e) =>
@@ -163,7 +159,7 @@ namespace Ink_Canvas
                         existing.Show();
                         existing.ReloadContents();
                     }
-                    existing.Activate();
+                    Helpers.PopupWindowLayerHelper.BringToFront(existing);
                     return;
                 }
                         var settingsWindow = new MW_Settings
@@ -171,6 +167,7 @@ namespace Ink_Canvas
                             Owner = mw
                         };
                         settingsWindow.Show();
+                        Helpers.PopupWindowLayerHelper.BringToFront(settingsWindow);
                     });
                 }
             }

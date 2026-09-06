@@ -24,6 +24,8 @@ namespace Ink_Canvas
             }
             // 关闭后清理可视化树（位图/媒体引用）并触发后台 GC，避免内存只增不减
             Helpers.WindowMemoryHelper.ReleaseOnClose(this);
+            // 纳入统一弹出层（Owner 绑定主窗口 + 按激活顺序排层）
+            Helpers.PopupWindowLayerHelper.Register(this);
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

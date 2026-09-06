@@ -1029,7 +1029,12 @@ namespace Ink_Canvas
             currentResizeHandle = "";
             currentCornerHandle = "";
             if (SelectionRectangle != null) SelectionRectangle.RenderTransform = Transform.Identity;
-            if (handle != null) handle.ReleaseMouseCapture();
+            if (handle != null)
+            {
+                handle.ReleaseMouseCapture();
+                // 释放触摸捕获（TouchDown 中 CaptureTouch 的对应释放），避免捕获残留
+                try { handle.ReleaseAllTouchCaptures(); } catch { }
+            }
             ToCommitStrokeManipulationHistoryAfterMouseUp();
             UpdateSelectionDisplay();
         }
@@ -1163,6 +1168,10 @@ namespace Ink_Canvas
         {
             if (!(sender is Rectangle handle)) return;
             StartHandleOperation(handle.Name, e.GetTouchPoint(inkCanvas).Position);
+            // 显式捕获触摸设备：与鼠标版 CaptureMouse 对应。
+            // 没有捕获时，手指一旦移出 12x12 的小把手矩形，TouchMove 命中测试不再命中把手，
+            // 拖拽即中断；且触摸可能被父级 IsManipulationEnabled 的覆盖层接管，把手彻底收不到 Move。
+            handle.CaptureTouch(e.TouchDevice);
             e.Handled = true;
         }
 
@@ -1188,6 +1197,13 @@ namespace Ink_Canvas
 
         private void GridInkCanvasSelectionCover_ManipulationStarting(object sender, ManipulationStartingEventArgs e)
         {
+            // 正在通过选择把手进行缩放/旋转（触摸 CaptureTouch 拖拽中）：
+            // 取消 manipulation，避免它抢占触点导致把手收不到 TouchMove（触摸版把手调整失效的根因之一）
+            if (isResizing || isCornerTransform)
+            {
+                e.Cancel();
+                return;
+            }
             e.Mode = ManipulationModes.All;
         }
 
@@ -1300,8 +1316,22 @@ namespace Ink_Canvas
         }
 
         Point lastTouchPointOnGridInkCanvasCover = new Point(0, 0);
+
+        /// <summary>触摸命中点是否落在 8 个选择把手上（把手的 Touch 逻辑独立处理，不进入双指 manipulation 流程）</summary>
+        private bool IsTouchOnSelectionHandle(object originalSource)
+        {
+            return originalSource is Rectangle rect
+                && rect.Parent == SelectionHandlesCanvas;
+        }
+
         private void GridInkCanvasSelectionCover_PreviewTouchDown(object sender, TouchEventArgs e)
         {
+            // 触点落在选择把手上：交给把手的 TouchDown（CaptureTouch 拖拽）处理，
+            // 不计入 manipulation 触点集合 dec，否则后续 TouchMove 会被覆盖层的 manipulation 接管
+            if (IsTouchOnSelectionHandle(e.OriginalSource))
+            {
+                return;
+            }
             dec.Add(e.TouchDevice.Id);
             //设备1个的时候，记录中心点
             if (dec.Count == 1)

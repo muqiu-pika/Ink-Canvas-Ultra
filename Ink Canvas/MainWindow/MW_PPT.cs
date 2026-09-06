@@ -278,14 +278,37 @@ namespace Ink_Canvas
                                             if (page <= 0) return;
                                             var jumpNotification = new YesOrNoNotificationWindow($"上次播放到了第 {page} 页, 是否立即跳转", () =>
                                             {
-                                                if (pptApplication.SlideShowWindows.Count >= 1)
+                                                // 回调在用户点击"是"时才执行，此期间演示文稿可能已切换或页数已变化。
+                                                // Position 文件里的页码来自上次播放的文稿，若当前文稿页数变少（例如
+                                                // 同名文件被精简），GotoSlide 会抛 0x80048240 "Integer out of range"。
+                                                try
                                                 {
-                                                    // 如果已经播放了的话, 跳转
-                                                    presentation.SlideShowWindow.View.GotoSlide(page);
+                                                    // 实时读取当前文稿页数，读取失败回落到连接时缓存的 slidescount
+                                                    int totalSlides;
+                                                    try { totalSlides = presentation.Slides.Count; }
+                                                    catch { totalSlides = slidescount; }
+
+                                                    if (page > totalSlides)
+                                                    {
+                                                        ShowNotificationAsync($"记录的页码（第 {page} 页）超出演示文稿当前页数（{totalSlides} 页），已跳过跳转");
+                                                        return;
+                                                    }
+
+                                                    if (pptApplication.SlideShowWindows.Count >= 1)
+                                                    {
+                                                        // 如果已经播放了的话, 跳转
+                                                        presentation.SlideShowWindow.View.GotoSlide(page);
+                                                    }
+                                                    else
+                                                    {
+                                                        presentation.Windows[1].View.GotoSlide(page);
+                                                    }
                                                 }
-                                                else
+                                                catch (Exception jumpEx)
                                                 {
-                                                    presentation.Windows[1].View.GotoSlide(page);
+                                                    // COM 调用随时可能因文稿/窗口状态变化失败，记录日志而非让 UI 崩溃
+                                                    LogHelper.WriteLogToFile($"跳转到上次播放页失败: {jumpEx}", LogHelper.LogType.Error);
+                                                    ShowNotificationAsync("跳转到上次播放页失败，演示文稿可能已发生变化");
                                                 }
                                             });
                                             Helpers.WindowMemoryHelper.ReleaseOnClose(jumpNotification);

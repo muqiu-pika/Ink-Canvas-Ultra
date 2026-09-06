@@ -23,6 +23,9 @@ namespace Ink_Canvas
                 // 去重合并，避免每次打开窗口都往应用级资源里堆一份字典
                 ResourceDictionaryHelper.ApplyPopupWindowTheme(isLight);
             }
+
+            // 纳入统一弹出层（Owner 绑定主窗口 + 按激活顺序排层）
+            Helpers.PopupWindowLayerHelper.Register(this);
         }
 
         string originText = "";

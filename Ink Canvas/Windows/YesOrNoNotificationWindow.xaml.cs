@@ -1,4 +1,5 @@
 using iNKORE.UI.WPF.Modern;
+using Ink_Canvas.Helpers;
 using System;
 using System.Windows;
 
@@ -30,6 +31,9 @@ namespace Ink_Canvas
                 // 设置所有者窗口，确保对话框始终显示在主窗口之上
                 this.Owner = mainWindow;
             }
+
+            // 纳入统一弹出层：Owner 已指向主窗口，这里只补充置顶与层级一致性处理
+            Helpers.PopupWindowLayerHelper.Register(this);
         }
 
         private void ButtonYes_Click(object sender, RoutedEventArgs e)
@@ -39,9 +43,19 @@ namespace Ink_Canvas
                 Close();
                 return;
             }
-            _yesAction.Invoke();
-            Close();
-
+            try
+            {
+                _yesAction.Invoke();
+            }
+            catch (Exception ex)
+            {
+                // 回调多为 COM/文件操作（如 PPT 跳页），失败不应击穿 UI 事件层导致崩溃
+                LogHelper.WriteLogToFile($"YesOrNoNotificationWindow 确认回调执行失败: {ex}", LogHelper.LogType.Error);
+            }
+            finally
+            {
+                Close();
+            }
         }
 
         private void ButtonNo_Click(object sender, RoutedEventArgs e)
@@ -51,8 +65,18 @@ namespace Ink_Canvas
                 Close();
                 return;
             }
-            _noAction.Invoke();
-            Close();
+            try
+            {
+                _noAction.Invoke();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"YesOrNoNotificationWindow 取消回调执行失败: {ex}", LogHelper.LogType.Error);
+            }
+            finally
+            {
+                Close();
+            }
         }
 
         private void Window_Closed(object sender, EventArgs e)

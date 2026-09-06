@@ -991,13 +991,15 @@ namespace Ink_Canvas
         {
             try
             {
+                // 不指定 Owner：由 PopupWindowLayerHelper 统一绑到主窗口，
+                // 使初始化向导与设置/插件工坊等同层，遵循“点击谁谁在前”
                 var wizard = new InitialSetupWindow
                 {
-                    Owner = this,
                     Topmost = true
                 };
                 Helpers.WindowMemoryHelper.ReleaseOnClose(wizard);
                 wizard.Show();
+                Helpers.PopupWindowLayerHelper.BringToFront(wizard);
             }
             catch (Exception ex)
             {

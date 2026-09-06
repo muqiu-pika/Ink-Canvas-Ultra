@@ -19,6 +19,9 @@ namespace Ink_Canvas
             // 初始设为透明，待设置项填充完成后再淡入，避免“先显示空白再跳变”的闪烁与卡顿感
             Opacity = 0;
             Loaded += SettingsWindow_Loaded;
+            // 纳入统一弹出层：与主窗口建立 Owner 关系（永不被画板/浮动栏覆盖），
+            // 并与其它弹出窗口共享“点击谁谁在前”的激活顺序
+            Helpers.PopupWindowLayerHelper.Register(this);
         }
 
         private void SettingsWindow_Loaded(object sender, RoutedEventArgs e)

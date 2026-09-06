@@ -28,6 +28,9 @@ namespace Ink_Canvas
 
             timer.Elapsed += Timer_Elapsed;
             timer.Interval = 50;
+
+            // 纳入统一弹出层（Owner 绑定主窗口 + 按激活顺序排层）
+            Helpers.PopupWindowLayerHelper.Register(this);
         }
 
         private void Timer_Elapsed(object sender, ElapsedEventArgs e)

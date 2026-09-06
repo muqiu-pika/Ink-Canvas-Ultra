@@ -1083,6 +1083,7 @@ namespace Ink_Canvas
             var w = new CountdownTimerWindow();
             Helpers.WindowMemoryHelper.ReleaseOnClose(w);
             w.Show();
+            Helpers.PopupWindowLayerHelper.BringToFront(w);
         }
 
         private void OperatingGuideWindowIcon_Click(object sender, RoutedEventArgs e)
@@ -1092,6 +1093,7 @@ namespace Ink_Canvas
             var w = new OperatingGuideWindow();
             Helpers.WindowMemoryHelper.ReleaseOnClose(w);
             w.Show();
+            Helpers.PopupWindowLayerHelper.BringToFront(w);
         }
 
         private void SymbolIconRand_Click(object sender, RoutedEventArgs e)
@@ -1101,6 +1103,7 @@ namespace Ink_Canvas
             var w = new RandWindow();
             Helpers.WindowMemoryHelper.ReleaseOnClose(w);
             w.Show();
+            Helpers.PopupWindowLayerHelper.BringToFront(w);
         }
 
         private void SymbolIconRandOne_Click(object sender, RoutedEventArgs e)
@@ -1862,12 +1865,13 @@ namespace Ink_Canvas
                 w.Owner = this;
                 w.ShowInTaskbar = true;
                 w.ShowActivated = true;
+                w.Opacity = 1; // 预构建阶段为 0，确保点击时立即可见
                 // 预构建阶段被挪到了屏幕外，重新显示前恢复到主窗口居中位置
                 CenterSettingsWindow(w);
                 if (!w.IsVisible) w.Show();
-                w.Opacity = 1; // 预构建阶段为 0，确保点击时立即可见
                 w.ReloadContents();
-                w.Activate();
+                // 置前交给统一弹出层：避免被插件工坊等其它弹出窗口固定遮挡
+                Helpers.PopupWindowLayerHelper.BringToFront(w);
                 return;
             }
 
@@ -1886,6 +1890,7 @@ namespace Ink_Canvas
                 Helpers.WindowMemoryHelper.ScheduleRelease();
             };
             settingsWindow.Show();
+            Helpers.PopupWindowLayerHelper.BringToFront(settingsWindow);
         }
 
         private void SettingsNav_SelectionChanged(iNKORE.UI.WPF.Modern.Controls.NavigationView sender, iNKORE.UI.WPF.Modern.Controls.NavigationViewSelectionChangedEventArgs args)
@@ -1979,15 +1984,17 @@ namespace Ink_Canvas
                 if (PluginWorkshopWindow.HasInstance)
                 {
                     // 已打开：仅激活已有实例并置于最前，不重复创建
-                    // 传入 null 作为 owner，避免重新绑定到已关闭的设置窗口
-                    PluginWorkshopWindow.GetOrCreate(null);
+                    var existing = PluginWorkshopWindow.GetOrCreate(null);
+                    if (!existing.IsVisible) existing.Show();
+                    Helpers.PopupWindowLayerHelper.BringToFront(existing);
                     return;
                 }
 
-                // 未打开：创建插件工坊单例；不绑定 Owner，避免设置窗口关闭时被连带关闭
+                // 未打开：创建插件工坊单例。Owner 由 PopupWindowLayerHelper 统一绑到主窗口
+                // （而不是设置窗口），因此设置窗口关闭不会连带关闭插件工坊
                 var workshop = PluginWorkshopWindow.GetOrCreate(null);
-                workshop.Owner = null;
                 workshop.Show();
+                Helpers.PopupWindowLayerHelper.BringToFront(workshop);
             }
             catch (Exception ex)
             {

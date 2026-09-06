@@ -955,12 +955,11 @@ namespace Ink_Canvas
                 if (Settings.Startup.IsInitialSetupCompleted) return;
 
                 // 避免在特殊无界面模式下弹窗（如某些自动化场景），此处仅在主窗口正常显示后调用
-                var wizard = new InitialSetupWindow
-                {
-                    Owner = this
-                };
+                // 不指定 Owner：由 PopupWindowLayerHelper 统一绑到主窗口
+                var wizard = new InitialSetupWindow();
                 Helpers.WindowMemoryHelper.ReleaseOnClose(wizard);
                 wizard.Show();
+                Helpers.PopupWindowLayerHelper.BringToFront(wizard);
             }
             catch (Exception ex)
             {

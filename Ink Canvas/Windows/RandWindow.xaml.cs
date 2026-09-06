@@ -19,12 +19,16 @@ namespace Ink_Canvas {
             InitializeComponent();
             AnimationsHelper.ShowWithSlideFromBottomAndFade(this, 0.25);
             ApplyThemeFromMainWindow();
+            // 纳入统一弹出层（Owner 绑定主窗口 + 按激活顺序排层）
+            Helpers.PopupWindowLayerHelper.Register(this);
         }
 
         public RandWindow(bool IsAutoClose) {
             InitializeComponent();
             ApplyThemeFromMainWindow();
             isAutoClose = IsAutoClose;
+            // 纳入统一弹出层（Owner 绑定主窗口 + 按激活顺序排层）
+            Helpers.PopupWindowLayerHelper.Register(this);
 
             new Thread(new ThreadStart(() => {
                 Thread.Sleep(100);

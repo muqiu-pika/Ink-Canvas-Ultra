@@ -24,6 +24,10 @@ namespace Ink_Canvas
 
             _mainWindow = Application.Current.MainWindow as MainWindow;
 
+            // 纳入统一弹出层：Owner 统一绑到主窗口（而不是打开它的设置窗口），
+            // 这样初始化向导与设置窗口属于同一层，点击谁谁在前
+            Helpers.PopupWindowLayerHelper.Register(this);
+
             // 进入动画（仿 Windows OOBE 轻微上滑+淡入）
             AnimationsHelper.ShowWithSlideFromBottomAndFade(this, 0.25);
 
