@@ -46,6 +46,9 @@ namespace Ink_Canvas
             inkCanvas.Strokes.Clear();
             inkCanvas.Children.Clear();
 
+            // 激光笔轨迹属于纯视觉元素，清屏/翻页时必须一并清除，避免残留在下一页
+            try { ClearLaserTrails(); } catch { }
+
             currentCameraImage = null;
             currentPhotoImage = null;
 

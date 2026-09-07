@@ -1261,9 +1261,66 @@
 
                                             <ikw:SimpleStackPanel Width="115">
 
+                                                <!-- 激光笔：置于荧光笔标题上方，复用原本标题上方的留白，
+                                                     不新增列宽（PenPalette 宽度由 margin 固定），排布保持不变 -->
+
+                                                <Button
+
+                                                    x:Name="BtnLaserPointer"
+
+                                                    Width="105"
+
+                                                    Height="30"
+
+                                                    Margin="0,5,0,0"
+
+                                                    Padding="6,0"
+
+                                                    HorizontalContentAlignment="Center"
+
+                                                    Background="{DynamicResource FloatBarButtonBackground}"
+
+                                                    BorderBrush="{DynamicResource FloatBarBorderBrush}"
+
+                                                    BorderThickness="1"
+
+                                                    Click="BtnLaserPointer_Click">
+
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                                        <Ellipse
+
+                                                            x:Name="LaserPointerIndicator"
+
+                                                            Width="9"
+
+                                                            Height="9"
+
+                                                            Margin="0,0,5,0"
+
+                                                            VerticalAlignment="Center"
+
+                                                            Fill="#FF5A5A5A" />
+
+                                                        <TextBlock
+
+                                                            x:Name="TextBlockLaserPointerState"
+
+                                                            FontSize="10"
+
+                                                            Foreground="{DynamicResource FloatBarForeground}"
+
+                                                            Text="激光笔：关"
+
+                                                            VerticalAlignment="Center" />
+
+                                                    </StackPanel>
+
+                                                </Button>
+
                                                 <TextBlock
 
-                                                    Margin="0,40,0,5"
+                                                    Margin="0,5,0,5"
 
                                                     FontWeight="Bold"
 

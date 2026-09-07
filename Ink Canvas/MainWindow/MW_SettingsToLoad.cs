@@ -377,6 +377,9 @@ namespace Ink_Canvas
                 SliderFloatingBarScale.Value = Settings.Appearance.FloatingBarScale;
                 SliderBlackboardScale.Value = Settings.Appearance.BlackboardScale;
                 SliderFloatingBarBottomMargin.Value = Settings.Appearance.FloatingBarBottomMargin;
+                SliderLaserPointerHold.Value = Settings.Canvas.LaserPointerHoldSeconds;
+                SliderLaserPointerHighlight.Value = Settings.Canvas.LaserPointerHighlightWidth;
+                SliderLaserPointerCore.Value = Settings.Canvas.LaserPointerCoreWidth;
                 ApplyScaling();
                 
                 // Apply Video Presenter Sidebar Position
@@ -400,6 +403,9 @@ namespace Ink_Canvas
                 SliderFloatingBarScale.Value = Settings.Appearance.FloatingBarScale;
                 SliderBlackboardScale.Value = Settings.Appearance.BlackboardScale;
                 SliderFloatingBarBottomMargin.Value = Settings.Appearance.FloatingBarBottomMargin;
+                SliderLaserPointerHold.Value = Settings.Canvas.LaserPointerHoldSeconds;
+                SliderLaserPointerHighlight.Value = Settings.Canvas.LaserPointerHighlightWidth;
+                SliderLaserPointerCore.Value = Settings.Canvas.LaserPointerCoreWidth;
                 ApplyScaling();
                 
                 // Initialize Video Presenter Sidebar Position

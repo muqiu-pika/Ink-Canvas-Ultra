@@ -47,6 +47,12 @@ namespace Ink_Canvas
         public int EraserType { get; set; } = 0; // 0 - 图标切换模式      1 - 面积擦     2 - 线条擦
         [JsonProperty("hideStrokeWhenSelecting")]
         public bool HideStrokeWhenSelecting { get; set; } = true;
+        [JsonProperty("laserPointerHoldSeconds")]
+        public double LaserPointerHoldSeconds { get; set; } = 1.2;
+        [JsonProperty("laserPointerHighlightWidth")]
+        public double LaserPointerHighlightWidth { get; set; } = 9.0;
+        [JsonProperty("laserPointerCoreWidth")]
+        public double LaserPointerCoreWidth { get; set; } = 3.5;
 
         [JsonProperty("usingWhiteboard")]
         public bool UsingWhiteboard { get; set; } = true;

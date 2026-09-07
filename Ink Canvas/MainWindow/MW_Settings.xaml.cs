@@ -408,6 +408,21 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(StopTimingErrorSlider_ValueChanged), sender, e);
         }
 
+        private void SliderLaserPointerHold_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(SliderLaserPointerHold_ValueChanged), sender, e);
+        }
+
+        private void SliderLaserPointerHighlight_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(SliderLaserPointerHighlight_ValueChanged), sender, e);
+        }
+
+        private void SliderLaserPointerCore_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(SliderLaserPointerCore_ValueChanged), sender, e);
+        }
+
         private void StopTimingThresholdMsSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             InvokeMainWindowHandler(nameof(StopTimingThresholdMsSlider_ValueChanged), sender, e);

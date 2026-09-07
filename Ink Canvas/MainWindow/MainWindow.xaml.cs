@@ -51,6 +51,9 @@ namespace Ink_Canvas
 
             try { inkCanvas.SelectionChanged += InkCanvas_SelectionChanged_ForPlugins; } catch { }
 
+            // 激光笔：输入监听 + 按钮初始视觉（轨迹层为独立的 LaserPointerCanvas，不参与页面数据）
+            InitializeLaserPointer();
+
             BlackboardLeftSide.Visibility = Visibility.Collapsed;
             BlackboardCenterSide.Visibility = Visibility.Collapsed;
             BlackboardRightSide.Visibility = Visibility.Collapsed;

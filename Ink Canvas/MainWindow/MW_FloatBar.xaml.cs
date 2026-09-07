@@ -290,6 +290,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BtnMediaInsertUnified_Click), sender, e);
         }
 
+        private void BtnLaserPointer_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BtnLaserPointer_Click), sender, e);
+        }
+
         private void BtnPPTSlideShowEnd_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BtnPPTSlideShowEnd_Click), sender, e);

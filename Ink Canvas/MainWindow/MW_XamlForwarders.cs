@@ -18,6 +18,9 @@ namespace Ink_Canvas
         public MW_FloatBar FloatBarHostBridge => MWFloatBarHost;
         private dynamic ToggleSwitchEnableInkToShapeFloatBar => FindXamlPart(MWFloatBarHost, nameof(ToggleSwitchEnableInkToShapeFloatBar));
         private dynamic ToggleSwitchEnableInkToShapeBoard => FindXamlPart(MWBoardHost, nameof(ToggleSwitchEnableInkToShapeBoard));
+        private dynamic BtnLaserPointer => FindXamlPart(MWFloatBarHost, nameof(BtnLaserPointer));
+        private dynamic TextBlockLaserPointerState => FindXamlPart(MWFloatBarHost, nameof(TextBlockLaserPointerState));
+        private dynamic LaserPointerIndicator => FindXamlPart(MWFloatBarHost, nameof(LaserPointerIndicator));
 
         private MW_Settings SettingsWindow => System.Windows.Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
 
@@ -171,6 +174,9 @@ namespace Ink_Canvas
         private dynamic ToggleSwitchEnableDisPlayFloatBarText => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableDisPlayFloatBarText));
         private dynamic ToggleSwitchColorfulViewboxFloatingBar => FindXamlPart(SettingsWindow, nameof(ToggleSwitchColorfulViewboxFloatingBar));
         private dynamic SliderFloatingBarScale => FindXamlPart(SettingsWindow, nameof(SliderFloatingBarScale));
+        private dynamic SliderLaserPointerHold => FindXamlPart(SettingsWindow, nameof(SliderLaserPointerHold));
+        private dynamic SliderLaserPointerHighlight => FindXamlPart(SettingsWindow, nameof(SliderLaserPointerHighlight));
+        private dynamic SliderLaserPointerCore => FindXamlPart(SettingsWindow, nameof(SliderLaserPointerCore));
         private dynamic SliderFloatingBarBottomMargin => FindXamlPart(SettingsWindow, nameof(SliderFloatingBarBottomMargin));
         private dynamic SliderBlackboardScale => FindXamlPart(SettingsWindow, nameof(SliderBlackboardScale));
         private dynamic ComboBoxVideoPresenterSidebarPosition => FindXamlPart(SettingsWindow, nameof(ComboBoxVideoPresenterSidebarPosition));

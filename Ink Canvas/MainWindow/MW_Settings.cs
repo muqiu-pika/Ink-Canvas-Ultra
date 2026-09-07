@@ -453,6 +453,27 @@ namespace Ink_Canvas
             SaveSettingsToFile();
         }
 
+        private void SliderLaserPointerHold_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.Canvas.LaserPointerHoldSeconds = e.NewValue;
+            SaveSettingsToFile();
+        }
+
+        private void SliderLaserPointerHighlight_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.Canvas.LaserPointerHighlightWidth = e.NewValue;
+            SaveSettingsToFile();
+        }
+
+        private void SliderLaserPointerCore_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.Canvas.LaserPointerCoreWidth = e.NewValue;
+            SaveSettingsToFile();
+        }
+
         private void BtnSetFloatingBarScale_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag != null && double.TryParse(btn.Tag.ToString(), out double scalePercent))

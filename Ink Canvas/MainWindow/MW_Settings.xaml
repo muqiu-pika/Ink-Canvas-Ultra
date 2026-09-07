@@ -1233,6 +1233,120 @@
 
                                 <ikw:SimpleStackPanel Orientation="Horizontal">
 
+                                    <Slider
+
+                                        x:Name="SliderLaserPointerHold"
+
+                                        Width="330"
+
+                                        ui:ControlHelper.Header="激光笔轨迹保留时间（秒）"
+
+                                        Maximum="6"
+
+                                        Minimum="0.5"
+
+                                        SmallChange="0.1"
+
+                                        LargeChange="0.5"
+
+                                        ValueChanged="SliderLaserPointerHold_ValueChanged"
+
+                                        Value="1.2" />
+
+                                    <TextBlock
+
+                                        Width="55"
+
+                                        Margin="10,0,0,8"
+
+                                        HorizontalAlignment="Right"
+
+                                        VerticalAlignment="Bottom"
+
+                                        FontSize="14"
+
+                                        Text="{Binding Value, ElementName=SliderLaserPointerHold, StringFormat={}{0:F1} 秒}" />
+
+                                </ikw:SimpleStackPanel>
+
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+
+                                    <Slider
+
+                                        x:Name="SliderLaserPointerHighlight"
+
+                                        Width="330"
+
+                                        ui:ControlHelper.Header="激光笔粗细调整（像素）"
+
+                                        Maximum="24"
+
+                                        Minimum="2"
+
+                                        SmallChange="0.5"
+
+                                        LargeChange="2"
+
+                                        ValueChanged="SliderLaserPointerHighlight_ValueChanged"
+
+                                        Value="9" />
+
+                                    <TextBlock
+
+                                        Width="55"
+
+                                        Margin="10,0,0,8"
+
+                                        HorizontalAlignment="Right"
+
+                                        VerticalAlignment="Bottom"
+
+                                        FontSize="14"
+
+                                        Text="{Binding Value, ElementName=SliderLaserPointerHighlight, StringFormat={}{0:F1} px}" />
+
+                                </ikw:SimpleStackPanel>
+
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+
+                                    <Slider
+
+                                        x:Name="SliderLaserPointerCore"
+
+                                        Width="330"
+
+                                        ui:ControlHelper.Header="激光笔中心高亮大小（像素）"
+
+                                        Maximum="12"
+
+                                        Minimum="1"
+
+                                        SmallChange="0.5"
+
+                                        LargeChange="2"
+
+                                        ValueChanged="SliderLaserPointerCore_ValueChanged"
+
+                                        Value="3.5" />
+
+                                    <TextBlock
+
+                                        Width="55"
+
+                                        Margin="10,0,0,8"
+
+                                        HorizontalAlignment="Right"
+
+                                        VerticalAlignment="Bottom"
+
+                                        FontSize="14"
+
+                                        Text="{Binding Value, ElementName=SliderLaserPointerCore, StringFormat={}{0:F1} px}" />
+
+                                </ikw:SimpleStackPanel>
+
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+
                                     <TextBlock
 
                                         VerticalAlignment="Center"
