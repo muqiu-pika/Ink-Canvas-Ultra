@@ -402,6 +402,11 @@ namespace Ink_Canvas.Plugins
             try { _opts.ResetToolbarPlacement?.Invoke(placement); } catch { }
         }
 
+        public void SetToolbarHidden(string placement, IReadOnlyList<string> hiddenItemIds)
+        {
+            try { _opts.SetToolbarHidden?.Invoke(placement, hiddenItemIds); } catch { }
+        }
+
         // ===== 快捷键重绑定 =====
 
         public IReadOnlyList<HotkeyActionInfo> GetHotkeyActions()
@@ -1016,6 +1021,7 @@ namespace Ink_Canvas.Plugins
         public Func<IReadOnlyList<ToolbarReorderGroup>> GetReorderableToolbarGroups { get; set; }
         public Func<string, IReadOnlyList<string>, bool> ApplyToolbarOrder { get; set; }
         public Action<string> ResetToolbarPlacement { get; set; }
+        public Action<string, IReadOnlyList<string>> SetToolbarHidden { get; set; }
         public Func<IReadOnlyList<HotkeyActionInfo>> GetHotkeyActions { get; set; }
         public Func<string, string, bool> SetHotkey { get; set; }
         public Func<string, bool> ResetHotkey { get; set; }

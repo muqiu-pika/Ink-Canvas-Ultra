@@ -267,6 +267,10 @@ namespace Ink_Canvas
                     ResetToolbarPlacement = (placement) =>
                     {
                         Dispatcher.Invoke(() => ResetToolbarPlacementInternal(placement));
+                    },
+                    SetToolbarHidden = (placement, hiddenIds) =>
+                    {
+                        Dispatcher.Invoke(() => SetToolbarHiddenInternal(placement, hiddenIds));
                     }
                 };
 

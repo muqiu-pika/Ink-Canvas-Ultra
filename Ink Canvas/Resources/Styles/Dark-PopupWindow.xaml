@@ -6,4 +6,7 @@
     <SolidColorBrush x:Key="PopupWindowDarkBlueBorderBackground" Opacity="0.9" Color="#1e3a8a" />
     <SolidColorBrush x:Key="PopupWindowDarkBlueBorderBrush" Opacity="0.8" Color="#1e3a8a" />
     <SolidColorBrush x:Key="PopupWindowDarkBlueBorderForeground" Opacity="0.8" Color="White" />
+
+    <!-- 插件有可用更新时，新版本号的强调色（深色底 #1f1f1f 上用较亮琥珀色保证对比度） -->
+    <SolidColorBrush x:Key="PopupWindowUpdateAccentBrush" Color="#FBBF24" />
 </ResourceDictionary>

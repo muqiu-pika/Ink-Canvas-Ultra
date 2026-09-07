@@ -26,6 +26,12 @@ namespace Ink_Canvas
         private const string PlaceFloatTrailing = "float-bar:trailing";
         private const string PlaceBoard = "board-toolbar";
 
+        // 被隐藏（折叠）的工具栏按钮 id（按 placement），跨重启由插件 ApplySavedOrder 重新下发
+        private readonly Dictionary<string, HashSet<string>> _hiddenToolbarIds = new Dictionary<string, HashSet<string>>(StringComparer.OrdinalIgnoreCase);
+
+        // 「工具」按钮受保护，不允许隐藏 / 删除
+        private const string ProtectedToolButtonId = "SymbolIconTools_Click";
+
         // 白板工具栏固定按钮（不参与排序）：手势 / 画布 / 更多 / 退出。
         // 中间的工具按钮（含左边缘“选择”与右边缘“重做”）都可排序；
         // 排序后用 ApplyBoardEdgeBorders 自动把圆角边框加到位于中间区两端的按钮上。
@@ -91,6 +97,7 @@ namespace Ink_Canvas
             foreach (var child in panel.Children.Cast<UIElement>())
             {
                 if (!(child is Button btn)) continue;
+                if (btn.Visibility == Visibility.Collapsed) { idx++; continue; } // 已隐藏的按钮不列出
                 string id = GetButtonId(btn, idx);
                 if (string.IsNullOrWhiteSpace(id)) { idx++; continue; }
                 items.Add(new ToolbarReorderItem
@@ -116,6 +123,7 @@ namespace Ink_Canvas
             {
                 if (!(child is Button btn)) continue;
                 if (IsBoardPinned(btn)) continue; // 固定按钮不参与排序、不予展示
+                if (btn.Visibility == Visibility.Collapsed) { idx++; continue; } // 已隐藏的按钮不列出
                 string id = GetButtonId(btn, idx);
                 if (string.IsNullOrWhiteSpace(id)) { idx++; continue; }
                 items.Add(new ToolbarReorderItem
@@ -177,6 +185,17 @@ namespace Ink_Canvas
         {
             try
             {
+                // 恢复默认时清除隐藏状态，让所有按钮重新可见（被删除的按钮可找回）
+                if (_hiddenToolbarIds.ContainsKey(placement)) _hiddenToolbarIds.Remove(placement);
+                var panel = string.Equals(placement, PlaceBoard, StringComparison.OrdinalIgnoreCase)
+                    ? GetBoardToolsPanel()
+                    : ResolveFloatPanel(placement);
+                if (panel != null)
+                {
+                    foreach (var c in panel.Children.Cast<UIElement>())
+                        if (c is Button b) b.Visibility = Visibility.Visible;
+                }
+
                 var groups = BuildToolbarReorderGroups();
                 var g = groups?.FirstOrDefault(x => string.Equals(x.Placement, placement, StringComparison.OrdinalIgnoreCase));
                 if (g == null) return;
@@ -186,6 +205,37 @@ namespace Ink_Canvas
             catch (Exception ex)
             {
                 Helpers.LogHelper.WriteLogToFile($"ResetToolbarPlacement 异常 [{placement}]: {ex.Message}", Helpers.LogHelper.LogType.Warning);
+            }
+        }
+
+        private void SetToolbarHiddenInternal(string placement, IReadOnlyList<string> hiddenItemIds)
+        {
+            try
+            {
+                var hidden = new HashSet<string>(hiddenItemIds ?? new List<string>(), StringComparer.Ordinal);
+                if (hidden.Contains(ProtectedToolButtonId)) hidden.Remove(ProtectedToolButtonId); // 「工具」按钮受保护
+                _hiddenToolbarIds[placement] = hidden;
+
+                Panel panel = string.Equals(placement, PlaceBoard, StringComparison.OrdinalIgnoreCase)
+                    ? GetBoardToolsPanel()
+                    : ResolveFloatPanel(placement);
+                if (panel == null) return;
+
+                int idx = 0;
+                foreach (var child in panel.Children.Cast<UIElement>())
+                {
+                    if (!(child is Button btn)) continue;
+                    if (string.Equals(placement, PlaceBoard, StringComparison.OrdinalIgnoreCase) && IsBoardPinned(btn)) { idx++; continue; }
+                    string id = GetButtonId(btn, idx);
+                    if (string.IsNullOrWhiteSpace(id)) { idx++; continue; }
+                    if (string.Equals(id, ProtectedToolButtonId, StringComparison.OrdinalIgnoreCase)) { idx++; continue; } // 受保护，永不隐藏
+                    btn.Visibility = hidden.Contains(id) ? Visibility.Collapsed : Visibility.Visible;
+                    idx++;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile($"SetToolbarHidden 异常 [{placement}]: {ex.Message}", Helpers.LogHelper.LogType.Warning);
             }
         }
 
@@ -309,8 +359,10 @@ namespace Ink_Canvas
             var children = panel.Children.Cast<UIElement>().ToList();
             var allButtons = children.OfType<Button>().ToList();
 
-            // 参与排序的按钮集合
-            var reorderable = usePinned ? allButtons.Where(b => !IsBoardPinned(b)).ToList() : allButtons;
+            // 参与排序的按钮集合（隐藏的按钮折叠保留，不参与重排）
+            var reorderable = usePinned
+                ? allButtons.Where(b => !IsBoardPinned(b) && b.Visibility != Visibility.Collapsed).ToList()
+                : allButtons.Where(b => b.Visibility != Visibility.Collapsed).ToList();
             if (reorderable.Count == 0) return false;
 
             var btnToId = new Dictionary<Button, string>();
@@ -333,6 +385,7 @@ namespace Ink_Canvas
             foreach (var id in orderedItemIds) desired.Add(idToBtn[id]);
 
             var pinnedSet = usePinned ? new HashSet<Button>(allButtons.Where(IsBoardPinned)) : new HashSet<Button>();
+            var hiddenSet = new HashSet<Button>(allButtons.Where(b => b.Visibility == Visibility.Collapsed));
 
             var result = new List<UIElement>();
             int di = 0;
@@ -341,6 +394,7 @@ namespace Ink_Canvas
                 if (c is Button b)
                 {
                     if (pinnedSet.Contains(b)) result.Add(b);       // 固定按钮原位不动
+                    else if (hiddenSet.Contains(b)) result.Add(b);   // 隐藏按钮保持折叠、原位不动
                     else { result.Add(desired[di]); di++; }          // 可排序按钮按期望顺序填充
                 }
                 else result.Add(c);                                   // 分隔条等占位原位

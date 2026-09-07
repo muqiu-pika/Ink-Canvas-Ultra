@@ -167,6 +167,13 @@ namespace Ink_Canvas.Plugins
         /// </summary>
         bool ApplyToolbarOrder(string placement, IReadOnlyList<string> orderedItemIds);
 
+        /// <summary>
+        /// 隐藏 / 显示指定工具栏分组中的功能按钮（不移除按钮对象，仅折叠 Visibility，可恢复）。
+        /// hiddenItemIds 为该分组中应被隐藏的按钮 id 集合；其余按钮保持可见。
+        /// 「工具」按钮（id = SymbolIconTools_Click）受保护，不会被隐藏。
+        /// </summary>
+        void SetToolbarHidden(string placement, IReadOnlyList<string> hiddenItemIds);
+
         /// <summary>将指定工具栏恢复为默认按钮顺序。</summary>
         void ResetToolbarPlacement(string placement);
 

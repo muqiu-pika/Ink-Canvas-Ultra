@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
 using Ink_Canvas.Helpers;
@@ -442,7 +443,13 @@ namespace Ink_Canvas
                 ShowInlineMessage("获取在线插件列表失败，请检查网络连接。");
             }
 
-            Dispatcher.Invoke(() => RenderAvailablePlugins(installed));
+            // 在线目录就绪后必须重渲染「已安装」列表：BuildPluginItem 依赖 _availablePlugins 判断更新，
+            // 而首次打开时 RenderInstalledPlugins 早于在线目录加载执行，不重渲染则「更新」按钮与版本迁移永不显示。
+            Dispatcher.Invoke(() =>
+            {
+                RenderInstalledPlugins(installed);
+                RenderAvailablePlugins(installed);
+            });
         }
 
         private void RenderInstalledPlugins(IReadOnlyList<InstalledPluginInfo> installed)
@@ -464,11 +471,30 @@ namespace Ink_Canvas
                 return;
             }
 
+            // 顶部汇总：存在可更新插件时提示数量（依赖已加载的在线目录 _availablePlugins）
+            int updateCount = installed.Count(i => FindOnlineUpdate(i) != null);
+            if (updateCount > 0)
+                PanelInstalledPlugins.Children.Add(BuildUpdateSummaryTextBlock(updateCount));
+
             foreach (var info in installed)
             {
                 PanelInstalledPlugins.Children.Add(
                     BuildPluginItem(info));
             }
+        }
+
+        /// <summary>构建顶部「N 个插件可更新」汇总提示文本。</summary>
+        private TextBlock BuildUpdateSummaryTextBlock(int updateCount)
+        {
+            return new TextBlock
+            {
+                Text = $"{updateCount} 个插件可更新",
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = TryFindResource("PopupWindowUpdateAccentBrush") as Brush
+                             ?? TryFindResource("SettingsPageAnnotationForeground") as Brush,
+                Margin = new Thickness(2, 0, 0, 8)
+            };
         }
 
         private UIElement BuildPluginItem(InstalledPluginInfo info)
@@ -518,13 +544,26 @@ namespace Ink_Canvas
             };
             titlePanel.Children.Add(title);
 
-            // 显示 plugin ID 和版本
+            // 显示 plugin ID 和版本；有可用更新时展示「v旧 → v新」，新版本号用强调色加粗
             var subtitle = new TextBlock
             {
-                Text = string.IsNullOrEmpty(version) ? pluginId : $"{pluginId}  v{version}",
                 FontSize = 11,
                 Foreground = TryFindResource("SettingsPageAnnotationForeground") as Brush
             };
+            if (update != null && !string.IsNullOrEmpty(version))
+            {
+                subtitle.Inlines.Add(new Run($"{pluginId}  v{version}"));
+                subtitle.Inlines.Add(new Run($" → v{update.Version}")
+                {
+                    FontWeight = FontWeights.Bold,
+                    Foreground = TryFindResource("PopupWindowUpdateAccentBrush") as Brush
+                                 ?? TryFindResource("SettingsPageAnnotationForeground") as Brush
+                });
+            }
+            else
+            {
+                subtitle.Text = string.IsNullOrEmpty(version) ? pluginId : $"{pluginId}  v{version}";
+            }
             titlePanel.Children.Add(subtitle);
 
             Grid.SetColumn(titlePanel, 0);
@@ -610,7 +649,9 @@ namespace Ink_Canvas
                     Height = 32,
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(12, 0, 0, 0),
-                    ToolTip = $"更新到 v{update.Version}"
+                    ToolTip = string.IsNullOrEmpty(version)
+                        ? $"更新到 v{update.Version}"
+                        : $"更新：v{version} → v{update.Version}"
                 };
                 updateBtn.Click += async (s, e) => await UpdatePluginAsync(update, info);
                 Grid.SetColumn(updateBtn, 4);
