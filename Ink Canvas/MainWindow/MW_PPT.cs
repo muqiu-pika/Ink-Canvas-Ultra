@@ -312,7 +312,7 @@ namespace Ink_Canvas
                                                 }
                                             });
                                             Helpers.WindowMemoryHelper.ReleaseOnClose(jumpNotification);
-                                            jumpNotification.ShowDialog();
+                                            EnqueuePPTNotification(jumpNotification);
                                         }
                                     }
                                 }
@@ -353,7 +353,7 @@ namespace Ink_Canvas
                                     }
                                 });
                             Helpers.WindowMemoryHelper.ReleaseOnClose(hiddenSlidesNotification);
-                            hiddenSlidesNotification.ShowDialog();
+                            EnqueuePPTNotification(hiddenSlidesNotification);
                         }
 
                         // BtnPPTSlideShow.Visibility = Visibility.Visible;
@@ -384,7 +384,7 @@ namespace Ink_Canvas
                                     presentation.SlideShowSettings.AdvanceMode = PpSlideShowAdvanceMode.ppSlideShowManualAdvance;
                                 });
                             Helpers.WindowMemoryHelper.ReleaseOnClose(autoPlayNotification);
-                            autoPlayNotification.ShowDialog();
+                            EnqueuePPTNotification(autoPlayNotification);
                         }));
                         presentation.SlideShowSettings.AdvanceMode = PpSlideShowAdvanceMode.ppSlideShowManualAdvance;
                     }
@@ -1033,6 +1033,39 @@ namespace Ink_Canvas
             }
             result = result.Replace('\\', '_').Replace('/', '_');
             return result.Trim();
+        }
+
+        // PPT 提示框串行队列：多个 YesOrNoNotificationWindow 原本各自 BeginInvoke + ShowDialog，
+        // 而 ShowDialog 会泵 dispatcher，导致后一个在前一个未关时就弹出，形成嵌套模态框叠死
+        // （顶层窗口冻住无法操作、底层需要的窗口被遮住）。改为入队、逐个 ShowDialog，关一个弹下一个。
+        private readonly List<YesOrNoNotificationWindow> _pptNotificationQueue = new List<YesOrNoNotificationWindow>();
+        private bool _pptNotificationShowing = false;
+
+        private void EnqueuePPTNotification(YesOrNoNotificationWindow window)
+        {
+            if (window == null) return;
+            // ReleaseOnClose 仍由各调用点在创建后调用，这里只负责串行弹出
+            _pptNotificationQueue.Add(window);
+            if (!_pptNotificationShowing)
+            {
+                _pptNotificationShowing = true;
+                ShowNextPPTNotification();
+            }
+        }
+
+        private void ShowNextPPTNotification()
+        {
+            if (_pptNotificationQueue.Count == 0)
+            {
+                _pptNotificationShowing = false;
+                return;
+            }
+            var window = _pptNotificationQueue[0];
+            _pptNotificationQueue.RemoveAt(0);
+            // 关闭后通过 BeginInvoke 回到 dispatcher 队列再弹下一个，避免递归嵌套
+            window.Closed += (s, e) =>
+                Application.Current.Dispatcher.BeginInvoke((Action)(() => ShowNextPPTNotification()));
+            window.ShowDialog();
         }
 
         private void BtnPPTSlidesUp_Click(object sender, RoutedEventArgs e)

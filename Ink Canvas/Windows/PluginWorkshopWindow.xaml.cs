@@ -108,6 +108,8 @@ namespace Ink_Canvas
         {
             InitializeComponent();
             Loaded += PluginWorkshopWindow_Loaded;
+            // 纳入统一弹出层（Owner 绑定主窗口 + 置顶状态跟随主窗口）
+            Helpers.PopupWindowLayerHelper.Register(this);
         }
 
         private void PluginWorkshopWindow_Loaded(object sender, RoutedEventArgs e)

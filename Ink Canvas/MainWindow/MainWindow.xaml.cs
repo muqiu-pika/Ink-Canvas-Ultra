@@ -45,6 +45,24 @@ namespace Ink_Canvas
             Helpers.ResourceDictionaryHelper.EnsureStartupThemeKeys();
 
             InitializeComponent();
+
+            // 主窗口置顶状态变化时，把设置/插件工坊/倒计时等弹出层窗口一起同步。
+            // 屏幕/批注模式下主窗口是 topmost，若这些窗口不跟着置顶，就会跌到主窗口（含浮动栏）之下，
+            // 出现“设置窗口被浮动栏挡住、鼠标移上去仍是批注光标、点不动”的情况；
+            // 黑板/白板模式下主窗口不置顶，它们也随之让位，外部窗口才能正常盖在上面。
+            // 用属性变更监听而非逐处改赋值，可覆盖所有 Topmost 切换入口（含模式切换与定时器）。
+            try
+            {
+                System.ComponentModel.DependencyPropertyDescriptor
+                    .FromProperty(Window.TopmostProperty, typeof(MainWindow))
+                    .AddValueChanged(this, (s, e) => Helpers.PopupWindowLayerHelper.SyncTopmostToOwner());
+
+                // 启动兜底维护：周期性扫描所有已打开窗口并对齐置顶状态，
+                // 保证即使将来新增窗口忘了登记，也不会掉到画板/浮动栏之下
+                Helpers.PopupWindowLayerHelper.StartMaintenance();
+            }
+            catch { }
+
             InitializeStartupModes();
 
             // VideoControlContainer 保留为插件插槽，由视频控件 plugin 通过 host.RegisterSelectionControlBar 注册

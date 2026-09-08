@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Threading;
@@ -39,26 +41,52 @@ namespace Ink_Canvas.Helpers
                 typeof(PopupWindowLayerHelper),
                 new PropertyMetadata(false));
 
+        // 已登记窗口（弱引用，Closed 时移除），仅用于跟随主窗口同步置顶状态
+        private static readonly List<WeakReference> RegisteredWindows = new List<WeakReference>();
+        private static readonly object RegistryLock = new object();
+
+        // 置顶状态由自己管理、不参与弹出层跟随的窗口：
+        // 截图选择框/截图插入选项框是瞬态全屏遮罩，必须始终盖住一切（含画板），不能被“跟随”拉下来。
+        private static readonly HashSet<Type> ExcludedWindowTypes = new HashSet<Type>
+        {
+            typeof(global::Ink_Canvas.ScreenshotSelectorWindow),
+            typeof(global::Ink_Canvas.ScreenshotInsertOptionWindow)
+        };
+
+        private static readonly TimeSpan MaintenanceInterval = TimeSpan.FromMilliseconds(500);
+        private static DispatcherTimer _maintenanceTimer;
+
         /// <summary>
         /// 把窗口登记进统一弹出层。应在窗口构造函数 InitializeComponent() 之后调用一次。
         /// </summary>
         public static void Register(Window window)
         {
             if (window == null) return;
+            if (IsExcluded(window)) return;
             if (window.GetValue(RegisteredProperty) is bool already && already) return;
             window.SetValue(RegisteredProperty, true);
 
-            // 明确取消置顶：层级完全交给 Owner 关系，使这些窗口跟随主窗口的置顶状态，
-            // 而不是永远压在资源管理器、文件对话框等外部窗口之上。
-            try { window.Topmost = false; } catch { }
-
+            // 置顶状态跟随主窗口，而不是固定为 true 或 false：
+            // 主窗口置顶（屏幕/批注模式）时随之置顶 —— 否则会跌到 topmost 的主窗口（含浮动栏）之下，
+            // 出现“设置窗口被浮动栏挡住、鼠标仍是批注光标”的情况；
+            // 主窗口不置顶（黑板/白板模式）时随之让位 —— 外部窗口才能正常盖在它们上面。
+            // 说明：Owner 关系只在同一个置顶层内保证 owned 在 owner 之上，跨层时会失效，故必须同步。
             try
             {
                 var owner = ResolveOwnerWindow(window);
-                // 已由调用方显式指定 Owner 的（如模态确认框指定为自己的调用者）保持原样
-                if (owner != null && window.Owner == null && !ReferenceEquals(owner, window))
+                window.Topmost = owner != null && owner.Topmost;
+
+                // 已由调用方显式指定 Owner 的（如模态确认框指定为自己的调用者）保持原样。
+                // IsLoaded 为 true 说明窗口已 Show，此时再设 Owner 会抛异常（自动扫描兜底路径会走到这里），
+                // 这种情况下只同步 Topmost 即可，层级同样能得到保证。
+                if (owner != null && window.Owner == null && !window.IsLoaded && !ReferenceEquals(owner, window))
                 {
                     window.Owner = owner;
+                }
+
+                lock (RegistryLock)
+                {
+                    RegisteredWindows.Add(new WeakReference(window));
                 }
             }
             catch { }
@@ -86,6 +114,100 @@ namespace Ink_Canvas.Helpers
                 if (!window.IsActive) window.Activate();
             }
             catch { }
+        }
+
+        /// <summary>
+        /// 兜底扫描：把当前所有已打开、但尚未登记的窗口纳入管理。
+        /// 目的：任何窗口（包括将来新增的、或漏写 Register 的）都不会掉到画板/浮动栏之下。
+        /// 主窗口与截图遮罩类窗口不参与。
+        /// </summary>
+        public static void RegisterOpenWindows()
+        {
+            var app = Application.Current;
+            if (app == null) return;
+
+            try
+            {
+                // 先快照再处理：Register 不会增删窗口集合，但避免遍历期间集合被外部改动
+                var windows = app.Windows.OfType<Window>().ToList();
+                foreach (var w in windows)
+                {
+                    if (w == null) continue;
+                    if (ReferenceEquals(w, app.MainWindow)) continue;
+                    Register(w);
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 启动兜底维护定时器：周期性扫描窗口并对齐置顶状态。
+        /// 只做 Topmost 对齐，不做 Activate，不会抢焦点。
+        /// </summary>
+        public static void StartMaintenance()
+        {
+            try
+            {
+                if (_maintenanceTimer != null) return;
+                _maintenanceTimer = new DispatcherTimer { Interval = MaintenanceInterval };
+                _maintenanceTimer.Tick += (s, e) =>
+                {
+                    try
+                    {
+                        RegisterOpenWindows();
+                        SyncTopmostToOwner();
+                    }
+                    catch { }
+                };
+                _maintenanceTimer.Start();
+            }
+            catch { }
+        }
+
+        private static bool IsExcluded(Window window)
+        {
+            try
+            {
+                return ExcludedWindowTypes.Contains(window.GetType());
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 把所有已登记的弹出层窗口的置顶状态同步为主窗口的当前置顶状态。
+        /// 应在主窗口 Topmost 发生变化时调用（MainWindow 构造函数里已挂监听，无需手动调用）。
+        /// 值未变化时 WPF 不会重建窗口样式，因此可以安全地被高频触发。
+        /// </summary>
+        public static void SyncTopmostToOwner()
+        {
+            Window mw;
+            try { mw = Application.Current?.MainWindow; } catch { return; }
+            if (mw == null) return;
+
+            // 先兜底扫描，保证尚未登记的窗口也能被同步到
+            RegisterOpenWindows();
+
+            bool topmost = mw.Topmost;
+            List<WeakReference> snapshot;
+            lock (RegistryLock)
+            {
+                RegisteredWindows.RemoveAll(r => !r.IsAlive);
+                snapshot = new List<WeakReference>(RegisteredWindows);
+            }
+
+            foreach (var reference in snapshot)
+            {
+                var w = reference.Target as Window;
+                if (w == null) continue;
+                try
+                {
+                    if (w.Topmost != topmost) w.Topmost = topmost;
+                }
+                catch { }
+            }
         }
 
         /// <summary>
@@ -171,6 +293,14 @@ namespace Ink_Canvas.Helpers
             w.IsVisibleChanged -= OnWindowIsVisibleChanged;
             w.PreviewMouseDown -= OnWindowPreviewMouseDown;
             w.Closed -= OnWindowClosed;
+            try
+            {
+                lock (RegistryLock)
+                {
+                    RegisteredWindows.RemoveAll(r => !r.IsAlive || ReferenceEquals(r.Target, w));
+                }
+            }
+            catch { }
         }
 
         /// <summary>
