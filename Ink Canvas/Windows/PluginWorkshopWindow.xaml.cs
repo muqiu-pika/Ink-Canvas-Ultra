@@ -222,7 +222,8 @@ namespace Ink_Canvas
                     CheckPathExists = true
                 };
 
-                if (dialog.ShowDialog() != true)
+                // 传入 owner：对话框需成为插件工坊的 owned window，否则会被置顶的画板挡住
+                if (dialog.ShowDialog(this) != true)
                 {
                     return;
                 }

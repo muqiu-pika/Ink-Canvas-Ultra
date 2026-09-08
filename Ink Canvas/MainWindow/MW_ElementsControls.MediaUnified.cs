@@ -37,7 +37,8 @@ namespace Ink_Canvas
 
             OpenFileDialog openFileDialog = new OpenFileDialog { Filter = filter };
 
-            if (openFileDialog.ShowDialog() == true)
+            // 传入 owner：对话框需成为主窗口的 owned window，否则会被置顶的画板/弹出窗口挡住
+            if (openFileDialog.ShowDialog(this) == true)
             {
                 string filePath = openFileDialog.FileName;
 

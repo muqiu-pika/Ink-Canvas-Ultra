@@ -17,7 +17,6 @@
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.UseModernWindowStyle="False"
     ui:WindowHelper.SystemBackdropType="Mica"
-    Topmost="True"
     ShowInTaskbar="False">
     <Border
         Margin="10"

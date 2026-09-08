@@ -16,7 +16,6 @@
     ui:WindowHelper.UseModernWindowStyle="False"
     Closed="Window_Closed"
     ResizeMode="NoResize"
-    Topmost="True"
     WindowStartupLocation="CenterOwner"
     mc:Ignorable="d">
     <Border

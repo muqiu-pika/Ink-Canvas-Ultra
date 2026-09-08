@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Windows;
 
 namespace Ink_Canvas
@@ -15,12 +16,21 @@ namespace Ink_Canvas
     /// </summary>
     public static class MessageBoxHelper
     {
-        /// <summary>取主窗口作为 Owner；应用尚未创建主窗口时返回 null（回退为无主弹窗）。</summary>
+        /// <summary>
+        /// 取宿主窗口：优先用当前处于激活状态的 ICU 窗口（例如从插件工坊弹出的提示应归属插件工坊），
+        /// 没有激活窗口时回退为主窗口；应用尚未创建主窗口时返回 null（回退为无主弹窗）。
+        /// </summary>
         private static Window Owner
         {
             get
             {
-                try { return Application.Current?.MainWindow; }
+                try
+                {
+                    var active = Application.Current?.Windows
+                        .OfType<Window>()
+                        .FirstOrDefault(w => w.IsActive);
+                    return active ?? Application.Current?.MainWindow;
+                }
                 catch { return null; }
             }
         }

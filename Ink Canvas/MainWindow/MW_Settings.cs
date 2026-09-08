@@ -832,7 +832,18 @@ namespace Ink_Canvas
         private void AutoSavedStrokesLocationButton_Click(object sender, RoutedEventArgs e)
         {
             System.Windows.Forms.FolderBrowserDialog folderBrowser = new System.Windows.Forms.FolderBrowserDialog();
-            folderBrowser.ShowDialog();
+            // 指定宿主窗口：该按钮由设置窗口触发，用设置窗口（没有则退化为当前窗口）作 owner，
+            // 使文件夹对话框成为其 owned window，避免被置顶的画板/弹出窗口挡住
+            var settingsHost = System.Windows.Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
+            var dialogOwner = Helpers.PopupWindowLayerHelper.AsWin32Owner((System.Windows.Window)settingsHost ?? this);
+            if (dialogOwner != null)
+            {
+                folderBrowser.ShowDialog(dialogOwner);
+            }
+            else
+            {
+                folderBrowser.ShowDialog();
+            }
             if (folderBrowser.SelectedPath.Length > 0) AutoSavedStrokesLocation.Text = folderBrowser.SelectedPath;
         }
 
@@ -1015,12 +1026,9 @@ namespace Ink_Canvas
         {
             try
             {
-                // 不指定 Owner：由 PopupWindowLayerHelper 统一绑到主窗口，
-                // 使初始化向导与设置/插件工坊等同层，遵循“点击谁谁在前”
-                var wizard = new InitialSetupWindow
-                {
-                    Topmost = true
-                };
+                // 不指定 Owner：由 PopupWindowLayerHelper 统一绑到主窗口；
+                // 也不设 Topmost —— 置顶状态跟随主窗口，避免始终压住外部窗口
+                var wizard = new InitialSetupWindow();
                 Helpers.WindowMemoryHelper.ReleaseOnClose(wizard);
                 wizard.Show();
                 Helpers.PopupWindowLayerHelper.BringToFront(wizard);

@@ -6072,7 +6072,9 @@ namespace Ink_Canvas
                 Filter = filter,
                 Multiselect = true
             };
-            if (openFileDialog.ShowDialog() != true) return;
+            // 传入 owner：使对话框成为主窗口的 owned window，
+            // 否则在置顶的画板/弹出窗口之下，文件对话框会显示不出来
+            if (openFileDialog.ShowDialog(this) != true) return;
 
             string[] selectedFiles = openFileDialog.FileNames;
             if (selectedFiles == null || selectedFiles.Length == 0) return;

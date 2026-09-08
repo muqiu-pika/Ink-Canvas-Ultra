@@ -380,7 +380,8 @@ namespace Ink_Canvas
                 Filter = "Ink Canvas Files (*.icart;*.icstk)|*.icart;*.icstk|Ink Canvas Ultra Files (*.icart)|*.icart|Ink Canvas Stroke Files (*.icstk)|*.icstk"
             };
 
-            if (openFileDialog.ShowDialog() == true)
+            // 传入 owner：对话框需成为主窗口的 owned window，否则会被置顶的画板/弹出窗口挡住
+            if (openFileDialog.ShowDialog(this) == true)
             {
                 LogHelper.WriteLogToFile($"Strokes Insert: Name: {openFileDialog.FileName}", LogHelper.LogType.Event);
 

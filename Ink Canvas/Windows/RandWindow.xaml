@@ -15,7 +15,6 @@
     ui:WindowHelper.SystemBackdropType="Mica"
     ui:WindowHelper.UseModernWindowStyle="False"
     Loaded="Window_Loaded"
-    Topmost="True"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
     <Border

@@ -17,7 +17,6 @@
     Loaded="Window_Loaded"
     ResizeMode="NoResize"
     ShowInTaskbar="False"
-    Topmost="True"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
     <Border

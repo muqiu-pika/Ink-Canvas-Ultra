@@ -17,7 +17,6 @@
     ui:WindowHelper.SystemBackdropType="Mica"
     ui:WindowHelper.UseModernWindowStyle="False"
     WindowStartupLocation="CenterOwner"
-    Topmost="True"
     mc:Ignorable="d">
     <Border
         Margin="10"

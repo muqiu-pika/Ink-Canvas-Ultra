@@ -155,7 +155,8 @@ namespace Ink_Canvas
                     FileName = DateTime.Now.ToString("yyyy-MM-dd HH-mm-ss-fff")
                 };
 
-                if (saveFileDialog.ShowDialog() == true)
+                // 传入 owner：对话框需成为主窗口的 owned window，否则会被置顶的画板/弹出窗口挡住
+                if (saveFileDialog.ShowDialog(this) == true)
                 {
                     PngBitmapEncoder encoder = new PngBitmapEncoder();
                     encoder.Frames.Add(BitmapFrame.Create(renderTarget));

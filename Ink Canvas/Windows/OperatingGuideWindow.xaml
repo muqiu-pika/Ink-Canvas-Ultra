@@ -15,7 +15,6 @@
     ui:ThemeManager.RequestedTheme="Light"
     ui:WindowHelper.SystemBackdropType="Mica"
     ui:WindowHelper.UseModernWindowStyle="False"
-    Topmost="True"
     WindowStartupLocation="CenterScreen"
     mc:Ignorable="d">
     <Border
