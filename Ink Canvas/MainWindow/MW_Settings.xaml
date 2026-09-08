@@ -883,7 +883,7 @@
 
                                         Foreground="{DynamicResource SettingsPageAnnotationForeground}"
 
-                                        Text="当前版本号：26.9.4"
+                                        Text="当前版本号：26.9.5"
 
                                         TextWrapping="Wrap" />
 
