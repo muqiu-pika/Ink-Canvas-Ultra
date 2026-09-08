@@ -83,12 +83,12 @@ namespace Ink_Canvas
                     }
                     else
                     {
-                        MessageBox.Show("不支持的媒体格式", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBoxHelper.Show("不支持的媒体格式", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Information);
                     }
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show($"插入媒体失败：{ex.Message}", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBoxHelper.Show($"插入媒体失败：{ex.Message}", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Error);
                     Console.WriteLine($"插入媒体失败 [{filePath}]: {ex}");
                 }
             }

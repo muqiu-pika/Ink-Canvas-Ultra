@@ -450,7 +450,7 @@ namespace Ink_Canvas
                     if (recommendedThreshold < 1.1) recommendedThreshold = 1.1;
                     if (recommendedThreshold > 10) recommendedThreshold = 10;
 
-                    var result = MessageBox.Show($"检测到面积擦输入宽度: {value:F2}\n\n推荐设置：\n- 触摸倍数: {recommendedMultiplier:F2} (适配面积擦)\n- 擦除阈值: {recommendedThreshold:F2} (区分线条擦与面积擦)\n\n是否应用这些设置？", "面积擦校准", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                    var result = MessageBoxHelper.Show($"检测到面积擦输入宽度: {value:F2}\n\n推荐设置：\n- 触摸倍数: {recommendedMultiplier:F2} (适配面积擦)\n- 擦除阈值: {recommendedThreshold:F2} (区分线条擦与面积擦)\n\n是否应用这些设置？", "面积擦校准", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
                     if (result == MessageBoxResult.Yes)
                     {
@@ -468,7 +468,7 @@ namespace Ink_Canvas
                         SliderTouchMultiplier.Value = recommendedMultiplierClamped;
                         MainWindow.SaveSettingsToFile();
 
-                        MessageBox.Show("已应用面积擦校准设置。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                        MessageBoxHelper.Show("已应用面积擦校准设置。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
                         
                         // 清空笔迹以便再次测试
                         InkCanvasAreaEraserTest.Strokes.Clear();

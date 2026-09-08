@@ -137,7 +137,9 @@ namespace Ink_Canvas
                 }
 
                 // 有更新：忽略静默设置，弹窗询问是否更新（与自动更新/静默更新共用的提示弹窗一致）
-                var confirm = MessageBox.Show(
+                // 传入 Owner（主窗口）：主窗口被定时器周期性置顶，无主弹窗会被压在设置面板下方而看不见。
+                var confirm = MessageBoxHelper.Show(
+                    this,
                     $"检测到 Ink Canvas Ultra 新版本 v{latest}，是否立即更新？",
                     "Ink Canvas Ultra New Version Available",
                     MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -163,7 +165,8 @@ namespace Ink_Canvas
                 }
 
                 // 下载完成：询问是否安装并重启以启用最新版（提示重启可能导致笔迹丢失）
-                var restart = MessageBox.Show(
+                var restart = MessageBoxHelper.Show(
+                    this,
                     "更新安装包已下载完成。是否立即安装并重启以启用最新版本？\n\n提示：重启可能会导致未保存的笔迹丢失。",
                     "Ink Canvas Ultra New Version Available",
                     MessageBoxButton.YesNo, MessageBoxImage.Question);
@@ -1208,7 +1211,7 @@ namespace Ink_Canvas
             try
             {
                 var promptText = $"检测到推荐触摸倍数为 {recommended:F2}。\n\n是否启用特殊屏幕并自动调整相关参数？\n将执行：\n- TouchMultiplier = 推荐值\n- IsSpecialScreen = 启用\n- ThresholdValue = 2.5\n- EraserSize 因子 = 0.8\n- BoundsWidth 保持当前模式值";
-                var result = MessageBox.Show(promptText, "应用推荐设置", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                var result = MessageBoxHelper.Show(promptText, "应用推荐设置", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (result == MessageBoxResult.Yes)
                 {
                     // 应用推荐设置
@@ -1239,7 +1242,7 @@ namespace Ink_Canvas
                     }
 
                     SaveSettingsToFile();
-                    MessageBox.Show("已应用推荐设置并调整相关参数。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBoxHelper.Show("已应用推荐设置并调整相关参数。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             catch (Exception ex)

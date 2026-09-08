@@ -36,7 +36,9 @@ namespace Ink_Canvas
                 else
                 {
                     // 非静默：先询问用户，同意后再后台下载并安装（避免用户不更新也白白下载安装包）
-                    if (MessageBox.Show("检测到 Ink Canvas Ultra 新版本，是否立即更新？", "Ink Canvas Ultra New Version Available", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
+                    // 必须传入 Owner（主窗口）：主窗口会被定时器周期性置顶（HWND_TOPMOST），
+                    // 无主弹窗会被压到主窗口及其设置面板之下，用户根本看不到。
+                    if (MessageBoxHelper.Show(this, "检测到 Ink Canvas Ultra 新版本，是否立即更新？", "Ink Canvas Ultra New Version Available", MessageBoxButton.YesNo, MessageBoxImage.Question) == MessageBoxResult.Yes)
                     {
                         bool IsDownloadSuccessful = false;
                         if (Settings.Startup.IsAutoUpdateWithProxy) IsDownloadSuccessful = await AutoUpdateHelper.DownloadSetupFileAndSaveStatus(AvailableLatestVersion, Settings.Startup.AutoUpdateProxy);

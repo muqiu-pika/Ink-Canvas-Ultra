@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -71,12 +72,34 @@ namespace Ink_Canvas
         // .icplugin 安装包扩展名
         private const string PluginFileExtension = ".icplugin";
 
-        // 在线插件商店目录地址（按优先级尝试）
+        // 在线插件商店目录地址（按优先级尝试）：
+        //   1. plugin.muqiu.eu.org（EdgeOne Pages，只托管 market 目录，国内最快）
+        //   2. gh.muqiu.eu.org（自建 GitHub 反向代理）
+        //   3. jsDelivr CDN
+        //   4. GitHub RAW 直连
+        // 顺序尝试，任一源成功即用；全部失败才提示网络问题。
         private static readonly string[] MarketSources = new[]
         {
-            "https://plugin.muqiu.eu.org/v1/market.json",          // EdgeOne Pages
-            "https://cdn.jsdelivr.net/gh/muqiu-pika/Ink-Canvas-Ultra-Plugin@main/market/v1/market.json" // jsDelivr 回退
+            "https://plugin.muqiu.eu.org/v1/market.json",
+            "https://gh.muqiu.eu.org/gh/raw/muqiu-pika/Ink-Canvas-Ultra-Plugin/main/market/v1/market.json",
+            "https://cdn.jsdelivr.net/gh/muqiu-pika/Ink-Canvas-Ultra-Plugin@main/market/v1/market.json",
+            "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra-Plugin/main/market/v1/market.json"
         };
+
+        /// <summary>
+        /// 生成实际使用的市场源列表：对其中"直连 GitHub"的源套上设置里的代理前缀。
+        /// 每次刷新都重新读取设置，用户在设置页改完代理后无需重启即生效。
+        /// </summary>
+        private static string[] BuildMarketSources()
+        {
+            string proxy = AutoUpdateHelper.GetEffectiveProxy();
+            var list = new List<string>(MarketSources.Length);
+            for (int i = 0; i < MarketSources.Length; i++)
+            {
+                list.Add(MultiSourceDownloader.WithProxy(MarketSources[i], proxy));
+            }
+            return list.ToArray();
+        }
 
         // 最近一次获取到的在线插件列表
         private List<OnlinePluginInfo> _availablePlugins = new List<OnlinePluginInfo>();
@@ -411,35 +434,27 @@ namespace Ink_Canvas
         private async Task RefreshAvailablePluginsAsync(IReadOnlyList<InstalledPluginInfo> installed)
         {
             _availablePlugins = new List<OnlinePluginInfo>();
-            Exception lastError = null;
 
-            foreach (var url in MarketSources)
+            // 多源顺序尝试：每个源首字节 10 秒、整体 15 秒，超时自动换下一个源。
+            var result = await MultiSourceDownloader.DownloadTextAsync(BuildMarketSources());
+            if (result.Success)
             {
                 try
                 {
-                    using (var client = new WebClient())
-                    {
-                        client.Encoding = System.Text.Encoding.UTF8;
-                        string json = await client.DownloadStringTaskAsync(new Uri(url));
-                        var catalog = Newtonsoft.Json.JsonConvert.DeserializeObject<OnlinePluginCatalog>(json);
-                        _availablePlugins = catalog?.Plugins ?? new List<OnlinePluginInfo>();
-                        if (_availablePlugins.Count > 0)
-                        {
-                            LogHelper.WriteLogToFile($"在线插件目录加载成功: {url}", LogHelper.LogType.Info);
-                            break;
-                        }
-                    }
+                    var catalog = Newtonsoft.Json.JsonConvert.DeserializeObject<OnlinePluginCatalog>(result.Content);
+                    _availablePlugins = catalog?.Plugins ?? new List<OnlinePluginInfo>();
+                    LogHelper.WriteLogToFile($"在线插件目录加载成功: {result.UsedUrl}", LogHelper.LogType.Info);
                 }
                 catch (Exception ex)
                 {
-                    lastError = ex;
-                    LogHelper.WriteLogToFile($"在线插件目录源失败 [{url}]: {ex.Message}", LogHelper.LogType.Warning);
+                    LogHelper.WriteLogToFile($"在线插件目录解析失败: {ex.Message}", LogHelper.LogType.Error);
+                    ShowInlineMessage("在线插件列表解析失败。");
                 }
             }
-
-            if (_availablePlugins.Count == 0 && lastError != null)
+            else
             {
-                LogHelper.WriteLogToFile($"获取在线 plugin 目录失败: {lastError.Message}", LogHelper.LogType.Error);
+                // 全部源都失败才算网络问题
+                LogHelper.WriteLogToFile($"获取在线 plugin 目录失败: {result.FailureReason}", LogHelper.LogType.Error);
                 ShowInlineMessage("获取在线插件列表失败，请检查网络连接。");
             }
 
@@ -1172,82 +1187,138 @@ namespace Ink_Canvas
         }
 
         /// <summary>
-        /// 依次尝试 downloadUrl 与 fallbackUrl 下载插件包，并在下载后就地校验。
+        /// 依次尝试各源下载插件包，并在每个源下载后就地校验；
+        /// 校验不通过会自动换下一个源，全部源都失败才返回失败。
         /// 目录记录的 size 仅作参考（插件重新打包后 size 可能未同步），不一致时只记警告并继续；
-        /// 完整性以 SHA256 为准，某一源校验不通过会自动尝试下一个源。
+        /// 完整性以 SHA256 为准。
         /// </summary>
         /// <param name="plugin">在线插件信息</param>
         /// <returns>成功时 TempFile 为临时文件路径；全部源均失败时 TempFile 为 null 并给出 FailureReason</returns>
         private async Task<PluginDownloadResult> DownloadAndVerifyPluginAsync(OnlinePluginInfo plugin)
         {
-            var urls = new List<string>();
-            if (!string.IsNullOrWhiteSpace(plugin.DownloadUrl)) urls.Add(plugin.DownloadUrl);
-            if (!string.IsNullOrWhiteSpace(plugin.FallbackUrl) && !urls.Contains(plugin.FallbackUrl, StringComparer.OrdinalIgnoreCase))
-                urls.Add(plugin.FallbackUrl);
-
-            bool anyDownloaded = false;
-
-            for (int i = 0; i < urls.Count; i++)
+            var sources = BuildPluginPackageSources(plugin);
+            if (sources.Count == 0)
             {
-                var url = urls[i];
-                string tempFile = Path.Combine(Path.GetTempPath(), $"{plugin.Id}-{plugin.Version}{PluginFileExtension}");
+                return new PluginDownloadResult { FailureReason = "该插件未提供下载地址" };
+            }
 
-                // 下载
-                try
-                {
-                    using (var client = new WebClient())
-                    {
-                        client.DownloadProgressChanged += (s, e) =>
-                        {
-                            UpdateInstallProgress(e.ProgressPercentage,
-                                $"正在下载 {plugin.Name}",
-                                $"源 {i + 1}/{urls.Count}：{e.BytesReceived / 1024} KB / {e.TotalBytesToReceive / 1024} KB");
-                        };
-                        await client.DownloadFileTaskAsync(new Uri(url), tempFile);
-                    }
-                    anyDownloaded = true;
-                }
-                catch (Exception ex)
-                {
-                    LogHelper.WriteLogToFile($"下载 plugin 源失败 [{plugin.Id}] {url}: {ex.Message}", LogHelper.LogType.Warning);
-                    TryDeleteTempFile(tempFile);
-                    continue;
-                }
+            string tempFile = Path.Combine(Path.GetTempPath(), $"{plugin.Id}-{plugin.Version}{PluginFileExtension}");
 
-                // 校验文件大小：仅警告，不中断安装。
-                // 目录里的 size 可能在插件重新打包后未同步，此时以 SHA256 为唯一判据。
-                long actualSize = new FileInfo(tempFile).Length;
+            var result = await MultiSourceDownloader.DownloadFileAsync(
+                sources,
+                tempFile,
+                pct => UpdateInstallProgress(pct, $"正在下载 {plugin.Name}", null),
+                largeFile: false,
+                validate: path => VerifyPluginPackage(plugin, path),
+                onSourceChanged: (current, total) =>
+                    UpdateInstallProgress(-1, $"正在下载 {plugin.Name}", $"正在尝试源 {current}/{total}..."));
+
+            if (!result.Success)
+            {
+                TryDeleteTempFile(tempFile);
+                return new PluginDownloadResult { FailureReason = result.FailureReason };
+            }
+
+            return new PluginDownloadResult { TempFile = tempFile };
+        }
+
+        /// <summary>
+        /// 校验下载到的插件包：返回 null 表示通过，返回字符串表示失败原因（会换下一个源重试）。
+        /// </summary>
+        private string VerifyPluginPackage(OnlinePluginInfo plugin, string path)
+        {
+            try
+            {
+                // 文件大小仅警告：目录里的 size 可能在插件重新打包后未同步，以 SHA256 为唯一判据。
+                long actualSize = new FileInfo(path).Length;
                 if (plugin.Size > 0 && actualSize != plugin.Size)
                 {
                     LogHelper.WriteLogToFile(
                         $"插件 [{plugin.Id}] 文件大小与目录记录不一致：实际 {actualSize} 字节，记录 {plugin.Size} 字节（以 SHA256 为准）",
                         LogHelper.LogType.Warning);
                 }
+            }
+            catch { }
 
-                // 校验 SHA256：不通过则丢弃本源，继续尝试下一个源
-                if (plugin.Checksum != null &&
-                    !string.IsNullOrWhiteSpace(plugin.Checksum.Value) &&
-                    string.Equals(plugin.Checksum.Algorithm, "SHA256", StringComparison.OrdinalIgnoreCase))
+            if (plugin.Checksum != null &&
+                !string.IsNullOrWhiteSpace(plugin.Checksum.Value) &&
+                string.Equals(plugin.Checksum.Algorithm, "SHA256", StringComparison.OrdinalIgnoreCase))
+            {
+                UpdateInstallProgress(-1, $"正在校验 {plugin.Name}", "校验 SHA256...");
+                string fileHash = CalculateSHA256(path);
+                if (!string.Equals(fileHash, plugin.Checksum.Value, StringComparison.OrdinalIgnoreCase))
                 {
-                    UpdateInstallProgress(-1, $"正在校验 {plugin.Name}", "校验 SHA256...");
-                    string fileHash = CalculateSHA256(tempFile);
-                    if (!string.Equals(fileHash, plugin.Checksum.Value, StringComparison.OrdinalIgnoreCase))
-                    {
-                        LogHelper.WriteLogToFile(
-                            $"插件 [{plugin.Id}] 源 {url} 的 SHA256 不匹配：实际 {fileHash}，期望 {plugin.Checksum.Value}",
-                            LogHelper.LogType.Warning);
-                        TryDeleteTempFile(tempFile);
-                        continue;
-                    }
+                    return $"SHA256 不匹配（实际 {fileHash}，期望 {plugin.Checksum.Value}）";
                 }
-
-                return new PluginDownloadResult { TempFile = tempFile };
             }
 
-            return new PluginDownloadResult
+            return null;
+        }
+
+        /// <summary>解析结果：GitHub 仓库中的文件路径。</summary>
+        private sealed class GitHubPath
+        {
+            public string Owner { get; set; }
+            public string Repo { get; set; }
+            public string Ref { get; set; }
+            public string FilePath { get; set; }
+        }
+
+        /// <summary>
+        /// 从已知形态的 GitHub 文件地址里解析出 owner / repo / ref / 文件路径。
+        /// 支持：cdn.jsdelivr.net/gh/... 、raw.githubusercontent.com/... 、github.com/.../raw|blob/...
+        /// </summary>
+        private static GitHubPath TryParseGitHubPath(string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return null;
+            try
             {
-                FailureReason = anyDownloaded ? "所有下载源的文件校验均未通过" : "所有下载源均不可用"
-            };
+                Match m = Regex.Match(url,
+                    @"cdn\.jsdelivr\.net/gh/([^/]+)/([^/@]+)@([^/]+)/(.+)$", RegexOptions.IgnoreCase);
+                if (m.Success) return new GitHubPath { Owner = m.Groups[1].Value, Repo = m.Groups[2].Value, Ref = m.Groups[3].Value, FilePath = m.Groups[4].Value };
+
+                m = Regex.Match(url,
+                    @"raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.+)$", RegexOptions.IgnoreCase);
+                if (m.Success) return new GitHubPath { Owner = m.Groups[1].Value, Repo = m.Groups[2].Value, Ref = m.Groups[3].Value, FilePath = m.Groups[4].Value };
+
+                m = Regex.Match(url,
+                    @"github\.com/([^/]+)/([^/]+)/(?:raw|blob)/([^/]+)/(.+)$", RegexOptions.IgnoreCase);
+                if (m.Success) return new GitHubPath { Owner = m.Groups[1].Value, Repo = m.Groups[2].Value, Ref = m.Groups[3].Value, FilePath = m.Groups[4].Value };
+            }
+            catch { }
+            return null;
+        }
+
+        private static void AddSourceIfMissing(List<string> sources, string url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return;
+            if (!sources.Contains(url)) sources.Add(url);
+        }
+
+        /// <summary>
+        /// 构造插件包的候选源（按优先级）。
+        /// 插件包地址由 market.json 下发，这里解析出 owner/repo/ref/文件 后，
+        /// 按「自建代理 → jsDelivr → GitHub RAW」重建源列表，使插件包也能多源回退。
+        /// 解析不出来时（目录给了其它形态的地址），退回使用目录里给出的 downloadUrl / fallbackUrl。
+        ///
+        /// 注意：plugin.muqiu.eu.org 只托管 market/ 目录、不分发 .icplugin，
+        /// 因此它只参与市场目录的下载，不参与插件包下载。
+        /// </summary>
+        private static List<string> BuildPluginPackageSources(OnlinePluginInfo plugin)
+        {
+            string proxy = AutoUpdateHelper.GetEffectiveProxy();
+            var sources = new List<string>();
+            GitHubPath path = TryParseGitHubPath(plugin.DownloadUrl) ?? TryParseGitHubPath(plugin.FallbackUrl);
+            if (path != null)
+            {
+                AddSourceIfMissing(sources, MultiSourceDownloader.WithProxy($"https://gh.muqiu.eu.org/gh/raw/{path.Owner}/{path.Repo}/{path.Ref}/{path.FilePath}", proxy));
+                AddSourceIfMissing(sources, MultiSourceDownloader.WithProxy($"https://cdn.jsdelivr.net/gh/{path.Owner}/{path.Repo}@{path.Ref}/{path.FilePath}", proxy));
+                AddSourceIfMissing(sources, MultiSourceDownloader.WithProxy($"https://raw.githubusercontent.com/{path.Owner}/{path.Repo}/{path.Ref}/{path.FilePath}", proxy));
+            }
+            // 目录里给出的原始地址也要过一遍代理：若它指向 GitHub 直连，同样需要加速
+            AddSourceIfMissing(sources, MultiSourceDownloader.WithProxy(plugin.DownloadUrl, proxy));
+            AddSourceIfMissing(sources, MultiSourceDownloader.WithProxy(plugin.FallbackUrl, proxy));
+            return sources;
         }
 
         /// <summary>删除下载过程中的临时文件，删除失败时静默忽略。</summary>

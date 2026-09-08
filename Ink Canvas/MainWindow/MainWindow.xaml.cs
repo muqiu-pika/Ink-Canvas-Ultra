@@ -1241,11 +1241,11 @@ namespace Ink_Canvas
             if (!CloseIsFromButton && Settings.Advanced.IsSecondConfimeWhenShutdownApp)
             {
                 e.Cancel = true;
-                if (MessageBox.Show("是否继续关闭 Ink Canvas 画板，这将丢失当前未保存的工作。", "Ink Canvas 画板", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK)
+                if (MessageBoxHelper.Show("是否继续关闭 Ink Canvas 画板，这将丢失当前未保存的工作。", "Ink Canvas 画板", MessageBoxButton.OKCancel, MessageBoxImage.Warning) == MessageBoxResult.OK)
                 {
-                    if (MessageBox.Show("真的狠心关闭 Ink Canvas 画板吗？", "Ink Canvas 画板", MessageBoxButton.OKCancel, MessageBoxImage.Error) == MessageBoxResult.OK)
+                    if (MessageBoxHelper.Show("真的狠心关闭 Ink Canvas 画板吗？", "Ink Canvas 画板", MessageBoxButton.OKCancel, MessageBoxImage.Error) == MessageBoxResult.OK)
                     {
-                        if (MessageBox.Show("是否取消关闭 Ink Canvas 画板？", "Ink Canvas 画板", MessageBoxButton.OKCancel, MessageBoxImage.Error) != MessageBoxResult.OK)
+                        if (MessageBoxHelper.Show("是否取消关闭 Ink Canvas 画板？", "Ink Canvas 画板", MessageBoxButton.OKCancel, MessageBoxImage.Error) != MessageBoxResult.OK)
                         {
                             e.Cancel = false;
                         }
@@ -1603,14 +1603,14 @@ namespace Ink_Canvas
 
                 if (cameraDeviceManager == null)
                 {
-                    MessageBox.Show("摄像头设备管理器未初始化", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBoxHelper.Show("摄像头设备管理器未初始化", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                     return;
                 }
 
                 var frame = cameraDeviceManager.GetFrameCopy();
                 if (frame == null)
                 {
-                    MessageBox.Show("未获取到摄像头画面", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBoxHelper.Show("未获取到摄像头画面", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
 
@@ -1671,7 +1671,7 @@ namespace Ink_Canvas
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"拍照失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxHelper.Show($"拍照失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -2989,7 +2989,7 @@ namespace Ink_Canvas
                 var host = Plugins.PluginHost.Instance;
                 if (host == null || !host.IsRouteAvailable("document-open"))
                 {
-                    MessageBox.Show("未安装文档查看器插件，请前往插件工坊安装。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBoxHelper.Show("未安装文档查看器插件，请前往插件工坊安装。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                     return;
                 }
                 host.TriggerRoute("document-open", filePath);
@@ -3766,7 +3766,7 @@ namespace Ink_Canvas
                     var host = Plugins.PluginHost.Instance;
                     if (host == null || !host.IsRouteAvailable("video-insert"))
                     {
-                        MessageBox.Show("视频控件 plugin 不可用，无法插入视频。请在插件工坊中启用 videocontrols。",
+                        MessageBoxHelper.Show("视频控件 plugin 不可用，无法插入视频。请在插件工坊中启用 videocontrols。",
                             "提示", MessageBoxButton.OK, MessageBoxImage.Information);
                         return;
                     }
@@ -4684,7 +4684,7 @@ namespace Ink_Canvas
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"拖拽插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxHelper.Show($"拖拽插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -4987,7 +4987,7 @@ namespace Ink_Canvas
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxHelper.Show($"插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -5161,7 +5161,7 @@ namespace Ink_Canvas
                     catch (Exception ex)
                     {
                         LogHelper.WriteLogToFile($"清除所有内容失败: {ex.Message}", LogHelper.LogType.Error);
-                        MessageBox.Show($"清除内容时发生错误: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                        MessageBoxHelper.Show($"清除内容时发生错误: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
                     }
                 },
                 noAction: () => { });
@@ -5190,7 +5190,7 @@ namespace Ink_Canvas
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile($"导入文档失败: {ex.Message}", LogHelper.LogType.Error);
-                MessageBox.Show($"导入文档时发生错误: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxHelper.Show($"导入文档时发生错误: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -5805,7 +5805,7 @@ namespace Ink_Canvas
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"切换到下一页并插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxHelper.Show($"切换到下一页并插入照片失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -6038,7 +6038,7 @@ namespace Ink_Canvas
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"插入摄像头画面失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBoxHelper.Show($"插入摄像头画面失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -6137,12 +6137,12 @@ namespace Ink_Canvas
                 {
                     string detail = string.Join("\n", failedFiles.Take(8).Select(System.IO.Path.GetFileName));
                     if (failedFiles.Count > 8) detail += $"\n……等共 {failedFiles.Count} 个文件";
-                    MessageBox.Show($"以下文件导入失败：\n{detail}", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Information);
+                    MessageBoxHelper.Show($"以下文件导入失败：\n{detail}", "插入媒体", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
             else if (videoPluginMissing && totalCount == 0)
             {
-                MessageBox.Show("未安装视频控件 plugin，无法导入视频。请到插件工坊安装 videocontrols。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBoxHelper.Show("未安装视频控件 plugin，无法导入视频。请到插件工坊安装 videocontrols。", "提示", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
 

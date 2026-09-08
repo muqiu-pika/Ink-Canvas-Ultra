@@ -625,6 +625,20 @@
 
                                             Visibility="{Binding ElementName=AutoUpdateWithProxy_Title, Path=Visibility}" />
 
+                                        <TextBlock
+
+                                            Margin="0,6,0,0"
+
+                                            FontSize="12"
+
+                                            Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+
+                                            Text="# 该代理只作用于直连 GitHub 的地址：版本检测、安装包、插件市场与插件包下载都会使用；自建代理与 jsDelivr 源本身已可达，不再套用。"
+
+                                            TextWrapping="Wrap"
+
+                                            Visibility="{Binding ElementName=AutoUpdateWithProxy_Title, Path=Visibility}" />
+
                                         <Grid Visibility="{Binding ElementName=AutoUpdateWithProxy_Title, Path=Visibility}">
 
                                             <Grid.ColumnDefinitions>

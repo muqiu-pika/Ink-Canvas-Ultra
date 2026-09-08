@@ -1832,7 +1832,7 @@ namespace Ink_Canvas
                                 opFlag = false;
                                 break;
                             case OptionalOperation.Ask:
-                                opFlag = MessageBox.Show("是否移除渐近线？", "Ink Canvas", MessageBoxButton.YesNo) !=
+                                opFlag = MessageBoxHelper.Show("是否移除渐近线？", "Ink Canvas", MessageBoxButton.YesNo) !=
                                          MessageBoxResult.Yes;
                                 break;
                         }

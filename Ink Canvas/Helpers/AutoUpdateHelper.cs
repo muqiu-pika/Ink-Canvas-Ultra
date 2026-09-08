@@ -47,11 +47,46 @@ namespace Ink_Canvas.Helpers
             return rawVersion.Trim().Trim('\uFEFF').TrimStart('v', 'V').Trim();
         }
 
-        // 版本文件双源：GitHub raw（内容最新）+ jsDelivr CDN 镜像（兜底）。
-        // 部分网络直连 raw.githubusercontent.com 会一直挂起直到超时，单源时必然每次都
-        // 抛出 TaskCanceledException；主源失败后回落到可达性更好的 CDN，整体才不至于失败。
-        private const string VersionFileGitHubRaw = "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
+        // 版本文件三源（按优先级）：
+        //   1. 自建代理 gh.muqiu.eu.org（国内直连最快）
+        //   2. jsDelivr CDN 镜像
+        //   3. GitHub RAW 直连（最后兜底；若用户在设置里填了代理前缀，则走代理）
+        // 顺序尝试，任一源拿到内容即用；全部失败才算网络异常。
+        private const string VersionFileSelfProxy = "https://gh.muqiu.eu.org/gh/raw/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
         private const string VersionFileJsDelivr = "https://cdn.jsdelivr.net/gh/muqiu-pika/Ink-Canvas-Ultra@master/AutomaticUpdateVersionControl.txt";
+        private const string VersionFileGitHubRaw = "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
+
+        /// <summary>
+        /// 当前生效的 GitHub 代理前缀（设置 → 自动更新 → 代理）。
+        /// 开关未开启、或地址为空时返回空串。
+        /// 所有"直连 GitHub"的源（Releases 直连 / GitHub RAW）都会套上它。
+        /// </summary>
+        public static string GetEffectiveProxy()
+        {
+            try
+            {
+                var startup = MainWindow.Settings?.Startup;
+                if (startup != null &&
+                    startup.IsAutoUpdateWithProxy &&
+                    !string.IsNullOrWhiteSpace(startup.AutoUpdateProxy))
+                {
+                    return startup.AutoUpdateProxy.Trim();
+                }
+            }
+            catch { }
+            return string.Empty;
+        }
+
+        /// <summary>构造版本文件候选源（按优先级）。proxy 只作用于最后的 GitHub RAW 源。</summary>
+        private static string[] BuildVersionSources(string proxy)
+        {
+            return new[]
+            {
+                VersionFileSelfProxy,
+                VersionFileJsDelivr,
+                MultiSourceDownloader.WithProxy(VersionFileGitHubRaw, proxy)
+            };
+        }
 
         public static async Task<string> CheckForUpdates(string proxy = null)
         {
@@ -97,24 +132,24 @@ namespace Ink_Canvas.Helpers
             var result = new UpdateCheckResult();
             try
             {
+                // 兜底：调用方没传代理时，仍然沿用设置里的代理，避免漏掉某个入口
+                if (string.IsNullOrWhiteSpace(proxy)) proxy = GetEffectiveProxy();
+
                 Version local = NormalizeToThreeParts(Assembly.GetExecutingAssembly().GetName().Version);
 
-                // 双源：主源 GitHub raw → 失败回落 jsDelivr CDN 镜像。
-                // 主源用 suppressLog=true 静默尝试：超时/不可达是预期内的，
-                // 只有两源全败才由这里统一记一条日志，避免同一故障刷出多条异常记录。
-                string remoteVersion = SanitizeRemoteVersion(await GetRemoteVersion(proxy + VersionFileGitHubRaw, true));
-                if (string.IsNullOrEmpty(remoteVersion))
-                {
-                    remoteVersion = SanitizeRemoteVersion(await GetRemoteVersion(VersionFileJsDelivr, true));
-                }
+                // 三源顺序尝试：自建代理 → jsDelivr → GitHub RAW（可带代理前缀）。
+                // 每个源首字节 10 秒、整体 15 秒，超时自动换下一个源。
+                var fetched = await MultiSourceDownloader.DownloadTextAsync(BuildVersionSources(proxy));
+                string remoteVersion = fetched.Success ? SanitizeRemoteVersion(fetched.Content) : null;
 
-                // 两个源都拿不到 → 网络异常（而非"无更新"）
+                // 所有源都拿不到 → 网络异常（而非"无更新"）
                 if (string.IsNullOrEmpty(remoteVersion))
                 {
-                    LogHelper.WriteLogToFile("Failed to retrieve remote version.", LogHelper.LogType.Warning);
+                    LogHelper.WriteLogToFile($"AutoUpdate | 版本检测失败：{fetched.FailureReason}", LogHelper.LogType.Warning);
                     result.IsNetworkError = true;
                     return result;
                 }
+                LogHelper.WriteLogToFile($"AutoUpdate | 版本检测成功，使用源：{fetched.UsedUrl}", LogHelper.LogType.Info);
 
                 Version remote;
                 if (!Version.TryParse(remoteVersion, out remote))
@@ -155,46 +190,15 @@ namespace Ink_Canvas.Helpers
 
         /// <summary>
         /// 拉取远端版本文件内容，失败返回 null。
+        /// 设置页"检查代理返回数据"按钮走这里：只测用户填的那一个地址，不做多源回退。
+        /// 超时与其它下载保持一致（首字节 10 秒 / 整体 15 秒）。
         /// </summary>
-        /// <param name="suppressLog">
-        /// true = 静默失败（不写日志）。用于多源回退场景：主源超时/不可达是预期内的，
-        /// 只有所有源都失败才由调用方统一记一条日志，避免同一次故障刷出多条异常记录。
-        /// </param>
+        /// <param name="suppressLog">保留参数，兼容既有调用；失败原因已由下载器统一记录。</param>
         public static async Task<string> GetRemoteVersion(string fileUrl, bool suppressLog)
         {
-            using (HttpClient client = new HttpClient())
-            {
-                try
-                {
-                    // 版本文件只有几十字节：8 秒足够。失败要"快"，才能尽早回落到备用源，
-                    // 而不是干等到超时（原 15 秒 × 并发多次 = 长时间卡顿 + 多条异常）。
-                    client.Timeout = TimeSpan.FromSeconds(8);
-                    HttpResponseMessage response = await client.GetAsync(fileUrl);
-                    response.EnsureSuccessStatusCode();
-
-                    return await response.Content.ReadAsStringAsync();
-                }
-                catch (OperationCanceledException ex)
-                {
-                    // HttpClient.Timeout 触发时会抛出 TaskCanceledException（OperationCanceledException 的子类），
-                    // 其消息为"已取消一个任务"。本质是请求超时 / 网络不可达，并非程序错误；
-                    // 有备用源时整体静默，无备用源时才降级为 Warning。
-                    if (!suppressLog)
-                        LogHelper.WriteLogToFile($"AutoUpdate | 远端版本请求超时或被取消（网络不可达？）：{ex.Message}", LogHelper.LogType.Warning);
-                }
-                catch (HttpRequestException ex)
-                {
-                    if (!suppressLog)
-                        LogHelper.WriteLogToFile($"AutoUpdate | HTTP request error: {ex.Message}", LogHelper.LogType.Error);
-                }
-                catch (Exception ex)
-                {
-                    if (!suppressLog)
-                        LogHelper.WriteLogToFile($"AutoUpdate | Error: {ex.Message}", LogHelper.LogType.Error);
-                }
-
-                return null;
-            }
+            if (string.IsNullOrWhiteSpace(fileUrl)) return null;
+            var result = await MultiSourceDownloader.DownloadTextAsync(new[] { fileUrl });
+            return result.Success ? result.Content : null;
         }
 
         private static string updatesFolderPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ink Canvas Ultra", "AutoUpdate");
@@ -206,6 +210,9 @@ namespace Ink_Canvas.Helpers
             string statusFile = Path.Combine(updatesFolderPath, $"DownloadV{version}Status.txt");
             try
             {
+                // 兜底：调用方没传代理时，仍然沿用设置里的代理
+                if (string.IsNullOrWhiteSpace(proxy)) proxy = GetEffectiveProxy();
+
                 if (File.Exists(statusFile) && File.ReadAllText(statusFile).Trim().ToLower() == "true")
                 {
                     LogHelper.WriteLogToFile("AutoUpdate | Setup file already downloaded.");
@@ -213,13 +220,32 @@ namespace Ink_Canvas.Helpers
                     return true;
                 }
 
-                string downloadUrl = $"{proxy}https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/download/v{version}/Ink.Canvas.Ultra.V{version}.Setup.exe";
+                // 安装包多源：自建代理优先，GitHub Releases 直连兜底（若设置了代理则走代理）。
+                // 安装包没有 jsDelivr 形式 —— jsDelivr 的 /gh/ 只镜像仓库文件，不镜像 release 资产。
+                var sources = new[]
+                {
+                    $"https://gh.muqiu.eu.org/gh/releases/muqiu-pika/Ink-Canvas-Ultra/v{version}/Ink.Canvas.Ultra.V{version}.Setup.exe",
+                    MultiSourceDownloader.WithProxy(
+                        $"https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/download/v{version}/Ink.Canvas.Ultra.V{version}.Setup.exe",
+                        proxy)
+                };
 
                 SaveDownloadStatus(statusFile, false);
-                await DownloadFile(downloadUrl, $"{updatesFolderPath}\\Ink.Canvas.Ultra.V{version}.Setup.exe", progressCallback);
-                SaveDownloadStatus(statusFile, true);
+                var result = await MultiSourceDownloader.DownloadFileAsync(
+                    sources,
+                    Path.Combine(updatesFolderPath, $"Ink.Canvas.Ultra.V{version}.Setup.exe"),
+                    progressCallback,
+                    largeFile: true);
 
-                LogHelper.WriteLogToFile("AutoUpdate | Setup file successfully downloaded.");
+                if (!result.Success)
+                {
+                    LogHelper.WriteLogToFile($"AutoUpdate | 安装包下载失败：{result.FailureReason}", LogHelper.LogType.Error);
+                    SaveDownloadStatus(statusFile, false);
+                    return false;
+                }
+
+                SaveDownloadStatus(statusFile, true);
+                LogHelper.WriteLogToFile($"AutoUpdate | Setup file successfully downloaded from {result.UsedUrl}");
                 return true;
             }
             catch (Exception ex)
@@ -228,55 +254,6 @@ namespace Ink_Canvas.Helpers
 
                 SaveDownloadStatus(statusFile, false);
                 return false;
-            }
-        }
-
-        private static async Task DownloadFile(string fileUrl, string destinationPath, Action<double> progressCallback = null)
-        {
-            using (HttpClient client = new HttpClient())
-            {
-                try
-                {
-                    // 安装包可达几十 MB：下载统一放宽到 30 分钟，不再与"是否传进度回调"绑定。
-                    // 此前静默/自动更新不传进度回调、只有 15 秒超时，大包几乎必然 TaskCanceledException。
-                    client.Timeout = TimeSpan.FromMinutes(30);
-
-                    using (HttpResponseMessage response = await client.GetAsync(fileUrl, HttpCompletionOption.ResponseHeadersRead))
-                    {
-                        response.EnsureSuccessStatusCode();
-                        long totalBytes = response.Content.Headers.ContentLength ?? -1;
-
-                        using (FileStream fileStream = File.Create(destinationPath))
-                        using (Stream contentStream = await response.Content.ReadAsStreamAsync())
-                        {
-                            byte[] buffer = new byte[81920];
-                            long receivedBytes = 0;
-                            int read;
-                            while ((read = await contentStream.ReadAsync(buffer, 0, buffer.Length)) > 0)
-                            {
-                                await fileStream.WriteAsync(buffer, 0, read);
-                                receivedBytes += read;
-                                if (progressCallback != null)
-                                {
-                                    // 服务器未给出总长度时回调 -1（由调用方决定如何展示）
-                                    double pct = totalBytes > 0 ? (double)receivedBytes / totalBytes * 100.0 : -1;
-                                    progressCallback(pct);
-                                }
-                            }
-                            fileStream.Close();
-                        }
-                    }
-                }
-                catch (HttpRequestException ex)
-                {
-                    LogHelper.WriteLogToFile($"AutoUpdate | HTTP request error: {ex.Message}", LogHelper.LogType.Error);
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    LogHelper.WriteLogToFile($"AutoUpdate | Error: {ex.Message}", LogHelper.LogType.Error);
-                    throw;
-                }
             }
         }
 

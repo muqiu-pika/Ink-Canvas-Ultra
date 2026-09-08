@@ -73,7 +73,7 @@ namespace Ink_Canvas
                 PPTNavigationBottomRight.Visibility = Visibility.Collapsed;
                 PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
                 PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
-                MessageBox.Show("未找到幻灯片");
+                MessageBoxHelper.Show("未找到幻灯片");
             }
         }
         */

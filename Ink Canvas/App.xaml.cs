@@ -223,12 +223,12 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    MessageBox.Show("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", "Ink Canvas", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    MessageBoxHelper.Show("抱歉，出现未预期的异常，可能导致 Ink Canvas 画板运行不稳定。\n建议保存墨迹后重启应用。", "Ink Canvas", MessageBoxButton.OK, MessageBoxImage.Warning);
                 }
             }
             catch
             {
-                try { MessageBox.Show("抱歉，出现未预期的异常，应用可能运行不稳定。\n建议保存墨迹后重启应用。", "Ink Canvas", MessageBoxButton.OK, MessageBoxImage.Warning); } catch { }
+                try { MessageBoxHelper.Show("抱歉，出现未预期的异常，应用可能运行不稳定。\n建议保存墨迹后重启应用。", "Ink Canvas", MessageBoxButton.OK, MessageBoxImage.Warning); } catch { }
             }
             e.Handled = true;
         }
@@ -299,7 +299,7 @@ namespace Ink_Canvas
                     LogHelper.NewLog("Ink Canvas activation request sent to existing instance");
                     Environment.Exit(0);
                 }
-                MessageBox.Show("已有一个程序实例正在运行");
+                MessageBoxHelper.Show("已有一个程序实例正在运行");
                 LogHelper.NewLog("Ink Canvas automatically closed");
                 Environment.Exit(0);
             }
