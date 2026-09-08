@@ -533,6 +533,10 @@ namespace Ink_Canvas
 
             var update = FindOnlineUpdate(info);
 
+            // 新版本要求的最低主程序版本若高于当前软件版本，更新将被阻止：
+            // 新版本号需以红色+删除线展示，并禁用「更新」按钮（返回值为需要升级到的版本号，满足时为 null）
+            string updateBlockedRequired = PluginHost.GetRequiredHostVersionIfIncompatible(update?.MinHostVersion);
+
             // 该插件是否注册了「设置面板」工厂（如自定义快捷键插件）
             Func<UIElement> settingsFactory = null;
             try { settingsFactory = PluginHost.Instance?.GetSettingsPanelFactory(pluginId); } catch { }
@@ -571,18 +575,38 @@ namespace Ink_Canvas
             if (update != null && !string.IsNullOrEmpty(version))
             {
                 subtitle.Inlines.Add(new Run($"{pluginId}  v{version}"));
-                subtitle.Inlines.Add(new Run($" → v{update.Version}")
+                var newVersionRun = new Run($" → v{update.Version}")
                 {
                     FontWeight = FontWeights.Bold,
                     Foreground = TryFindResource("PopupWindowUpdateAccentBrush") as Brush
                                  ?? TryFindResource("SettingsPageAnnotationForeground") as Brush
-                });
+                };
+                if (updateBlockedRequired != null)
+                {
+                    // 软件版本过低无法更新：新版本号标红并加删除线，直观提示该更新当前不可用
+                    newVersionRun.Foreground = TryFindResource("RedBrush") as Brush ?? Brushes.Red;
+                    newVersionRun.TextDecorations = TextDecorations.Strikethrough;
+                }
+                subtitle.Inlines.Add(newVersionRun);
             }
             else
             {
                 subtitle.Text = string.IsNullOrEmpty(version) ? pluginId : $"{pluginId}  v{version}";
             }
             titlePanel.Children.Add(subtitle);
+
+            // 更新被阻止时在版本号下方追加提示，告知需要先升级软件到哪个版本
+            if (updateBlockedRequired != null)
+            {
+                titlePanel.Children.Add(new TextBlock
+                {
+                    Text = $"软件版本号过低，请更新到 {updateBlockedRequired} 后再更新本插件！",
+                    FontSize = 11,
+                    Foreground = TryFindResource("RedBrush") as Brush ?? Brushes.Red,
+                    Margin = new Thickness(0, 2, 0, 0),
+                    TextWrapping = TextWrapping.Wrap
+                });
+            }
 
             Grid.SetColumn(titlePanel, 0);
             grid.Children.Add(titlePanel);
@@ -671,7 +695,18 @@ namespace Ink_Canvas
                         ? $"更新到 v{update.Version}"
                         : $"更新：v{version} → v{update.Version}"
                 };
-                updateBtn.Click += async (s, e) => await UpdatePluginAsync(update, info);
+                if (updateBlockedRequired != null)
+                {
+                    // 软件版本过低：禁用更新按钮（与「可安装」区安装按钮置灰策略一致），
+                    // 避免下载完成后才发现新版插件无法加载
+                    updateBtn.IsEnabled = false;
+                    updateBtn.Opacity = 0.5;
+                    updateBtn.ToolTip = $"软件版本号过低，请更新到 {updateBlockedRequired} 后再更新本插件！";
+                }
+                else
+                {
+                    updateBtn.Click += async (s, e) => await UpdatePluginAsync(update, info);
+                }
                 Grid.SetColumn(updateBtn, 4);
                 grid.Children.Add(updateBtn);
             }
@@ -1091,6 +1126,13 @@ namespace Ink_Canvas
             if (string.IsNullOrWhiteSpace(plugin.DownloadUrl) && string.IsNullOrWhiteSpace(plugin.FallbackUrl))
             {
                 ShowInlineMessage("该插件未提供下载地址");
+                return;
+            }
+
+            // 主程序版本不满足新版插件最低要求时提前拒绝，避免下载完整安装包后才在校验环节失败
+            if (!PluginHost.IsHostVersionCompatible(plugin.MinHostVersion))
+            {
+                ShowInlineMessage($"无法更新：{plugin.Name} 需要主程序 ≥ {plugin.MinHostVersion}，请先升级软件。");
                 return;
             }
 
