@@ -46,11 +46,12 @@ namespace Ink_Canvas.Helpers
         private static readonly object RegistryLock = new object();
 
         // 置顶状态由自己管理、不参与弹出层跟随的窗口：
-        // 截图选择框/截图插入选项框是瞬态全屏遮罩，必须始终盖住一切（含画板），不能被“跟随”拉下来。
+        // 截图选择框是全屏瞬态遮罩，必须始终盖住一切（含画板），不能被“跟随”拉下来。
+        // 截图插入选项框（ScreenshotInsertOptionWindow）已改为走 Register 跟随主窗口，
+        // 其调用点都设了 Owner=MainWindow 且是模态 ShowDialog，置顶由窗外框 + 模态共同保证，无需排除。
         private static readonly HashSet<Type> ExcludedWindowTypes = new HashSet<Type>
         {
-            typeof(global::Ink_Canvas.ScreenshotSelectorWindow),
-            typeof(global::Ink_Canvas.ScreenshotInsertOptionWindow)
+            typeof(global::Ink_Canvas.ScreenshotSelectorWindow)
         };
 
         private static readonly TimeSpan MaintenanceInterval = TimeSpan.FromMilliseconds(500);

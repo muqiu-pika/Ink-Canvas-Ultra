@@ -38,6 +38,8 @@ namespace Ink_Canvas
         public ScreenshotInsertOptionWindow()
         {
             InitializeComponent();
+            // 纳入统一弹出层：跟随主窗口置顶状态，与其它功能窗口表现一致。
+            Helpers.PopupWindowLayerHelper.Register(this);
         }
 
         /// <summary>
