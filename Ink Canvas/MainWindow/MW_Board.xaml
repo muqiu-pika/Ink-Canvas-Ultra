@@ -2085,9 +2085,68 @@
 
                                                 <ikw:SimpleStackPanel Width="115">
 
+                                                    <!-- 激光笔：与浮动栏「墨迹选项」中的位置一致，置于荧光笔标题上方。
+                                                         复用面板上方留白，不新增列宽，排布保持不变 -->
+
+                                                    <Button
+
+                                                        x:Name="BoardBtnLaserPointer"
+
+                                                        Width="105"
+
+                                                        Height="30"
+
+                                                        Margin="0,5,0,0"
+
+                                                        Padding="6,0"
+
+                                                        HorizontalContentAlignment="Center"
+
+                                                        Background="{DynamicResource BoardBarBackground}"
+
+                                                        BorderBrush="{DynamicResource BoardBarBorderBrush}"
+
+                                                        BorderThickness="1"
+
+                                                        Click="BoardBtnLaserPointer_Click"
+
+                                                        ToolTip="激光笔颜色跟随当前画笔颜色（浮动栏与白板两种模式分开记忆）">
+
+                                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                                                            <Ellipse
+
+                                                                x:Name="BoardLaserPointerIndicator"
+
+                                                                Width="9"
+
+                                                                Height="9"
+
+                                                                Margin="0,0,5,0"
+
+                                                                VerticalAlignment="Center"
+
+                                                                Fill="#FF5A5A5A" />
+
+                                                            <TextBlock
+
+                                                                x:Name="BoardTextBlockLaserPointerState"
+
+                                                                FontSize="10"
+
+                                                                Foreground="{DynamicResource BoardBarForeground}"
+
+                                                                Text="激光笔：关"
+
+                                                                VerticalAlignment="Center" />
+
+                                                        </StackPanel>
+
+                                                    </Button>
+
                                                     <TextBlock
 
-                                                        Margin="0,30,0,5"
+                                                        Margin="0,5,0,5"
 
                                                         FontWeight="Bold"
 

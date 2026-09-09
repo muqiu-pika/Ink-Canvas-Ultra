@@ -34,7 +34,9 @@ namespace Ink_Canvas
         private void ColorSwitchCheck()
         {
             forceEraser = false;
-            HideSubPanels("color");
+            // 激光笔开启时不收起面板：激光笔开关就在「墨迹选项」内，HideSubPanels 会把它一起藏起来，
+            // 导致选色后必须重新打开面板才能关闭激光笔；颜色本身已生效，无需收起
+            if (!isLaserPointerEnabled) HideSubPanels("color");
             if (Main_Grid.Background == Brushes.Transparent)
             {
                 if (currentMode == 1)
@@ -342,6 +344,31 @@ namespace Ink_Canvas
                     BoardViewboxBtnHighlighterColorPurpleContent.Visibility = Visibility.Visible;
                     break;
             }
+
+            // 激光笔颜色与画笔共用同一份选色：这里画笔颜色刚被应用，需同步刷新激光笔按钮的
+            // 指示点/描边，否则只有开关切换（SetLaserPointerEnabled）时才会刷新，
+            // 表现为「开启激光笔后点颜色，按钮颜色不变，要关一次再开才变」。
+            // 放在本方法末尾可一并覆盖明暗主题切换（映射色值随之变化）与模式切换。
+            try { UpdateLaserPointerVisual(); } catch { }
+        }
+
+        /// <summary>
+        /// 按调色板索引取实际颜色：0-8 为普通颜色（随明暗主题映射），101-106 为荧光笔颜色。
+        /// 索引非法时退化为 1（红）。激光笔颜色也复用这套索引，保证与用户点选的色块所见即所得。
+        /// </summary>
+        private Color GetInkColorByIndex(int index)
+        {
+            switch (index)
+            {
+                case 101: return Color.FromRgb(220, 38, 38);
+                case 102: return Color.FromRgb(234, 88, 12);
+                case 103: return Color.FromRgb(234, 179, 8);
+                case 104: return Color.FromRgb(13, 148, 136);
+                case 105: return Color.FromRgb(37, 99, 235);
+                case 106: return Color.FromRgb(147, 51, 234);
+            }
+            if (index < 0 || index > 8) index = 1;
+            return isUselightThemeColor ? inkColorLightThemeMapping[index] : inkColorDarkThemeMapping[index];
         }
 
         private void CheckLastColor(int inkColor)
@@ -358,19 +385,20 @@ namespace Ink_Canvas
                 {
                     stroke.DrawingAttributes.Color = targetedColor;
                 }
+                return;
+            }
+
+            // 画笔颜色与激光笔颜色共用同一份选色（按模式分开：浮动栏记 lastDesktopInkColor，白板记 lastBoardInkColor），
+            // 激光笔开启时在这里选色会同时生效于两者，无需单独处理
+            if (currentMode == 0)
+            {
+                lastDesktopInkColor = inkColor;
             }
             else
             {
-                if (currentMode == 0)
-                {
-                    lastDesktopInkColor = inkColor;
-                }
-                else
-                {
-                    lastBoardInkColor = inkColor;
-                }
-                ColorSwitchCheck();
+                lastBoardInkColor = inkColor;
             }
+            ColorSwitchCheck();
         }
 
         private void BtnColorBlack_Click(object sender, RoutedEventArgs e)

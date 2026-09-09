@@ -1,6 +1,7 @@
 using Ink_Canvas.Helpers;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -46,6 +47,8 @@ namespace Ink_Canvas
             public PointCollection Points;
             public DispatcherTimer HoldTimer;
             public bool IsFading;
+            /// <summary>最近一次收到该轨迹事件（按下/移动）的时间，用于回收「等不到 Up」的残留轨迹</summary>
+            public DateTime LastActivity = DateTime.UtcNow;
         }
 
         private readonly Dictionary<object, LaserTrail> _laserTrails = new Dictionary<object, LaserTrail>();
@@ -71,11 +74,27 @@ namespace Ink_Canvas
             PreviewTouchMove += LaserPointer_PreviewTouchMove;
             PreviewTouchUp += LaserPointer_PreviewTouchUp;
 
-            // 兜底：光标移出窗口时收不到 MouseUp，需主动结束鼠标轨迹
-            MouseLeave += (s, e) => EndLaserTrail(LaserMouseKey);
+            // 兜底：指针离开窗口 / 窗口失焦 / 捕获丢失时收不到对应的 Up，需主动收尾。
+            // 副屏手写时驱动常把「按下」报成鼠标、「抬起」报成手写笔（或反之），Up 会丢失，
+            // 残留轨迹会让后续 Up 持续被吞掉（详见 LaserPointer_PreviewMouseUp 注释）。
+            MouseLeave += (s, e) => EndAllLaserTrails();
+            StylusLeave += (s, e) => EndAllLaserTrails();
+            TouchLeave += (s, e) => EndAllLaserTrails();
+            LostMouseCapture += (s, e) => EndAllLaserTrails();
+            LostStylusCapture += (s, e) => EndAllLaserTrails();
+            Deactivated += (s, e) => EndAllLaserTrails();
+
+            // 初始同步一次按钮视觉（浮动栏 + 白板工具栏）
+            UpdateLaserPointerVisual();
         }
 
         private void BtnLaserPointer_Click(object sender, RoutedEventArgs e)
+        {
+            SetLaserPointerEnabled(!isLaserPointerEnabled);
+        }
+
+        /// <summary>白板工具栏上的激光笔按钮：与浮动栏按钮共用同一开关状态（白板模式下浮动栏是隐藏的）</summary>
+        private void BoardBtnLaserPointer_Click(object sender, RoutedEventArgs e)
         {
             SetLaserPointerEnabled(!isLaserPointerEnabled);
         }
@@ -108,25 +127,44 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>同步浮动栏上激光笔按钮的显示（文字与指示点颜色）</summary>
+        /// <summary>同步浮动栏与白板「墨迹选项」面板中激光笔按钮的显示（文字、指示点、描边）</summary>
         private void UpdateLaserPointerVisual()
         {
             try
             {
+                bool on = isLaserPointerEnabled;
+                // 开启时用当前激光笔颜色（与轨迹实际颜色一致，选色后能立刻看到反馈）
+                var activeBrush = new SolidColorBrush(GetLaserColor());
+                var idleBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x5A));
+
+                // 浮动栏「墨迹选项」
                 if (TextBlockLaserPointerState != null)
                 {
-                    TextBlockLaserPointerState.Text = isLaserPointerEnabled ? "激光笔：开" : "激光笔：关";
+                    TextBlockLaserPointerState.Text = on ? "激光笔：开" : "激光笔：关";
                 }
                 if (LaserPointerIndicator != null)
                 {
-                    LaserPointerIndicator.Fill = new SolidColorBrush(
-                        isLaserPointerEnabled ? Color.FromRgb(0xFF, 0x3B, 0x30) : Color.FromRgb(0x5A, 0x5A, 0x5A));
+                    LaserPointerIndicator.Fill = on ? activeBrush : idleBrush;
                 }
                 if (BtnLaserPointer != null)
                 {
-                    BtnLaserPointer.BorderBrush = isLaserPointerEnabled
-                        ? new SolidColorBrush(Color.FromRgb(0xFF, 0x3B, 0x30))
-                        : (Brush)TryFindResource("FloatBarBorderBrush");
+                    if (on) BtnLaserPointer.BorderBrush = activeBrush;
+                    else BtnLaserPointer.SetResourceReference(Control.BorderBrushProperty, "FloatBarBorderBrush");
+                }
+
+                // 白板「墨迹选项」（BoardPenPalette）内的同一个开关
+                if (BoardTextBlockLaserPointerState != null)
+                {
+                    BoardTextBlockLaserPointerState.Text = on ? "激光笔：开" : "激光笔：关";
+                }
+                if (BoardLaserPointerIndicator != null)
+                {
+                    BoardLaserPointerIndicator.Fill = on ? activeBrush : idleBrush;
+                }
+                if (BoardBtnLaserPointer != null)
+                {
+                    if (on) BoardBtnLaserPointer.BorderBrush = activeBrush;
+                    else BoardBtnLaserPointer.SetResourceReference(Control.BorderBrushProperty, "BoardBarBorderBrush");
                 }
             }
             catch { }
@@ -148,13 +186,22 @@ namespace Ink_Canvas
             return false;
         }
 
-        /// <summary>激光颜色：跟随当前画笔颜色；颜色过暗时（如黑色）回退为红色以保证可见</summary>
+        /// <summary>
+        /// 当前生效的激光笔颜色（已含可见性回退处理）。
+        /// 激光笔与画笔共用同一份选色：按模式取「该模式最后一次选中的颜色」，
+        /// 浮动栏（桌面/批注）记 lastDesktopInkColor、白板记 lastBoardInkColor，两种模式分开记忆、互不干扰。
+        /// </summary>
         private Color GetLaserColor()
         {
             try
             {
-                var c = inkCanvas.DefaultDrawingAttributes.Color;
+                int index = currentMode == 1 ? lastBoardInkColor : lastDesktopInkColor;
+                var c = GetInkColorByIndex(index);
+                // 颜色过暗（如黑色）时回退为红色，保证在任何背景下都能看见
                 if (c.R + c.G + c.B < 200) return Color.FromRgb(0xFF, 0x3B, 0x30);
+                // 白板（浅色板面）上近白的激光几乎不可见，同样回退为红色；黑板/桌面不受影响
+                if (currentMode == 1 && Settings.Canvas.UsingWhiteboard && c.R + c.G + c.B > 700)
+                    return Color.FromRgb(0xFF, 0x3B, 0x30);
                 return c;
             }
             catch
@@ -172,6 +219,8 @@ namespace Ink_Canvas
             try
             {
                 EndLaserTrail(key);
+                // 开新轨迹前先回收残留（设备上报类型不一致时旧轨迹可能永远等不到自己的 Up）
+                PruneStaleLaserTrails();
 
                 var host = new System.Windows.Controls.Canvas { IsHitTestVisible = false };
                 var points = new PointCollection { start };
@@ -214,6 +263,7 @@ namespace Ink_Canvas
             try
             {
                 if (!_laserTrails.TryGetValue(key, out var trail)) return;
+                trail.LastActivity = DateTime.UtcNow; // 刷新活跃时间，供残留轨迹回收判断
                 var points = trail.Points;
                 if (points.Count > 0)
                 {
@@ -313,11 +363,69 @@ namespace Ink_Canvas
             e.Handled = true;
         }
 
+        /// <summary>
+        /// 结束鼠标轨迹。
+        /// 注意：这里**绝不能** e.Handled = true —— Up 属于「抬起」语义，标记 Handled 会吞掉冒泡的
+        /// MouseUp，而 ButtonBase 的 Click 正是靠 MouseUp 触发的。只要有一条轨迹残留（见
+        /// PruneStaleLaserTrails），此后所有鼠标点击都会变成「按下有效、抬起被吞」：按钮永远不响应，
+        /// 只有再到画布上完整走一次按下+抬起（StartLaserTrail 会先结束旧轨迹）才能解开 ——
+        /// 这正是「激光笔开启时副屏手写后工具栏点不动，先用鼠标点一下主屏才恢复」的成因。
+        /// 拦截墨迹只需处理 Down/Move 即可（EditingMode 已置 None，抬起无需再拦）。
+        /// </summary>
         private void LaserPointer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (!_laserTrails.ContainsKey(LaserMouseKey)) return;
             EndLaserTrail(LaserMouseKey);
-            e.Handled = true;
+            PruneStaleLaserTrails();
+        }
+
+        /// <summary>轨迹失活回收阈值：超过该时长没有任何事件（且无鼠标键按下）即视为残留</summary>
+        private static readonly TimeSpan LaserStaleThreshold = TimeSpan.FromSeconds(10);
+
+        /// <summary>
+        /// 清理「设备已松开但轨迹仍在」的残留：
+        /// ① 鼠标轨迹存在，却没有任何鼠标键处于按下状态（副屏手写时部分驱动把「按下」报成鼠标、
+        ///    而「抬起」报成手写笔/触摸，鼠标轨迹永远等不到自己的 Up）；
+        /// ② 任意轨迹超过 LaserStaleThreshold 没有任何事件（触摸/触笔的 Up 丢失或被上报成其他设备类型）。
+        /// 不清理的后果见 LaserPointer_PreviewMouseUp：残留会让后续 Up 的处理逻辑持续空转，且轨迹永远不淡出。
+        /// </summary>
+        private void PruneStaleLaserTrails()
+        {
+            try
+            {
+                // ① 鼠标轨迹：只要所有鼠标键都已松开，轨迹必然是残留，立即回收
+                if (_laserTrails.ContainsKey(LaserMouseKey)
+                    && Mouse.LeftButton != MouseButtonState.Pressed
+                    && Mouse.RightButton != MouseButtonState.Pressed
+                    && Mouse.MiddleButton != MouseButtonState.Pressed
+                    && Mouse.XButton1 != MouseButtonState.Pressed
+                    && Mouse.XButton2 != MouseButtonState.Pressed)
+                {
+                    EndLaserTrail(LaserMouseKey);
+                }
+
+                // ② 通用兜底：长时间无任何事件的轨迹（触摸/触笔 Up 丢失）按失活时间回收
+                var now = DateTime.UtcNow;
+                foreach (var key in _laserTrails.Keys.ToList())
+                {
+                    if (now - _laserTrails[key].LastActivity >= LaserStaleThreshold)
+                    {
+                        EndLaserTrail(key);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>结束全部进行中的轨迹（保留淡出动画）；用于指针离开窗口、失焦、捕获丢失等兜底场景。</summary>
+        private void EndAllLaserTrails()
+        {
+            try
+            {
+                if (_laserTrails.Count == 0) return;
+                foreach (var key in _laserTrails.Keys.ToList()) EndLaserTrail(key);
+            }
+            catch { }
         }
 
         #endregion
@@ -354,10 +462,11 @@ namespace Ink_Canvas
         {
             if (!isLaserPointerEnabled) return;
             var key = "stylus:" + e.StylusDevice.Id;
-            if (!_laserTrails.ContainsKey(key)) return;
+            if (!_laserTrails.ContainsKey(key)) { PruneStaleLaserTrails(); return; }
 
             EndLaserTrail(key);
-            e.Handled = true;
+            // 手写笔抬起时顺带回收可能残留的鼠标轨迹（副屏驱动上报类型不一致）
+            PruneStaleLaserTrails();
         }
 
         #endregion
@@ -388,10 +497,11 @@ namespace Ink_Canvas
         {
             if (!isLaserPointerEnabled) return;
             var key = "touch:" + e.TouchDevice.Id;
-            if (!_laserTrails.ContainsKey(key)) return;
+            if (!_laserTrails.ContainsKey(key)) { PruneStaleLaserTrails(); return; }
 
             EndLaserTrail(key);
-            e.Handled = true;
+            // 触摸抬起时顺带回收可能残留的鼠标轨迹（副屏驱动上报类型不一致）
+            PruneStaleLaserTrails();
         }
 
         #endregion

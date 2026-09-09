@@ -2082,6 +2082,8 @@ namespace Ink_Canvas
                 // 在此统一兜底恢复可见，位置修正由调用方（退出入口）的定位动画负责。
                 if (_currentMode == 0 && ViewboxFloatingBar != null)
                     ViewboxFloatingBar.Visibility = Visibility.Visible;
+                // 激光笔颜色按模式记忆（跟随该模式的画笔颜色），切换模式后刷新指示点颜色
+                try { UpdateLaserPointerVisual(); } catch { }
             }
         }
 

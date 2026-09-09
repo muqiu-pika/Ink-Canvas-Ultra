@@ -1118,7 +1118,9 @@ namespace Ink_Canvas
 
             try
             {
-                if (inkCanvas != null && !forceEraser)
+                // 激光笔开启期间 editingMode 必须是 None（否则激光轨迹之外会同时落笔迹），
+                // 输入设备恢复流程不能把它改回 Ink。
+                if (inkCanvas != null && !forceEraser && !isLaserPointerEnabled)
                 {
                     inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
                 }

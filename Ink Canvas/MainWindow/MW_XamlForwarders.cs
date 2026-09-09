@@ -21,6 +21,9 @@ namespace Ink_Canvas
         private dynamic BtnLaserPointer => FindXamlPart(MWFloatBarHost, nameof(BtnLaserPointer));
         private dynamic TextBlockLaserPointerState => FindXamlPart(MWFloatBarHost, nameof(TextBlockLaserPointerState));
         private dynamic LaserPointerIndicator => FindXamlPart(MWFloatBarHost, nameof(LaserPointerIndicator));
+        private dynamic BoardBtnLaserPointer => FindXamlPart(MWBoardHost, nameof(BoardBtnLaserPointer));
+        private dynamic BoardLaserPointerIndicator => FindXamlPart(MWBoardHost, nameof(BoardLaserPointerIndicator));
+        private dynamic BoardTextBlockLaserPointerState => FindXamlPart(MWBoardHost, nameof(BoardTextBlockLaserPointerState));
 
         private MW_Settings SettingsWindow => System.Windows.Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
 

@@ -73,6 +73,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BoardEraserIconByStrokes_Click), sender, e);
         }
 
+        private void BoardBtnLaserPointer_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BoardBtnLaserPointer_Click), sender, e);
+        }
+
         private void BoardEraserIcon_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BoardEraserIcon_Click), sender, e);

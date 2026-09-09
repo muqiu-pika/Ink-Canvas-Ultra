@@ -1284,7 +1284,9 @@
 
                                                     BorderThickness="1"
 
-                                                    Click="BtnLaserPointer_Click">
+                                                    Click="BtnLaserPointer_Click"
+
+                                                    ToolTip="激光笔颜色跟随当前画笔颜色（浮动栏与白板两种模式分开记忆）">
 
                                                     <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
 
