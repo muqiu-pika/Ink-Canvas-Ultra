@@ -422,15 +422,24 @@ namespace Ink_Canvas
 
         private void PptApplication_PresentationClose(Presentation Pres)
         {
-            if (pptApplication != null)
+            // pptApplication 的 RCW 绑定在创建它的线程（UI 线程），而本事件可能在其他线程派发；
+            // 解绑/访问都可能抛 InvalidCastException(RPC_E_WRONG_THREAD)，故整体兜底避免异常冒泡卡死。
+            try
             {
-                pptApplication.PresentationClose -= PptApplication_PresentationClose;
-                pptApplication.SlideShowBegin -= PptApplication_SlideShowBegin;
-                pptApplication.SlideShowNextSlide -= PptApplication_SlideShowNextSlide;
-                pptApplication.SlideShowEnd -= PptApplication_SlideShowEnd;
-                pptApplication = null;
+                if (pptApplication != null)
+                {
+                    pptApplication.PresentationClose -= PptApplication_PresentationClose;
+                    pptApplication.SlideShowBegin -= PptApplication_SlideShowBegin;
+                    pptApplication.SlideShowNextSlide -= PptApplication_SlideShowNextSlide;
+                    pptApplication.SlideShowEnd -= PptApplication_SlideShowEnd;
+                    pptApplication = null;
+                }
             }
-            
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("PowerPoint 演示文稿关闭事件清理失败: " + ex.Message, LogHelper.LogType.Error);
+            }
+
             timerCheckPPT?.Start();
 
             Application.Current.Dispatcher.Invoke(() =>
@@ -453,18 +462,60 @@ namespace Ink_Canvas
             // 避免把进入放映后所画的当前页笔迹误当作桌面批注备份而被清除/还原。
             if (_isPptSlideShowActive) return;
 
-            if (Settings.Automation.IsAutoFoldInPPTSlideShow && !isFloatingBarFolded)
+            // 与 SlideShowNextSlide 同理：事件可能由放映线程（非 UI 线程）派发，Wn 的 RCW 绑定在事件线程上，
+            // 因此先在事件线程取齐 COM 数据，Dispatcher 内只使用纯托管值。
+            int totalSlides;
+            string presentationName;
+            int showPosition;
+            int fallbackSlideId = 0;
+            Slides slidesObj = null;
+            try
             {
-                FoldFloatingBar_Click(null, null);
+                slidesObj = Wn.Presentation.Slides;
+                totalSlides = slidesObj.Count;
+                presentationName = Wn.Presentation.Name;
+                showPosition = Wn.View.CurrentShowPosition;
+                try { fallbackSlideId = Wn.View.Slide.SlideID; } catch { }
             }
-            else if (isFloatingBarFolded)
+            catch (Exception ex)
             {
-                UnFoldFloatingBar_MouseUp(null, null);
+                LogHelper.WriteLogToFile("PowerPoint Slide Show Begin: 读取放映信息失败 " + ex.Message, LogHelper.LogType.Error);
+                return;
+            }
+
+            // SlideID 映射与旧版笔迹迁移同样在事件线程完成，避免把 Slides COM 对象带过线程边界。
+            // 注意顺序：先清缓存再迁移，否则迁移进来的笔迹会被 UI 线程随后的 Clear 抹掉。
+            _strokeCacheBySlideId.Clear();
+            RebuildSlideIdMapping(slidesObj);
+            if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
+            {
+                string migrateFolderBase = System.IO.Path.Combine(
+                    Settings.Automation.AutoSavedStrokesLocation,
+                    "Auto Saved - Presentations",
+                    SanitizePathSegment(presentationName));
+                if (!Directory.Exists(migrateFolderBase))
+                {
+                    // 兼容旧版目录「名称_页数」：仅当新目录不存在时才迁移
+                    string legacyPath = migrateFolderBase + "_" + totalSlides;
+                    if (Directory.Exists(legacyPath))
+                    {
+                        ImportLegacyPositionStrokes(legacyPath, slidesObj);
+                    }
+                }
             }
 
             LogHelper.WriteLogToFile("PowerPoint Application Slide Show Begin", LogHelper.LogType.Event);
             Application.Current.Dispatcher.Invoke(() =>
             {
+                if (Settings.Automation.IsAutoFoldInPPTSlideShow && !isFloatingBarFolded)
+                {
+                    FoldFloatingBar_Click(null, null);
+                }
+                else if (isFloatingBarFolded)
+                {
+                    UnFoldFloatingBar_MouseUp(null, null);
+                }
+
                 _isPptSlideShowActive = true;
                 ResetTouchState();
 
@@ -519,20 +570,18 @@ namespace Ink_Canvas
                 */
                 lastDesktopInkColor = 1;
 
-                slidescount = Wn.Presentation.Slides.Count;
+                slidescount = totalSlides;
                 previousSlideID = 0;
                 currentSlideID = 0;
-                _strokeCacheBySlideId.Clear();
-                RebuildSlideIdMapping(Wn.Presentation.Slides);
 
-                pptName = Wn.Presentation.Name;
-                LogHelper.NewLog("Name: " + Wn.Presentation.Name);
+                pptName = presentationName;
+                LogHelper.NewLog("Name: " + presentationName);
                 LogHelper.NewLog("Slides Count: " + slidescount.ToString());
 
                 //检查是否有已有墨迹，并加载
                 if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
                 {
-                    string safePresentationName = SanitizePathSegment(Wn.Presentation.Name);
+                    string safePresentationName = SanitizePathSegment(presentationName);
                     string folderBase = System.IO.Path.Combine(
                         Settings.Automation.AutoSavedStrokesLocation,
                         "Auto Saved - Presentations",
@@ -543,15 +592,7 @@ namespace Ink_Canvas
                         int count = LoadStrokeCacheFromFolder(folderBase);
                         LogHelper.WriteLogToFile(string.Format("Loaded {0} saved strokes", count.ToString()));
                     }
-                    else
-                    {
-                        // 兼容旧版目录「名称_页数」：仅当新目录不存在时，将旧目录按位置迁移到当前 SlideID。
-                        string legacyPath = folderBase + "_" + Wn.Presentation.Slides.Count;
-                        if (Directory.Exists(legacyPath))
-                        {
-                            ImportLegacyPositionStrokes(legacyPath, Wn.Presentation.Slides);
-                        }
-                    }
+                    // 旧版目录（名称_页数）的迁移已在事件线程完成，此处不再触碰 COM 对象
                 }
 
                 BtnPPTSlideShowEnd.Visibility = Visibility.Visible;
@@ -609,8 +650,9 @@ namespace Ink_Canvas
 
                 try
                 {
-                    int currentSlideIndex = Wn.View.CurrentShowPosition;
-                    int slideId = GetSlideIdForPosition(currentSlideIndex, Wn);
+                    int currentSlideIndex = showPosition;
+                    int slideId = GetSlideIdForPosition(currentSlideIndex);
+                    if (slideId == 0) slideId = fallbackSlideId;
                     currentSlideID = slideId;
                     MemoryStream initialMs = GetCachedStrokes(slideId, currentSlideIndex);
                     if (initialMs != null && initialMs.Length > 0)
@@ -634,7 +676,7 @@ namespace Ink_Canvas
                 }
 
                 isEnteredSlideShowEndEvent = false;
-                PptNavigationTextBlockBottom.Text = $"{Wn.View.CurrentShowPosition}/{Wn.Presentation.Slides.Count}";
+                PptNavigationTextBlockBottom.Text = $"{showPosition}/{totalSlides}";
                 LogHelper.NewLog("PowerPoint Slide Show Loading process complete");
 
                 new Thread(new ThreadStart(() =>
@@ -651,7 +693,12 @@ namespace Ink_Canvas
         bool isEnteredSlideShowEndEvent = false; //防止重复调用本函数导致墨迹保存失效
         private async void PptApplication_SlideShowEnd(Presentation Pres)
         {
-            if (isFloatingBarFolded) UnFoldFloatingBar_MouseUp(null, null);
+            // 与 SlideShowNextSlide/Begin 同理：事件线程可能与 UI 线程不同，
+            // 因此 UI 操作统一走 Dispatcher，COM 对象（Pres）只在事件线程上读取。
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                if (isFloatingBarFolded) UnFoldFloatingBar_MouseUp(null, null);
+            });
 
             LogHelper.WriteLogToFile(string.Format("PowerPoint Slide Show End"), LogHelper.LogType.Event);
             if (isEnteredSlideShowEndEvent)
@@ -662,7 +709,14 @@ namespace Ink_Canvas
             isEnteredSlideShowEndEvent = true;
             if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
             {
-                string safePresentationName = SanitizePathSegment(Pres.Name);
+                string safePresentationName;
+                try { safePresentationName = SanitizePathSegment(Pres.Name); }
+                catch
+                {
+                    // 放映结束瞬间 Pres 可能已不可访问，取不到名字就不写盘，避免异常中断后续清理
+                    safePresentationName = SanitizePathSegment(pptName);
+                    if (string.IsNullOrEmpty(safePresentationName)) safePresentationName = "Presentation";
+                }
                 // 自动保存目录不再附加页数，插入/删除页后目录名不变，笔迹不会因页数变化而丢失。
                 string folderPath = System.IO.Path.Combine(
                     Settings.Automation.AutoSavedStrokesLocation,
@@ -796,7 +850,9 @@ namespace Ink_Canvas
             });
 
             await Task.Delay(150);
-            ViewboxFloatingBarMarginAnimation();
+            // Task.Delay 后可能回到线程池线程（事件线程无同步上下文），必须回到 UI 线程再动 UI
+            try { _ = Application.Current.Dispatcher.BeginInvoke((Action)(() => ViewboxFloatingBarMarginAnimation())); }
+            catch { }
         }
 
         // 当前页位置与 SlideID。previousSlideID 仍表示"当前页码位置"（供跳转/截图命名使用），
@@ -975,49 +1031,71 @@ namespace Ink_Canvas
 
         private void PptApplication_SlideShowNextSlide(SlideShowWindow Wn)
         {
-            LogHelper.WriteLogToFile(string.Format("PowerPoint Next Slide (Slide {0})", Wn.View.CurrentShowPosition), LogHelper.LogType.Event);
-            if (Wn.View.CurrentShowPosition != previousSlideID)
+            // PowerPoint/WPS 的 SlideShowNextSlide 事件可能由放映线程（非 UI 线程）派发，
+            // Wn 的 RCW 绑定在事件线程上：跨 Dispatcher 到 UI 线程再访问 Wn 会抛
+            // InvalidCastException（QueryInterface 失败，RPC_E_WRONG_THREAD「已为另一线程整理的接口」）。
+            // 因此必须先在事件线程上取齐全部 COM 数据，再跨 Dispatcher 只传纯托管值。
+            int newPosition;
+            int totalSlides;
+            string presentationName;
+            int fallbackSlideId = 0;
+            try
             {
-                // 记录离开页的 SlideID（进入该页时写入的 currentSlideID）与旧位置，
-                // 切页回调触发时 Wn.View.CurrentShowPosition 已经是新位置。
-                int leavingSlideID = currentSlideID;
-                int oldPosition = previousSlideID;
-                int newPosition = Wn.View.CurrentShowPosition;
-
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    MemoryStream ms = new MemoryStream();
-                    inkCanvas.Strokes.Save(ms);
-                    ms.Position = 0;
-                    // 离开页的笔迹按该页 SlideID 缓存，插入/删除页后仍能正确对应。
-                    _strokeCacheBySlideId[GetStrokeCacheKey(leavingSlideID, oldPosition)] = ms;
-
-                    if (inkCanvas.Strokes.Count > Settings.Automation.MinimumAutomationStrokeNumber && Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint && !_isPptClickingBtnTurned)
-                        SavePPTScreenshot(Wn.Presentation.Name + "/" + newPosition);
-                    _isPptClickingBtnTurned = false;
-
-                    ClearStrokes(true);
-                    timeMachine.ClearStrokeHistory();
-
-                    try
-                    {
-                        int targetSlideId = GetSlideIdForPosition(newPosition, Wn);
-                        currentSlideID = targetSlideId;
-                        MemoryStream targetMs = GetCachedStrokes(targetSlideId, newPosition);
-                        if (targetMs != null && targetMs.Length > 0)
-                        {
-                            targetMs.Position = 0;
-                            inkCanvas.Strokes.Add(new StrokeCollection(targetMs));
-                        }
-                        currentShowPosition = newPosition;
-                    }
-                    catch { }
-
-                    PptNavigationTextBlockBottom.Text = $"{newPosition}/{Wn.Presentation.Slides.Count}";
-                });
-                previousSlideID = newPosition;
-
+                newPosition = Wn.View.CurrentShowPosition;
+                totalSlides = Wn.Presentation.Slides.Count;
+                presentationName = Wn.Presentation.Name;
+                // 映射缺失时的兜底 SlideID，也需在事件线程读取（GetSlideIdForPosition 原在此处传 Wn）
+                try { fallbackSlideId = Wn.View.Slide.SlideID; } catch { }
             }
+            catch (Exception ex)
+            {
+                // 放映窗口可能正在关闭，读取失败时忽略本次翻页
+                LogHelper.WriteLogToFile("PowerPoint Next Slide: 读取放映状态失败 " + ex.Message, LogHelper.LogType.Error);
+                return;
+            }
+
+            LogHelper.WriteLogToFile(string.Format("PowerPoint Next Slide (Slide {0})", newPosition), LogHelper.LogType.Event);
+            if (newPosition == previousSlideID) return;
+
+            // 记录离开页的 SlideID（进入该页时写入的 currentSlideID）与旧位置，
+            // 切页回调触发时 CurrentShowPosition 已经是新位置。
+            int leavingSlideID = currentSlideID;
+            int oldPosition = previousSlideID;
+
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                MemoryStream ms = new MemoryStream();
+                inkCanvas.Strokes.Save(ms);
+                ms.Position = 0;
+                // 离开页的笔迹按该页 SlideID 缓存，插入/删除页后仍能正确对应。
+                _strokeCacheBySlideId[GetStrokeCacheKey(leavingSlideID, oldPosition)] = ms;
+
+                if (inkCanvas.Strokes.Count > Settings.Automation.MinimumAutomationStrokeNumber && Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint && !_isPptClickingBtnTurned)
+                    SavePPTScreenshot(presentationName + "/" + newPosition);
+                _isPptClickingBtnTurned = false;
+
+                ClearStrokes(true);
+                timeMachine.ClearStrokeHistory();
+
+                try
+                {
+                    int targetSlideId = GetSlideIdForPosition(newPosition);
+                    if (targetSlideId == 0) targetSlideId = fallbackSlideId;
+                    currentSlideID = targetSlideId;
+                    MemoryStream targetMs = GetCachedStrokes(targetSlideId, newPosition);
+                    if (targetMs != null && targetMs.Length > 0)
+                    {
+                        targetMs.Position = 0;
+                        inkCanvas.Strokes.Add(new StrokeCollection(targetMs));
+                    }
+                    currentShowPosition = newPosition;
+                }
+                catch { }
+
+                PptNavigationTextBlockBottom.Text = $"{newPosition}/{totalSlides}";
+            });
+            previousSlideID = newPosition;
+
         }
 
         private bool _isPptClickingBtnTurned = false;
