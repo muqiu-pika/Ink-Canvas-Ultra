@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Ink Canvas Ultra"
-#define MyAppVersion "26.9.5"
+#define MyAppVersion "26.9.6"
 #define MyAppPublisher "muqiu-pika"
 #define MyAppURL "https://github.com/muqiu-pika/Ink-Canvas-Ultra"
 #define MyAppExeName "Ink Canvas Ultra.exe"
