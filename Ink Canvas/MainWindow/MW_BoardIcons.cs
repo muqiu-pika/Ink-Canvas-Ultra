@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Ink;
 using System.Windows.Media;
+using System.Threading.Tasks;
 using Application = System.Windows.Application;
 using System.Diagnostics;
 
@@ -54,11 +55,15 @@ namespace Ink_Canvas
         }
 
         // 白板模式画笔按钮点击事件 - 独立处理，不影响浮动栏按钮
-        private void BoardPenIcon_Click(object sender, RoutedEventArgs e)
+        private async void BoardPenIcon_Click(object sender, RoutedEventArgs e)
         {
             if (BoardPen.Opacity != 1)
             {
                 AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardPenPalette);
+                // 首次展示时动画会重置 RenderTransform，等待动画结束后重新应用已保存的拖动偏移
+                await Task.Delay(300);
+                GetPenPaletteDragOffset(BoardPenPalette as FrameworkElement, out double bx, out double by);
+                if (bx != 0 || by != 0) ApplyPenPaletteDragOffset(BoardPenPalette as FrameworkElement, bx, by);
             }
             else
             {

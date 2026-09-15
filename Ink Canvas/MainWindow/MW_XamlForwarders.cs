@@ -70,6 +70,9 @@ namespace Ink_Canvas
         private dynamic BoardPen => FindXamlPart(MWBoardHost, nameof(BoardPen));
         private dynamic BoardPenIcon => FindXamlPart(MWBoardHost, nameof(BoardPenIcon));
         private dynamic BoardPenPalette => FindXamlPart(MWBoardHost, nameof(BoardPenPalette));
+        private dynamic BoardPenPaletteDragHandle => FindXamlPart(MWBoardHost, nameof(BoardPenPaletteDragHandle));
+        private dynamic BoardPenPalettePin => FindXamlPart(MWBoardHost, nameof(BoardPenPalettePin));
+        private dynamic BoardPenPaletteRestore => FindXamlPart(MWBoardHost, nameof(BoardPenPaletteRestore));
         private dynamic BoardComboBoxPenStyle => FindXamlPart(MWBoardHost, nameof(BoardComboBoxPenStyle));
         private dynamic BoardNibModeSimpleStackPanel => FindXamlPart(MWBoardHost, nameof(BoardNibModeSimpleStackPanel));
         private dynamic BoardToggleSwitchEnableNibMode => FindXamlPart(MWBoardHost, nameof(BoardToggleSwitchEnableNibMode));
@@ -264,6 +267,9 @@ namespace Ink_Canvas
         private dynamic Icon_Pen => FindXamlPart(MWFloatBarHost, nameof(Icon_Pen));
         private dynamic StackPanelCanvasControls => FindXamlPart(MWFloatBarHost, nameof(StackPanelCanvasControls));
         private dynamic PenPalette => FindXamlPart(MWFloatBarHost, nameof(PenPalette));
+        private dynamic PenPaletteDragHandle => FindXamlPart(MWFloatBarHost, nameof(PenPaletteDragHandle));
+        private dynamic PenPalettePin => FindXamlPart(MWFloatBarHost, nameof(PenPalettePin));
+        private dynamic PenPaletteRestore => FindXamlPart(MWFloatBarHost, nameof(PenPaletteRestore));
         private dynamic ComboBoxPenStyle => FindXamlPart(MWFloatBarHost, nameof(ComboBoxPenStyle));
         private dynamic NibModeSimpleStackPanel => FindXamlPart(MWFloatBarHost, nameof(NibModeSimpleStackPanel));
         private dynamic ToggleSwitchEnableNibMode => FindXamlPart(MWFloatBarHost, nameof(ToggleSwitchEnableNibMode));

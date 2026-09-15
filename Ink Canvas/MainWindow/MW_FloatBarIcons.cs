@@ -492,8 +492,9 @@ namespace Ink_Canvas
             AnimationsHelper.HideWithSlideAndFade(BorderTools);
             AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
             AnimationsHelper.HideWithSlideAndFade(BoardBorderTools);
-            AnimationsHelper.HideWithSlideAndFade(PenPalette);
-            AnimationsHelper.HideWithSlideAndFade(BoardPenPalette);
+            // 固定显示时「墨迹选项」不随其他子面板一起自动收起
+            if (!isPenPalettePinned) AnimationsHelper.HideWithSlideAndFade(PenPalette);
+            if (!isPenPalettePinned) AnimationsHelper.HideWithSlideAndFade(BoardPenPalette);
             AnimationsHelper.HideWithSlideAndFade(BoardDeleteIcon);
             AnimationsHelper.HideWithSlideAndFade(TwoFingerGestureBorder);
             AnimationsHelper.HideWithSlideAndFade(BoardTwoFingerGestureBorder);
@@ -592,6 +593,200 @@ namespace Ink_Canvas
             await Task.Delay(150);
             isHidingSubPanelsWhenInking = false;
         }
+
+        #region 墨迹选项面板可移动（拖动 + 固定显示 + 恢复原位）
+
+        Point penPaletteDragStartPos = new Point();
+        bool isPenPaletteDragging = false;
+        bool isPenPaletteTouchDragging = false;
+        FrameworkElement penPaletteDraggingTarget = null;
+
+        // 拖动偏移量（用 RenderTransform 实现，避免拖动时频繁触发布局导致卡顿）
+        double penPaletteFloatDragOffsetX = 0, penPaletteFloatDragOffsetY = 0;
+        double penPaletteBoardDragOffsetX = 0, penPaletteBoardDragOffsetY = 0;
+
+        // true = 固定显示：不被 HideSubPanels 自动隐藏；false = 使用完毕后自动收起
+        bool isPenPalettePinned = false;
+
+        /// <summary>根据事件源确定对应的墨迹选项面板（浮动栏 PenPalette 或画板 BoardPenPalette）</summary>
+        private FrameworkElement GetPenPalettePanelFromSender(object sender)
+        {
+            if (sender is DependencyObject d)
+            {
+                var floatPanel = PenPalette as FrameworkElement;
+                if (floatPanel != null && IsElementDescendantOf(d, floatPanel)) return floatPanel;
+                var boardPanel = BoardPenPalette as FrameworkElement;
+                if (boardPanel != null && IsElementDescendantOf(d, boardPanel)) return boardPanel;
+            }
+            return null;
+        }
+
+        private void GetPenPaletteDragOffset(FrameworkElement panel, out double x, out double y)
+        {
+            if (panel == (PenPalette as FrameworkElement))
+            {
+                x = penPaletteFloatDragOffsetX; y = penPaletteFloatDragOffsetY;
+            }
+            else
+            {
+                x = penPaletteBoardDragOffsetX; y = penPaletteBoardDragOffsetY;
+            }
+        }
+
+        private void SetPenPaletteDragOffset(FrameworkElement panel, double x, double y)
+        {
+            if (panel == (PenPalette as FrameworkElement))
+            {
+                penPaletteFloatDragOffsetX = x; penPaletteFloatDragOffsetY = y;
+            }
+            else
+            {
+                penPaletteBoardDragOffsetX = x; penPaletteBoardDragOffsetY = y;
+            }
+        }
+
+        /// <summary>用 RenderTransform 平移面板（视觉变换，不触发布局），并清除显示动画残留</summary>
+        private void ApplyPenPaletteDragOffset(FrameworkElement panel, double ox, double oy)
+        {
+            if (panel == null) return;
+            var t = panel.RenderTransform as TranslateTransform;
+            if (t == null)
+            {
+                t = new TranslateTransform();
+                panel.RenderTransform = t;
+            }
+            t.BeginAnimation(TranslateTransform.XProperty, null);
+            t.BeginAnimation(TranslateTransform.YProperty, null);
+            t.X = ox;
+            t.Y = oy;
+        }
+
+        private void MovePenPaletteByDrag(FrameworkElement panel, double dx, double dy)
+        {
+            GetPenPaletteDragOffset(panel, out var ox, out var oy);
+            ox += dx;
+            oy += dy;
+            SetPenPaletteDragOffset(panel, ox, oy);
+            ApplyPenPaletteDragOffset(panel, ox, oy);
+        }
+
+        private void PenPaletteDragHandle_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            if (isPenPaletteTouchDragging) return;
+            var panel = GetPenPalettePanelFromSender(sender);
+            if (panel == null || !(sender is UIElement handle)) return;
+            var parent = panel.Parent as IInputElement;
+            if (parent == null) return;
+            penPaletteDraggingTarget = panel;
+            penPaletteDragStartPos = e.GetPosition(parent);
+            isPenPaletteDragging = true;
+            handle.CaptureMouse();
+        }
+
+        private void PenPaletteDragHandle_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (isPenPaletteTouchDragging || !isPenPaletteDragging || penPaletteDraggingTarget == null) return;
+            var parent = penPaletteDraggingTarget.Parent as IInputElement;
+            if (parent == null) return;
+            Point current = e.GetPosition(parent);
+            double dx = current.X - penPaletteDragStartPos.X;
+            double dy = current.Y - penPaletteDragStartPos.Y;
+            if (dx == 0 && dy == 0) return;
+            MovePenPaletteByDrag(penPaletteDraggingTarget, dx, dy);
+            penPaletteDragStartPos = current;
+        }
+
+        private void PenPaletteDragHandle_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (isPenPaletteTouchDragging) return;
+            if (sender is UIElement handle) handle.ReleaseMouseCapture();
+            isPenPaletteDragging = false;
+            penPaletteDraggingTarget = null;
+        }
+
+        private void PenPaletteDragHandle_PreviewTouchDown(object sender, TouchEventArgs e)
+        {
+            var panel = GetPenPalettePanelFromSender(sender);
+            if (panel == null || !(sender is UIElement handle)) return;
+            var win = Window.GetWindow(panel);
+            if (win == null) return;
+            isPenPaletteTouchDragging = true;
+            penPaletteDraggingTarget = panel;
+            penPaletteDragStartPos = e.GetTouchPoint(win).Position;
+            isPenPaletteDragging = true;
+            handle.CaptureTouch(e.TouchDevice);
+            e.Handled = true;
+        }
+
+        private void PenPaletteDragHandle_PreviewTouchMove(object sender, TouchEventArgs e)
+        {
+            if (!isPenPaletteTouchDragging || !isPenPaletteDragging || penPaletteDraggingTarget == null) return;
+            var win = Window.GetWindow(penPaletteDraggingTarget);
+            if (win == null) return;
+            Point current = e.GetTouchPoint(win).Position;
+            double dx = current.X - penPaletteDragStartPos.X;
+            double dy = current.Y - penPaletteDragStartPos.Y;
+            if (dx == 0 && dy == 0) { e.Handled = true; return; }
+            MovePenPaletteByDrag(penPaletteDraggingTarget, dx, dy);
+            penPaletteDragStartPos = current;
+            e.Handled = true;
+        }
+
+        private void PenPaletteDragHandle_PreviewTouchUp(object sender, TouchEventArgs e)
+        {
+            if (sender is UIElement handle && e.TouchDevice != null) handle.ReleaseTouchCapture(e.TouchDevice);
+            isPenPaletteTouchDragging = false;
+            isPenPaletteDragging = false;
+            penPaletteDraggingTarget = null;
+            e.Handled = true;
+        }
+
+        /// <summary>固定显示开关：true 时墨迹选项面板不被 HideSubPanels 自动收起</summary>
+        private void SymbolIconPinPenPalette_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            isPenPalettePinned = !isPenPalettePinned;
+            UpdatePenPalettePinState();
+        }
+
+        private void UpdatePenPalettePinState()
+        {
+            PenPalettePin.Glyph = isPenPalettePinned ? "\uE718" : "\uE77a";
+            BoardPenPalettePin.Glyph = isPenPalettePinned ? "\uE718" : "\uE77a";
+        }
+
+        private void PenPaletteRestore_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            lastBorderMouseDownObject = sender;
+        }
+
+        private void PenPaletteRestore_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            if (lastBorderMouseDownObject != sender) return;
+            RestorePenPalettePosition(sender);
+        }
+
+        private void PenPaletteRestore_TouchDown(object sender, TouchEventArgs e)
+        {
+            lastBorderMouseDownObject = sender;
+            e.Handled = true;
+        }
+
+        private void PenPaletteRestore_TouchUp(object sender, TouchEventArgs e)
+        {
+            if (lastBorderMouseDownObject != sender) return;
+            RestorePenPalettePosition(sender);
+            e.Handled = true;
+        }
+
+        private void RestorePenPalettePosition(object sender)
+        {
+            var panel = GetPenPalettePanelFromSender(sender);
+            if (panel == null) return;
+            SetPenPaletteDragOffset(panel, 0, 0);
+            ApplyPenPaletteDragOffset(panel, 0, 0);
+        }
+
+        #endregion
 
         private void SymbolIconUndo_Click(object sender, RoutedEventArgs e)
         {
@@ -1501,7 +1696,7 @@ namespace Ink_Canvas
             }
         }
 
-        private void PenIcon_Click(object sender, RoutedEventArgs e)
+        private async void PenIcon_Click(object sender, RoutedEventArgs e)
         {
             if (Pen_Icon.Background == null || StackPanelCanvasControls.Visibility == Visibility.Collapsed)
             {
@@ -1533,6 +1728,12 @@ namespace Ink_Canvas
                 {
                     AnimationsHelper.ShowWithSlideFromBottomAndFade(PenPalette);
                     AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardPenPalette);
+                    // 首次展示时动画会重置 RenderTransform，等待动画结束后重新应用已保存的拖动偏移
+                    await Task.Delay(300);
+                    GetPenPaletteDragOffset(PenPalette as FrameworkElement, out double fx, out double fy);
+                    if (fx != 0 || fy != 0) ApplyPenPaletteDragOffset(PenPalette as FrameworkElement, fx, fy);
+                    GetPenPaletteDragOffset(BoardPenPalette as FrameworkElement, out double bx, out double by);
+                    if (bx != 0 || by != 0) ApplyPenPaletteDragOffset(BoardPenPalette as FrameworkElement, bx, by);
                 }
             }
         }

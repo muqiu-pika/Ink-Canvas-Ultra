@@ -445,6 +445,61 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(ShapePanelRestore_TouchUp), sender, e);
         }
 
+        private void SymbolIconPinPenPalette_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(SymbolIconPinPenPalette_MouseUp), sender, e);
+        }
+
+        private void PenPaletteDragHandle_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteDragHandle_MouseDown), sender, e);
+        }
+
+        private void PenPaletteDragHandle_MouseMove(object sender, MouseEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteDragHandle_MouseMove), sender, e);
+        }
+
+        private void PenPaletteDragHandle_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteDragHandle_MouseUp), sender, e);
+        }
+
+        private void PenPaletteDragHandle_PreviewTouchDown(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteDragHandle_PreviewTouchDown), sender, e);
+        }
+
+        private void PenPaletteDragHandle_PreviewTouchMove(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteDragHandle_PreviewTouchMove), sender, e);
+        }
+
+        private void PenPaletteDragHandle_PreviewTouchUp(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteDragHandle_PreviewTouchUp), sender, e);
+        }
+
+        private void PenPaletteRestore_MouseDown(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteRestore_MouseDown), sender, e);
+        }
+
+        private void PenPaletteRestore_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteRestore_MouseUp), sender, e);
+        }
+
+        private void PenPaletteRestore_TouchDown(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteRestore_TouchDown), sender, e);
+        }
+
+        private void PenPaletteRestore_TouchUp(object sender, TouchEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(PenPaletteRestore_TouchUp), sender, e);
+        }
+
         private void SymbolIconRandOne_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(SymbolIconRandOne_Click), sender, e);
