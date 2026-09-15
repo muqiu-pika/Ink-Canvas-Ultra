@@ -43,25 +43,34 @@ namespace Ink_Canvas
 
         private void BorderStrokeSelectionCloneToBoardOrNewPage_Click(object sender, RoutedEventArgs e)
         {
+            StrokeCollection strokes = inkCanvas.GetSelectedStrokes();
+            List<UIElement> elements = InkCanvasElementsHelper.GetSelectedElementsCloned(inkCanvas);
+            if (strokes.Count == 0 && elements.Count == 0) return;
+            inkCanvas.Select(new StrokeCollection());
+            strokes = strokes.Clone();
+
+            // 先切换到目标画布/新增页面（内部会开启“模式切换过渡窗口”，
+            // 且 BtnWhiteBoardAdd_Click 内的 ClearStrokes 会把 _currentCommitType 重置回 UserInput）。
             if (currentMode == 0)
-            {
-                StrokeCollection strokes = inkCanvas.GetSelectedStrokes();
-                List<UIElement> elements = InkCanvasElementsHelper.GetSelectedElementsCloned(inkCanvas);
-                inkCanvas.Select(new StrokeCollection());
-                strokes = strokes.Clone();
                 ImageBlackboard_Click(null, null);
-                inkCanvas.Strokes.Add(strokes);
-                InkCanvasElementsHelper.AddElements(inkCanvas, elements, timeMachine);
-            }
             else
-            {
-                StrokeCollection strokes = inkCanvas.GetSelectedStrokes();
-                List<UIElement> elements = InkCanvasElementsHelper.GetSelectedElementsCloned(inkCanvas);
-                inkCanvas.Select(new StrokeCollection());
-                strokes = strokes.Clone();
                 BtnWhiteBoardAdd_Click(null, null);
+
+            // 目标页就绪后、真正往画布添加笔迹前再开启 CodeInput：此时过渡窗口尚未关闭
+            // （_isInBoardModeSwitch 仍为 true），若不标记 CodeInput，新增的克隆笔迹会被
+            // 时间机器的残留笔迹拦截逻辑误删（见 MW_TimeMachine 的 strayStrokes 分支），
+            // 导致新页面上立即看不到笔迹。结束前显式把克隆笔迹提交到时间机器历史，
+            // 保证换页后仍能正确恢复。
+            _currentCommitType = CommitReason.CodeInput;
+            try
+            {
                 inkCanvas.Strokes.Add(strokes);
                 InkCanvasElementsHelper.AddElements(inkCanvas, elements, timeMachine);
+                timeMachine.CommitStrokeUserInputHistory(strokes);
+            }
+            finally
+            {
+                _currentCommitType = CommitReason.UserInput;
             }
         }
 
