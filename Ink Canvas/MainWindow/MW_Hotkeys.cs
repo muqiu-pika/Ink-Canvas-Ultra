@@ -491,6 +491,9 @@ namespace Ink_Canvas
         {
             try
             {
+                // 快捷键切回画笔时自动关闭激光笔，避免后续书写出现普通笔与激光笔叠加
+                if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
+
                 // 若当前处于选择/橡皮等非墨迹态，先切回墨迹
                 if (inkCanvas.EditingMode != InkCanvasEditingMode.Ink)
                 {
@@ -534,6 +537,36 @@ namespace Ink_Canvas
         {
             if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
             BtnPPTSlideShowEnd_Click(null, null);
+        }
+
+        /// <summary>
+        /// PPT 放映翻页（Preview 隧道阶段）：支持 ↑/↓（与 PowerPoint 原生放映行为一致），
+        /// 以及 ←/→、PageUp/PageDown、N/P、Space 等常见翻页键。
+        /// 必须走 Preview 阶段并标记 Handled：浮动栏/白板栏按钮获得键盘焦点后，
+        /// ↑/↓ 会被 WPF 焦点导航拦截（按钮间出现焦点框），冒泡阶段的 KeyBinding 无法触发，
+        /// 导致幻灯片不翻页。在此阶段提前拦截即可先翻页、再阻止焦点框移动。
+        /// 是否响应受“自定义快捷键”插件中 ppt-next/ppt-prev 动作的启用状态约束。
+        /// </summary>
+        private void Main_Grid_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;
+
+            bool nextEnabled = HotkeyService != null && HotkeyService.IsActionEnabled("ppt-next");
+            bool prevEnabled = HotkeyService != null && HotkeyService.IsActionEnabled("ppt-prev");
+
+            if (e.Key == Key.Down || e.Key == Key.Right || e.Key == Key.PageDown
+                || e.Key == Key.N || e.Key == Key.Space)
+            {
+                if (nextEnabled) BtnPPTSlidesDown_Click(null, null);
+                e.Handled = true;
+                return;
+            }
+            if (e.Key == Key.Up || e.Key == Key.Left || e.Key == Key.PageUp || e.Key == Key.P)
+            {
+                if (prevEnabled) BtnPPTSlidesUp_Click(null, null);
+                e.Handled = true;
+                return;
+            }
         }
 
         // ===== 浮动工具栏功能快捷键的回调（无参，转发到对应 Click 处理） =====

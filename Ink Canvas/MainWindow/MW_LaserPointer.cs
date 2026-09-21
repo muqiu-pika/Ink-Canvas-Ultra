@@ -187,22 +187,18 @@ namespace Ink_Canvas
         }
 
         /// <summary>
-        /// 当前生效的激光笔颜色（已含可见性回退处理）。
-        /// 激光笔与画笔共用同一份选色：按模式取「该模式最后一次选中的颜色」，
+        /// 当前生效的激光笔颜色（与画笔共用同一份选色，所见即所得）。
+        /// 按模式取「该模式最后一次选中的颜色」：
         /// 浮动栏（桌面/批注）记 lastDesktopInkColor、白板记 lastBoardInkColor，两种模式分开记忆、互不干扰。
+        /// 直接返回所选颜色（含黑色/白色），不再强制回退为红色；
+        /// 轨迹自带白色亮芯，黑色等深色在深色背景上仍有辨识度。
         /// </summary>
         private Color GetLaserColor()
         {
             try
             {
                 int index = currentMode == 1 ? lastBoardInkColor : lastDesktopInkColor;
-                var c = GetInkColorByIndex(index);
-                // 颜色过暗（如黑色）时回退为红色，保证在任何背景下都能看见
-                if (c.R + c.G + c.B < 200) return Color.FromRgb(0xFF, 0x3B, 0x30);
-                // 白板（浅色板面）上近白的激光几乎不可见，同样回退为红色；黑板/桌面不受影响
-                if (currentMode == 1 && Settings.Canvas.UsingWhiteboard && c.R + c.G + c.B > 700)
-                    return Color.FromRgb(0xFF, 0x3B, 0x30);
-                return c;
+                return GetInkColorByIndex(index);
             }
             catch
             {

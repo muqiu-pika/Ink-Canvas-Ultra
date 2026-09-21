@@ -497,6 +497,8 @@ namespace Ink_Canvas
 
         private void BtnSelect_Click(object sender, RoutedEventArgs e)
         {
+            // 切换到选择工具时自动关闭激光笔，避免选择框点击仍被激光笔拦截
+            if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
             forceEraser = true;
             drawingShapeMode = 0;
             inkCanvas.IsManipulationEnabled = false;

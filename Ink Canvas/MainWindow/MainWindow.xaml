@@ -40,6 +40,8 @@
 
     MouseWheel="Window_MouseWheel"
 
+    PreviewKeyDown="Main_Grid_PreviewKeyDown"
+
     ResizeMode="NoResize"
 
     ShowInTaskbar="False"

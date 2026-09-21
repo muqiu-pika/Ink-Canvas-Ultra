@@ -1096,7 +1096,13 @@ namespace Ink_Canvas
             try
             {
                 isMouseDown = false;
-                isInMultiTouchMode = false;
+                // isInMultiTouchMode 表示“多指书写”处理器是否已挂载（与设置开关一一对应），
+                // 输入设备恢复只应重置进行中的输入状态，不能把它强置为 false。
+                // 否则当多指书写开启时发生设备恢复（WM_DEVICECHANGE / 失焦重获 / 电源事件），
+                // 标志位变为 false 但 MainWindow_TouchDown 等处理器仍挂载着，
+                // 之后用户关闭“多指书写”开关会因 isInMultiTouchMode==false 而不执行卸载，
+                // 造成“未开多指书写却仍可多指书写”。此处按设置值恢复以保持两者一致。
+                isInMultiTouchMode = Settings.Gesture?.IsEnableMultiTouchMode ?? false;
                 isSingleFingerDragMode = false;
                 twoFingerGestureType = TwoFingerGestureType.None;
                 translateAccum = new Vector(0, 0);

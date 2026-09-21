@@ -59,14 +59,25 @@ namespace Ink_Canvas
         {
             if (BoardPen.Opacity != 1)
             {
-                AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardPenPalette);
-                // 首次展示时动画会重置 RenderTransform，等待动画结束后重新应用已保存的拖动偏移
-                await Task.Delay(300);
-                GetPenPaletteDragOffset(BoardPenPalette as FrameworkElement, out double bx, out double by);
-                if (bx != 0 || by != 0) ApplyPenPaletteDragOffset(BoardPenPalette as FrameworkElement, bx, by);
+                // 再次点击“墨迹”时收起已展开的墨迹选项面板（与浮动栏“批注”按钮行为一致），
+                // 否则面板一旦展开将无法在白板模式下收起
+                if (BoardPenPalette.Visibility == Visibility.Visible)
+                {
+                    AnimationsHelper.HideWithSlideAndFade(BoardPenPalette);
+                }
+                else
+                {
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardPenPalette);
+                    // 首次展示时动画会重置 RenderTransform，等待动画结束后重新应用已保存的拖动偏移
+                    await Task.Delay(300);
+                    GetPenPaletteDragOffset(BoardPenPalette as FrameworkElement, out double bx, out double by);
+                    if (bx != 0 || by != 0) ApplyPenPaletteDragOffset(BoardPenPalette as FrameworkElement, bx, by);
+                }
             }
             else
             {
+                // 切回画笔时自动关闭激光笔，避免“激光笔开启时切回笔迹书写”出现普通笔与激光笔叠加
+                if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
                 inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
 
                 Main_Grid.Background = new SolidColorBrush(StringToColor("#01FFFFFF"));
@@ -101,6 +112,8 @@ namespace Ink_Canvas
             }
             else
             {
+                // 切橡皮时自动关闭激光笔，否则激光笔仍在 Preview 阶段拦截输入并画出激光轨迹
+                if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
                 forceEraser = true;
                 forcePointEraser = true;
                 double k = 1;
@@ -138,6 +151,8 @@ namespace Ink_Canvas
             }
             else
             {
+                // 切墨迹擦时自动关闭激光笔，避免仍残留激光轨迹
+                if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
                 forceEraser = true;
                 forcePointEraser = false;
 
