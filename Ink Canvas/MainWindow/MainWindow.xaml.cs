@@ -1249,10 +1249,13 @@ namespace Ink_Canvas
                 }
             }
 
-            // 应用空闲时预先构造并重渲染设置窗口，把“解析 170KB XAML + 首次布局/渲染”
-            // 的开销从“点击设置”挪到空闲时段，避免点击时的卡顿与黑屏闪烁。
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,
-                (System.Action)PrebuildSettingsWindow);
+            // 移除启动后空闲时对设置窗口的无条件预构建：
+            // 它会在启动后几秒就把整个 170KB XAML 的设置窗口常驻内存（几十 MB），平时隐藏仍占用，
+            // 抬高启动后的内存基线。设置窗口改为首次点击“设置”时才构建并缓存复用（见 BtnSettings_Click），
+            // 代价仅是首次打开时有一次解析延迟，换取启动内存显著下降。
+            // 若需恢复，可将此行取消注释并保留 PrebuildSettingsWindow 相关方法。
+            // Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,
+            //     (System.Action)PrebuildSettingsWindow);
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)

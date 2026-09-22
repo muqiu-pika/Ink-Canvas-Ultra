@@ -181,11 +181,15 @@ namespace Ink_Canvas
                 var strokeVisual = GetStrokeVisual(stylusDeviceId);
                 var stylusPointCollection = e.GetStylusPoints(inkCanvas);
                 if (stylusPointCollection == null) return;
+                bool hasNewPoint = false;
                 foreach (var stylusPoint in stylusPointCollection)
                 {
-                    strokeVisual.Add(new StylusPoint(stylusPoint.X, stylusPoint.Y, stylusPoint.PressureFactor));
+                    // Add 内部会对过近的冗余点做过滤（返回 false），
+                    // 全部被过滤时不为本帧安排重绘，避免空帧全量重绘的 CPU/GC 开销。
+                    if (strokeVisual.Add(new StylusPoint(stylusPoint.X, stylusPoint.Y, stylusPoint.PressureFactor)))
+                        hasNewPoint = true;
                 }
-                strokeVisual.RedrawThrottled();
+                if (hasNewPoint) strokeVisual.RedrawThrottled();
             }
             catch (Exception ex)
             {

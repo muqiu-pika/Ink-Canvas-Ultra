@@ -65,15 +65,19 @@ namespace Ink_Canvas.Helpers
         private int _lastTick = -1;
         private const double MaxGapDistance = 100.0;
         private const int ShortTimeMs = 30;
+        // 相邻点最小间距（像素）：触摸屏的原始采样往往极密（0.1px 级），
+        // 过滤过近的冗余点可大幅减少累积点数，从而降低每帧全量重绘（Redraw）的
+        // Draw 成本与内存/GC 占用；0.6px 对笔迹视觉影响可忽略。
+        private const double MinPointDistance = 0.6;
         private bool _redrawScheduled = false;
 
         public StrokeCollection StrokeCollection => _strokes;
 
         /// <summary>
-        ///     在笔迹中添加点
+        ///     在笔迹中添加点。
         /// </summary>
-        /// <param name="point"></param>
-        public void Add(StylusPoint point)
+        /// <returns>true 表示本批输入中确实加入了新点，调用方据此决定是否重绘，避免空帧重绘。</returns>
+        public bool Add(StylusPoint point)
         {
             var now = Environment.TickCount;
 
@@ -85,7 +89,7 @@ namespace Ink_Canvas.Helpers
                 if (Stroke == null) Stroke = _currentStroke; // 保持兼容：首段作为 Stroke 属性
                 _lastPoint = point;
                 _lastTick = now;
-                return;
+                return true;
             }
 
             double dist = 0.0;
@@ -106,6 +110,15 @@ namespace Ink_Canvas.Helpers
                 _currentStroke = new Stroke(collection) { DrawingAttributes = _drawingAttributes };
                 _strokes.Add(_currentStroke);
             }
+            else if (_lastPoint.HasValue && dist < MinPointDistance)
+            {
+                // 去冗余：与上一实际点距离过近的采样点直接丢弃。
+                // 仍刷新 _lastPoint/_lastTick（保持最新），避免误触断线判定，
+                // 同时让后续点重新计算距离。分叉开的点不受影响（其 dist 已足够大）。
+                _lastPoint = point;
+                _lastTick = now;
+                return false;
+            }
             else
             {
                 _currentStroke.StylusPoints.Add(point);
@@ -113,6 +126,7 @@ namespace Ink_Canvas.Helpers
 
             _lastPoint = point;
             _lastTick = now;
+            return true;
         }
 
         /// <summary>

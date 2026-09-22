@@ -54,7 +54,11 @@ namespace Ink_Canvas.Helpers
             typeof(global::Ink_Canvas.ScreenshotSelectorWindow)
         };
 
-        private static readonly TimeSpan MaintenanceInterval = TimeSpan.FromMilliseconds(500);
+        // 兜底维护定时器周期：仅用于“扫描并登记尚未登记的弹出窗口 + 对齐 Topmost”。
+        // 该定时器始终运行（启动即 Start），属于空闲时的持续空转负载；
+        // 从 500ms 放宽到 2000ms 以降低空闲 CPU 占用，兜底语义不受影响
+        // （新窗口在打开时即通过显式 Register/BringToFront 正常置前，此定时器只是最后兜底）。
+        private static readonly TimeSpan MaintenanceInterval = TimeSpan.FromMilliseconds(2000);
         private static DispatcherTimer _maintenanceTimer;
 
         /// <summary>
