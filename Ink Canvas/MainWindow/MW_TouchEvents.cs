@@ -118,7 +118,7 @@ namespace Ink_Canvas
         /// <summary>
         /// 触摸抬起事件处理 - 将预览笔迹添加到画布
         /// </summary>
-        private async void MainWindow_StylusUp(object sender, StylusEventArgs e)
+        private void MainWindow_StylusUp(object sender, StylusEventArgs e)
         {
             int stylusDeviceId = e.StylusDevice.Id;
             try
@@ -136,15 +136,17 @@ namespace Ink_Canvas
                     var visualCanvas = GetVisualCanvas(stylusDeviceId);
                     var strokeCollection = visual.StrokeCollection;
 
-                    if (visualCanvas != null)
-                    {
-                        inkCanvas.Children.Remove(visualCanvas);
-                    }
-                    await Task.Delay(5);
-
+                    // 先把预览笔画加入 inkCanvas 真笔迹，再移除预览层：
+                    // 两个操作在同一帧内连续完成（WPF 在事件栈返回后才统一渲染），
+                    // 避免原先"先移除预览再 await 5ms 再加真笔迹"造成的停笔瞬间墨迹消失再出现的闪烁。
                     foreach (var s in strokeCollection)
                     {
                         inkCanvas.Strokes.Add(s);
+                    }
+
+                    if (visualCanvas != null)
+                    {
+                        inkCanvas.Children.Remove(visualCanvas);
                     }
 
                     foreach (var s in strokeCollection)
