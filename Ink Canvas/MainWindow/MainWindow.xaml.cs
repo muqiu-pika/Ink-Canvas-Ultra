@@ -1188,6 +1188,9 @@ namespace Ink_Canvas
             // 初始化摄像头设备管理器
             InitializeCameraDeviceManager();
 
+            // 初始化笔迹图库：把「我的图库」区块挂进两个图形面板，并监听落笔插入
+            InitInkGallery();
+
             // 为照片列表 StackPanel 绑定排序与隐藏覆盖层的事件
             try
             {

@@ -45,6 +45,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(Border_MouseDown), sender, e);
         }
 
+        private void ShapeTab_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapeTab_MouseUp), sender, e);
+        }
+
         private void SymbolIconEmoji_MouseDown(object sender, MouseButtonEventArgs e)
         {
             InvokeMainWindowHandler(nameof(SymbolIconEmoji_MouseDown), sender, e);

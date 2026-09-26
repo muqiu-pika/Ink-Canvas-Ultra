@@ -138,6 +138,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BtnStrokeSelectionSaveToImage_Click), sender, e);
         }
 
+        private void BorderStrokeSelectionAddToGallery_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BorderStrokeSelectionAddToGallery_Click), sender, e);
+        }
+
         private void GridInkCanvasSelectionCover_ManipulationCompleted(object sender, ManipulationCompletedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(GridInkCanvasSelectionCover_ManipulationCompleted), sender, e);

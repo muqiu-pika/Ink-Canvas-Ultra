@@ -2366,7 +2366,27 @@
 
                                         </ikw:SimpleStackPanel>
 
-                                        <Viewbox Width="235" MaxHeight="230" HorizontalAlignment="Left">
+                                        <Grid>
+
+                                            <Grid.ColumnDefinitions>
+
+                                                <ColumnDefinition Width="*" />
+
+                                                <ColumnDefinition Width="Auto" />
+
+                                            </Grid.ColumnDefinitions>
+
+                                            <Grid Grid.Column="0">
+
+                                        <Viewbox
+
+                                            x:Name="ShapePageShapes"
+
+                                            Width="235"
+
+                                            MaxHeight="230"
+
+                                            HorizontalAlignment="Left">
 
                                             <ikw:SimpleStackPanel Spacing="-8">
 
@@ -2707,6 +2727,172 @@
                                             </ikw:SimpleStackPanel>
 
                                         </Viewbox>
+
+                                            </Grid>
+
+                                            <Grid
+
+                                                x:Name="ShapePageGallery"
+
+                                                Grid.Column="0"
+
+                                                Height="230"
+
+                                                Visibility="Collapsed">
+
+                                                <Grid.RowDefinitions>
+
+                                                    <RowDefinition Height="Auto" />
+
+                                                    <RowDefinition Height="*" />
+
+                                                </Grid.RowDefinitions>
+
+                                                <Grid Grid.Row="0" Margin="10,2,10,2">
+
+                                                    <TextBlock
+
+                                                        VerticalAlignment="Center"
+
+                                                        FontSize="11"
+
+                                                        FontWeight="Bold"
+
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+
+                                                        Text="我的图库" />
+
+                                                    <TextBlock
+
+                                                        x:Name="TextBlockShapeGalleryCount"
+
+                                                        HorizontalAlignment="Right"
+
+                                                        VerticalAlignment="Center"
+
+                                                        FontSize="10"
+
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+
+                                                        Opacity="0.7" />
+
+                                                </Grid>
+
+                                                <ScrollViewer
+
+                                                    x:Name="ScrollShapeGallery"
+
+                                                    Grid.Row="1"
+
+                                                    Margin="8,0,6,4"
+
+                                                    VerticalScrollBarVisibility="Auto"
+
+                                                    HorizontalScrollBarVisibility="Disabled">
+
+                                                    <WrapPanel x:Name="WrapPanelShapeGallery" Orientation="Horizontal" />
+
+                                                </ScrollViewer>
+
+                                                <TextBlock
+
+                                                    x:Name="TextBlockShapeGalleryEmpty"
+
+                                                    Grid.Row="1"
+
+                                                    Margin="12,10,12,8"
+
+                                                    FontSize="11"
+
+                                                    Foreground="{DynamicResource FloatBarForeground}"
+
+                                                    Opacity="0.6"
+
+                                                    TextWrapping="Wrap"
+
+                                                    Text="图库还是空的。&#10;用选择工具选中笔迹，点操作条「添加到图库」，&#10;保存的图形会出现在这里；&#10;选中图形后在画布上按住拖动，即可放置并调整大小。" />
+
+                                            </Grid>
+
+                                            <ikw:SimpleStackPanel
+
+                                                Grid.Column="1"
+
+                                                Margin="0,4,6,0"
+
+                                                VerticalAlignment="Top"
+
+                                                Orientation="Vertical"
+
+                                                Spacing="6">
+
+                                                <Border
+                                                    x:Name="BorderShapeTabShapes"
+
+                                                    Padding="3,8"
+
+                                                    Background="{DynamicResource FloatBarTitleBackground}"
+
+                                                    BorderBrush="{DynamicResource FloatBarForeground}"
+
+                                                    BorderThickness="1.5"
+
+                                                    CornerRadius="4"
+
+                                                    Cursor="Hand"
+
+                                                    ToolTip="默认图形：内置绘图工具"
+
+                                                    MouseUp="ShapeTab_MouseUp">
+
+                                                    <TextBlock
+
+                                                        FontSize="12"
+
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+
+                                                        TextAlignment="Center"
+
+                                                        Text="默&#10;认&#10;图&#10;形" />
+
+                                                </Border>
+
+                                                <Border
+                                                    x:Name="BorderShapeTabGallery"
+
+                                                    Padding="3,8"
+
+                                                    Background="Transparent"
+
+                                                    BorderBrush="{DynamicResource FloatBarForeground}"
+
+                                                    BorderThickness="1.5"
+
+                                                    CornerRadius="4"
+
+                                                    Cursor="Hand"
+
+                                                    Opacity="0.5"
+
+                                                    ToolTip="我的图库：收藏的笔迹图形，选中后在画布上拖动放置"
+
+                                                    MouseUp="ShapeTab_MouseUp">
+
+                                                    <TextBlock
+
+                                                        FontSize="12"
+
+                                                        Foreground="{DynamicResource FloatBarForeground}"
+
+                                                        TextAlignment="Center"
+
+                                                        Text="我&#10;的&#10;图&#10;库" />
+
+                                                </Border>
+
+                                            </ikw:SimpleStackPanel>
+
+                                        </Grid>
 
                                     </ikw:SimpleStackPanel>
 

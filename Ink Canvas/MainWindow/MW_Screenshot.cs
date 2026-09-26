@@ -16,14 +16,27 @@ namespace Ink_Canvas
     {
         private void SaveScreenshot(bool isHideNotification, string fileName = null)
         {
-            var savePath = Settings.Automation.IsSaveScreenshotsInDateFolders
-                ? GetDateFolderPath(fileName)
-                : GetDefaultFolderPath();
+            // 自动保存截图是清空/切模式等操作的附带行为：目录不可写等异常不应中断主流程，
+            // 更不能让异常冒泡到 UI 线程触发崩溃重启（见 Log.txt 中清空时的 UnauthorizedAccessException）
+            try
+            {
+                var savePath = Settings.Automation.IsSaveScreenshotsInDateFolders
+                    ? GetDateFolderPath(fileName)
+                    : GetDefaultFolderPath();
 
-            CaptureAndSaveScreenshot(savePath, isHideNotification);
+                CaptureAndSaveScreenshot(savePath, isHideNotification);
 
-            if (Settings.Automation.IsAutoSaveStrokesAtScreenshot)
-                SaveInkCanvasFile(false, false);
+                if (Settings.Automation.IsAutoSaveStrokesAtScreenshot)
+                    SaveInkCanvasFile(false, false);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"自动保存截图失败（已跳过）: {ex.Message}", LogHelper.LogType.Error);
+                if (!isHideNotification)
+                {
+                    ShowNotificationAsync($"自动保存截图失败，已跳过：{ex.Message}");
+                }
+            }
         }
 
         // 提取公共的截图和保存逻辑
@@ -107,33 +120,41 @@ namespace Ink_Canvas
         // 保存PPT截图
         private void SavePPTScreenshot(string fileName)
         {
-            var basePath = Settings?.Automation?.AutoSavedStrokesLocation;
-            if (string.IsNullOrWhiteSpace(basePath)) basePath = @"D:\Ink Canvas";
-
-            string folderPath = Path.Combine(basePath, "Auto Saved - PPT Screenshots");
-            if (Settings.Automation.IsSaveScreenshotsInDateFolders)
+            // 与 SaveScreenshot 同理：截图落盘失败不能中断翻页/清空等主流程
+            try
             {
-                folderPath = Path.Combine(folderPath, DateTime.Now.ToString("yyyy-MM-dd"));
+                var basePath = Settings?.Automation?.AutoSavedStrokesLocation;
+                if (string.IsNullOrWhiteSpace(basePath)) basePath = @"D:\Ink Canvas";
+
+                string folderPath = Path.Combine(basePath, "Auto Saved - PPT Screenshots");
+                if (Settings.Automation.IsSaveScreenshotsInDateFolders)
+                {
+                    folderPath = Path.Combine(folderPath, DateTime.Now.ToString("yyyy-MM-dd"));
+                }
+
+                if (fileName == null) fileName = DateTime.Now.ToString("u").Replace(":", "-");
+                fileName = SanitizeFileName(fileName);
+
+                string savePath = Path.Combine(folderPath, fileName + ".png");
+
+                var saveDir = Path.GetDirectoryName(savePath);
+                if (!string.IsNullOrEmpty(saveDir) && !Directory.Exists(saveDir))
+                {
+                    Directory.CreateDirectory(saveDir);
+                }
+
+                using (var bitmap = GetScreenshotBitmap())
+                {
+                    bitmap.Save(savePath, ImageFormat.Png);
+                }
+                if (Settings.Automation.IsAutoSaveStrokesAtScreenshot)
+                {
+                    SaveInkCanvasFile(false, false);
+                }
             }
-
-            if (fileName == null) fileName = DateTime.Now.ToString("u").Replace(":", "-");
-            fileName = SanitizeFileName(fileName);
-
-            string savePath = Path.Combine(folderPath, fileName + ".png");
-
-            var saveDir = Path.GetDirectoryName(savePath);
-            if (!string.IsNullOrEmpty(saveDir) && !Directory.Exists(saveDir))
+            catch (Exception ex)
             {
-                Directory.CreateDirectory(saveDir);
-            }
-
-            using (var bitmap = GetScreenshotBitmap())
-            {
-                bitmap.Save(savePath, ImageFormat.Png);
-            }
-            if (Settings.Automation.IsAutoSaveStrokesAtScreenshot)
-            {
-                SaveInkCanvasFile(false, false);
+                LogHelper.WriteLogToFile($"自动保存PPT截图失败（已跳过）: {ex.Message}", LogHelper.LogType.Error);
             }
         }
 

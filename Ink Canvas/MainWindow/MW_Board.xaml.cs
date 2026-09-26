@@ -38,6 +38,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BoardChangeBackgroundColorBtn_Click), sender, e);
         }
 
+        private void ShapeTab_MouseUp(object sender, MouseButtonEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ShapeTab_MouseUp), sender, e);
+        }
+
         private void BoardCanvasBtn_PreviewMouseRightButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BoardCanvasBtn_PreviewMouseRightButtonDown), sender, e);
