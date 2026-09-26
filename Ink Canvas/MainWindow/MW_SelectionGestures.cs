@@ -569,7 +569,9 @@ namespace Ink_Canvas
                 UpdateBorderStrokeSelectionControlLocation();
             }
         }
-        double BorderStrokeSelectionControlWidth = 695;
+        // 设置框的设计尺寸（Viewbox 内容自然大小）：第四列并入「添加到图库」后整条宽度增加，
+        // 若仍按旧值 695 计算，Viewbox 会把整条内容压缩到约 86% 导致文字变小
+        double BorderStrokeSelectionControlWidth = 810;
         double BorderStrokeSelectionControlHeight = 104;
         /// <summary>设置框最小缩放比例（保证用户能看清）</summary>
         const double SelectionControlMinScale = 0.7;

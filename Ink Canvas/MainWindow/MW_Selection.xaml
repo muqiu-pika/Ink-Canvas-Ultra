@@ -517,13 +517,38 @@
                                                 FontSize="16"
                                                 Foreground="{DynamicResource FloatBarForeground}"
                                                 Glyph="&#xe74d;" />
-                                            <TextBlock
-                                                VerticalAlignment="Center"
-                                                FontSize="14"
-                                                Foreground="{DynamicResource FloatBarForeground}"
-                                                Text="删除" />
-                                        </ikw:SimpleStackPanel>
-                                    </Button>
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="14"
+                                                Foreground="{DynamicResource FloatBarForeground}"
+                                                Text="删除" />
+                                        </ikw:SimpleStackPanel>
+                                    </Button>
+                                    <Button
+                                        Width="100"
+                                        Height="35"
+                                        Padding="0"
+                                        Background="{DynamicResource FloatBarBackground}"
+                                        Click="BorderStrokeSelectionAddToGallery_Click">
+                                        <ikw:SimpleStackPanel
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center"
+                                            Orientation="Horizontal"
+                                            Spacing="2">
+                                            <ui:FontIcon
+                                                Width="18"
+                                                Height="18"
+                                                FontFamily="{StaticResource FluentIconFontFamily}"
+                                                FontSize="16"
+                                                Foreground="{DynamicResource FloatBarForeground}"
+                                                Glyph="&#xe8f1;" />
+                                            <TextBlock
+                                                VerticalAlignment="Center"
+                                                FontSize="14"
+                                                Foreground="{DynamicResource FloatBarForeground}"
+                                                Text="添加到图库" />
+                                        </ikw:SimpleStackPanel>
+                                    </Button>
                                 </ikw:SimpleStackPanel>
                                 <Border
                                     Height="33"
@@ -672,32 +697,7 @@
                                         </Button>
                                     </ikw:SimpleStackPanel>
                                 </Border>
-                                <Button
-                                    Width="100"
-                                    Height="35"
-                                    Padding="0"
-                                    Background="{DynamicResource FloatBarBackground}"
-                                    Click="BorderStrokeSelectionAddToGallery_Click">
-                                    <ikw:SimpleStackPanel
-                                        HorizontalAlignment="Center"
-                                        VerticalAlignment="Center"
-                                        Orientation="Horizontal"
-                                        Spacing="2">
-                                        <ui:FontIcon
-                                            Width="18"
-                                            Height="18"
-                                            FontFamily="{StaticResource FluentIconFontFamily}"
-                                            FontSize="16"
-                                            Foreground="{DynamicResource FloatBarForeground}"
-                                            Glyph="&#xe8f1;" />
-                                        <TextBlock
-                                            VerticalAlignment="Center"
-                                            FontSize="14"
-                                            Foreground="{DynamicResource FloatBarForeground}"
-                                            Text="添加到图库" />
-                                    </ikw:SimpleStackPanel>
-                                </Button>
-                            </ikw:SimpleStackPanel>
+                            </ikw:SimpleStackPanel>
                         </ikw:SimpleStackPanel>
                         <ikw:SimpleStackPanel
                             Height="20"
