@@ -441,6 +441,10 @@
                                                     Loaded="InkCanvasAreaEraserTest_Loaded" />
                                                 </Grid>
                                             </Border>
+                                            <TextBlock
+                                            x:Name="TextBlockShowAreaEraserWizard"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource PopupWindowForeground}" />
                                         </StackPanel>
                                     </StackPanel>
 

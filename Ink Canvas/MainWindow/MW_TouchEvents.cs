@@ -67,6 +67,8 @@ namespace Ink_Canvas
                     && (boundWidth > BoundsWidth))
                 {
                     if (drawingShapeMode == 0 && forceEraser) return;
+                    // 手掌误触保护：正在用笔书写（或刚写完）时的宽触点视为手掌/手指误触，不切橡皮擦
+                    if (ShouldIgnoreTouchAsPalm()) return;
                     // 记录擦除前的工具（手指擦除是一次性手势，抬起后恢复），避免画布此后一直是橡皮擦
                     RecordFingerEraserMode();
                     double EraserThresholdValue = Settings.Startup.IsEnableNibMode ? Settings.Advanced.NibModeBoundsWidthThresholdValue : Settings.Advanced.FingerModeBoundsWidthThresholdValue;
@@ -314,6 +316,66 @@ namespace Ink_Canvas
         private InkCanvasEditingMode fingerEraserPreviousMode = InkCanvasEditingMode.Ink;
         private bool isFingerEraserModeActive = false;
 
+        #region 手掌误触保护（用笔书写时的手指/手掌触点不切橡皮擦）
+
+        /// <summary>最近一次真实手写笔输入的时刻（Environment.TickCount）</summary>
+        private int _lastPenInputTickCount;
+
+        /// <summary>
+        /// 挂载手写笔活动监听。必须在窗口 Preview 阶段，才能拿到最早的原始输入。
+        /// 只用于「手掌误触保护」，不改动任何输入行为。
+        /// </summary>
+        private void InitializePenActivityTracking()
+        {
+            PreviewStylusDown += (s, e) => MarkPenInputActivityIfPen(e.StylusDevice);
+            PreviewStylusMove += (s, e) => MarkPenInputActivityIfPen(e.StylusDevice);
+            PreviewStylusUp += (s, e) => MarkPenInputActivityIfPen(e.StylusDevice);
+        }
+
+        private void MarkPenInputActivityIfPen(StylusDevice device)
+        {
+            try
+            {
+                var type = device?.TabletDevice?.Type;
+                // 触摸会以 TabletDeviceType.Touch 上报，那些事件不代表「用笔书写」，
+                // 不能记入，否则会把手指擦除功能一起挡掉
+                if (type == TabletDeviceType.Touch) return;
+                _lastPenInputTickCount = Environment.TickCount;
+            }
+            catch { }
+        }
+
+        /// <summary>最近 windowMs 毫秒内是否有手写笔输入</summary>
+        private bool HasRecentPenInput(int windowMs = 500)
+        {
+            int elapsed = unchecked(Environment.TickCount - _lastPenInputTickCount);
+            return elapsed >= 0 && elapsed <= windowMs;
+        }
+
+        /// <summary>当前是否有手写笔画正在进行（墨迹画布持有手写笔捕获）</summary>
+        private bool IsPenStrokeInProgress()
+        {
+            try
+            {
+                var stylus = Stylus.Captured as Visual;
+                if (stylus != null && (ReferenceEquals(stylus, inkCanvas) || inkCanvas.IsAncestorOf(stylus))) return true;
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// 手掌误触保护：正在用笔书写（或刚写完）时，画布上的宽触点多半是手掌/手指误触。
+        /// 此时若按宽触点规则切成橡皮擦，正在写的笔迹会被立刻当成擦除对象（表现为
+        /// “写着写着突然变成橡皮擦、写不上去，过一会儿才恢复”），因此直接忽略该触点。
+        /// </summary>
+        private bool ShouldIgnoreTouchAsPalm()
+        {
+            return IsPenStrokeInProgress() || HasRecentPenInput();
+        }
+
+        #endregion
+
         /// <summary>
         /// 记录即将开始的宽触点手指擦除手势（仅在当前不是橡皮擦工具时记录一次）
         /// </summary>
@@ -385,6 +447,9 @@ namespace Ink_Canvas
                 {
                     isLastTouchEraser = true;
                     if (drawingShapeMode == 0 && forceEraser) return;
+                    // 手掌误触保护：正在用笔书写（或刚写完）时的宽触点视为手掌/手指误触，
+                    // 不切橡皮擦，避免正在写的笔迹被立即擦除（“写着写着突然变成橡皮擦”）
+                    if (ShouldIgnoreTouchAsPalm()) { isLastTouchEraser = false; return; }
                     // 记录擦除前的工具（手指擦除是一次性手势，抬起后恢复），避免画布此后一直是橡皮擦
                     RecordFingerEraserMode();
                     double EraserThresholdValue = Settings.Startup.IsEnableNibMode ? Settings.Advanced.NibModeBoundsWidthThresholdValue : Settings.Advanced.FingerModeBoundsWidthThresholdValue;

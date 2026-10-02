@@ -174,6 +174,28 @@ namespace Ink_Canvas
 
         #region 轨迹绘制
 
+        /// <summary>
+        /// 「图形」工具激活时（drawingShapeMode != 0）激光笔不接管画布输入。
+        /// 激光笔在 Preview 阶段把输入标记 Handled，会拦下图形绘制所需的按下/拖动/抬起，
+        /// 导致选中图形工具后在画布上拖出来的只有激光轨迹（看起来就是"当前颜色的普通线条"）而没有图形；
+        /// 此时让输入照常流向图形逻辑，图形画完（BtnPen_Click 复位 drawingShapeMode）后激光笔自动恢复接管。
+        /// </summary>
+        private bool IsShapeDrawingToolActive => drawingShapeMode != 0;
+
+        /// <summary>
+        /// 收起两个「墨迹选项」面板（浮动栏 PenPalette 与白板 BoardPenPalette），
+        /// 不受「固定显示」影响 —— 激光笔书写时面板必须让开画布。
+        /// </summary>
+        private void HidePenPalettesForLaser()
+        {
+            try
+            {
+                AnimationsHelper.HideWithSlideAndFade((UIElement)PenPalette);
+                AnimationsHelper.HideWithSlideAndFade((UIElement)BoardPenPalette);
+            }
+            catch { }
+        }
+
         /// <summary>判断事件源是否位于画板区域（inkCanvas 或选择覆盖层），排除浮动栏/工具栏等 UI</summary>
         private bool IsInInkCanvasArea(object originalSource)
         {
@@ -214,6 +236,18 @@ namespace Ink_Canvas
         {
             try
             {
+                // 激光笔书写时同样自动收起二级菜单（含「墨迹选项」），与普通书写时的行为一致。
+                // 激光笔在 Preview 阶段把输入标记 Handled，墨迹事件不会产生，
+                // 因此不会走到 StrokesOnStrokesChanged / Main_Grid_TouchDown 里的自动收起逻辑，需要在这里补上。
+                if (!isHidingSubPanelsWhenInking)
+                {
+                    isHidingSubPanelsWhenInking = true;
+                    HideSubPanels();
+                    // HideSubPanels 会跳过「固定显示」的「墨迹选项」，但激光书写时该面板必须让开画布，
+                    // 因此这里再无条件收起一次（含浮动栏与白板两个面板）
+                    HidePenPalettesForLaser();
+                }
+
                 EndLaserTrail(key);
                 // 开新轨迹前先回收残留（设备上报类型不一致时旧轨迹可能永远等不到自己的 Up）
                 PruneStaleLaserTrails();
@@ -342,6 +376,7 @@ namespace Ink_Canvas
         private void LaserPointer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
         {
             if (!isLaserPointerEnabled) return;
+            if (IsShapeDrawingToolActive) return;       // 「图形」工具激活时让输入照常流向图形绘制
             if (e.StylusDevice != null) return;         // 触控笔/触摸走 Stylus、Touch 分支，避免重复绘制
             if (e.LeftButton != MouseButtonState.Pressed) return;
             if (!IsInInkCanvasArea(e.OriginalSource)) return;
@@ -431,6 +466,7 @@ namespace Ink_Canvas
         private void LaserPointer_PreviewStylusDown(object sender, StylusDownEventArgs e)
         {
             if (!isLaserPointerEnabled) return;
+            if (IsShapeDrawingToolActive) return;       // 「图形」工具激活时让输入照常流向图形绘制
             try
             {
                 // 触摸会同时产生 Stylus 与 Touch 事件，触摸交由 Touch 分支处理，避免重复
@@ -472,6 +508,7 @@ namespace Ink_Canvas
         private void LaserPointer_PreviewTouchDown(object sender, TouchEventArgs e)
         {
             if (!isLaserPointerEnabled) return;
+            if (IsShapeDrawingToolActive) return;       // 「图形」工具激活时让输入照常流向图形绘制
             if (!IsInInkCanvasArea(e.OriginalSource)) return;
 
             StartLaserTrail("touch:" + e.TouchDevice.Id, e.GetTouchPoint(LaserPointerCanvas).Position);

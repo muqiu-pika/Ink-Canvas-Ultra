@@ -1698,12 +1698,17 @@ namespace Ink_Canvas
             }
         }
 
-        private async void PenIcon_Click(object sender, RoutedEventArgs e)
+        private void PenIcon_Click(object sender, RoutedEventArgs e)
         {
             // 画布当前不是「可书写」状态（选择/橡皮擦/None 等）时，即使「批注」按钮仍处于高亮，
             // 也必须先执行切回墨迹的流程；否则用户点击「批注」只会切换墨迹选项面板，
             // 画布一直停留在橡皮擦状态，表现为“插入图片后无法批注书写”。
-            bool needRestoreInk = drawingShapeMode == 0 && inkCanvas.EditingMode != InkCanvasEditingMode.Ink;
+            // 例外：激光笔开启时 EditingMode 本来就是 None，那不是异常状态——
+            // 此时点「批注」只应收起/展开「墨迹选项」，不能顺手把激光笔关掉
+            // （否则「墨迹选项」一关闭激光笔也跟着关闭）。
+            bool needRestoreInk = !isLaserPointerEnabled
+                && drawingShapeMode == 0
+                && inkCanvas.EditingMode != InkCanvasEditingMode.Ink;
             if (Pen_Icon.Background == null || StackPanelCanvasControls.Visibility == Visibility.Collapsed || needRestoreInk)
             {
                 // 切回画笔时自动关闭激光笔，避免“激光笔开启时切回笔迹书写”出现普通笔与激光笔叠加
@@ -1740,16 +1745,26 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    AnimationsHelper.ShowWithSlideFromBottomAndFade(PenPalette);
-                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardPenPalette);
-                    // 首次展示时动画会重置 RenderTransform，等待动画结束后重新应用已保存的拖动偏移
-                    await Task.Delay(300);
-                    GetPenPaletteDragOffset(PenPalette as FrameworkElement, out double fx, out double fy);
-                    if (fx != 0 || fy != 0) ApplyPenPaletteDragOffset(PenPalette as FrameworkElement, fx, fy);
-                    GetPenPaletteDragOffset(BoardPenPalette as FrameworkElement, out double bx, out double by);
-                    if (bx != 0 || by != 0) ApplyPenPaletteDragOffset(BoardPenPalette as FrameworkElement, bx, by);
+                    ShowPenPaletteAtSavedPosition(PenPalette);
+                    ShowPenPaletteAtSavedPosition(BoardPenPalette);
                 }
             }
+        }
+
+        /// <summary>
+        /// 展开「墨迹选项」面板，并在展开前先落到上次拖动的固定位置。
+        /// 展开/收起动画都已改成「沿用当前 RenderTransform 偏移」，
+        /// 所以这里先把偏移写回面板，动画就会在固定位置原地滑入；
+        /// 若像原先那样延迟 300ms 再套用偏移，面板会先在初始位置闪现一下、再跳到固定位置。
+        /// </summary>
+        private void ShowPenPaletteAtSavedPosition(object panel)
+        {
+            if (!(panel is FrameworkElement fe)) return;
+
+            GetPenPaletteDragOffset(fe, out double x, out double y);
+            if (x != 0 || y != 0) ApplyPenPaletteDragOffset(fe, x, y);
+
+            AnimationsHelper.ShowWithSlideFromBottomAndFade(fe);
         }
 
         private void ColorThemeSwitch_MouseUp(object sender, RoutedEventArgs e)

@@ -72,6 +72,9 @@ namespace Ink_Canvas
             // 激光笔：输入监听 + 按钮初始视觉（轨迹层为独立的 LaserPointerCanvas，不参与页面数据）
             InitializeLaserPointer();
 
+            // 手写笔活动监听：用于手掌误触保护（用笔书写时的手指/手掌触点不切橡皮擦）
+            InitializePenActivityTracking();
+
             BlackboardLeftSide.Visibility = Visibility.Collapsed;
             BlackboardCenterSide.Visibility = Visibility.Collapsed;
             BlackboardRightSide.Visibility = Visibility.Collapsed;

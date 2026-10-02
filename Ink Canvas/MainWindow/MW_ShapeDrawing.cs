@@ -18,7 +18,7 @@ namespace Ink_Canvas
     {
         #region Floating Bar Control
 
-        private async void ImageDrawShape_Click(object sender, RoutedEventArgs e)
+        private void ImageDrawShape_Click(object sender, RoutedEventArgs e)
         {
             if (BorderDrawShape.Visibility == Visibility.Visible)
             {
@@ -26,15 +26,11 @@ namespace Ink_Canvas
             }
             else
             {
-                BorderDrawShape.RenderTransform = Transform.Identity;
-                AnimationsHelper.ShowWithSlideFromBottomAndFade(BorderDrawShape);
-                await Task.Delay(300);
-                GetShapePanelDragOffset(BorderDrawShape as FrameworkElement, out double ox, out double oy);
-                if (ox != 0 || oy != 0) ApplyShapePanelDragOffset(BorderDrawShape as FrameworkElement, ox, oy);
+                ShowShapePanelAtSavedPosition(BorderDrawShape);
             }
         }
 
-        private async void BoardImageDrawShape_Click(object sender, RoutedEventArgs e)
+        private void BoardImageDrawShape_Click(object sender, RoutedEventArgs e)
         {
             if (BoardBorderDrawShape.Visibility == Visibility.Visible)
             {
@@ -42,12 +38,24 @@ namespace Ink_Canvas
             }
             else
             {
-                BoardBorderDrawShape.RenderTransform = Transform.Identity;
-                AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardBorderDrawShape);
-                await Task.Delay(300);
-                GetShapePanelDragOffset(BoardBorderDrawShape as FrameworkElement, out double ox, out double oy);
-                if (ox != 0 || oy != 0) ApplyShapePanelDragOffset(BoardBorderDrawShape as FrameworkElement, ox, oy);
+                ShowShapePanelAtSavedPosition(BoardBorderDrawShape);
             }
+        }
+
+        /// <summary>
+        /// 展开「图形」面板，并在展开前先落到上次拖动到的固定位置。
+        /// 原先显示前会把 RenderTransform 重置为 Identity、显示后再延迟 300ms 套用偏移，
+        /// 面板会先在初始位置闪现一下再跳到固定位置；现在改为展开前先写入偏移，
+        /// 展开动画（已改成沿用当前偏移）即在固定位置原地滑入。
+        /// </summary>
+        private void ShowShapePanelAtSavedPosition(object panel)
+        {
+            if (!(panel is FrameworkElement fe)) return;
+
+            GetShapePanelDragOffset(fe, out double x, out double y);
+            if (x != 0 || y != 0) ApplyShapePanelDragOffset(fe, x, y);
+
+            AnimationsHelper.ShowWithSlideFromBottomAndFade(fe);
         }
 
         #endregion Floating Bar Control

@@ -1,6 +1,7 @@
 using Ink_Canvas.Helpers;
 using iNKORE.UI.WPF.Modern;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
@@ -346,15 +347,163 @@ namespace Ink_Canvas
             try { _mainWindow?.SetAutoUpdateWithSilenceEnabled(CheckBoxIsAutoUpdateWithSilence.IsChecked == true); } catch { }
         }
 
+        #region 特殊屏幕自动校准（采样 → 平均值 → 静默写入设置）
+
+        /// <summary>采样保留的最大数量：单次采样即可应用，用户多写几次就取平均（超出后丢弃最早样本，便于重新校准）</summary>
+        private const int CalibrationMaxSamples = 10;
+        /// <summary>面积擦橡皮圆的目标直径（像素）：沿用原面积擦测试的口径，保证擦除手感一致</summary>
+        private const double CalibrationEraserDiameterTarget = 45.0;
+        /// <summary>上报宽度与目标值之间的比例系数（沿用原实现）</summary>
+        private const double CalibrationWidthFactor = 1.1;
+        /// <summary>触摸倍数下限：运行时倍数为 0 会在特殊屏幕下直接禁用手指擦除，静默写 0 等于悄悄关掉功能</summary>
+        private const double CalibrationMinTouchMultiplier = 0.05;
+        /// <summary>擦除阈值上下限（与运行时判断一致的可读范围）</summary>
+        private const double CalibrationMinThreshold = 1.1;
+        private const double CalibrationMaxThreshold = 10.0;
+
+        /// <summary>「触摸/书写轨迹测试」采集到的书写触点宽度样本</summary>
+        private readonly List<double> _writeContactSamples = new List<double>();
+        /// <summary>「面积擦检测」采集到的面积擦触点宽度样本</summary>
+        private readonly List<double> _eraseContactSamples = new List<double>();
+
+        /// <summary>当前生效的基准宽度（笔尖模式 / 手指模式），运行时以「基准宽 × 阈值」判定是否面积擦</summary>
+        private double GetCurrentBoundsWidth()
+        {
+            var adv = MainWindow.Settings?.Advanced;
+            if (adv == null) return 30;
+            double width = MainWindow.Settings.Startup.IsEnableNibMode ? adv.NibModeBoundsWidth : adv.FingerModeBoundsWidth;
+            return width > 0 ? width : 30;
+        }
+
+        /// <summary>读取本次接触宽度：四边红外屏用宽高几何平均估计</summary>
+        private double GetContactWidth(TouchEventArgs e)
+        {
+            var bounds = e.GetTouchPoint(null).Bounds;
+            return (MainWindow.Settings?.Advanced?.IsQuadIR == true)
+                ? Math.Sqrt(bounds.Width * bounds.Height)
+                : bounds.Width;
+        }
+
+        /// <summary>记录一次采样（丢弃无效值；超出上限后丢弃最早样本）</summary>
+        private void AddContactSample(List<double> samples, double value)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value) || value <= 0) return;
+            samples.Add(value);
+            while (samples.Count > CalibrationMaxSamples) samples.RemoveAt(0);
+        }
+
+        /// <summary>
+        /// 求平均接触宽度：单次采样直接采用该值（不要求必须写多次）；
+        /// 多次采样先按中位数剔除离群值（&gt; 2×中位数，多为手掌/误触造成的异常上报）再取平均。
+        /// </summary>
+        private bool TryGetAverageContactWidth(List<double> samples, out double average, out int usedCount)
+        {
+            average = 0;
+            usedCount = 0;
+            if (samples == null || samples.Count == 0) return false;
+
+            var ordered = samples.OrderBy(v => v).ToList();
+            double median = ordered[ordered.Count / 2];
+            var valid = samples.Where(v => v <= median * 2.0).ToList();
+            if (valid.Count == 0) valid = ordered;
+
+            average = valid.Average();
+            usedCount = valid.Count;
+            return true;
+        }
+
+        /// <summary>
+        /// 按运行时语义推导校准值并静默写入设置（不弹窗）。
+        ///
+        /// 橡皮圆：运行时「面积擦橡皮圆直径 = 接触宽 × EraserSize × TouchMultiplier」（见 Main_Grid_TouchDown），
+        /// 因此把 EraserSize 固定为 1.0、令 TouchMultiplier = 目标直径 ÷ (面积擦接触宽 × 1.1)，
+        /// 特殊屏上的橡皮圆也能保持同一可见大小（≈45px），不受驱动上报单位影响；
+        /// 同时打开「特殊屏幕模式」开关（倍数为 0 时该开关会禁用手指擦除，故倍数有下限保护）。
+        ///
+        /// 擦除阈值 T 的约束是「书写接触宽 &lt; 基准宽 × T &lt; 面积擦接触宽」：
+        ///   两个样本都有 → 取几何中点；只有面积擦样本 → 0.7 × 面积擦宽（原有口径）；
+        ///   只有书写样本 → 2.5 × 书写宽（普通屏上正好等于默认阈值 2.5，不改变默认手感）。
+        /// </summary>
+        /// <param name="fromAreaEraserTest">true 表示本次由「面积擦检测」触发（用于选择反馈文本的显示位置）</param>
+        private void RecomputeAndApplyCalibration(bool fromAreaEraserTest)
+        {
+            try
+            {
+                var adv = MainWindow.Settings?.Advanced;
+                if (adv == null) return;
+
+                bool hasWrite = TryGetAverageContactWidth(_writeContactSamples, out double avgWrite, out int writeCount);
+                bool hasErase = TryGetAverageContactWidth(_eraseContactSamples, out double avgErase, out int eraseCount);
+                if (!hasWrite && !hasErase) return;
+
+                double boundsWidth = GetCurrentBoundsWidth();
+
+                double? threshold = null;
+                if (hasWrite && hasErase) threshold = Math.Sqrt(avgWrite * avgErase) / boundsWidth;
+                else if (hasErase) threshold = (avgErase / boundsWidth) * 0.7;
+                else if (hasWrite) threshold = (avgWrite / boundsWidth) * 2.5;
+
+                double? multiplier = null;
+                // 橡皮圆尺寸只能由「面积擦」样本推导（它测的是真实擦除动作的接触面积）；
+                // 只有书写样本时不猜倍数，避免把擦除手感改坏
+                if (hasErase) multiplier = CalibrationEraserDiameterTarget / (avgErase * CalibrationWidthFactor);
+
+                double? appliedMultiplier = null;
+                if (multiplier.HasValue)
+                {
+                    double m = Math.Max(CalibrationMinTouchMultiplier,
+                                        Math.Min(SliderTouchMultiplier.Maximum, multiplier.Value));
+                    adv.TouchMultiplier = m;
+                    adv.NibModeBoundsWidthEraserSize = 1.0;
+                    adv.FingerModeBoundsWidthEraserSize = 1.0;
+                    adv.IsSpecialScreen = true;
+                    CheckBoxIsSpecialScreen.IsChecked = true;
+                    SliderTouchMultiplier.Value = m;
+                    appliedMultiplier = m;
+                }
+
+                double? appliedThreshold = null;
+                if (threshold.HasValue)
+                {
+                    double t = Math.Max(CalibrationMinThreshold, Math.Min(CalibrationMaxThreshold, threshold.Value));
+                    adv.NibModeBoundsWidthThresholdValue = t;
+                    adv.FingerModeBoundsWidthThresholdValue = t;
+                    appliedThreshold = t;
+                }
+
+                MainWindow.SaveSettingsToFile();
+
+                // 反馈文本：采样次数与均值 + 本次实际写入的值（静默应用，但要让用户看到改了什么）
+                var parts = new List<string>();
+                if (hasWrite) parts.Add($"书写触点均值 {avgWrite:F2}（{writeCount} 次）");
+                if (hasErase) parts.Add($"面积擦触点均值 {avgErase:F2}（{eraseCount} 次）");
+                var applied = new List<string>();
+                if (appliedMultiplier.HasValue) applied.Add($"触摸倍数 {appliedMultiplier.Value:F2}");
+                if (appliedThreshold.HasValue) applied.Add($"擦除阈值 {appliedThreshold.Value:F2}");
+                if (appliedMultiplier.HasValue) applied.Add("已开启特殊屏幕模式");
+                string text = $"{string.Join("｜", parts)}{Environment.NewLine}已自动应用：{(applied.Count > 0 ? string.Join("、", applied) : "无")}";
+
+                if (fromAreaEraserTest)
+                {
+                    if (TextBlockShowAreaEraserWizard != null) TextBlockShowAreaEraserWizard.Text = text;
+                }
+                else
+                {
+                    if (TextBlockShowCalculatedMultiplierWizard != null) TextBlockShowCalculatedMultiplierWizard.Text = text;
+                }
+            }
+            catch { }
+        }
+
+        #endregion
+
         private void InkCanvasTraceTest_PreviewTouchDown(object sender, TouchEventArgs e)
         {
             try
             {
-                var args = e.GetTouchPoint(null).Bounds;
-                double value = (MainWindow.Settings?.Advanced?.IsQuadIR == true) ? Math.Sqrt(args.Width * args.Height) : args.Width;
-                double recommended = 5 / (value * 1.1);
-                double recommendedClamped = Math.Max(SliderTouchMultiplier.Minimum, Math.Min(SliderTouchMultiplier.Maximum, recommended));
-                TextBlockShowCalculatedMultiplierWizard.Text = recommended.ToString("F2");
+                // 「触摸/书写轨迹测试」：单次触摸即可参与校准，多写几次则取平均
+                AddContactSample(_writeContactSamples, GetContactWidth(e));
+                RecomputeAndApplyCalibration(false);
             }
             catch { }
         }
@@ -430,49 +579,16 @@ namespace Ink_Canvas
                      AreaEraserCursor.Visibility = Visibility.Collapsed;
                  }
 
-                 var args = e.GetTouchPoint(null).Bounds;
-                 double value = (MainWindow.Settings?.Advanced?.IsQuadIR == true) ? Math.Sqrt(args.Width * args.Height) : args.Width;
-                 
-                 // 只有当看起来像是有意的大面积接触时才弹窗 (比如 > 5)
+                 double value = GetContactWidth(e);
+
+                 // 过滤明显的误触/无效上报；单次即可参与校准，多划几次则取平均
                  if (value > 5)
                  {
-                    // 重新计算推荐值 (逻辑同上)
-                    double recommendedMultiplier = 45.0 / (value * 1.1);
-                    double minMult = SliderTouchMultiplier.Minimum;
-                    double maxMult = SliderTouchMultiplier.Maximum;
-                    double recommendedMultiplierClamped = Math.Max(minMult, Math.Min(maxMult, recommendedMultiplier));
-                    
-                    double currentBoundsWidth = MainWindow.Settings.Startup.IsEnableNibMode
-                        ? MainWindow.Settings.Advanced.NibModeBoundsWidth
-                        : MainWindow.Settings.Advanced.FingerModeBoundsWidth;
-                    
-                    double recommendedThreshold = (value / currentBoundsWidth) * 0.7;
-                    if (recommendedThreshold < 1.1) recommendedThreshold = 1.1;
-                    if (recommendedThreshold > 10) recommendedThreshold = 10;
+                     AddContactSample(_eraseContactSamples, value);
+                     RecomputeAndApplyCalibration(true);
 
-                    var result = MessageBoxHelper.Show($"检测到面积擦输入宽度: {value:F2}\n\n推荐设置：\n- 触摸倍数: {recommendedMultiplier:F2} (适配面积擦)\n- 擦除阈值: {recommendedThreshold:F2} (区分线条擦与面积擦)\n\n是否应用这些设置？", "面积擦校准", MessageBoxButton.YesNo, MessageBoxImage.Question);
-
-                    if (result == MessageBoxResult.Yes)
-                    {
-                        if (MainWindow.Settings?.Advanced != null)
-                        {
-                            MainWindow.Settings.Advanced.IsSpecialScreen = true;
-                            MainWindow.Settings.Advanced.TouchMultiplier = recommendedMultiplierClamped;
-                            MainWindow.Settings.Advanced.NibModeBoundsWidthThresholdValue = recommendedThreshold;
-                            MainWindow.Settings.Advanced.FingerModeBoundsWidthThresholdValue = recommendedThreshold;
-                            MainWindow.Settings.Advanced.NibModeBoundsWidthEraserSize = 1.0;
-                            MainWindow.Settings.Advanced.FingerModeBoundsWidthEraserSize = 1.0;
-                        }
-
-                        CheckBoxIsSpecialScreen.IsChecked = true;
-                        SliderTouchMultiplier.Value = recommendedMultiplierClamped;
-                        MainWindow.SaveSettingsToFile();
-
-                        MessageBoxHelper.Show("已应用面积擦校准设置。", "完成", MessageBoxButton.OK, MessageBoxImage.Information);
-                        
-                        // 清空笔迹以便再次测试
-                        InkCanvasAreaEraserTest.Strokes.Clear();
-                    }
+                     // 清空笔迹以便再次测试
+                     InkCanvasAreaEraserTest.Strokes.Clear();
                  }
             }
             catch {}

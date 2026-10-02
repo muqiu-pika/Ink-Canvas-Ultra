@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Windows;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -16,6 +16,14 @@ namespace Ink_Canvas.Helpers
                 if (element == null)
                     throw new ArgumentNullException(nameof(element));
 
+                // 面板被拖动后，偏移量保存在 RenderTransform 上。这里必须沿用当前偏移
+                // （而不是换成 (0,0) 的新 TranslateTransform），否则展开动画会先把面板拉回初始位置。
+                var current = element.RenderTransform as TranslateTransform;
+                double offsetX = current?.X ?? 0;
+                double offsetY = current?.Y ?? 0;
+                var translate = new TranslateTransform(offsetX, offsetY);
+                element.RenderTransform = translate;
+
                 var sb = new Storyboard();
 
                 // 渐变动画
@@ -27,11 +35,11 @@ namespace Ink_Canvas.Helpers
                 };
                 Storyboard.SetTargetProperty(fadeInAnimation, new PropertyPath(UIElement.OpacityProperty));
 
-                // 滑动动画
+                // 滑动动画（在当前偏移附近滑动 10px，不改变最终位置）
                 var slideAnimation = new DoubleAnimation
                 {
-                    From = element.RenderTransform.Value.OffsetY + 10, // 滑动距离
-                    To = 0,
+                    From = offsetY + 10, // 滑动距离
+                    To = offsetY,
                     Duration = TimeSpan.FromSeconds(duration)
                 };
                 Storyboard.SetTargetProperty(slideAnimation, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.Y)"));
@@ -39,8 +47,18 @@ namespace Ink_Canvas.Helpers
                 sb.Children.Add(fadeInAnimation);
                 sb.Children.Add(slideAnimation);
 
+                // 动画结束后清掉动画值，让 RenderTransform 始终等于真实偏移（下次展开/收起才读得准）
+                sb.Completed += (s, e) =>
+                {
+                    try
+                    {
+                        translate.BeginAnimation(TranslateTransform.YProperty, null);
+                        translate.Y = offsetY;
+                    }
+                    catch { }
+                };
+
                 element.Visibility = Visibility.Visible;
-                element.RenderTransform = new TranslateTransform();
 
                 sb.Begin((FrameworkElement)element);
             }
@@ -219,6 +237,14 @@ namespace Ink_Canvas.Helpers
                 if (element == null)
                     throw new ArgumentNullException(nameof(element));
 
+                // 同 ShowWithSlideFromBottomAndFade：沿用当前拖动偏移，否则收起动画会先把面板
+                // 拉回初始位置再淡出（表现为“隐藏时先回到原位闪现一下”）。
+                var current = element.RenderTransform as TranslateTransform;
+                double offsetX = current?.X ?? 0;
+                double offsetY = current?.Y ?? 0;
+                var translate = new TranslateTransform(offsetX, offsetY);
+                element.RenderTransform = translate;
+
                 var sb = new Storyboard();
 
                 // 渐变动画
@@ -230,11 +256,11 @@ namespace Ink_Canvas.Helpers
                 };
                 Storyboard.SetTargetProperty(fadeOutAnimation, new PropertyPath(UIElement.OpacityProperty));
 
-                // 滑动动画
+                // 滑动动画（从当前偏移向下滑 10px）
                 var slideAnimation = new DoubleAnimation
                 {
-                    From = 0,
-                    To = element.RenderTransform.Value.OffsetY + 10, // 滑动距离
+                    From = offsetY,
+                    To = offsetY + 10, // 滑动距离
                     Duration = TimeSpan.FromSeconds(duration)
                 };
                 Storyboard.SetTargetProperty(slideAnimation, new PropertyPath("(UIElement.RenderTransform).(TranslateTransform.Y)"));
@@ -244,10 +270,16 @@ namespace Ink_Canvas.Helpers
 
                 sb.Completed += (s, e) =>
                 {
+                    try
+                    {
+                        // 还原成真实偏移，避免动画残留的 +10 污染“当前位置”
+                        translate.BeginAnimation(TranslateTransform.YProperty, null);
+                        translate.Y = offsetY;
+                    }
+                    catch { }
                     element.Visibility = Visibility.Collapsed;
                 };
 
-                element.RenderTransform = new TranslateTransform();
                 sb.Begin((FrameworkElement)element);
             }
             catch { }
