@@ -57,24 +57,11 @@ namespace Ink_Canvas
         // 白板模式画笔按钮点击事件 - 独立处理，不影响浮动栏按钮
         private async void BoardPenIcon_Click(object sender, RoutedEventArgs e)
         {
-            if (BoardPen.Opacity != 1)
-            {
-                // 再次点击“墨迹”时收起已展开的墨迹选项面板（与浮动栏“批注”按钮行为一致），
-                // 否则面板一旦展开将无法在白板模式下收起
-                if (BoardPenPalette.Visibility == Visibility.Visible)
-                {
-                    AnimationsHelper.HideWithSlideAndFade(BoardPenPalette);
-                }
-                else
-                {
-                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardPenPalette);
-                    // 首次展示时动画会重置 RenderTransform，等待动画结束后重新应用已保存的拖动偏移
-                    await Task.Delay(300);
-                    GetPenPaletteDragOffset(BoardPenPalette as FrameworkElement, out double bx, out double by);
-                    if (bx != 0 || by != 0) ApplyPenPaletteDragOffset(BoardPenPalette as FrameworkElement, bx, by);
-                }
-            }
-            else
+            // 画布当前不是「可书写」状态（选择/橡皮擦/None 等）时，即使「批注」按钮仍是当前工具，
+            // 也必须先切回墨迹；否则点击「批注」只会收起/展开墨迹选项面板，
+            // 画布一直停留在橡皮擦状态，表现为“插入图片后无法批注书写”。
+            bool needRestoreInk = drawingShapeMode == 0 && inkCanvas.EditingMode != InkCanvasEditingMode.Ink;
+            if (BoardPen.Opacity == 1 || needRestoreInk)
             {
                 // 切回画笔时自动关闭激光笔，避免“激光笔开启时切回笔迹书写”出现普通笔与激光笔叠加
                 if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
@@ -94,6 +81,23 @@ namespace Ink_Canvas
                 inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
                 ColorSwitchCheck();
                 HideSubPanels("pen", false, true);
+            }
+            else
+            {
+                // 已处于批注状态：再次点击“墨迹”时收起已展开的墨迹选项面板，
+                // 否则面板一旦展开将无法在白板模式下收起
+                if (BoardPenPalette.Visibility == Visibility.Visible)
+                {
+                    AnimationsHelper.HideWithSlideAndFade(BoardPenPalette);
+                }
+                else
+                {
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardPenPalette);
+                    // 首次展示时动画会重置 RenderTransform，等待动画结束后重新应用已保存的拖动偏移
+                    await Task.Delay(300);
+                    GetPenPaletteDragOffset(BoardPenPalette as FrameworkElement, out double bx, out double by);
+                    if (bx != 0 || by != 0) ApplyPenPaletteDragOffset(BoardPenPalette as FrameworkElement, bx, by);
+                }
             }
         }
 

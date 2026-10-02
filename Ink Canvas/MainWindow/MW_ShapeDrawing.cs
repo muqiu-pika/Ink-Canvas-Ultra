@@ -1474,6 +1474,9 @@ namespace Ink_Canvas
                 if (dec.Count == 0)
                 {
                     isWaitUntilNextTouchDown = false;
+                    // 手指擦除是一次性手势：手指全部抬起后恢复擦除前的工具，
+                    // 否则画布会一直停留在橡皮擦模式，之后用笔书写也会变成擦除
+                    EndFingerEraserModeIfNeeded();
                     if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && inkCanvas.EditingMode == InkCanvasEditingMode.GestureOnly)
                     {
                         inkCanvas.EditingMode = InkCanvasEditingMode.Ink;

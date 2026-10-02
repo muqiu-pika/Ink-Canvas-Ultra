@@ -393,8 +393,8 @@ namespace Ink_Canvas
                 // 提交历史记录
                 timeMachine.CommitElementInsertHistory(image);
 
-                // 插入图片后切换到选择模式
-                inkCanvas.EditingMode = InkCanvasEditingMode.Select;
+                // 插入图片后恢复批注工具，保证可以立即在图片上书写
+                RestoreInkToolAfterMediaInsert();
 
                 ShowNotificationAsync("截图已插入到画布");
             }
@@ -457,8 +457,8 @@ namespace Ink_Canvas
                 // 提交历史记录
                 timeMachine.CommitElementInsertHistory(image);
 
-                // 插入图片后切换到选择模式
-                inkCanvas.EditingMode = InkCanvasEditingMode.Select;
+                // 插入图片后恢复批注工具，保证可以立即在图片上书写
+                RestoreInkToolAfterMediaInsert();
 
                 ShowNotificationAsync("摄像头截图已插入到画布");
             }

@@ -75,7 +75,14 @@ namespace Ink_Canvas
             {
                 inkCanvas.IsManipulationEnabled = true;
                 drawingShapeMode = 0;
-                inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                // 激光笔开启期间不改编辑模式：激光态要求 EditingMode 保持 None，
+                // 若在此改回 Ink，触摸输入的「触笔」事件（激光笔只拦截 Touch 事件）会被
+                // InkCanvas 收集成真笔迹，出现"激光轨迹淡出后残留普通笔迹线条"。
+                // 选色本身已生效（画笔与激光笔共用同一份选色）。
+                if (!isLaserPointerEnabled)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                }
                 CancelSingleFingerDragMode();
                 forceEraser = false;
                 CheckColorTheme();

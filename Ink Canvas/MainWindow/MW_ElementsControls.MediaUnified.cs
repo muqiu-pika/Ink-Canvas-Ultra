@@ -70,6 +70,9 @@ namespace Ink_Canvas
                             CenterAndFitMedia(image);
 
                             timeMachine.CommitElementInsertHistory(image);
+
+                            // 插入图片后恢复批注工具，保证可以立即在图片上书写
+                            RestoreInkToolAfterMediaInsert();
                         }
                     }
                     else if (videoExts.Contains(ext))

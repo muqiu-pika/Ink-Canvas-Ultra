@@ -67,6 +67,8 @@ namespace Ink_Canvas
                     && (boundWidth > BoundsWidth))
                 {
                     if (drawingShapeMode == 0 && forceEraser) return;
+                    // 记录擦除前的工具（手指擦除是一次性手势，抬起后恢复），避免画布此后一直是橡皮擦
+                    RecordFingerEraserMode();
                     double EraserThresholdValue = Settings.Startup.IsEnableNibMode ? Settings.Advanced.NibModeBoundsWidthThresholdValue : Settings.Advanced.FingerModeBoundsWidthThresholdValue;
                     if (boundWidth > BoundsWidth * EraserThresholdValue)
                     {
@@ -101,6 +103,11 @@ namespace Ink_Canvas
             {
                 UpdateInputActivityTimestamp();
                 RecordInputDown();
+                // 激光笔开启期间不进入「手写预览」路径：该路径不经过 InkCanvas 的编辑模式
+                // （激光态下 EditingMode 为 None 也拦不住它），抬手时会把预览笔迹直接写入
+                // inkCanvas.Strokes，造成"激光轨迹已消失、画布上却残留笔迹"。
+                // 这里不登记预览状态，后面的 StylusMove/StylusUp 都会因查不到登记而直接跳过。
+                if (isLaserPointerEnabled) return;
                 if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint
                     || inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke
                     || inkCanvas.EditingMode == InkCanvasEditingMode.Select) return;
@@ -124,6 +131,13 @@ namespace Ink_Canvas
             try
             {
                 if (!ShouldHandleStylusPreview(stylusDeviceId))
+                {
+                    return;
+                }
+
+                // 激光笔已开启（例如接触过程中才打开激光笔）：丢弃本笔预览，不写入画布，
+                // 否则激光轨迹消失后画布上会残留这条笔迹
+                if (isLaserPointerEnabled)
                 {
                     return;
                 }
@@ -294,6 +308,45 @@ namespace Ink_Canvas
         private bool forcePointEraser = true;
 
         /// <summary>
+        /// 宽触点手指擦除是一次性手势：记录切换成橡皮擦之前的工具模式，手指抬起后原样恢复。
+        /// 否则画布会一直停留在橡皮擦模式，随后用笔书写也会被执行成擦除（“一直处于橡皮擦状态”）。
+        /// </summary>
+        private InkCanvasEditingMode fingerEraserPreviousMode = InkCanvasEditingMode.Ink;
+        private bool isFingerEraserModeActive = false;
+
+        /// <summary>
+        /// 记录即将开始的宽触点手指擦除手势（仅在当前不是橡皮擦工具时记录一次）
+        /// </summary>
+        private void RecordFingerEraserMode()
+        {
+            if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint ||
+                inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke)
+            {
+                return;
+            }
+            fingerEraserPreviousMode = inkCanvas.EditingMode;
+            isFingerEraserModeActive = true;
+        }
+
+        /// <summary>
+        /// 手指抬起后结束一次性手指擦除手势：把工具恢复成擦除前的模式
+        /// </summary>
+        private void EndFingerEraserModeIfNeeded()
+        {
+            if (!isFingerEraserModeActive) return;
+            isFingerEraserModeActive = false;
+
+            // 用户主动选择了橡皮擦工具（forceEraser）时不恢复，保持连续擦除
+            if (forceEraser) return;
+
+            if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint ||
+                inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke)
+            {
+                inkCanvas.EditingMode = fingerEraserPreviousMode;
+            }
+        }
+
+        /// <summary>
         /// 主画布触摸按下事件处理
         /// </summary>
         private void Main_Grid_TouchDown(object sender, TouchEventArgs e)
@@ -332,6 +385,8 @@ namespace Ink_Canvas
                 {
                     isLastTouchEraser = true;
                     if (drawingShapeMode == 0 && forceEraser) return;
+                    // 记录擦除前的工具（手指擦除是一次性手势，抬起后恢复），避免画布此后一直是橡皮擦
+                    RecordFingerEraserMode();
                     double EraserThresholdValue = Settings.Startup.IsEnableNibMode ? Settings.Advanced.NibModeBoundsWidthThresholdValue : Settings.Advanced.FingerModeBoundsWidthThresholdValue;
                     if (boundsWidth > BoundsWidth * EraserThresholdValue)
                     {
@@ -426,7 +481,11 @@ namespace Ink_Canvas
             twoFingerGestureType = TwoFingerGestureType.None;
             translateAccum = new Vector(0, 0);
             inkCanvas.Opacity = 1;
-            if (!forceEraser)
+            // 触摸状态整体重置后，挂起的一次性手指擦除恢复不再有意义
+            isFingerEraserModeActive = false;
+            // 激光笔开启期间不能改回墨迹：否则画布会在激光态下重新收集笔迹，
+            // 出现"激光轨迹消失后画布上残留笔迹"。激光关闭时 SetLaserPointerEnabled 会恢复原模式。
+            if (!forceEraser && !isLaserPointerEnabled)
             {
                 inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
             }

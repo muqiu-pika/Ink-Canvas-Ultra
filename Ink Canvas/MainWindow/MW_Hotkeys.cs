@@ -266,7 +266,8 @@ namespace Ink_Canvas
 
                 inkCanvas.Children.Add(image);
                 timeMachine.CommitElementInsertHistory(image);
-                inkCanvas.EditingMode = InkCanvasEditingMode.Select;
+                // 插入图片后恢复批注工具，保证可以立即在图片上书写
+                RestoreInkToolAfterMediaInsert();
 
                 ShowNotificationAsync("图片已粘贴到画布");
             }

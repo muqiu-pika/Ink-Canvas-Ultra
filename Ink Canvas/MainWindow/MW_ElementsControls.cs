@@ -203,5 +203,26 @@ namespace Ink_Canvas
                 inkCanvas.EditingMode = InkCanvasEditingMode.None;
             }
         }
+
+        /// <summary>
+        /// 插入图片后恢复「批注（墨迹）」工具。
+        /// 插入图片只应把图片放到画布上，不应把画布留在选择/橡皮擦/None 等无法书写的状态，
+        /// 否则用户会以为"插入图片后墨迹功能失效、一直处于橡皮擦状态"。
+        /// </summary>
+        private void RestoreInkToolAfterMediaInsert()
+        {
+            try
+            {
+                drawingShapeMode = 0;
+                forceEraser = false;
+                forcePointEraser = false;
+                CancelSingleFingerDragMode();
+                if (inkCanvas.EditingMode != InkCanvasEditingMode.Ink)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                }
+            }
+            catch { }
+        }
     }
 }

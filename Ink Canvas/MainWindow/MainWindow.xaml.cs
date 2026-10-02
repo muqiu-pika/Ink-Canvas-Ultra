@@ -461,7 +461,28 @@ namespace Ink_Canvas
 			if (!(sender is InkCanvas inkCanvas1)) return;
             SetCursorBasedOnEditingMode(inkCanvas1);
             if (inkCanvas1.EditingMode == InkCanvasEditingMode.Ink && !_isCancellingActiveStroke) forcePointEraser = !forcePointEraser;
+
+            // 激光笔开启期间画布必须保持 None（不收集任何笔迹）。
+            // 其它流程（改颜色、画完图形回到笔、清空后恢复画笔等）会把编辑模式改回 Ink，
+            // 触摸输入的「触笔」事件激光笔不拦截，于是会在激光轨迹淡出后留下普通笔迹线条。
+            // 这里统一兜底改回 None；激光关闭时由 SetLaserPointerEnabled 恢复原模式。
+            if (isLaserPointerEnabled && inkCanvas1.EditingMode != InkCanvasEditingMode.None && !_isRevertingLaserEditingMode)
+            {
+                try
+                {
+                    _isRevertingLaserEditingMode = true;
+                    inkCanvas1.EditingMode = InkCanvasEditingMode.None;
+                }
+                catch { }
+                finally
+                {
+                    _isRevertingLaserEditingMode = false;
+                }
+            }
         }
+
+        /// <summary>正在把激光态下被误改的编辑模式改回 None，用于避免 EditingModeChanged 递归</summary>
+        private bool _isRevertingLaserEditingMode;
 
         #endregion Ink Canvas Functions
 

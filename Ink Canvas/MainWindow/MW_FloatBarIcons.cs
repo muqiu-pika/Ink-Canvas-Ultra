@@ -1700,7 +1700,11 @@ namespace Ink_Canvas
 
         private async void PenIcon_Click(object sender, RoutedEventArgs e)
         {
-            if (Pen_Icon.Background == null || StackPanelCanvasControls.Visibility == Visibility.Collapsed)
+            // 画布当前不是「可书写」状态（选择/橡皮擦/None 等）时，即使「批注」按钮仍处于高亮，
+            // 也必须先执行切回墨迹的流程；否则用户点击「批注」只会切换墨迹选项面板，
+            // 画布一直停留在橡皮擦状态，表现为“插入图片后无法批注书写”。
+            bool needRestoreInk = drawingShapeMode == 0 && inkCanvas.EditingMode != InkCanvasEditingMode.Ink;
+            if (Pen_Icon.Background == null || StackPanelCanvasControls.Visibility == Visibility.Collapsed || needRestoreInk)
             {
                 // 切回画笔时自动关闭激光笔，避免“激光笔开启时切回笔迹书写”出现普通笔与激光笔叠加
                 if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
