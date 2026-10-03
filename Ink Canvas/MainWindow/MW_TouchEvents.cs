@@ -128,6 +128,24 @@ namespace Ink_Canvas
 
                 TouchDownPointsList[stylusDeviceId] = InkCanvasEditingMode.None;
                 StylusPreviewModeByDeviceId[stylusDeviceId] = isPreviewInput;
+
+                // 预览层必须从"落笔点"就开始收集：
+                // StylusMove 里才首次创建预览的话，落笔点到第一个移动点之间的那一小段会缺失，
+                // 交接成真笔迹时线头会往后缩一截（看起来就是写完瞬间"跳一下"）。
+                if (isPreviewInput)
+                {
+                    var strokeVisual = GetStrokeVisual(stylusDeviceId);
+                    var downPoints = e.GetStylusPoints(inkCanvas);
+                    if (downPoints != null && downPoints.Count > 0)
+                    {
+                        bool added = false;
+                        foreach (var p in downPoints)
+                        {
+                            if (strokeVisual.Add(new StylusPoint(p.X, p.Y, p.PressureFactor))) added = true;
+                        }
+                        if (added) strokeVisual.RedrawThrottled();
+                    }
+                }
             }
             catch (Exception ex)
             {
@@ -185,6 +203,19 @@ namespace Ink_Canvas
                     VisualCanvas visualCanvas = null;
                     if (StrokeVisualList.TryGetValue(stylusDeviceId, out var visual))
                     {
+                        // 抬笔事件同样带着"最后一批触笔点"。必须先补进预览层再交接：
+                        // 否则真笔迹比画出来的短一截，线尾会在交接瞬间缩回去（看起来像"消失一下又出现"）。
+                        var upPoints = e.GetStylusPoints(inkCanvas);
+                        if (upPoints != null && upPoints.Count > 0)
+                        {
+                            bool added = false;
+                            foreach (var p in upPoints)
+                            {
+                                if (visual.Add(new StylusPoint(p.X, p.Y, p.PressureFactor))) added = true;
+                            }
+                            if (added) visual.Redraw();   // 马上要交接，直接同步重绘，确保预览是"完整一笔"
+                        }
+
                         strokeCollection = visual.StrokeCollection;
                         visualCanvas = GetVisualCanvas(stylusDeviceId);
                     }
@@ -262,6 +293,75 @@ namespace Ink_Canvas
                 LogHelper.WriteLogToFile("CommitStylusPointsFallback error | " + ex, LogHelper.LogType.Error);
             }
         }
+
+        #region 落笔后墨迹"消失/跳动"审计（诊断）
+
+        /// <summary>最近落到画布上的笔迹 → 落地时间，用于发现"刚写完就被移走"的情况。</summary>
+        private readonly Dictionary<Stroke, DateTime> _recentDrawnStrokes = new Dictionary<Stroke, DateTime>();
+        private bool _strokeLossAuditHooked;
+
+        /// <summary>
+        /// 挂一个轻量审计：监视画布笔迹集合的变化，若某条"刚画上不到 1.5 秒"的笔迹被移出，
+        /// 记录一条日志（含同批新增/移除数量、笔迹总数变化、当时的不透明度/可见性/编辑模式）。
+        ///
+        /// 用途：定位"写完笔迹后短暂跳动（消失一会又显示出来）"这类问题。正常情况下这里没有输出，
+        /// 一旦出现日志就能直接分辨是"等量替换"（拉直 / 图形识别 / 撤销类操作）还是"凭空消失"。
+        /// </summary>
+        private void HookStrokeLossAudit()
+        {
+            if (_strokeLossAuditHooked) return;
+            _strokeLossAuditHooked = true;
+            try
+            {
+                inkCanvas.Strokes.StrokesChanged += (s, e) =>
+                {
+                    try
+                    {
+                        int beforeCount = inkCanvas.Strokes.Count - e.Added.Count + e.Removed.Count;
+
+                        foreach (Stroke added in e.Added)
+                        {
+                            _recentDrawnStrokes[added] = DateTime.Now;
+                        }
+
+                        foreach (Stroke removed in e.Removed)
+                        {
+                            DateTime drawnAt;
+                            if (!_recentDrawnStrokes.TryGetValue(removed, out drawnAt)) continue;
+
+                            double ageMs = (DateTime.Now - drawnAt).TotalMilliseconds;
+                            if (ageMs > 1500) continue;   // 早就画上的笔迹被移除属正常（清空/撤销/擦除/翻页）
+
+                            // 只移走一条、且总数真的变少 → 像是"这一笔凭空消失"；等量替换或批量操作按 Event 记
+                            bool looksLikeSingleLoss = e.Removed.Count == 1 && inkCanvas.Strokes.Count < beforeCount;
+                            LogHelper.WriteLogToFile(
+                                $"Stroke loss audit | 一条刚画上 {ageMs:F0}ms 的笔迹被移出画布"
+                                + $"（同批新增 {e.Added.Count} / 移除 {e.Removed.Count}，总数 {beforeCount} → {inkCanvas.Strokes.Count}"
+                                + $"，opacity={inkCanvas.Opacity:F2}，visible={inkCanvas.Visibility}，mode={inkCanvas.EditingMode}）",
+                                looksLikeSingleLoss ? LogHelper.LogType.Warning : LogHelper.LogType.Event);
+                        }
+
+                        // 清理过期记录，避免字典无限增长
+                        if (_recentDrawnStrokes.Count > 256)
+                        {
+                            var expired = new List<Stroke>();
+                            foreach (var kv in _recentDrawnStrokes)
+                            {
+                                if ((DateTime.Now - kv.Value).TotalMilliseconds > 5000) expired.Add(kv.Key);
+                            }
+                            foreach (var stroke in expired) _recentDrawnStrokes.Remove(stroke);
+                        }
+                    }
+                    catch { }
+                };
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("HookStrokeLossAudit failed | " + ex.Message, LogHelper.LogType.Warning);
+            }
+        }
+
+        #endregion
 
         private void MainWindow_StylusMove(object sender, StylusEventArgs e)
         {

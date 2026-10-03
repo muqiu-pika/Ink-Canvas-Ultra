@@ -1286,6 +1286,9 @@ namespace Ink_Canvas
             // 注册触摸窗口以确保触摸事件正常工作
             TouchLockFix.ReRegisterTouchWindow(this);
 
+            // 诊断用：审计"刚写完就被移出画布"的笔迹（正常情况下不产生日志）
+            HookStrokeLossAudit();
+
             // 触控优化：主界面（含浮动栏、白板等内嵌控件）中所有滑块支持点击轨道即定位，
             // 触屏上便于直接拖动，免去精确抓取极小缩略块。仅设属性，不改外观。
             SetTouchFriendlySliders(this);
