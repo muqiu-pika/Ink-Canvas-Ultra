@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "Ink Canvas Ultra"
-#define MyAppVersion "26.10.2"
+#define MyAppVersion "26.10.3"
 #define MyAppPublisher "muqiu-pika"
 #define MyAppURL "https://github.com/muqiu-pika/Ink-Canvas-Ultra"
 #define MyAppExeName "Ink Canvas Ultra.exe"
@@ -23,6 +23,14 @@ AppPublisher={#MyAppPublisher}
 AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
+; 版本资源：不设的话产出的 Setup.exe 的"文件版本/产品版本"是空的，
+; 用户与技术支持都无法核对安装包到底是哪个版本，自动更新也没法用它做二次校验。
+VersionInfoVersion={#MyAppVersion}.0
+VersionInfoProductVersion={#MyAppVersion}.0
+VersionInfoCompany={#MyAppPublisher}
+VersionInfoProductName={#MyAppName}
+VersionInfoDescription={#MyAppName} Setup
+VersionInfoCopyright=Copyright (C) {#MyAppPublisher}
 DefaultDirName={localappdata}\Programs\{#MyAppName}
 ; 使用按用户安装目录（localappdata\Programs）：无需管理员权限，静默更新不会触发 UAC 弹窗。
 ; 若要恢复为全机安装，请改回 {autopf}\{#MyAppName}（但静默更新将因需要提权而无法后台完成）。
@@ -66,7 +74,15 @@ Source: "Ink Canvas\bin\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignor
 ; 用户在安装后可从「插件工坊」按需在线下载安装，从而显著减小安装包体积。
 ; 排除 *.vbs：视频展台已插件化，旧的「视频展台.vbs」启动脚本不再随包分发，
 ; 改由插件启用时直接在桌面创建指向主程序（--video-presenter）的快捷方式。
-Source: "Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Plugins,*.vbs"
+;
+; 同时排除"用户数据文件"：开发机在 bin\Release 里跑过主程序后，该目录会出现
+; Log.txt / Settings.json / Names.txt 等，若被打进安装包，静默更新时就会覆盖掉
+; 用户装好的那份配置（尤其就地更新便携目录时），这里从源头杜绝。
+; 注意：绝不能为此加 [InstallDelete]，那会反过来删掉用户自己的文件。
+;
+; 再排除 Interop.stdole.dll：它是 GAC 里的 stdole PIA，本程序代码并未直接使用其中的类型，
+; 只有用 dotnet CLI 编译时才会被拷到 bin\Release（VS/CI 构建不会），打进去纯属多余。
+Source: "Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Plugins,*.vbs,Log.txt,Log*.txt,*.log,Settings.json,Names.txt,Replace.txt,*.icart,*.icstk,Auto Saved - Session,Snapshots,UpdateBackup,Interop.stdole.dll"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]

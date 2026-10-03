@@ -136,20 +136,28 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 有更新：忽略静默设置，弹窗询问是否更新（与自动更新/静默更新共用的提示弹窗一致）
-                // 传入 Owner（主窗口）：主窗口被定时器周期性置顶，无主弹窗会被压在设置面板下方而看不见。
-                var confirm = MessageBoxHelper.Show(
-                    this,
-                    $"检测到 Ink Canvas Ultra 新版本 v{latest}，是否立即更新？",
-                    "Ink Canvas Ultra New Version Available",
-                    MessageBoxButton.YesNo, MessageBoxImage.Question);
-                if (confirm != MessageBoxResult.Yes)
+                // 有更新：忽略静默设置，弹窗询问（立即更新 / 稍后再说 / 忽略此版本）
+                // 主动点"立即检查更新"是明确的用户动作，因此不受"已忽略版本"标记影响。
+                var choice = PromptUpdateChoice(latest);
+                if (choice == UpdatePromptChoice.Ignore)
+                {
+                    IgnoreUpdateVersion(latest, showNotification: false);
+                    UpdateManualCheckInfoText();
+                    HideManualUpdateProgress();
+                    return;
+                }
+                if (choice != UpdatePromptChoice.Update)
                 {
                     HideManualUpdateProgress();
                     return;
                 }
 
                 // 下载安装包并显示更新进度
+                // 用户主动点更新 = 明确的重试意图：清掉该版本的"自动更新失败/安装尝试"标记与安装包缓存，
+                // 确保这次是真正重新下载（而不是复用上次那份可能导致安装没生效的缓存）；
+                // 同时清掉"已忽略版本"标记（用户既然选择更新，就不该再留着忽略状态）。
+                AutoUpdateHelper.PrepareManualRetry(latest);
+                ClearIgnoredUpdateVersion();
                 ShowManualUpdateStatus("正在下载更新安装包...", isIndeterminate: true);
                 bool downloadOk;
                 if (Settings.Startup.IsAutoUpdateWithProxy)
@@ -199,7 +207,10 @@ namespace Ink_Canvas
             {
                 if (TextBlockUpdateCheckInfo == null) return;
                 string lastCheck = string.IsNullOrEmpty(Settings.Startup.LastUpdateCheckTime) ? "从未检测" : Settings.Startup.LastUpdateCheckTime;
-                TextBlockUpdateCheckInfo.Text = $"上次检测：{lastCheck} · 当前版本号：{AutoUpdateHelper.GetDisplayVersion()}";
+                // 已"忽略此版本"时把版本号显示出来，用户才知道为什么没被提醒、以及去哪里恢复提示
+                string ignored = Settings.Startup?.IgnoredUpdateVersion;
+                string ignoredHint = string.IsNullOrWhiteSpace(ignored) ? "" : $" · 已忽略版本：v{ignored}";
+                TextBlockUpdateCheckInfo.Text = $"上次检测：{lastCheck} · 当前版本号：{AutoUpdateHelper.GetDisplayVersion()}{ignoredHint}";
             }
             catch { }
         }

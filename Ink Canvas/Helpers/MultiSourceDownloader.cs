@@ -112,6 +112,12 @@ namespace Ink_Canvas.Helpers
             public string UsedUrl { get; set; }
             public string FailureReason { get; set; }
             public int AttemptedSources { get; set; }
+
+            /// <summary>服务器给出的总长度（-1 = 未知）。</summary>
+            public long ExpectedBytes { get; set; } = -1;
+
+            /// <summary>实际收到的字节数。</summary>
+            public long ReceivedBytes { get; set; }
         }
 
         /// <summary>
@@ -223,6 +229,8 @@ namespace Ink_Canvas.Helpers
 
                 var sw = Stopwatch.StartNew();
                 bool wroteAnything = false;
+                long totalBytes = -1;
+                long receivedBytes = 0;
                 try
                 {
                     // ① 首字节：10 秒
@@ -232,7 +240,7 @@ namespace Ink_Canvas.Helpers
                         .ConfigureAwait(false))
                     {
                         response.EnsureSuccessStatusCode();
-                        long totalBytes = response.Content.Headers.ContentLength ?? -1;
+                        totalBytes = response.Content.Headers.ContentLength ?? -1;
 
                         // ② 整体：大文件 30 分钟；小文件 15 秒（扣除已用时间）
                         long budgetMs = largeFile
@@ -250,7 +258,6 @@ namespace Ink_Canvas.Helpers
                             stallCts.CancelAfter(TimeSpan.FromSeconds(StallTimeoutSeconds));
 
                             byte[] buffer = new byte[81920];
-                            long receivedBytes = 0;
                             int read;
                             while ((read = await stream.ReadAsync(buffer, 0, buffer.Length, stallCts.Token).ConfigureAwait(false)) > 0)
                             {
@@ -269,6 +276,18 @@ namespace Ink_Canvas.Helpers
                         }
                     }
 
+                    // 完整性：服务器给了 Content-Length 时，实际收到的字节数必须完全一致。
+                    // 代理/网络半途断开、源端提前结束流（都不抛异常）都表现为"读完了但字节不够"，
+                    // 这种情况绝不能算成功 —— 否则会缓存一个损坏的文件、还把状态写成"已下载"，
+                    // 之后每次更新都跳过重新下载去跑这个坏文件（用户表现为"装了也没用、还一直弹"）。
+                    if (totalBytes > 0 && receivedBytes != totalBytes)
+                    {
+                        lastReason = $"文件不完整：收到 {receivedBytes}/{totalBytes} 字节";
+                        LogHelper.WriteLogToFile($"下载源失败 [{url}]：{lastReason}", LogHelper.LogType.Warning);
+                        TryDeleteFile(destinationPath);
+                        continue;
+                    }
+
                     // 下载完成后的自定义校验（如 SHA256）；不通过则换源
                     if (validate != null)
                     {
@@ -282,7 +301,14 @@ namespace Ink_Canvas.Helpers
                         }
                     }
 
-                    return new FileDownloadResult { Success = true, UsedUrl = url, AttemptedSources = i + 1 };
+                    return new FileDownloadResult
+                    {
+                        Success = true,
+                        UsedUrl = url,
+                        AttemptedSources = i + 1,
+                        ExpectedBytes = totalBytes,
+                        ReceivedBytes = receivedBytes
+                    };
                 }
                 catch (OperationCanceledException)
                 {

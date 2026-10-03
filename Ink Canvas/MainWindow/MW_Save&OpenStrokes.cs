@@ -606,7 +606,19 @@ namespace Ink_Canvas
         {
             try
             {
-                string basePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
+                // 本方法也会被“崩溃兜底”路径调用（App_DispatcherUnhandledException /
+                // CurrentDomain_UnhandledException → TrySnapshotRestartAndExit）。
+                // 那种场景下 MainWindow 往往只构造了一半（例如 InitializeComponent 抛异常，
+                // 或主窗口构造前就崩溃），inkCanvas / BtnPPTSlideShowEnd 这些 XAML 字段、
+                // 以及 Settings.Automation 都可能是 null；直接解引用会抛 NullReferenceException，
+                // 把“保存会话快照失败”刷成日志噪音（曾一次崩溃循环刷出 200+ 条）。
+                // 统一做空值防护：条件不满足就安静退出，由上层决定是否提示/重启。
+                if (inkCanvas == null) return;
+
+                string autoSavedLocation = Settings?.Automation?.AutoSavedStrokesLocation;
+                if (string.IsNullOrWhiteSpace(autoSavedLocation)) return;
+
+                string basePath = autoSavedLocation + @"\Auto Saved - Session";
                 if (!Directory.Exists(basePath))
                 {
                     Directory.CreateDirectory(basePath);
@@ -618,7 +630,7 @@ namespace Ink_Canvas
                 try
                 {
                     string metaPath = basePath + @"\SessionMeta.txt";
-                    File.WriteAllText(metaPath, $"mode={currentMode}\nwhiteboard={CurrentWhiteboardIndex}\nppt={(BtnPPTSlideShowEnd.Visibility == Visibility.Visible ? 1 : 0)}\nwhiteboard_total={WhiteboardTotalCount}");
+                    File.WriteAllText(metaPath, $"mode={currentMode}\nwhiteboard={CurrentWhiteboardIndex}\nppt={(BtnPPTSlideShowEnd?.Visibility == Visibility.Visible ? 1 : 0)}\nwhiteboard_total={WhiteboardTotalCount}");
                 }
                 catch { }
 

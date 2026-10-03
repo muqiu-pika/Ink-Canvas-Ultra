@@ -137,9 +137,77 @@ namespace Ink_Canvas
             catch { }
         }
 
+        /// <summary>连续（快速）崩溃时允许的自动重启次数上限：超过后不再自动重启，避免"启动即崩"引发的无限重启死循环。</summary>
+        private const int MaxConsecutiveCrashRestarts = 3;
+
+        /// <summary>应用健康运行多少秒后把崩溃重启计数清零（避免把正常的手动重启计入）。</summary>
+        private const int CrashRestartCounterResetSeconds = 45;
+
+        /// <summary>本次会话是否已因"连续崩溃"而放弃自动重启（供崩溃处理器决定是否提示并结束进程）。</summary>
+        private static bool _crashRestartSuppressed;
+
+        /// <summary>崩溃重启计数文件：放在用户数据目录，不依赖设置文件是否已成功加载。</summary>
+        private static string CrashRestartCounterFile
+        {
+            get { return Path.Combine(UserDataPath, "CrashRestartCount.txt"); }
+        }
+
+        private static int ReadCrashRestartCount()
+        {
+            try
+            {
+                if (!File.Exists(CrashRestartCounterFile)) return 0;
+                int count;
+                return int.TryParse(File.ReadAllText(CrashRestartCounterFile).Trim(), out count) && count > 0 ? count : 0;
+            }
+            catch { return 0; }
+        }
+
+        private static void WriteCrashRestartCount(int count)
+        {
+            try
+            {
+                if (!Directory.Exists(UserDataPath)) Directory.CreateDirectory(UserDataPath);
+                File.WriteAllText(
+                    CrashRestartCounterFile,
+                    count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 应用已健康运行一段时间后清零崩溃重启计数。
+        /// 必须"延迟"清零而不是"启动即清零"：当主窗口构造失败时崩溃发生在启动后零点几秒内，
+        /// 若启动就清零则计数永远为 0，防抖会完全失效。
+        /// </summary>
+        private void ScheduleCrashRestartCounterReset()
+        {
+            try
+            {
+                var timer = new System.Windows.Threading.DispatcherTimer
+                {
+                    Interval = TimeSpan.FromSeconds(CrashRestartCounterResetSeconds)
+                };
+                timer.Tick += (s, e) =>
+                {
+                    try
+                    {
+                        timer.Stop();
+                        WriteCrashRestartCount(0);
+                    }
+                    catch { }
+                };
+                timer.Start();
+            }
+            catch { }
+        }
+
         /// <summary>
         /// 保存会话快照并静默重启。先写 RestartReason 标记（尽量在任何可能的中断前完成），
         /// 再写快照（内部先写 meta），最后启动新进程。供 UI 线程与后台线程崩溃时共用。
+        /// 带"连续崩溃防抖"：短时间内反复崩溃（尤其是主窗口还没建起来就崩）时，
+        /// 到达上限会放弃自动重启（返回 false），把控制权交回调用方去提示用户并结束进程，
+        /// 否则旧行为会形成"启动 → 崩溃 → 重启"的死循环，把日志刷到几十 MB。
         /// </summary>
         private bool TrySnapshotRestartAndExit(Ink_Canvas.MainWindow mw, string reason)
         {
@@ -150,8 +218,16 @@ namespace Ink_Canvas
             }
             if (!silentRestart) return false;
 
-            // 1) 先写 reason（最轻量，确保重启后能识别“需要恢复询问”）
-            WriteRestartReason(reason);
+            // 0) 记录本次崩溃并判定是否还能继续自动重启
+            int crashCount = ReadCrashRestartCount() + 1;
+            WriteCrashRestartCount(crashCount);
+            _crashRestartSuppressed = crashCount > MaxConsecutiveCrashRestarts;
+
+            // 1) 先写 reason（最轻量，确保重启后能识别“需要恢复询问”）；放弃重启时无此必要
+            if (!_crashRestartSuppressed)
+            {
+                WriteRestartReason(reason);
+            }
 
             // 2) 尽量在进程终止前把快照落盘（后台线程需要切到 UI 线程访问画布）
             if (mw != null)
@@ -171,7 +247,17 @@ namespace Ink_Canvas
                 catch { }
             }
 
-            // 3) 重启新进程
+            // 3) 已判定为"连续崩溃"：不再重启，交回调用方提示用户并结束进程
+            if (_crashRestartSuppressed)
+            {
+                LogHelper.WriteLogToFile(
+                    $"连续 {crashCount} 次崩溃重启，已停止自动重启（避免无限重启循环）。"
+                    + "请把日志反馈给开发者，排查第一次崩溃的原因。",
+                    LogHelper.LogType.Error);
+                return false;
+            }
+
+            // 4) 重启新进程
             try { RestartApplication(); } catch { }
             return true;
         }
@@ -180,9 +266,10 @@ namespace Ink_Canvas
         {
             try
             {
-                string autoPath = (Ink_Canvas.MainWindow.Settings?.Automation != null
-                                   && !string.IsNullOrEmpty(Ink_Canvas.MainWindow.Settings.Automation.AutoSavedStrokesLocation))
-                    ? Ink_Canvas.MainWindow.Settings.Automation.AutoSavedStrokesLocation
+                // 空值防护：崩溃路径下 MainWindow 可能只构造了一半，Settings.Automation 也可能还没实例化
+                string location = Ink_Canvas.MainWindow.Settings?.Automation?.AutoSavedStrokesLocation;
+                string autoPath = !string.IsNullOrEmpty(location)
+                    ? location
                     : (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Ink Canvas");
                 var basePath = autoPath + @"\Auto Saved - Session";
                 try { if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath); } catch { }
@@ -231,6 +318,13 @@ namespace Ink_Canvas
                 try { MessageBoxHelper.Show("抱歉，出现未预期的异常，应用可能运行不稳定。\n建议保存墨迹后重启应用。", "Ink Canvas", MessageBoxButton.OK, MessageBoxImage.Warning); } catch { }
             }
             e.Handled = true;
+
+            // 连续崩溃时上面已放弃自动重启：提示过后直接结束进程，
+            // 否则会留下一个"没有可用窗口"的僵尸进程，用户只能手动去任务管理器结束。
+            if (_crashRestartSuppressed)
+            {
+                try { Shutdown(); } catch { }
+            }
         }
 
         private void RestartApplication()
@@ -305,6 +399,11 @@ namespace Ink_Canvas
             }
 
             StartArgs = e.Args;
+
+            // 崩溃重启防抖：安排"应用健康运行若干秒后清零崩溃重启计数"。
+            // 崩溃计数只在真正崩溃（TrySnapshotRestartAndExit）时自增，正常启动不会自增，
+            // 因此这里延迟清零不会影响"连续崩溃"的判定。
+            ScheduleCrashRestartCounterReset();
 
             // 解析命令行参数
             ParseCommandLineArgs(e.Args);
@@ -408,7 +507,9 @@ namespace Ink_Canvas
             }
             catch (Exception ex)
             {
-                LogHelper.WriteLogToFile($"Failed to register URI scheme: {ex.Message}", LogHelper.LogType.Error);
+                // 注册 URI 协议需要写 HKEY_CLASSES_ROOT，非管理员运行时会失败。
+                // 这是可接受的降级（只影响 inkcanvasultra:// 唤起），不该报成 Error 吓人。
+                LogHelper.WriteLogToFile($"Failed to register URI scheme: {ex.Message}", LogHelper.LogType.Warning);
             }
         }
 

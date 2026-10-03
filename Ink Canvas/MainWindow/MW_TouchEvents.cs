@@ -105,6 +105,7 @@ namespace Ink_Canvas
             {
                 UpdateInputActivityTimestamp();
                 RecordInputDown();
+                MarkPenContact();
                 // 激光笔开启期间不进入「手写预览」路径：该路径不经过 InkCanvas 的编辑模式
                 // （激光态下 EditingMode 为 None 也拦不住它），抬手时会把预览笔迹直接写入
                 // inkCanvas.Strokes，造成"激光轨迹已消失、画布上却残留笔迹"。
@@ -115,13 +116,45 @@ namespace Ink_Canvas
                     || inkCanvas.EditingMode == InkCanvasEditingMode.Select) return;
 
                 int stylusDeviceId = e.StylusDevice.Id;
+                bool isPreviewInput = ShouldHandleStylusInputAsPreview(e);
+                // 真手写笔（非触摸）走 InkCanvas 原生落笔，落笔前必须先确认画布处于可落笔状态：
+                // 触摸/双指手势流程会把 EditingMode 临时置为 None，若因此残留，
+                // 笔会完全写不上（表现为"写了一笔没反应"）。登记的 id 要在恢复模式之后再加，
+                // 否则会被自己的"触摸进行中"判断挡回来。
+                if (!isPreviewInput)
+                {
+                    EnsurePenInkModeAvailable();
+                }
+
                 TouchDownPointsList[stylusDeviceId] = InkCanvasEditingMode.None;
-                StylusPreviewModeByDeviceId[stylusDeviceId] = ShouldHandleStylusInputAsPreview(e);
+                StylusPreviewModeByDeviceId[stylusDeviceId] = isPreviewInput;
             }
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile("MainWindow_StylusDown error | " + ex, LogHelper.LogType.Error);
             }
+        }
+
+        /// <summary>
+        /// 手写笔落笔前的兜底：如果画布因为触摸/手势流程残留为 None（笔会完全写不上），
+        /// 在没有进行中的触摸时恢复成 Ink。
+        /// 激光笔、用户主动选的橡皮擦、选择模式、图形绘制等有明确意图的状态一律不动。
+        /// </summary>
+        private void EnsurePenInkModeAvailable()
+        {
+            try
+            {
+                if (inkCanvas == null) return;
+                if (isLaserPointerEnabled) return;       // 激光态必须保持 None（否则激光轨迹外会同时落笔迹）
+                if (forceEraser) return;                 // 用户主动选了橡皮擦工具
+                if (drawingShapeMode != 0) return;       // 图形绘制由专用逻辑接管
+                if (inkCanvas.EditingMode != InkCanvasEditingMode.None) return;
+                if (dec != null && dec.Count > 0) return;                       // 触摸/手势进行中
+                if (TouchDownPointsList != null && TouchDownPointsList.Count > 0) return;
+
+                inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+            }
+            catch { }
         }
 
         /// <summary>
@@ -132,6 +165,7 @@ namespace Ink_Canvas
             int stylusDeviceId = e.StylusDevice.Id;
             try
             {
+                MarkPenContact();
                 if (!ShouldHandleStylusPreview(stylusDeviceId))
                 {
                     return;
@@ -147,31 +181,45 @@ namespace Ink_Canvas
                 try
                 {
                     // 触摸屏模式处理
-                    if (!StrokeVisualList.TryGetValue(stylusDeviceId, out var visual)) return;
+                    StrokeCollection strokeCollection = null;
+                    VisualCanvas visualCanvas = null;
+                    if (StrokeVisualList.TryGetValue(stylusDeviceId, out var visual))
+                    {
+                        strokeCollection = visual.StrokeCollection;
+                        visualCanvas = GetVisualCanvas(stylusDeviceId);
+                    }
 
-                    var visualCanvas = GetVisualCanvas(stylusDeviceId);
-                    var strokeCollection = visual.StrokeCollection;
-
-                    // 先把预览笔画加入 inkCanvas 真笔迹，再移除预览层：
+                    // 预览层里有这一笔：先把预览笔画加入 inkCanvas 真笔迹，再移除预览层：
                     // 两个操作在同一帧内连续完成（WPF 在事件栈返回后才统一渲染），
                     // 避免原先"先移除预览再 await 5ms 再加真笔迹"造成的停笔瞬间墨迹消失再出现的闪烁。
-                    foreach (var s in strokeCollection)
+                    if (strokeCollection != null && strokeCollection.Count > 0)
                     {
-                        inkCanvas.Strokes.Add(s);
-                    }
-
-                    if (visualCanvas != null)
-                    {
-                        inkCanvas.Children.Remove(visualCanvas);
-                    }
-
-                    foreach (var s in strokeCollection)
-                    {
-                        try
+                        foreach (var s in strokeCollection)
                         {
-                            inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
+                            inkCanvas.Strokes.Add(s);
                         }
-                        catch { }
+
+                        if (visualCanvas != null)
+                        {
+                            inkCanvas.Children.Remove(visualCanvas);
+                        }
+
+                        foreach (var s in strokeCollection)
+                        {
+                            try
+                            {
+                                inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
+                            }
+                            catch { }
+                        }
+                    }
+                    else
+                    {
+                        // 预览层里没有这一笔（例如"点一下"就抬起、本笔一个 Move 都没收到、
+                        // 或者收到的点都被距离过滤掉）：直接用抬笔事件自带的点补一条笔迹。
+                        // 旧代码在这里直接 return，等于把这一笔静默丢掉
+                        // —— 用户看到的就是"写了一笔没反应，下一笔又好了"。
+                        CommitStylusPointsFallback(e);
                     }
                 }
                 catch (Exception ex)
@@ -186,6 +234,32 @@ namespace Ink_Canvas
             finally
             {
                 CleanupTrackedStylus(stylusDeviceId);
+            }
+        }
+
+        /// <summary>
+        /// 兜底提交：预览层里没有这一笔时，用手抬事件自带的触笔点直接生成一条笔迹，避免整笔丢失。
+        /// </summary>
+        private void CommitStylusPointsFallback(StylusEventArgs e)
+        {
+            try
+            {
+                var points = e?.GetStylusPoints(inkCanvas);
+                if (points == null || points.Count == 0) return;
+
+                var stroke = new Stroke(points, inkCanvas.DefaultDrawingAttributes.Clone());
+                inkCanvas.Strokes.Add(stroke);
+                try
+                {
+                    inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(stroke));
+                }
+                catch { }
+
+                LogHelper.WriteLogToFile("Stylus stroke committed by fallback (no preview visual)", LogHelper.LogType.Info);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("CommitStylusPointsFallback error | " + ex, LogHelper.LogType.Error);
             }
         }
 
@@ -349,6 +423,25 @@ namespace Ink_Canvas
         private bool HasRecentPenInput(int windowMs = 500)
         {
             int elapsed = unchecked(Environment.TickCount - _lastPenInputTickCount);
+            return elapsed >= 0 && elapsed <= windowMs;
+        }
+
+        /// <summary>
+        /// 最近一次"笔触着屏/离屏"（落下或抬起）的时刻。
+        /// 与 _lastPenInputTickCount 的区别：这里只记接触事件、不含悬停移动，
+        /// 用于在"笔刚落下/刚抬起"的那一瞬间避免设备恢复流程抢断笔画（悬停不该阻挡恢复）。
+        /// </summary>
+        private int _lastPenContactTickCount;
+
+        private void MarkPenContact()
+        {
+            try { _lastPenContactTickCount = Environment.TickCount; } catch { }
+        }
+
+        /// <summary>最近的 windowMs 内手写笔是否刚接触/离开过屏幕</summary>
+        private bool HasRecentPenContact(int windowMs = 150)
+        {
+            int elapsed = unchecked(Environment.TickCount - _lastPenContactTickCount);
             return elapsed >= 0 && elapsed <= windowMs;
         }
 

@@ -952,10 +952,11 @@ namespace Ink_Canvas
                 case WM_ACTIVATEAPP:
                     if (wParam == IntPtr.Zero)
                     {
-                        try { Mouse.Capture(null); Stylus.Capture(null); TouchStack_ClearAllCaptures(); } catch { }
-                        // 应用失去焦点时重置 isMouseDown，避免输入看门狗在后台反复触发
-                        // RecoverFromInputDeviceChange → inkCanvas.Focus()，导致抢占其它软件的键盘焦点
-                        isMouseDown = false;
+                        // 应用失去焦点：需要释放输入捕获，让其它程序（PPT/WPS/浏览器等）能拿到笔/鼠标。
+                        // 但此前是无条件释放 —— 如果此刻正写着一笔，Stylus.Capture(null) /
+                        // Mouse.Capture(null) 会当场把这一笔掐断，表现为"写了一笔没反应，再写下一笔又好了"。
+                        // 改为：有进行中的输入时等这一笔结束后再释放（见 ReleaseInputCapturesWhenIdle）。
+                        ReleaseInputCapturesWhenIdle();
                         UpdateInputActivityTimestamp();
                     }
                     else
@@ -1005,6 +1006,9 @@ namespace Ink_Canvas
             try
             {
                 if (isMouseDown) return true;
+                // 手写笔刚落下/刚抬起的一瞬间：WPF 可能还没建立捕获，各状态字典也还是空的，
+                // 但用户已经在写了。这里用一个很短的时间窗兜住，避免设备恢复在这一瞬抢断笔画。
+                if (HasRecentPenContact()) return true;
                 // dec / 预览字典覆盖了触摸预览笔画（非手写笔）的进行中状态
                 if (dec != null && dec.Count > 0) return true;
                 if (TouchDownPointsList != null && TouchDownPointsList.Count > 0) return true;
@@ -1019,6 +1023,41 @@ namespace Ink_Canvas
             }
             catch { }
             return false;
+        }
+
+        /// <summary>
+        /// 释放鼠标/触笔/触摸捕获（应用失去焦点时调用）。
+        /// 若无进行中的输入则立即释放；否则延迟到这一笔结束后再释放，
+        /// 避免把用户正在写的笔画掐断（"写了一笔没反应"）。
+        /// </summary>
+        private void ReleaseInputCapturesWhenIdle()
+        {
+            try
+            {
+                if (!IsInputEngaged())
+                {
+                    try { Mouse.Capture(null); Stylus.Capture(null); TouchStack_ClearAllCaptures(); } catch { }
+                    isMouseDown = false;
+                    return;
+                }
+
+                Dispatcher.BeginInvoke(new Action(async () =>
+                {
+                    try
+                    {
+                        // 最多等 3 秒（每 50ms 检查一次），笔画结束后立即释放
+                        for (int i = 0; i < 60; i++)
+                        {
+                            await Task.Delay(50);
+                            if (!IsInputEngaged()) break;
+                        }
+                        try { Mouse.Capture(null); Stylus.Capture(null); TouchStack_ClearAllCaptures(); } catch { }
+                        isMouseDown = false;
+                    }
+                    catch { }
+                }), DispatcherPriority.Background);
+            }
+            catch { }
         }
 
         /// <summary>
@@ -1259,6 +1298,10 @@ namespace Ink_Canvas
 
             // 首次安装引导
             TryShowInitialSetupWizard();
+
+            // 软件刚更新完（版本变化）时展示一次「版本更新」窗口（延迟到启动弹窗都处理完之后）
+            TryShowChangeLogOnVersionChange();
+
             ApplyStartupModes();
 
             // 启动参数携带的文档：先查本地转换缓存，已缓存则直接加载照片，未转换/已修改则触发插件转换

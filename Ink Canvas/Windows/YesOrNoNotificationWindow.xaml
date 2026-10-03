@@ -102,6 +102,7 @@
             Orientation="Horizontal"
             Spacing="10">
             <Button
+                Name="ButtonYes"
                 Width="110"
                 Padding="0,6"
                 Click="ButtonYes_Click"
@@ -114,10 +115,19 @@
                 </Button.Resources>
             </Button>
             <Button
+                Name="ButtonNo"
                 Width="110"
                 Padding="0,6"
                 Click="ButtonNo_Click"
                 Content="否" />
+            <!-- 第三个按钮：仅在调用方传入 ignoreAction 时显示（默认折叠，既有调用不受影响） -->
+            <Button
+                Name="ButtonIgnore"
+                Width="110"
+                Padding="0,6"
+                Click="ButtonIgnore_Click"
+                Content="忽略"
+                Visibility="Collapsed" />
         </ikw:SimpleStackPanel>
     </Grid>
     </Border>

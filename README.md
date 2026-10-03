@@ -133,7 +133,7 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 ## 🔄 版本信息
 
-当前版本：**V26.10.2**
+当前版本：**V26.10.3**
 
 ### 版本号命名规则（2026/8/30 起）
 
@@ -154,16 +154,16 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 | 文件 | 字段 | 示例值 |
 | --- | --- | --- |
-| `AutomaticUpdateVersionControl.txt` | 全文 | `26.10.2` |
-| `Ink Canvas/Properties/AssemblyInfo.cs` | `AssemblyVersion` / `AssemblyFileVersion` | `26.10.2.0`（末段固定为 0） |
-| `Ink Canvas.csproj`（根目录，AnyCPU） | `ApplicationVersion` | `26.10.2.%2a` |
-| `Ink Canvas/Ink Canvas.csproj`（x86） | `ApplicationVersion` | `26.10.2.%2a` |
-| `Ink Canvas/app.manifest` | `assemblyIdentity version` | `26.10.2.0` |
-| `Ink Canvas Ultra-AnyCPU.iss` | `MyAppVersion` | `26.10.2` |
-| `README.md` | 当前版本 | `V26.10.2` |
+| `AutomaticUpdateVersionControl.txt` | 全文 | `26.10.3` |
+| `Ink Canvas/Properties/AssemblyInfo.cs` | `AssemblyVersion` / `AssemblyFileVersion` | `26.10.3.0`（末段固定为 0） |
+| `Ink Canvas.csproj`（根目录，AnyCPU） | `ApplicationVersion` | `26.10.3.%2a` |
+| `Ink Canvas/Ink Canvas.csproj`（x86） | `ApplicationVersion` | `26.10.3.%2a` |
+| `Ink Canvas/app.manifest` | `assemblyIdentity version` | `26.10.3.0` |
+| `Ink Canvas Ultra-AnyCPU.iss` | `MyAppVersion` | `26.10.3` |
+| `README.md` | 当前版本 | `V26.10.3` |
 
 > 安装包由 Inno Setup 脚本按 `Ink.Canvas.Ultra.V{版本}.Setup.exe` 命名产出
-> （例如 `Ink.Canvas.Ultra.V26.10.2.Setup.exe`）。发布 Release 时，
-> **tag 必须为 `v26.10.2`、安装包文件名必须完全一致**，否则自动更新下载会 404。
+> （例如 `Ink.Canvas.Ultra.V26.10.3.Setup.exe`）。发布 Release 时，
+> **tag 必须为 `v26.10.3`、安装包文件名必须完全一致**，否则自动更新下载会 404。
 
 完整更新日志请访问：https://doc.muqiu.eu.org/article/changelog/

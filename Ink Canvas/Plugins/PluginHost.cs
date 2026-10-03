@@ -60,6 +60,7 @@ namespace Ink_Canvas.Plugins
         // ===== 主程序能力委托（由 MainWindow 注入，避免硬耦合） =====
         private readonly PluginHostOptions _opts;
         private readonly string _pluginsStateFile;      // plugins.json 启用状态持久化
+        private readonly string _pendingDeleteFile;     // .pending-delete.json：运行期删不掉的插件目录，下次启动再删
         private readonly Dictionary<string, bool> _enabledState = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
 
         // ===== 插件注册跟踪（用于 UnloadPlugin 时自动清理） =====
@@ -101,6 +102,7 @@ namespace Ink_Canvas.Plugins
             _opts = options ?? new PluginHostOptions();
             _pluginsRoot = App.RootPath + "Plugins\\";
             _pluginsStateFile = Path.Combine(_pluginsRoot, "plugins.json");
+            _pendingDeleteFile = Path.Combine(_pluginsRoot, ".pending-delete.json");
             LoadEnabledState();
 
             // 订阅程序集解析失败事件，使 Assembly.Load(byte[]) 加载的插件能解析自身目录内的依赖 DLL
@@ -517,6 +519,10 @@ namespace Ink_Canvas.Plugins
                     return;
                 }
 
+                // 先清理"上次运行期删不掉"的插件目录：此刻插件还没被加载，文件未占用，删除才可能成功。
+                // 必须早于下面的目录扫描，否则被登记删除的插件会被重新加载。
+                PurgePendingDeleteDirs();
+
                 var incompatibleSkipped = new List<string>();
                 foreach (var dir in Directory.GetDirectories(_pluginsRoot, "*", SearchOption.TopDirectoryOnly))
                 {
@@ -671,16 +677,10 @@ namespace Ink_Canvas.Plugins
             // 使该目录解析过的依赖程序集缓存失效（若之后重新安装同目录插件，需从磁盘重新加载 DLL）
             InvalidateAssemblyCacheForPlugin(dir);
 
-            try
+            if (!TryDeletePluginDir(dir))
             {
-                if (Directory.Exists(dir))
-                {
-                    Directory.Delete(dir, recursive: true);
-                }
-            }
-            catch (Exception ex)
-            {
-                LogHelper.WriteLogToFile($"删除 plugin 目录失败 [{dir}]: {ex.Message}", LogHelper.LogType.Error);
+                // 目录暂时删不掉（插件内原生依赖仍被本进程占用）：
+                // 已登记为"待删除"，下次启动时会被清掉；这里仍要刷新清单让 UI 反映状态变化。
                 RaisePluginListChanged();
                 return false;
             }
@@ -688,6 +688,127 @@ namespace Ink_Canvas.Plugins
             RaisePluginListChanged();
             LogHelper.WriteLogToFile($"plugin 已卸载删除: {pluginId}", LogHelper.LogType.Event);
             return true;
+        }
+
+        /// <summary>
+        /// 删除插件目录。插件内的原生依赖（如 documenttoimage 的 pdfium.dll）一旦被本进程
+        /// LoadLibrary 加载，运行期就无法删除（表现为"对路径 xxx 的访问被拒绝"）。
+        /// 因此这里先做"GC + 终结器回收 + 短暂重试"，尽量在本进程内删掉；
+        /// 仍失败则登记到 .pending-delete.json，交由下次启动（此时文件尚未被加载）删除。
+        /// </summary>
+        private bool TryDeletePluginDir(string dir)
+        {
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    if (!Directory.Exists(dir)) return true;
+                    Directory.Delete(dir, recursive: true);
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    if (attempt == 2)
+                    {
+                        AddPendingDeleteDir(dir);
+                        LogHelper.WriteLogToFile(
+                            $"删除 plugin 目录失败（文件可能仍被本进程占用，已登记为待删除，将在下次启动时删除）[{dir}]: {ex.Message}",
+                            LogHelper.LogType.Warning);
+                        return false;
+                    }
+
+                    // 软卸载只解除托管引用，原生 DLL 的句柄要等一次 GC + 终结器回收后才可能释放
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    System.Threading.Thread.Sleep(120);
+                }
+            }
+            return false;
+        }
+
+        // ===== 待删除插件目录（运行期删不掉，延后到下次启动） =====
+
+        private List<string> ReadPendingDeleteDirs()
+        {
+            try
+            {
+                if (!File.Exists(_pendingDeleteFile)) return new List<string>();
+                var list = JsonConvert.DeserializeObject<List<string>>(
+                    File.ReadAllText(_pendingDeleteFile, System.Text.Encoding.UTF8));
+                return list ?? new List<string>();
+            }
+            catch
+            {
+                return new List<string>();
+            }
+        }
+
+        private void WritePendingDeleteDirs(List<string> dirs)
+        {
+            try
+            {
+                if (dirs == null || dirs.Count == 0)
+                {
+                    if (File.Exists(_pendingDeleteFile)) File.Delete(_pendingDeleteFile);
+                    return;
+                }
+
+                if (!Directory.Exists(_pluginsRoot)) Directory.CreateDirectory(_pluginsRoot);
+                File.WriteAllText(
+                    _pendingDeleteFile,
+                    JsonConvert.SerializeObject(dirs, Formatting.Indented),
+                    System.Text.Encoding.UTF8);
+            }
+            catch { }
+        }
+
+        private void AddPendingDeleteDir(string dir)
+        {
+            try
+            {
+                var dirs = ReadPendingDeleteDirs();
+                if (!dirs.Any(d => string.Equals(d, dir, StringComparison.OrdinalIgnoreCase)))
+                {
+                    dirs.Add(dir);
+                }
+                WritePendingDeleteDirs(dirs);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 启动时清理上次遗留的"待删除插件目录"。
+        /// 必须在扫描/加载插件之前执行：此时本进程还没加载插件里的 DLL，文件未被占用，删除才能真正成功。
+        /// 仍删不掉的（例如被其它进程占用）保留记录，等下一次启动继续尝试。
+        /// </summary>
+        private void PurgePendingDeleteDirs()
+        {
+            try
+            {
+                var dirs = ReadPendingDeleteDirs();
+                if (dirs.Count == 0) return;
+
+                var remain = new List<string>();
+                foreach (var dir in dirs)
+                {
+                    if (string.IsNullOrWhiteSpace(dir)) continue;
+                    if (!Directory.Exists(dir)) continue;   // 已经删掉了
+
+                    try
+                    {
+                        Directory.Delete(dir, recursive: true);
+                        LogHelper.WriteLogToFile($"已删除上次未删掉的 plugin 目录: {dir}", LogHelper.LogType.Event);
+                    }
+                    catch (Exception ex)
+                    {
+                        remain.Add(dir);
+                        LogHelper.WriteLogToFile($"启动时删除 plugin 目录仍失败 [{dir}]: {ex.Message}", LogHelper.LogType.Warning);
+                    }
+                }
+
+                WritePendingDeleteDirs(remain);
+            }
+            catch { }
         }
 
         /// <summary>查询某个 plugin 的启用状态（默认启用）</summary>

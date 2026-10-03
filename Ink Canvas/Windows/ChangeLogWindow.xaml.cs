@@ -2,7 +2,6 @@ using Ink_Canvas.Helpers;
 using iNKORE.UI.WPF.Modern;
 using System;
 using System.Diagnostics;
-using System.Reflection;
 using System.Windows;
 
 namespace Ink_Canvas
@@ -54,8 +53,8 @@ namespace Ink_Canvas
             // 不需要设置不存在的控件可见性
             //TextBlockSuggestion.Text = "老师讲评试卷可以点击右侧的背景和深色按钮，即可启动黑板功能（同样支持用笔来擦除），\n双指可以缩放和拖动，左边也会有工具栏方便画图形。";
 
-            Version version = Assembly.GetExecutingAssembly().GetName().Version;
-            LabelVersion.Text = "Version: " + version.ToString();
+            // 版本号统一按三段式展示（与设置页/自动更新一致），不要直接显示四段的程序集版本
+            LabelVersion.Text = "Version: " + Helpers.AutoUpdateHelper.GetDisplayVersion();
         }
 
         private void Window_Closed(object sender, EventArgs e)

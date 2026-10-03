@@ -136,6 +136,22 @@ namespace Ink_Canvas
         [JsonProperty("lastUpdateCheckTime")]
         public string LastUpdateCheckTime { get; set; } = "";
 
+        /// <summary>
+        /// 上一次成功运行时的软件版本（三段式，如 26.10.2）。
+        /// 启动时若与当前版本不同，说明软件刚更新过 → 展示一次「版本更新」窗口。
+        /// 空串表示还没有记录（全新安装），此时只登记版本、不弹更新日志。
+        /// </summary>
+        [JsonProperty("lastRunVersion")]
+        public string LastRunVersion { get; set; } = "";
+
+        /// <summary>
+        /// 用户选择"忽略此版本"的版本号（三段式）。
+        /// 自动更新提示遇到该版本号时不再打扰；出现更新的版本后照常提示。
+        /// 设置页的「立即检查更新」不受它影响（手动检查总会询问）。
+        /// </summary>
+        [JsonProperty("ignoredUpdateVersion")]
+        public string IgnoredUpdateVersion { get; set; } = "";
+
         [JsonProperty("isEnableNibMode")]
         public bool IsEnableNibMode { get; set; } = false;
         /*
