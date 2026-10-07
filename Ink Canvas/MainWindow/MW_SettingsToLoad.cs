@@ -376,6 +376,10 @@ namespace Ink_Canvas
 
                 SliderFloatingBarScale.Value = Settings.Appearance.FloatingBarScale;
                 SliderBlackboardScale.Value = Settings.Appearance.BlackboardScale;
+                SliderPenPaletteScale.Value = NormalizeFloatingBarScale(
+                    Settings.Appearance.PenPaletteScale ?? Settings.Appearance.FloatingBarScale);
+                SliderDrawShapeScale.Value = NormalizeFloatingBarScale(
+                    Settings.Appearance.DrawShapeScale ?? Settings.Appearance.FloatingBarScale);
                 SliderFloatingBarBottomMargin.Value = Settings.Appearance.FloatingBarBottomMargin;
                 SliderLaserPointerHold.Value = Settings.Canvas.LaserPointerHoldSeconds;
                 SliderLaserPointerHighlight.Value = Settings.Canvas.LaserPointerHighlightWidth;
@@ -402,6 +406,10 @@ namespace Ink_Canvas
 
                 SliderFloatingBarScale.Value = Settings.Appearance.FloatingBarScale;
                 SliderBlackboardScale.Value = Settings.Appearance.BlackboardScale;
+                SliderPenPaletteScale.Value = NormalizeFloatingBarScale(
+                    Settings.Appearance.PenPaletteScale ?? Settings.Appearance.FloatingBarScale);
+                SliderDrawShapeScale.Value = NormalizeFloatingBarScale(
+                    Settings.Appearance.DrawShapeScale ?? Settings.Appearance.FloatingBarScale);
                 SliderFloatingBarBottomMargin.Value = Settings.Appearance.FloatingBarBottomMargin;
                 SliderLaserPointerHold.Value = Settings.Canvas.LaserPointerHoldSeconds;
                 SliderLaserPointerHighlight.Value = Settings.Canvas.LaserPointerHighlightWidth;

@@ -70,6 +70,8 @@ namespace Ink_Canvas
         private dynamic BoardPen => FindXamlPart(MWBoardHost, nameof(BoardPen));
         private dynamic BoardPenIcon => FindXamlPart(MWBoardHost, nameof(BoardPenIcon));
         private dynamic BoardPenPalette => FindXamlPart(MWBoardHost, nameof(BoardPenPalette));
+        private dynamic BoardPenPaletteScaleHost => FindXamlPart(MWBoardHost, nameof(BoardPenPaletteScaleHost));
+        private dynamic BoardPenPaletteScaleTransform => FindXamlPart(MWBoardHost, nameof(BoardPenPaletteScaleTransform));
         private dynamic BoardPenPaletteDragHandle => FindXamlPart(MWBoardHost, nameof(BoardPenPaletteDragHandle));
         private dynamic BoardPenPalettePin => FindXamlPart(MWBoardHost, nameof(BoardPenPalettePin));
         private dynamic BoardPenPaletteRestore => FindXamlPart(MWBoardHost, nameof(BoardPenPaletteRestore));
@@ -114,6 +116,8 @@ namespace Ink_Canvas
         private dynamic BoardEraserByStrokes => FindXamlPart(MWBoardHost, nameof(BoardEraserByStrokes));
         private dynamic BoardGeometry => FindXamlPart(MWBoardHost, nameof(BoardGeometry));
         private dynamic BoardBorderDrawShape => FindXamlPart(MWBoardHost, nameof(BoardBorderDrawShape));
+        private dynamic BoardBorderDrawShapeScaleHost => FindXamlPart(MWBoardHost, nameof(BoardBorderDrawShapeScaleHost));
+        private dynamic BoardBorderDrawShapeScaleTransform => FindXamlPart(MWBoardHost, nameof(BoardBorderDrawShapeScaleTransform));
         private dynamic BoardBorderDrawShapePin => FindXamlPart(MWBoardHost, nameof(BoardBorderDrawShapePin));
         private dynamic BoardImageDrawLine => FindXamlPart(MWBoardHost, nameof(BoardImageDrawLine));
         private dynamic BoardImageDrawDashedLine => FindXamlPart(MWBoardHost, nameof(BoardImageDrawDashedLine));
@@ -180,6 +184,8 @@ namespace Ink_Canvas
         private dynamic ToggleSwitchEnableDisPlayFloatBarText => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableDisPlayFloatBarText));
         private dynamic ToggleSwitchColorfulViewboxFloatingBar => FindXamlPart(SettingsWindow, nameof(ToggleSwitchColorfulViewboxFloatingBar));
         private dynamic SliderFloatingBarScale => FindXamlPart(SettingsWindow, nameof(SliderFloatingBarScale));
+        private dynamic SliderPenPaletteScale => FindXamlPart(SettingsWindow, nameof(SliderPenPaletteScale));
+        private dynamic SliderDrawShapeScale => FindXamlPart(SettingsWindow, nameof(SliderDrawShapeScale));
         private dynamic SliderLaserPointerHold => FindXamlPart(SettingsWindow, nameof(SliderLaserPointerHold));
         private dynamic SliderLaserPointerHighlight => FindXamlPart(SettingsWindow, nameof(SliderLaserPointerHighlight));
         private dynamic SliderLaserPointerCore => FindXamlPart(SettingsWindow, nameof(SliderLaserPointerCore));
@@ -267,6 +273,8 @@ namespace Ink_Canvas
         private dynamic Icon_Pen => FindXamlPart(MWFloatBarHost, nameof(Icon_Pen));
         private dynamic StackPanelCanvasControls => FindXamlPart(MWFloatBarHost, nameof(StackPanelCanvasControls));
         private dynamic PenPalette => FindXamlPart(MWFloatBarHost, nameof(PenPalette));
+        private dynamic PenPaletteScaleHost => FindXamlPart(MWFloatBarHost, nameof(PenPaletteScaleHost));
+        private dynamic PenPaletteScaleTransform => FindXamlPart(MWFloatBarHost, nameof(PenPaletteScaleTransform));
         private dynamic PenPaletteDragHandle => FindXamlPart(MWFloatBarHost, nameof(PenPaletteDragHandle));
         private dynamic PenPalettePin => FindXamlPart(MWFloatBarHost, nameof(PenPalettePin));
         private dynamic PenPaletteRestore => FindXamlPart(MWFloatBarHost, nameof(PenPaletteRestore));
@@ -317,6 +325,8 @@ namespace Ink_Canvas
         private dynamic Icon_Select1 => FindXamlPart(MWFloatBarHost, nameof(Icon_Select1));
         private dynamic Icon_Select2 => FindXamlPart(MWFloatBarHost, nameof(Icon_Select2));
         private dynamic BorderDrawShape => FindXamlPart(MWFloatBarHost, nameof(BorderDrawShape));
+        private dynamic BorderDrawShapeScaleHost => FindXamlPart(MWFloatBarHost, nameof(BorderDrawShapeScaleHost));
+        private dynamic BorderDrawShapeScaleTransform => FindXamlPart(MWFloatBarHost, nameof(BorderDrawShapeScaleTransform));
         private dynamic BorderDrawShapePin => FindXamlPart(MWFloatBarHost, nameof(BorderDrawShapePin));
         private dynamic ToggleSwitchDrawShapeBorderAutoHide => FindXamlPart(MWFloatBarHost, nameof(ToggleSwitchDrawShapeBorderAutoHide));
         private dynamic ImageDrawLine => FindXamlPart(MWFloatBarHost, nameof(ImageDrawLine));

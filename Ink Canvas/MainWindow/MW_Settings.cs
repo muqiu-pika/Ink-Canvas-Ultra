@@ -430,8 +430,65 @@ namespace Ink_Canvas
             ViewboxBlackboardRightSideScaleTransform.ScaleX = blackboardScaleFactor;
             ViewboxBlackboardRightSideScaleTransform.ScaleY = blackboardScaleFactor;
 
+            // 「墨迹选项」「图形」面板独立缩放（与整体缩放互不影响）
+            ApplyIndependentPanelScales(floatingBarScaleFactor, blackboardScaleFactor);
+
             // auto align
             ViewboxFloatingBarMarginAnimation();
+        }
+
+        /// <summary>
+        /// 应用「墨迹选项」「图形」面板的独立缩放。
+        /// 面板缩放宿主使用 RenderTransform 缩放（不参与测量/布局，因此不会影响浮动栏主条的 Viewbox 适配缩放）；
+        /// 宿主位于整体缩放（Viewbox LayoutTransform）内部，故此处除以整体缩放系数将其抵消，
+        /// 使面板最终视觉大小只由各自的独立设置决定，不再随「浮动工具栏 UI 缩放 / 黑板缩放」变化。
+        /// </summary>
+        private void ApplyIndependentPanelScales(double floatingBarScaleFactor, double blackboardScaleFactor)
+        {
+            try
+            {
+                if (floatingBarScaleFactor <= 0 || blackboardScaleFactor <= 0) return;
+
+                // null = 尚未独立调整过（旧配置升级），跟随整体缩放以保持原视觉
+                double penPalettePercent = NormalizeFloatingBarScale(
+                    Settings.Appearance.PenPaletteScale ?? Settings.Appearance.FloatingBarScale);
+                double drawShapePercent = NormalizeFloatingBarScale(
+                    Settings.Appearance.DrawShapeScale ?? Settings.Appearance.FloatingBarScale);
+                double penPaletteFactor = penPalettePercent / 100.0;
+                double drawShapeFactor = drawShapePercent / 100.0;
+
+                var penPaletteScaleTransform = PenPaletteScaleTransform;
+                if (penPaletteScaleTransform != null)
+                {
+                    penPaletteScaleTransform.ScaleX = penPaletteFactor / floatingBarScaleFactor;
+                    penPaletteScaleTransform.ScaleY = penPaletteFactor / floatingBarScaleFactor;
+                }
+
+                var boardPenPaletteScaleTransform = BoardPenPaletteScaleTransform;
+                if (boardPenPaletteScaleTransform != null)
+                {
+                    boardPenPaletteScaleTransform.ScaleX = penPaletteFactor / blackboardScaleFactor;
+                    boardPenPaletteScaleTransform.ScaleY = penPaletteFactor / blackboardScaleFactor;
+                }
+
+                var borderDrawShapeScaleTransform = BorderDrawShapeScaleTransform;
+                if (borderDrawShapeScaleTransform != null)
+                {
+                    borderDrawShapeScaleTransform.ScaleX = drawShapeFactor / floatingBarScaleFactor;
+                    borderDrawShapeScaleTransform.ScaleY = drawShapeFactor / floatingBarScaleFactor;
+                }
+
+                var boardBorderDrawShapeScaleTransform = BoardBorderDrawShapeScaleTransform;
+                if (boardBorderDrawShapeScaleTransform != null)
+                {
+                    boardBorderDrawShapeScaleTransform.ScaleX = drawShapeFactor / blackboardScaleFactor;
+                    boardBorderDrawShapeScaleTransform.ScaleY = drawShapeFactor / blackboardScaleFactor;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"应用面板独立缩放失败: {ex.Message}", LogHelper.LogType.Error);
+            }
         }
 
         private void ApplyVideoPresenterSidebarPosition()
@@ -517,6 +574,38 @@ namespace Ink_Canvas
             if (sender is Button btn && btn.Tag != null && double.TryParse(btn.Tag.ToString(), out double scalePercent))
             {
                 SliderBlackboardScale.Value = scalePercent; // This will trigger ValueChanged
+            }
+        }
+
+        private void SliderPenPaletteScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.Appearance.PenPaletteScale = e.NewValue;
+            ApplyScaling(); // Apply the change visually
+            SaveSettingsToFile();
+        }
+
+        private void BtnSetPenPaletteScale_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag != null && double.TryParse(btn.Tag.ToString(), out double scalePercent))
+            {
+                SliderPenPaletteScale.Value = scalePercent; // This will trigger ValueChanged
+            }
+        }
+
+        private void SliderDrawShapeScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.Appearance.DrawShapeScale = e.NewValue;
+            ApplyScaling(); // Apply the change visually
+            SaveSettingsToFile();
+        }
+
+        private void BtnSetDrawShapeScale_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag != null && double.TryParse(btn.Tag.ToString(), out double scalePercent))
+            {
+                SliderDrawShapeScale.Value = scalePercent; // This will trigger ValueChanged
             }
         }
 

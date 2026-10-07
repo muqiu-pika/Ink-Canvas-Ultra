@@ -76,6 +76,28 @@ namespace Ink_Canvas
             InvokeMainWindowHandler("LoadSettings", false);
         }
 
+        /// <summary>
+        /// 复用路径专用：先让 WPF 以透明状态完成首帧渲染，再在 Background 优先级做重量级填充，
+        /// 填充完成后淡入。与首次打开路径（SettingsWindow_Loaded）时序一致，
+        /// 避免「Show 后立刻同步填充」把首帧渲染挤到后面，导致 DWM 呈现未渲染的黑帧（黑闪）。
+        /// </summary>
+        public void ReloadContentsWithFadeIn()
+        {
+            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
+            {
+                try
+                {
+                    ReloadContents();
+                }
+                finally
+                {
+                    // 无论填充是否抛异常都恢复可见，避免窗口停留在透明状态
+                    BeginAnimation(Window.OpacityProperty,
+                        new System.Windows.Media.Animation.DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
+                }
+            }));
+        }
+
         private void InvokeMainWindowHandler(string handlerName, params object[] args)
         {
             var window = Owner as MainWindow;
@@ -401,6 +423,26 @@ namespace Ink_Canvas
         private void SliderFloatingBarScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             InvokeMainWindowHandler(nameof(SliderFloatingBarScale_ValueChanged), sender, e);
+        }
+
+        private void SliderPenPaletteScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(SliderPenPaletteScale_ValueChanged), sender, e);
+        }
+
+        private void BtnSetPenPaletteScale_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BtnSetPenPaletteScale_Click), sender, e);
+        }
+
+        private void SliderDrawShapeScale_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(SliderDrawShapeScale_ValueChanged), sender, e);
+        }
+
+        private void BtnSetDrawShapeScale_Click(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(BtnSetDrawShapeScale_Click), sender, e);
         }
 
         private void StopTimingErrorSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

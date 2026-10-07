@@ -2057,6 +2057,218 @@
 
                                 <ikw:SimpleStackPanel Margin="0,15,0,0" Spacing="10">
 
+                                    <!--  Pen Palette (墨迹选项) Scale Slider  -->
+
+                                    <StackPanel Orientation="Horizontal">
+
+                                        <Slider
+
+                                            x:Name="SliderPenPaletteScale"
+
+                                            Width="330"
+
+                                            ui:ControlHelper.Header="墨迹选项面板缩放 (%)"
+
+                                            Maximum="150"
+
+                                            Minimum="50"
+
+                                            ValueChanged="SliderPenPaletteScale_ValueChanged"
+
+                                            Value="80" />
+
+                                        <TextBlock
+
+                                            Width="35"
+
+                                            Margin="10,0,0,8"
+
+                                            HorizontalAlignment="Right"
+
+                                            VerticalAlignment="Bottom"
+
+                                            FontSize="14"
+
+                                            Text="{Binding Value, ElementName=SliderPenPaletteScale, StringFormat={}{0:F0}%}" />
+
+                                    </StackPanel>
+
+                                    <!--  Pen Palette Quick Buttons  -->
+
+                                    <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+
+                                        <Button
+
+                                            Margin="0,0,5,0"
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetPenPaletteScale_Click"
+
+                                            Content="80%"
+
+                                            Tag="80" />
+
+                                        <Button
+
+                                            Margin="0,0,5,0"
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetPenPaletteScale_Click"
+
+                                            Content="90%"
+
+                                            Tag="90" />
+
+                                        <Button
+
+                                            Margin="0,0,5,0"
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetPenPaletteScale_Click"
+
+                                            Content="100%"
+
+                                            Tag="100" />
+
+                                        <Button
+
+                                            Margin="0,0,5,0"
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetPenPaletteScale_Click"
+
+                                            Content="110%"
+
+                                            Tag="110" />
+
+                                        <Button
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetPenPaletteScale_Click"
+
+                                            Content="125%"
+
+                                            Tag="125" />
+
+                                    </StackPanel>
+
+                                </ikw:SimpleStackPanel>
+
+
+
+                                <ikw:SimpleStackPanel Margin="0,15,0,0" Spacing="10">
+
+                                    <!--  Draw Shape (图形) Scale Slider  -->
+
+                                    <StackPanel Orientation="Horizontal">
+
+                                        <Slider
+
+                                            x:Name="SliderDrawShapeScale"
+
+                                            Width="330"
+
+                                            ui:ControlHelper.Header="图形面板缩放 (%)"
+
+                                            Maximum="150"
+
+                                            Minimum="50"
+
+                                            ValueChanged="SliderDrawShapeScale_ValueChanged"
+
+                                            Value="80" />
+
+                                        <TextBlock
+
+                                            Width="35"
+
+                                            Margin="10,0,0,8"
+
+                                            HorizontalAlignment="Right"
+
+                                            VerticalAlignment="Bottom"
+
+                                            FontSize="14"
+
+                                            Text="{Binding Value, ElementName=SliderDrawShapeScale, StringFormat={}{0:F0}%}" />
+
+                                    </StackPanel>
+
+                                    <!--  Draw Shape Quick Buttons  -->
+
+                                    <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
+
+                                        <Button
+
+                                            Margin="0,0,5,0"
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetDrawShapeScale_Click"
+
+                                            Content="80%"
+
+                                            Tag="80" />
+
+                                        <Button
+
+                                            Margin="0,0,5,0"
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetDrawShapeScale_Click"
+
+                                            Content="90%"
+
+                                            Tag="90" />
+
+                                        <Button
+
+                                            Margin="0,0,5,0"
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetDrawShapeScale_Click"
+
+                                            Content="100%"
+
+                                            Tag="100" />
+
+                                        <Button
+
+                                            Margin="0,0,5,0"
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetDrawShapeScale_Click"
+
+                                            Content="110%"
+
+                                            Tag="110" />
+
+                                        <Button
+
+                                            Padding="15,4"
+
+                                            Click="BtnSetDrawShapeScale_Click"
+
+                                            Content="125%"
+
+                                            Tag="125" />
+
+                                    </StackPanel>
+
+                                </ikw:SimpleStackPanel>
+
+
+
+                                <ikw:SimpleStackPanel Margin="0,15,0,0" Spacing="10">
+
                                     <StackPanel Orientation="Horizontal">
 
                                         <Slider

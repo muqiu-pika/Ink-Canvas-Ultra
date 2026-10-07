@@ -1371,11 +1371,31 @@
 
                             <Grid Width="0">
 
+                                <!--  缩放宿主：RenderTransform 不参与测量，缩放面板不会影响白板工具栏的 Viewbox 适配缩放；
+                                      Margin 移到宿主上。TransformGroup 三段式实现“围绕锚点缩放”：
+                                      面板通过负 Margin 从零宽锚点线向两侧弹出（左 248 / 右 190、上 218），
+                                      锚点线在面板内部 (248,218) 处——先平移 -a 把锚点移到原点，缩放后再平移回 +a，
+                                      缩放时面板与主条的挂靠关系保持不变（仅围绕锚点收放）。
+                                      直接用 ScaleTransform 会围绕左上角缩放，导致贴近主条的一侧漂移。  -->
+                                <Border
+
+                                    x:Name="BoardPenPaletteScaleHost"
+
+                                    Margin="-248,-218,-190,59">
+
+                                    <Border.RenderTransform>
+
+                                        <TransformGroup>
+                                            <TranslateTransform X="-248" Y="-218" />
+                                            <ScaleTransform x:Name="BoardPenPaletteScaleTransform" ScaleX="1" ScaleY="1" />
+                                            <TranslateTransform X="248" Y="218" />
+                                        </TransformGroup>
+
+                                    </Border.RenderTransform>
+
                                 <Border
 
                                     x:Name="BoardPenPalette"
-
-                                    Margin="-248,-218,-190,59"
 
                                     Background="{DynamicResource BoardBarBackground}"
 
@@ -1491,7 +1511,7 @@
 
                                                         Foreground="{DynamicResource BoardBarForeground}"
 
-                                                        Glyph="&#xe77a;"
+                                                        Glyph="&#xe718;"
 
                                                         ToolTip="固定显示"
 
@@ -2618,6 +2638,8 @@
 
                                 </Border>
 
+                                </Border>
+
                             </Grid>
 
                         </Border>
@@ -2954,6 +2976,27 @@
 
                         <Border Width="0">
 
+                            <!--  缩放宿主：RenderTransform 不参与测量，缩放面板不会影响白板工具栏的 Viewbox 适配缩放；
+                                  Margin 移到宿主上并保持默认 Stretch 对齐（与原面板一致：宽度由
+                                  左右负 Margin 撑出 280，宿主不能加 Left/Top 对齐，否则宽度变为
+                                  内容期望值导致初始位置偏移）。TransformGroup 实现围绕锚点
+                                  (200,288)（锚点线在面板内位置）缩放，挂靠关系不随缩放漂移。  -->
+                            <Border
+
+                                x:Name="BoardBorderDrawShapeScaleHost"
+
+                                Margin="-200,-288,-80,58">
+
+                                <Border.RenderTransform>
+
+                                    <TransformGroup>
+                                        <TranslateTransform X="-200" Y="-288" />
+                                        <ScaleTransform x:Name="BoardBorderDrawShapeScaleTransform" ScaleX="1" ScaleY="1" />
+                                        <TranslateTransform X="200" Y="288" />
+                                    </TransformGroup>
+
+                                </Border.RenderTransform>
+
                             <Border
 
                                 x:Name="BoardBorderDrawShape"
@@ -2965,8 +3008,6 @@
                                 HorizontalAlignment="Left"
 
                                 VerticalAlignment="Top"
-
-                                Margin="-200,-288,-80,58"
 
                                 Background="{DynamicResource BoardBarBackground}"
 
@@ -3659,6 +3700,8 @@
                                     </Grid>
 
                                 </ikw:SimpleStackPanel>
+
+                            </Border>
 
                             </Border>
 

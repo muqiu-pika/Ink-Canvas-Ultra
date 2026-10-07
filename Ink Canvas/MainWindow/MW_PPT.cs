@@ -96,6 +96,14 @@ namespace Ink_Canvas
             if (DateTime.UtcNow < _suspendPptComCheckUntilUtc) return;
             try
             {
+                // 进程枚举（GetProcessesByName 会扫描全系统进程表）留在后台线程完成：
+                // 此前这一检查发生在 UI 线程投递的 BeginInvoke 内部，即使 PowerPoint/WPS
+                // 根本没有运行，也会每秒占用 UI 线程数十毫秒，与书写输入处理竞争，
+                // 是「写字偶尔卡一下」的一个可疑来源。无 PPT 进程时在此直接返回，
+                // 完全不打扰 UI 线程；有进程时才进 UI 线程走原有 COM 连接逻辑。
+                if (!IsPresentationProcessRunning()) return;
+                if (!IsWPSSupportOn && Process.GetProcessesByName("wpp").Length > 0) return;
+
                 if (Application.Current?.Dispatcher != null)
                 {
                     Application.Current.Dispatcher.BeginInvoke((Action)(() =>

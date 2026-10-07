@@ -750,8 +750,10 @@ namespace Ink_Canvas
 
         private void UpdatePenPalettePinState()
         {
-            PenPalettePin.Glyph = isPenPalettePinned ? "\uE718" : "\uE77a";
-            BoardPenPalettePin.Glyph = isPenPalettePinned ? "\uE718" : "\uE77a";
+            // 图标语义与「图形」面板保持一致：未固定 = E718（竖直图钉，未钉入）；
+            // 固定显示 = E77A（斜图钉，已钉入）。此前两个状态显示反了。
+            PenPalettePin.Glyph = isPenPalettePinned ? "\uE77a" : "\uE718";
+            BoardPenPalettePin.Glyph = isPenPalettePinned ? "\uE77a" : "\uE718";
         }
 
         private void PenPaletteRestore_MouseDown(object sender, MouseButtonEventArgs e)

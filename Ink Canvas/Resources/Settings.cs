@@ -183,6 +183,16 @@ namespace Ink_Canvas
         [JsonProperty("enableViewboxBlackBoardScaleTransform")]
         public double BlackboardScale { get; set; } = 80.0;
 
+        // 「墨迹选项」面板独立缩放（%）：不再跟随浮动栏/黑板整体缩放，可单独调整。
+        // null（旧配置文件无此键）表示跟随整体缩放，保持升级前视觉不变；
+        // 用户在设置页调整过之后写入具体值，即开始独立生效。
+        [JsonProperty("penPaletteScale")]
+        public double? PenPaletteScale { get; set; } = null;
+
+        // 「图形」面板独立缩放（%）：语义同上。
+        [JsonProperty("drawShapeScale")]
+        public double? DrawShapeScale { get; set; } = null;
+
         [JsonProperty("floatingBarBottomMargin")]
         public double FloatingBarBottomMargin { get; set; } = 50.0;
 
