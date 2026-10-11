@@ -1237,18 +1237,10 @@ namespace Ink_Canvas
             //加载设置
             LoadSettings(true);
 
-            // 启动时按持久化设置启动「自动收纳」检测定时器。
-            // 此前 timerCheckAutoFold 只在两种情况下才会启动：
-            //   1. 打开设置窗口（LoadSettings 走设置窗口分支时调用 StartOrStoptimerCheckAutoFold）
-            //   2. 用户手动切换任一「自动收纳」开关（Toggled 事件）
-            // 重启软件后两者都不发生，定时器保持停止状态——表现为
-            // 「开关明明是开启的，但进入白板/PPT 放映不会自动收纳，重启软件和系统均无效，
-            //   恢复默认设置后再手动开启一次又正常（手动开启恰好触发了定时器启动）」。
-            if (Settings.Automation == null) Settings.Automation = new Automation();
-            if (Settings.Automation.IsEnableAutoFold)
-            {
-                timerCheckAutoFold.Start();
-            }
+            // 「自动收纳」检测定时器已在 LoadSettings → ApplySettingsSideEffects() 中统一启动。
+            // 这里原来的补丁随之移除：它只补了 timerCheckAutoFold 一个，而同样问题的
+            // timerCheckPPT（PPT 检测）与 timerKillProcess（希沃查杀）仍被遗漏，
+            // 逐个打补丁会继续漏，故统一收敛到 ApplySettingsSideEffects()。
 
             if (Environment.Is64BitProcess && GroupBoxInkRecognition != null)
             {

@@ -2026,7 +2026,9 @@ namespace Ink_Canvas
             // Show() 时 WPF 会无视上面设置的 Left/Top 而强制将窗口居中到屏幕，导致启动时仍会闪烁。
             w.WindowStartupLocation = WindowStartupLocation.Manual;
             w.ShowInTaskbar = false;
-            w.Opacity = 0;
+            // 屏外显示，不再把 Opacity 设为 0：Window.Opacity<1 会让 WPF 走 layered 窗口模式，
+            // DWM 的 Mica 背景对 layered 窗口不合成，内容区会变成纯黑（黑闪）。
+            // 移出屏幕已足够隐藏，无需透明度。
             w.Left = -10000;
             w.Top = -10000;
             w.ContentRendered += OnSettingsPrebuiltRendered;
@@ -2041,6 +2043,8 @@ namespace Ink_Canvas
                 // 关闭即释放内存：延时后台 GC 回收窗口可视化树
                 Helpers.WindowMemoryHelper.ScheduleRelease();
             };
+            // 与正常打开路径保持一致：先填充再 Show，避免屏外首帧也是空内容
+            w.PrepareContentBeforeShow();
             w.Show();
         }
 
@@ -2093,6 +2097,17 @@ namespace Ink_Canvas
 
         private void BtnSettings_Click(object sender, RoutedEventArgs e)
         {
+            OpenSettingsWindow();
+        }
+
+        /// <summary>
+        /// 打开设置窗口的唯一入口（浮动栏齿轮按钮、插件工坊“返回设置”等均走这里）。
+        ///
+        /// 顺序要点：复用实例 → 直接显示；新建实例 → 先 PrepareContentBeforeShow() 同步填充再 Show()。
+        /// 若先 Show 后填充，DWM 会把尚未渲染的空/黑内容呈现出来，用户会看到一闪而过的黑块。
+        /// </summary>
+        internal void OpenSettingsWindow()
+        {
             // 复用已存在的设置窗口实例（可能只是被隐藏/预构建缓存），点击即开，不再重复解析巨型 XAML
             if (_settingsWindowInstance != null)
             {
@@ -2101,11 +2116,10 @@ namespace Ink_Canvas
                 w.Owner = this;
                 w.ShowInTaskbar = true;
                 w.ShowActivated = true;
-                w.Opacity = 1; // 预构建阶段为 0，确保点击时立即可见
                 // 预构建阶段被挪到了屏幕外，重新显示前恢复到主窗口居中位置
                 CenterSettingsWindow(w);
+                // 复用窗口的内容已就绪，无需重填；直接显示即可，首帧即为完整内容
                 if (!w.IsVisible) w.Show();
-                w.ReloadContents();
                 // 置前交给统一弹出层：避免被插件工坊等其它弹出窗口固定遮挡
                 Helpers.PopupWindowLayerHelper.BringToFront(w);
                 return;
@@ -2125,8 +2139,20 @@ namespace Ink_Canvas
                 // 关闭即释放内存：设置窗口不再长期缓存，延时后台 GC 回收其大 XAML 可视化树
                 Helpers.WindowMemoryHelper.ScheduleRelease();
             };
+            // 关键：先同步填充，再 Show。
+            // Show() 会立刻让 DWM 呈现窗口，若此时内容未填好，用户第一眼看到的就是黑/空内容。
+            settingsWindow.PrepareContentBeforeShow();
             settingsWindow.Show();
             Helpers.PopupWindowLayerHelper.BringToFront(settingsWindow);
+        }
+
+        /// <summary>
+        /// 插件工坊“返回设置”专用：工坊窗口此时已关闭，复用/新建设置窗口的逻辑与齿轮按钮完全一致，
+        /// 故直接复用 <see cref="OpenSettingsWindow"/>，避免两处逻辑分叉导致行为不一致。
+        /// </summary>
+        internal void OpenSettingsWindowFromPluginWorkshop()
+        {
+            OpenSettingsWindow();
         }
 
         private void SettingsNav_SelectionChanged(iNKORE.UI.WPF.Modern.Controls.NavigationView sender, iNKORE.UI.WPF.Modern.Controls.NavigationViewSelectionChangedEventArgs args)

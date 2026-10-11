@@ -167,33 +167,7 @@ namespace Ink_Canvas
                 {
                     mw.Dispatcher.Invoke(() =>
                     {
-                var existing = Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
-                if (existing != null)
-                {
-                    // 设置窗口可能只是被隐藏（复用实例），需重新显示并刷新最新设置值
-                    if (!existing.IsVisible)
-                    {
-                        existing.Owner = mw;
-                        existing.ShowInTaskbar = true;
-                        // 预构建阶段被挪到了屏幕外，重新显示前恢复到主窗口居中位置
-                        try
-                        {
-                            existing.Left = mw.Left + (mw.ActualWidth - existing.Width) / 2;
-                            existing.Top = mw.Top + (mw.ActualHeight - existing.Height) / 2;
-                        }
-                        catch { }
-                        existing.Show();
-                        existing.ReloadContents();
-                    }
-                    Helpers.PopupWindowLayerHelper.BringToFront(existing);
-                    return;
-                }
-                        var settingsWindow = new MW_Settings
-                        {
-                            Owner = mw
-                        };
-                        settingsWindow.Show();
-                        Helpers.PopupWindowLayerHelper.BringToFront(settingsWindow);
+                        mw.OpenSettingsWindowFromPluginWorkshop();
                     });
                 }
             }

@@ -13,19 +13,81 @@ namespace Ink_Canvas
 {
     public partial class MW_Settings : Window
     {
+        // 重量级设置填充是否已完成（用于避免重复填充）
+        private bool _contentPrepared;
+
+        /// <summary>
+        /// 当前正在准备（尚未 Show）的设置窗口实例。
+        ///
+        /// WPF 的 Application.Current.Windows 只包含已 Show 的窗口，因此“Show 之前填充内容”
+        /// 这一刻，MainWindow.LoadSettings 通过 SettingsWindow 反查控件会拿到 null 并跳过整段 UI 填充。
+        /// 这里显式登记当前准备中的实例，供 MW_XamlForwarders.SettingsWindow 优先取用；
+        /// Show 之后该实例自然出现在 Application.Windows 中，登记随之失效，无需手动清理。
+        /// </summary>
+        internal static MW_Settings PreparingInstance { get; private set; }
+
         public MW_Settings()
         {
             InitializeComponent();
-            // 初始设为透明，待设置项填充完成后再淡入，避免“先显示空白再跳变”的闪烁与卡顿感
-            Opacity = 0;
             Loaded += SettingsWindow_Loaded;
+            // 窗口真正关闭时注销“准备中”登记：否则 MainWindow 的 SettingsWindow 会一直
+            // 反查到一个已关闭窗口的实例，导致后续 LoadSettings 把值写进死窗口（用户看不到变化）。
+            Closed += (s, e) =>
+            {
+                if (ReferenceEquals(PreparingInstance, this))
+                {
+                    PreparingInstance = null;
+                }
+            };
             // 纳入统一弹出层：与主窗口建立 Owner 关系（永不被画板/浮动栏覆盖），
             // 并与其它弹出窗口共享“点击谁谁在前”的激活顺序
             Helpers.PopupWindowLayerHelper.Register(this);
         }
 
+        /// <summary>
+        /// 在窗口显示（Show）之前同步完成重量级设置填充。
+        ///
+        /// 为什么必须放在 Show() 之前：
+        /// Show() 执行后 DWM 会立即把窗口呈现到屏幕，若此刻内容还没填好，
+        /// 用户看到的第一帧就是空/黑色内容（俗称“黑闪”），要等下一帧才出现真实内容。
+        /// 原实现把填充推到 DispatcherPriority.Background 执行，而 Background(4) 的优先级
+        /// 低于 Render(7)，即“填充发生在首帧渲染之后”，这正是黑闪的直接成因；
+        /// 同时用 Window.Opacity 做淡入会让 WPF 把窗口切到 layered(WS_EX_LAYERED) 模式，
+        /// 而 DWM 的 Mica 背景对 layered 窗口不合成 → 内容区直接变黑。
+        ///
+        /// 调用方需保证自身已被登记为“当前准备中的设置窗口”，
+        /// 以便 MainWindow.LoadSettings 能通过 SettingsWindow 反查到本窗口的控件。
+        /// </summary>
+        public void PrepareContentBeforeShow()
+        {
+            if (_contentPrepared)
+            {
+                return;
+            }
+
+            _contentPrepared = true;
+            // 登记为“准备中的实例”，让 MainWindow.LoadSettings 能在 Show 之前反查到本窗口控件
+            PreparingInstance = this;
+            try
+            {
+                // 同步执行（不走 Dispatcher），确保在 Show() 触发首帧渲染前完成
+                InvokeMainWindowHandler("LoadSettings", false);
+            }
+            catch (Exception ex)
+            {
+                // 填充失败不能阻断显示：记录后继续 Show，至少让用户看到窗口与默认项，
+                // 总好过点击“设置”毫无反应。
+                LogHelper.WriteLogToFile("MW_Settings | PrepareContentBeforeShow failed: " + ex.Message,
+                    LogHelper.LogType.Error);
+            }
+        }
+
         private void SettingsWindow_Loaded(object sender, RoutedEventArgs e)
         {
+            // 兜底：若存在绕过统一入口、未经 PrepareContentBeforeShow 就 Show 的调用路径，
+            // 这里在 Loaded（早于首次 Render）同步补填，保证首帧仍是完整内容。
+            PrepareContentBeforeShow();
+
             // 轻量信息立即填充（几乎不耗时）
             if (AppVersionTextBlock != null)
                 AppVersionTextBlock.Text = AutoUpdateHelper.GetDisplayVersion();
@@ -45,27 +107,6 @@ namespace Ink_Canvas
             // 触屏上轻触轨道即可让缩略块跳到触点并跟随拖动，无需精确抓取极小缩略块。
             // 仅设置该行为属性，不改模板/外观，外观与之前完全一致。
             SetTouchFriendlySliders(this);
-
-            // 将重量级设置填充（数百个控件赋值 + ApplyScaling 等）推迟到窗口首次绘制之后执行，
-            // 这样点击设置后窗口会立即出现（此时透明），主线程不会被长时间占用而导致卡顿；
-            // 填充完成后再把窗口淡入显示，体验更顺滑。
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
-            {
-                try
-                {
-                    InvokeMainWindowHandler("LoadSettings", false);
-                }
-                finally
-                {
-                    // 预构建阶段（空闲时后台渲染）不淡入，保持透明直至被真正打开；
-                    // 普通打开阶段才淡入显示，避免停留在不可见状态。
-                    if (!MainWindow.IsSettingsPrebuilding)
-                    {
-                        this.BeginAnimation(System.Windows.Window.OpacityProperty,
-                            new System.Windows.Media.Animation.DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
-                    }
-                }
-            }));
         }
 
         /// <summary>
@@ -74,28 +115,6 @@ namespace Ink_Canvas
         public void ReloadContents()
         {
             InvokeMainWindowHandler("LoadSettings", false);
-        }
-
-        /// <summary>
-        /// 复用路径专用：先让 WPF 以透明状态完成首帧渲染，再在 Background 优先级做重量级填充，
-        /// 填充完成后淡入。与首次打开路径（SettingsWindow_Loaded）时序一致，
-        /// 避免「Show 后立刻同步填充」把首帧渲染挤到后面，导致 DWM 呈现未渲染的黑帧（黑闪）。
-        /// </summary>
-        public void ReloadContentsWithFadeIn()
-        {
-            Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() =>
-            {
-                try
-                {
-                    ReloadContents();
-                }
-                finally
-                {
-                    // 无论填充是否抛异常都恢复可见，避免窗口停留在透明状态
-                    BeginAnimation(Window.OpacityProperty,
-                        new System.Windows.Media.Animation.DoubleAnimation(1, TimeSpan.FromMilliseconds(120)));
-                }
-            }));
         }
 
         private void InvokeMainWindowHandler(string handlerName, params object[] args)

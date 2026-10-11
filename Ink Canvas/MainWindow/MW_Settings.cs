@@ -11,6 +11,12 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using File = System.IO.File;
 using Directory = System.IO.Directory;
+using Path = System.IO.Path;
+using FileStream = System.IO.FileStream;
+using StreamWriter = System.IO.StreamWriter;
+using FileMode = System.IO.FileMode;
+using FileAccess = System.IO.FileAccess;
+using FileShare = System.IO.FileShare;
 
 namespace Ink_Canvas
 {
@@ -1530,7 +1536,7 @@ namespace Ink_Canvas
                 {
                     try { Directory.CreateDirectory(App.UserDataPath); } catch { }
                 }
-                File.WriteAllText(userFile, text);
+                AtomicWriteAllText(userFile, text);
             }
             catch (Exception ex)
             {
@@ -1540,12 +1546,58 @@ namespace Ink_Canvas
                 string legacyFile = App.RootPath + settingsFileName;
                 try
                 {
-                    File.WriteAllText(legacyFile, text);
+                    AtomicWriteAllText(legacyFile, text);
                 }
                 catch (Exception ex2)
                 {
                     LogHelper.WriteLogToFile($"MW_Settings | Error saving settings to legacy path: {ex2.Message}", LogHelper.LogType.Error);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 原子写入文本文件：先写同目录临时文件并强制刷盘，再整体替换目标文件。
+        ///
+        /// 为什么不能直接用 File.WriteAllText：
+        /// WriteAllText 会先把目标文件截断成 0 字节再逐段写入。若在"截断之后、写完之前"
+        /// 进程被终止（崩溃自动重启、系统关机/重启、任务管理器结束进程），
+        /// Settings.json 就会留下一个空文件或半截 JSON。下次启动反序列化失败，
+        /// 旧代码用空的 catch { } 静默吞掉异常，直接回落到全新默认设置 ——
+        /// 表现为"设置莫名其妙变回默认，且首次启动向导重新弹出"。
+        /// 原子替换保证任意时刻目标文件要么是完整的旧内容、要么是完整的新内容，不存在中间态。
+        /// </summary>
+        private static void AtomicWriteAllText(string targetPath, string content)
+        {
+            string dir = Path.GetDirectoryName(targetPath);
+            string tmpPath = Path.Combine(dir, settingsFileName + ".tmp");
+
+            // 1) 先落盘临时文件；Flush(true) 强制把文件系统缓存一并写入磁盘
+            using (var fs = new FileStream(tmpPath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var sw = new StreamWriter(fs, new System.Text.UTF8Encoding(false)))
+            {
+                sw.Write(content);
+                sw.Flush();
+                fs.Flush(true);
+            }
+
+            // 2) 原子替换目标文件；旧文件被另存为 .bak，作为损坏后的恢复源
+            if (File.Exists(targetPath))
+            {
+                try
+                {
+                    File.Replace(tmpPath, targetPath, targetPath + ".bak", true);
+                }
+                catch
+                {
+                    // Replace 在个别文件系统/权限下可能失败，退化为"删除+移动"，
+                    // 仍比直接截断写入安全（窗口期极短，且临时文件已完整落盘）
+                    File.Delete(targetPath);
+                    File.Move(tmpPath, targetPath);
+                }
+            }
+            else
+            {
+                File.Move(tmpPath, targetPath);
             }
         }
 

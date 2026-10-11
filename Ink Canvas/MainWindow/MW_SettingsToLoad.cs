@@ -57,7 +57,7 @@ namespace Ink_Canvas
             {
                 try
                 {
-                    // 优先从用户数据目录（始终可写）读取
+                    // 优先从用户数据目录（始终可写）读取，其次回退到 exe 目录（兼容旧版本/便携模式）
                     string userFile = App.UserDataPath + settingsFileName;
                     string legacyFile = App.RootPath + settingsFileName;
                     string targetFile = null;
@@ -68,18 +68,31 @@ namespace Ink_Canvas
                     }
                     else if (File.Exists(legacyFile))
                     {
-                        // 用户数据目录不存在设置文件时回退到 exe 目录（兼容旧版本/便携模式）
                         targetFile = legacyFile;
                     }
 
                     if (targetFile != null)
                     {
-                        try
+                        Settings loaded;
+                        if (TryLoadSettingsFile(targetFile, out loaded))
                         {
-                            string text = File.ReadAllText(targetFile);
-                            Settings = JsonConvert.DeserializeObject<Settings>(text);
+                            Settings = loaded;
                         }
-                        catch { }
+                        else if (TryLoadSettingsFile(targetFile + ".bak", out loaded))
+                        {
+                            // 主文件损坏，自动备份仍可用 —— 直接用备份恢复，
+                            // 避免用户"设置莫名其妙变回默认、向导重新弹出"
+                            LogHelper.WriteLogToFile(
+                                "Settings.json is unreadable, restored from backup: " + targetFile + ".bak",
+                                LogHelper.LogType.Error);
+                            Settings = loaded;
+                        }
+                        else
+                        {
+                            // 主文件与备份都不可用，才真正放弃（走默认值）。
+                            // 损坏现场另存为 .corrupt，便于事后排查而不是被直接覆盖抹掉。
+                            TryQuarantineCorruptSettings(targetFile);
+                        }
                     }
                     else
                     {
@@ -234,7 +247,8 @@ namespace Ink_Canvas
                 if (Settings.Startup.IsAutoUpdate)
                 {
                     ToggleSwitchIsAutoUpdate.IsOn = true;
-                    AutoUpdate();
+                    // 注：AutoUpdate() 的实际调用已移到 ApplySettingsSideEffects()，且仅在启动时触发。
+                    // 此处不再直接调用，否则每打开一次设置窗口就会重复发起一次版本检测请求。
                 }
                 ToggleSwitchIsAutoUpdateWithProxy.IsOn = Settings.Startup.IsAutoUpdateWithProxy;
                 AutoUpdateWithProxy_Title.Visibility = Settings.Startup.IsAutoUpdateWithProxy ? Visibility.Visible : Visibility.Collapsed;
@@ -428,16 +442,9 @@ namespace Ink_Canvas
                 ToggleSwitchShowButtonPPTNavigationSides.IsOn = Settings.PowerPointSettings.IsShowPPTNavigationSides;
                 ToggleSwitchShowPPTNavigationPanelBottom.IsOn = Settings.PowerPointSettings.IsShowBottomPPTNavigationPanel;
                 ToggleSwitchShowPPTNavigationPanelSide.IsOn = Settings.PowerPointSettings.IsShowSidePPTNavigationPanel;
-                if (Settings.PowerPointSettings.PowerPointSupport)
-                {
-                    ToggleSwitchSupportPowerPoint.IsOn = true;
-                    timerCheckPPT.Start();
-                }
-                else
-                {
-                    ToggleSwitchSupportPowerPoint.IsOn = false;
-                    timerCheckPPT.Stop();
-                }
+                ToggleSwitchSupportPowerPoint.IsOn = Settings.PowerPointSettings.PowerPointSupport;
+                // 注：timerCheckPPT 的启停已移到 ApplySettingsSideEffects()，
+                // 与设置窗口是否打开无关，否则启动后不检测 PPT，必须打开一次设置才进 PPT 模式。
                 if (Settings.PowerPointSettings.IsShowCanvasAtNewSlideShow)
                 {
                     ToggleSwitchShowCanvasAtNewSlideShow.IsOn = true;
@@ -724,10 +731,7 @@ namespace Ink_Canvas
                 ToggleSwitchIsQuadIR.IsOn = Settings.Advanced.IsQuadIR;
 
                 ToggleSwitchIsEnableEdgeGestureUtil.IsOn = Settings.Advanced.IsEnableEdgeGestureUtil;
-                if (Settings.Advanced.IsEnableEdgeGestureUtil)
-                {
-                    if (OSVersion.GetOperatingSystem() >= OSVersionExtension.OperatingSystem.Windows10) EdgeGestureUtil.DisableEdgeGestures(new WindowInteropHelper(this).Handle, true);
-                }
+                // 注：DisableEdgeGestures 的实际调用已移到 ApplySettingsSideEffects()
 
                 ToggleSwitchIsEnableSilentRestartOnCrash.IsOn = Settings.Advanced.IsEnableSilentRestartOnCrash;
             }
@@ -767,7 +771,7 @@ namespace Ink_Canvas
             // Automation
             if (Settings.Automation != null)
             {
-                StartOrStoptimerCheckAutoFold();
+                // 注：StartOrStoptimerCheckAutoFold() 已移到 ApplySettingsSideEffects()
                 if (Settings.Automation.IsAutoFoldInEasiNote)
                 {
                     ToggleSwitchAutoFoldInEasiNote.IsOn = true;
@@ -850,14 +854,9 @@ namespace Ink_Canvas
                 {
                     ToggleSwitchAutoFoldInPPTSlideShow.IsOn = false;
                 }
-                if (Settings.Automation.IsAutoKillEasiNote || Settings.Automation.IsAutoKillPptService)
-                {
-                    timerKillProcess.Start();
-                }
-                else
-                {
-                    timerKillProcess.Stop();
-                }
+                // 注：timerKillProcess 的启停已移到 ApplySettingsSideEffects()，
+                // 否则启动后不查杀希沃 PPT 小工具（PPTService / SeewoIwbAssistant），
+                // 表现为希沃小工具与 ICU 悬浮栏并存，且重启系统后复发。
 
                 if (Settings.Automation.IsAutoKillEasiNote)
                 {
@@ -936,6 +935,13 @@ namespace Ink_Canvas
             }
             } // end if (SettingsWindow != null) - 设置 UI 填充结束
 
+            // 功能性副作用（定时器启停 / 自动更新 / 边缘手势）与"设置窗口是否打开"无关，
+            // 必须无条件应用。此前它们被写在上面的 if (SettingsWindow != null) 块内，
+            // 而启动加载时设置窗口根本不存在，导致这些功能在启动时全部不生效，
+            // 只有用户手动打开一次设置窗口后才被补上（表现："每次都要点一下设置才进 PPT 模式"、
+            // "希沃小工具查不掉"、"重启系统后又复现"）。
+            ApplySettingsSideEffects(isStartup);
+
             ViewboxFloatingBarMarginAnimation();
 
             if (floatingBarScaleWasNormalized)
@@ -956,6 +962,164 @@ namespace Ink_Canvas
         public void ReloadSettingsFromSettingsObject()
         {
             LoadSettings();
+        }
+
+        /// <summary>
+        /// 尝试从指定文件解析出有效设置。
+        ///
+        /// 旧写法是 `Settings = JsonConvert.DeserializeObject&lt;Settings&gt;(text)` 配一个空 catch：
+        /// 一旦文件是空的或半截 JSON（写入过程被崩溃/断电打断），异常被静默吞掉，
+        /// Settings 变成 null，随后被 `new Settings()` 顶替，用户的所有设置无声无息地丢失。
+        /// 这里显式校验"文件非空 + 解析出非空对象"，并把失败原因写入日志。
+        /// </summary>
+        private static bool TryLoadSettingsFile(string path, out Settings result)
+        {
+            result = null;
+            try
+            {
+                if (!File.Exists(path)) return false;
+
+                string text = File.ReadAllText(path);
+                // 空文件/纯空白：截断写入被打断的典型产物，不能当作合法 JSON
+                if (string.IsNullOrWhiteSpace(text)) return false;
+
+                var parsed = JsonConvert.DeserializeObject<Settings>(text);
+                // DeserializeObject 对 "null" 这类输入会返回 null，同样视为无效
+                if (parsed == null) return false;
+
+                result = parsed;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile(
+                    "Failed to parse settings file '" + path + "': " + ex.Message,
+                    LogHelper.LogType.Error);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// 把确认已损坏的设置文件另存为 .corrupt，保留现场便于排查（不直接删除，也不让它被后续保存覆盖）。
+        /// </summary>
+        private static void TryQuarantineCorruptSettings(string path)
+        {
+            try
+            {
+                if (!File.Exists(path)) return;
+                string corruptPath = path + ".corrupt";
+                File.Copy(path, corruptPath, true);
+                LogHelper.WriteLogToFile(
+                    "Settings.json is corrupted and unrecoverable; kept a copy at: " + corruptPath,
+                    LogHelper.LogType.Error);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 应用与"设置窗口是否打开"无关的功能性副作用：定时器启停、启动自动更新、边缘手势禁用。
+        ///
+        /// 【为什么必须独立出来】
+        /// 这些调用原先散落在 LoadSettings 的 `if (SettingsWindow != null)` 块内，
+        /// 而该块的本意只是"设置窗口打开时才填充它的控件"。启动加载时设置窗口并不存在，
+        /// 于是这些功能在启动时被整体跳过，必须等用户手动打开一次设置窗口才补上，
+        /// 于是出现一连串"重启后就失效、点一下设置又好"的现象：
+        ///   · timerCheckPPT 未启动  → 不自动检测 PPT，进不了 PPT 模式；
+        ///   · timerKillProcess 未启动 → 希沃 PPT 小工具(PPTService/SeewoIwbAssistant)查不掉，与悬浮栏并存；
+        ///   · StartOrStoptimerCheckAutoFold 未调用 → 自动收纳/隐藏失效；
+        ///   · AutoUpdate 未调用 → 启动后不自动检查更新。
+        /// 这里让它们无条件执行，从根上消除"打开设置才生效"的依赖。
+        ///
+        /// 所有 Timer.Start()/Stop() 均幂等，重复调用不会叠加定时器。
+        /// </summary>
+        private void ApplySettingsSideEffects(bool isStartup)
+        {
+            try
+            {
+                // PPT 支持：启动 PPT 检测定时器，才能在放映时自动进入 PPT 模式
+                if (Settings.PowerPointSettings != null)
+                {
+                    if (Settings.PowerPointSettings.PowerPointSupport)
+                    {
+                        timerCheckPPT.Start();
+                    }
+                    else
+                    {
+                        timerCheckPPT.Stop();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("ApplySettingsSideEffects | PPT timer: " + ex.Message, LogHelper.LogType.Error);
+            }
+
+            try
+            {
+                // 希沃等第三方进程查杀
+                if (Settings.Automation != null)
+                {
+                    if (Settings.Automation.IsAutoKillEasiNote || Settings.Automation.IsAutoKillPptService)
+                    {
+                        timerKillProcess.Start();
+                    }
+                    else
+                    {
+                        timerKillProcess.Stop();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("ApplySettingsSideEffects | kill timer: " + ex.Message, LogHelper.LogType.Error);
+            }
+
+            try
+            {
+                // 自动收纳/展开浮动栏（此前靠 Window_Loaded 里的补丁启动，现统一到这里）
+                if (Settings.Automation != null)
+                {
+                    StartOrStoptimerCheckAutoFold();
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("ApplySettingsSideEffects | auto fold timer: " + ex.Message, LogHelper.LogType.Error);
+            }
+
+            try
+            {
+                // 禁用边缘手势（仅 Win10 及以上）
+                if (Settings.Advanced != null && Settings.Advanced.IsEnableEdgeGestureUtil)
+                {
+                    if (OSVersion.GetOperatingSystem() >= OSVersionExtension.OperatingSystem.Windows10)
+                    {
+                        EdgeGestureUtil.DisableEdgeGestures(new WindowInteropHelper(this).Handle, true);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("ApplySettingsSideEffects | edge gesture: " + ex.Message, LogHelper.LogType.Error);
+            }
+
+            // 启动自动检查更新：仅在启动加载时触发一次。
+            // 不在"打开设置窗口"时触发，避免每次打开设置都重复发起版本检测网络请求
+            // （设置窗口里"立即检查"按钮才是用户主动触发的入口）。
+            if (isStartup)
+            {
+                try
+                {
+                    if (Settings.Startup != null && Settings.Startup.IsAutoUpdate)
+                    {
+                        AutoUpdate();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile("ApplySettingsSideEffects | auto update: " + ex.Message, LogHelper.LogType.Error);
+                }
+            }
         }
 
         /// <summary>

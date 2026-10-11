@@ -25,7 +25,11 @@ namespace Ink_Canvas
         private dynamic BoardLaserPointerIndicator => FindXamlPart(MWBoardHost, nameof(BoardLaserPointerIndicator));
         private dynamic BoardTextBlockLaserPointerState => FindXamlPart(MWBoardHost, nameof(BoardTextBlockLaserPointerState));
 
-        private MW_Settings SettingsWindow => System.Windows.Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
+        // 优先取“准备中（尚未 Show）”的实例：Application.Windows 只含已 Show 的窗口，
+        // 而设置窗口改为在 Show() 之前同步填充内容（避免首帧黑闪），
+        // 那一刻只能通过 PreparingInstance 反查到控件。
+        private MW_Settings SettingsWindow => MW_Settings.PreparingInstance
+            ?? System.Windows.Application.Current.Windows.OfType<MW_Settings>().FirstOrDefault();
 
         private dynamic GridInkCanvasSelectionCover => FindXamlPart(MWSelectionHost, nameof(GridInkCanvasSelectionCover));
         private dynamic BorderStrokeSelectionControl => FindXamlPart(MWSelectionHost, nameof(BorderStrokeSelectionControl));
