@@ -19,12 +19,8 @@ namespace Ink_Canvas
 
         List<RectangleGuideLine> rectangleGuideLines = new List<RectangleGuideLine>();
 
-        // 停顿拉直相关变量
-        Point _stopTimingPoint;
-        DateTime _stopTiming;
-        bool _stopTimingDisable = false;
-        List<Point> _stopTimingPoints = new List<Point>();
-        bool _stopTimingTriggered = false;
+        // 顿笔拉直状态已迁移至 MW_InkStraighten.cs 的会话式实现（_inkStraightenSessions）
+
         const double RECTANGLE_ENDPOINT_THRESHOLD = 30.0;
         const double RECTANGLE_ANGLE_THRESHOLD = 15.0;
 
@@ -62,52 +58,15 @@ namespace Ink_Canvas
             try
             {
                 inkCanvas.Opacity = 1;
-                
-                // 停顿拉直处理
-                if (Settings.Canvas.StopTimingStraighten && _stopTimingTriggered)
+
+                // 顿笔拉直：会话已触发但原生笔画仍被收集提交时（时序边缘），在此把原始笔画替换为直线
+                try
                 {
-                    var currentStroke = e.Stroke;
-                    if (IsPotentialStraightLine(currentStroke))
-                    {
-                        Point startPoint = currentStroke.StylusPoints[0].ToPoint();
-                        Point endPoint = currentStroke.StylusPoints[currentStroke.StylusPoints.Count - 1].ToPoint();
-
-                        bool shouldStraighten = ShouldStraightenLine(currentStroke);
-                        if (shouldStraighten && Settings.Canvas.LineEndpointSnapping && (Settings.InkToShape.IsInkToShapeRectangle || Settings.InkToShape.IsInkToShapeTriangle))
-                        {
-                            var snapped = GetSnappedEndpoints(startPoint, endPoint);
-                            if (snapped != null)
-                            {
-                                startPoint = snapped[0];
-                                endPoint = snapped[1];
-                            }
-                        }
-
-                        if (shouldStraighten)
-                        {
-                            StylusPointCollection straightLinePoints = CreateStraightLine(startPoint, endPoint);
-                            var straightStroke = new Stroke(straightLinePoints)
-                            {
-                                DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone()
-                            };
-                            SetNewBackupOfStroke();
-                            _currentCommitType = CommitReason.ShapeRecognition;
-                            inkCanvas.Strokes.Remove(currentStroke);
-                            inkCanvas.Strokes.Add(straightStroke);
-                            _currentCommitType = CommitReason.UserInput;
-                            if (newStrokes.Contains(currentStroke))
-                            {
-                                newStrokes.Remove(currentStroke);
-                                newStrokes.Add(straightStroke);
-                            }
-                            currentStroke = straightStroke;
-                        }
-                    }
-                    
-                    _stopTimingTriggered = false;
-                    _stopTimingDisable = true;
+                    if (TryApplyPendingInkStraighten(e.Stroke)) return;
                 }
-                else if (Settings.InkToShape.IsInkToShapeEnabled && !Environment.Is64BitProcess)
+                catch { }
+
+                if (Settings.InkToShape.IsInkToShapeEnabled && !Environment.Is64BitProcess)
                 {
                     void InkToShapeProcess()
                     {

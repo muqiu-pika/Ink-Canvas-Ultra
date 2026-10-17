@@ -225,8 +225,18 @@ namespace Ink_Canvas
                     // 避免原先"先移除预览再 await 5ms 再加真笔迹"造成的停笔瞬间墨迹消失再出现的闪烁。
                     if (strokeCollection != null && strokeCollection.Count > 0)
                     {
+                        // 顿笔拉直延迟提交：已触发的会话在收笔时直接提交直线并丢弃原始预览笔迹
+                        //（参考 Artistry 的 TryCommitDeferredInkStraightenByPointer 集成方式）
+                        var deferredStraightenStrokes = new HashSet<Stroke>();
                         foreach (var s in strokeCollection)
                         {
+                            bool committedByStraighten = false;
+                            try { committedByStraighten = TryCommitDeferredInkStraightenByPointer(stylusDeviceId, s); } catch { }
+                            if (committedByStraighten)
+                            {
+                                deferredStraightenStrokes.Add(s);
+                                continue;
+                            }
                             inkCanvas.Strokes.Add(s);
                         }
 
@@ -237,6 +247,7 @@ namespace Ink_Canvas
 
                         foreach (var s in strokeCollection)
                         {
+                            if (deferredStraightenStrokes.Contains(s)) continue; // 直线已由拉直会话提交
                             try
                             {
                                 inkCanvas_StrokeCollected(inkCanvas, new InkCanvasStrokeCollectedEventArgs(s));
@@ -620,14 +631,6 @@ namespace Ink_Canvas
                 {
                     iniP = e.GetTouchPoint(inkCanvas).Position;
                 }
-                if (Settings.Canvas.StopTimingStraighten)
-                {
-                    _stopTimingPoint = iniP;
-                    _stopTiming = DateTime.Now;
-                    _stopTimingDisable = false;
-                    _stopTimingPoints.Clear();
-                    _stopTimingPoints.Add(_stopTimingPoint);
-                }
                 if (drawingShapeMode == 9 && isFirstTouchCuboid == false)
                 {
                     MouseTouchMove(iniP);
@@ -764,15 +767,9 @@ namespace Ink_Canvas
                     centerPoint = touchPoint.Position;
 
                     lastTouchDownStrokeCollection = inkCanvas.Strokes.Clone();
-                    
-                    if (Settings.Canvas.StopTimingStraighten)
-                    {
-                        _stopTimingPoint = touchPoint.Position;
-                        _stopTiming = DateTime.Now;
-                        _stopTimingDisable = false;
-                        _stopTimingPoints.Clear();
-                        _stopTimingPoints.Add(_stopTimingPoint);
-                    }
+
+                    // 顿笔拉直改由 MW_InkStraighten 的会话机制管理（inkCanvas_StylusDownForStraighten），
+                    // 这里不再维护旧的事后检测状态
                 }
                 if (dec.Count > 1 || isSingleFingerDragMode || !Settings.Gesture.IsEnableTwoFingerGesture)
                 {

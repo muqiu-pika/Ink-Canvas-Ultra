@@ -747,41 +747,10 @@ namespace Ink_Canvas
 
         private void MouseTouchMove(Point endP)
         {
-            // 停顿检测逻辑
-            if (Settings.Canvas.StopTimingStraighten && !_stopTimingDisable)
-            {
-                _stopTimingPoints.Add(endP);
-                
-                double distance = Math.Sqrt(
-                    (endP.X - _stopTimingPoint.X) * (endP.X - _stopTimingPoint.X) + 
-                    (endP.Y - _stopTimingPoint.Y) * (endP.Y - _stopTimingPoint.Y));
-                
-                if (distance > Settings.Canvas.StopTimingError)
-                {
-                    _stopTimingPoint = endP;
-                    _stopTiming = DateTime.Now;
-                }
-                else if ((DateTime.Now - _stopTiming).TotalMilliseconds >= Settings.Canvas.StopTimingThresholdMs)
-                {
-                    // 停顿时间达到阈值，触发拉直
-                    if (_stopTimingPoints.Count >= 2)
-                    {
-                        Point startPoint = _stopTimingPoints[0];
-                        Point endPoint = _stopTimingPoints[_stopTimingPoints.Count - 1];
-                        
-                        double lineLength = Math.Sqrt(
-                            (endPoint.X - startPoint.X) * (endPoint.X - startPoint.X) + 
-                            (endPoint.Y - startPoint.Y) * (endPoint.Y - startPoint.Y));
-                        
-                        // 检查最小长度要求
-                        if (lineLength >= Settings.Canvas.AutoStraightenLineThreshold)
-                        {
-                            _stopTimingTriggered = true;
-                        }
-                    }
-                }
-            }
-            
+            // 顿笔拉直已改为实时会话式实现（MW_InkStraighten.cs）：
+            // 检测挂接在 inkCanvas 的 Stylus 事件与窗口 Preview 抬笔兜底上，
+            // 不再依赖此处由鼠标/触摸移动驱动的"事后"停顿检测。
+
             List<System.Windows.Point> pointList;
             StylusPointCollection point;
             Stroke stroke;
@@ -1722,17 +1691,11 @@ namespace Ink_Canvas
             {
                 UpdateInputActivityTimestamp();
                 isMouseDown = true;
+                // 顿笔拉直：鼠标路径会话入口（笔提升的鼠标事件在内部跳过，由 Stylus 会话接管）
+                HandleMouseStraightenDown(e);
                 if (NeedUpdateIniP())
                 {
                     iniP = e.GetPosition(inkCanvas);
-                }
-                if (Settings.Canvas.StopTimingStraighten)
-                {
-                    _stopTimingPoint = e.GetPosition(inkCanvas);
-                    _stopTiming = DateTime.Now;
-                    _stopTimingDisable = false;
-                    _stopTimingPoints.Clear();
-                    _stopTimingPoints.Add(_stopTimingPoint);
                 }
             }
             catch (Exception ex)
@@ -1745,6 +1708,8 @@ namespace Ink_Canvas
         {
             try
             {
+                // 顿笔拉直：鼠标路径会话更新（内部自判左键按下，无需 isMouseDown 前置）
+                HandleMouseStraightenMove(e);
                 if (isMouseDown)
                 {
                     MouseTouchMove(e.GetPosition(inkCanvas));
@@ -1761,6 +1726,8 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
+                // 顿笔拉直：鼠标路径会话结束
+                HandleMouseStraightenUp(e);
                 if (drawingShapeMode == 5)
             {
                 Circle circle = new Circle(new Point(), 0, lastTempStroke);
