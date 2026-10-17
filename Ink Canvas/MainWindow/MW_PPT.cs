@@ -715,6 +715,41 @@ namespace Ink_Canvas
                 return;
             }
             isEnteredSlideShowEndEvent = true;
+
+            // 阶段一（UI）：先复位放映 UI 并退出画板模式。
+            // 若在画板模式下结束放映，画布此刻是白板墨迹（批注墨迹已由进入画板时的
+            // SaveStrokes(true) 暂存到 TimeMachineHistories[0]）；必须先退出画板模式把
+            // 批注墨迹恢复到画布，随后的自动保存捕获的才是批注笔迹——
+            // 否则白板墨迹会覆盖演示文稿的页笔迹缓存（"画板状态下结束放映，保存的是画板墨迹"）。
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                _isPptSlideShowActive = false;
+                _isRestoringDesktopStrokesAfterPpt = true;
+                try
+                {
+                    ResetTouchState();
+
+                    //isPresentationHaveBlackSpace = false;
+
+                    //BtnPPTSlideShow.Visibility = Visibility.Visible;
+                    BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
+                    BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
+                    PPTNavigationBottomLeft.Visibility = Visibility.Collapsed;
+                    PPTNavigationBottomRight.Visibility = Visibility.Collapsed;
+                    PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
+                    PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
+
+                    if (currentMode != 0)
+                    {
+                        ImageBlackboard_Click(null, null);
+                    }
+                }
+                finally
+                {
+                    _isRestoringDesktopStrokesAfterPpt = false;
+                }
+            });
+
             if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
             {
                 string safePresentationName;
@@ -755,29 +790,12 @@ namespace Ink_Canvas
                 SaveStrokeCacheToFolder(folderPath);
             }
 
+            // 阶段二（UI）：清空画布并恢复放映开始前备份的桌面墨迹
             Application.Current.Dispatcher.Invoke(() =>
             {
-                _isPptSlideShowActive = false;
                 _isRestoringDesktopStrokesAfterPpt = true;
                 try
                 {
-                    ResetTouchState();
-
-                    //isPresentationHaveBlackSpace = false;
-
-                    //BtnPPTSlideShow.Visibility = Visibility.Visible;
-                    BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
-                    BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
-                    PPTNavigationBottomLeft.Visibility = Visibility.Collapsed;
-                    PPTNavigationBottomRight.Visibility = Visibility.Collapsed;
-                    PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
-                    PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
-
-                    if (currentMode != 0)
-                    {
-                        ImageBlackboard_Click(null, null);
-                    }
-
                     // Clear current PPT slide strokes before potentially restoring desktop strokes
                     ClearStrokes(true);
                     timeMachine.ClearStrokeHistory();
@@ -1072,13 +1090,19 @@ namespace Ink_Canvas
 
             Application.Current.Dispatcher.Invoke(() =>
             {
-                MemoryStream ms = new MemoryStream();
-                inkCanvas.Strokes.Save(ms);
-                ms.Position = 0;
-                // 离开页的笔迹按该页 SlideID 缓存，插入/删除页后仍能正确对应。
-                _strokeCacheBySlideId[GetStrokeCacheKey(leavingSlideID, oldPosition)] = ms;
+                // 画板模式下画布是白板墨迹（批注墨迹已由进入画板时的 SaveStrokes(true) 暂存到
+                // TimeMachineHistories[0]），不能把画布内容缓存为放映页笔迹，
+                // 否则白板墨迹会污染演示文稿的页笔迹缓存与自动截图。
+                if (currentMode == 0)
+                {
+                    MemoryStream ms = new MemoryStream();
+                    inkCanvas.Strokes.Save(ms);
+                    ms.Position = 0;
+                    // 离开页的笔迹按该页 SlideID 缓存，插入/删除页后仍能正确对应。
+                    _strokeCacheBySlideId[GetStrokeCacheKey(leavingSlideID, oldPosition)] = ms;
+                }
 
-                if (inkCanvas.Strokes.Count > Settings.Automation.MinimumAutomationStrokeNumber && Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint && !_isPptClickingBtnTurned)
+                if (currentMode == 0 && inkCanvas.Strokes.Count > Settings.Automation.MinimumAutomationStrokeNumber && Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint && !_isPptClickingBtnTurned)
                     SavePPTScreenshot(presentationName + "/" + newPosition);
                 _isPptClickingBtnTurned = false;
 

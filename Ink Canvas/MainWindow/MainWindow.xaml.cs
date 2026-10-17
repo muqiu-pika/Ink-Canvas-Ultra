@@ -5176,7 +5176,8 @@ namespace Ink_Canvas
         // 摄像头控制按钮功能已移除，仅保留设备选择功能
 
         // 插入摄像头画面到白板
-        public async void InsertCameraFrameToCanvas()
+        // 注意：方法体没有任何 await（原先的 async 修饰会在部分编译器配置下报 CS1998），保持同步
+        public void InsertCameraFrameToCanvas()
         {
             if (cameraDeviceManager == null) return;
 

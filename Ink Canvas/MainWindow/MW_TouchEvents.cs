@@ -491,7 +491,6 @@ namespace Ink_Canvas
         int lastTouchDownTime = 0, lastTouchUpTime = 0;
 
         Point iniP = new Point(0, 0);
-        bool isLastTouchEraser = false;
         private bool forcePointEraser = true;
 
         /// <summary>
@@ -641,11 +640,16 @@ namespace Ink_Canvas
                 if ((Settings.Advanced.TouchMultiplier != 0 || !Settings.Advanced.IsSpecialScreen)
                     && (boundsWidth > BoundsWidth))
                 {
-                    isLastTouchEraser = true;
                     if (drawingShapeMode == 0 && forceEraser) return;
                     // 手掌误触保护：正在用笔书写（或刚写完）时的宽触点视为手掌/手指误触，
                     // 不切橡皮擦，避免正在写的笔迹被立即擦除（“写着写着突然变成橡皮擦”）
-                    if (ShouldIgnoreTouchAsPalm()) { isLastTouchEraser = false; return; }
+                    if (ShouldIgnoreTouchAsPalm()) return;
+                    // 图形绘制中：画布上的触点是画图输入，不能被"宽触点手指擦除"劫持成橡皮擦。
+                    // 否则选中图形工具后用手画图，落笔即被切成 EraseByPoint/EraseByStroke、
+                    // 画布停在橡皮擦状态，表现为"绘制图形时一直是橡皮擦状态"（inkCanvas_TouchMove
+                    // 的图形分支原先还会因此提前返回、连预览都不出，该提前返回已一并移除）。
+                    // 这里按画图输入放行：EditingMode 维持 None，由 inkCanvas_TouchMove 正常出图。
+                    if (drawingShapeMode != 0) return;
                     // 记录擦除前的工具（手指擦除是一次性手势，抬起后恢复），避免画布此后一直是橡皮擦
                     RecordFingerEraserMode();
                     double EraserThresholdValue = Settings.Startup.IsEnableNibMode ? Settings.Advanced.NibModeBoundsWidthThresholdValue : Settings.Advanced.FingerModeBoundsWidthThresholdValue;
@@ -662,7 +666,6 @@ namespace Ink_Canvas
                         // 注意：dec.Count 在 TouchDown 事件中可能还未更新，因此不依赖它做判断
                         if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible && currentMode != 1 && inkCanvas.Strokes.Count == 0 && Settings.PowerPointSettings.IsEnableFingerGestureSlideShowControl)
                         {
-                            isLastTouchEraser = false;
                             inkCanvas.EditingMode = InkCanvasEditingMode.GestureOnly;
                             inkCanvas.Opacity = 0.1;
                         }
@@ -675,7 +678,6 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    isLastTouchEraser = false;
                     inkCanvas.EraserShape = forcePointEraser ? new EllipseStylusShape(50, 50) : new EllipseStylusShape(5, 5);
                     if (forceEraser) return;
                     // 保持选择状态：当前处于选择模式时不强行切回笔

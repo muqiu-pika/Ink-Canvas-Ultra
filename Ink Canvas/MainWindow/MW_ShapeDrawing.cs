@@ -710,10 +710,11 @@ namespace Ink_Canvas
                 if (isSingleFingerDragMode) return;
                 if (drawingShapeMode != 0)
                 {
-                    if (isLastTouchEraser)
-                    {
-                        return;
-                    }
+                    // 注意：此处不能再因 isLastTouchEraser 提前返回。该标记只在"普通工具 + 宽触点
+                    // 手指擦除"场景有意义；图形工具激活时画布触点是画图输入（Main_Grid_TouchDown 已
+                    // 按图形输入放行并复位该标记）。若保留此提前返回，一旦该标记残留（如先手指擦除、
+                    // 再切图形工具，或多指书写路径不重置该标记），图形就会画不出来且画布停在橡皮擦状态。
+                    // 真正想中止本次图形预览的语义由 isWaitUntilNextTouchDown / dec.Count > 1 表达。
                     if (isWaitUntilNextTouchDown) return;
                     if (dec.Count > 1)
                     {
