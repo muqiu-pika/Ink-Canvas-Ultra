@@ -1,5 +1,6 @@
 using Ink_Canvas.Helpers;
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Ink;
 
@@ -15,21 +16,82 @@ namespace Ink_Canvas
         int CurrentWhiteboardIndex = 1, WhiteboardTotalCount = 1;
         TimeMachineHistory[][] TimeMachineHistories = new TimeMachineHistory[101][];
 
+        /// <summary>
+        /// 换页/切模式前的页面保存：页面历史数组 = 「内容基线」+「原始撤销栈」两段。
+        ///
+        /// 背景：普通白板页不落盘，<see cref="TimeMachineHistories"/>[page] 就是内容存储本身，
+        /// RestoreStrokes 靠回放它重建画布。而撤销栈有 MaxHistoryCount=100 的上限
+        /// （超限即从头部丢弃最早记录），当一页累计超过 100 条历史时
+        /// （>100 笔墨迹，或墨迹夹杂移动/擦除/图形识别），早期记录已被裁掉，
+        /// 翻页回来只回放得到最后 ≤100 条 —— 之前的墨迹永久丢失。
+        ///
+        /// 因此保存时先构建「内容基线」：把当前画布上全部存活笔迹与全部子元素包成
+        /// 带 IsContentBaseline 标记的记录放在数组头部，再拼接原始撤销栈。
+        /// 恢复时先回放基线完整重建画布（不受 100 条上限影响），再仅导入原始撤销栈
+        /// 供撤销/重做使用（撤销深度与上限策略保持不变）。
+        /// 基线只引用画布上仍存在的对象，不会钉住已擦除的笔迹/已删除的元素，
+        /// 因此不破坏 100 条上限原本的内存保护意图。
+        /// </summary>
         private void SaveStrokes(bool isBackupMain = false)
         {
-            if (isBackupMain)
-            {
-                var timeMachineHistory = timeMachine.ExportTimeMachineHistory();
-                TimeMachineHistories[0] = timeMachineHistory;
-                timeMachine.ClearStrokeHistory();
+            int pageIndex = isBackupMain ? 0 : CurrentWhiteboardIndex;
 
-            }
-            else
+            // 上次恢复时导入撤销栈的基线条目带 IsContentBaseline 标记，导出时剔除，
+            // 避免每轮翻页都把旧基线重复拼进新数组（线性增长）。
+            var exported = timeMachine.ExportTimeMachineHistory();
+            var rawHistory = new List<TimeMachineHistory>();
+            foreach (var item in exported)
             {
-                var timeMachineHistory = timeMachine.ExportTimeMachineHistory();
-                TimeMachineHistories[CurrentWhiteboardIndex] = timeMachineHistory;
-                timeMachine.ClearStrokeHistory();
+                if (item != null && item.IsContentBaseline) continue;
+                rawHistory.Add(item);
             }
+
+            var baseline = BuildCurrentPageContentBaseline();
+            var pageHistory = new TimeMachineHistory[baseline.Length + rawHistory.Count];
+            baseline.CopyTo(pageHistory, 0);
+            rawHistory.CopyTo(pageHistory, baseline.Length);
+
+            TimeMachineHistories[pageIndex] = pageHistory;
+            timeMachine.ClearStrokeHistory();
+        }
+
+        /// <summary>
+        /// 构建当前页的「内容基线」：全部存活笔迹打成一条 UserInput 记录，
+        /// 全部子元素各打一条 ElementInsert 记录，均标记 IsContentBaseline。
+        /// 只做引用拷贝（不深拷），且仅引用画布上仍存在的对象。
+        /// </summary>
+        private TimeMachineHistory[] BuildCurrentPageContentBaseline()
+        {
+            var baseline = new List<TimeMachineHistory>();
+            try
+            {
+                if (inkCanvas == null) return baseline.ToArray();
+
+                if (inkCanvas.Strokes != null && inkCanvas.Strokes.Count > 0)
+                {
+                    baseline.Add(new TimeMachineHistory(
+                        new StrokeCollection(inkCanvas.Strokes),
+                        TimeMachineHistoryType.UserInput, false)
+                    { IsContentBaseline = true });
+                }
+
+                if (inkCanvas.Children != null)
+                {
+                    foreach (UIElement child in inkCanvas.Children)
+                    {
+                        // 书写/触摸预览层的 VisualCanvas 是临时可视化对象，不是页面内容，不能进基线
+                        if (child is Helpers.VisualCanvas) continue;
+                        baseline.Add(new TimeMachineHistory(
+                            child, TimeMachineHistoryType.ElementInsert, false)
+                        { IsContentBaseline = true });
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"构建页面内容基线失败: {ex.Message}", LogHelper.LogType.Warning);
+            }
+            return baseline.ToArray();
         }
 
         private void ClearStrokes(bool isErasedByCode)
@@ -59,23 +121,38 @@ namespace Ink_Canvas
         {
             try
             {
-                if (isBackupMain)
+                var pageHistory = isBackupMain ? TimeMachineHistories[0] : TimeMachineHistories[CurrentWhiteboardIndex];
+                if (pageHistory == null) return; //防止白板打开后不居中
+
+                // 第一段：先回放「内容基线」，完整重建画布（含被撤销栈 100 条上限裁掉的早期墨迹）。
+                // 全程处于 CodeInput：进入白板/换页时模式切换过渡窗口已开启，若不标记，
+                // 恢复的笔迹会被 StrokesOnStrokesChanged 的残留笔画拦截误删（白板笔迹消失）。
+                // 逐条 try/catch：单条记录异常不应中断整页恢复。
+                foreach (var item in pageHistory)
                 {
-                    if (TimeMachineHistories[0] == null) return;
-                    if (!timeMachine.ImportTimeMachineHistory(TimeMachineHistories[0])) return;
-                    foreach (var item in TimeMachineHistories[0])
+                    if (item == null || !item.IsContentBaseline) continue;
+                    try { ApplyHistoryToCanvas(item); }
+                    catch (Exception ex)
                     {
-                        ApplyHistoryToCanvas(item);
+                        LogHelper.WriteLogToFile($"回放页面内容基线失败: {ex.Message}", LogHelper.LogType.Warning);
                     }
+                }
+
+                // 第二段：仅导入「原始撤销栈」供撤销/重做使用，不再回放到画布——
+                // 基线已完整重建画布，重复回放既无必要，也会把同一批对象再施放一遍。
+                var rawHistory = new List<TimeMachineHistory>();
+                foreach (var item in pageHistory)
+                {
+                    if (item != null && item.IsContentBaseline) continue;
+                    rawHistory.Add(item);
+                }
+                if (rawHistory.Count > 0)
+                {
+                    timeMachine.ImportTimeMachineHistory(rawHistory.ToArray());
                 }
                 else
                 {
-                    if (TimeMachineHistories[CurrentWhiteboardIndex] == null) return; //防止白板打开后不居中
-                    if (!timeMachine.ImportTimeMachineHistory(TimeMachineHistories[CurrentWhiteboardIndex])) return;
-                    foreach (var item in TimeMachineHistories[CurrentWhiteboardIndex])
-                    {
-                        ApplyHistoryToCanvas(item);
-                    }
+                    timeMachine.ClearStrokeHistory();
                 }
             }
             catch { }
@@ -222,7 +299,8 @@ namespace Ink_Canvas
         /// 把页码范围之外的历史槽位置 null，释放删除页面后残留的引用。
         ///
         /// 重要：TimeMachineHistories 对普通白板页而言就是内容存储本身——
-        /// RestoreStrokes 靠回放历史重建画布，而普通页并不落盘
+        /// RestoreStrokes 先回放数组头部的「内容基线」记录（IsContentBaseline）重建画布，
+        /// 再导入其余「原始撤销栈」记录供撤销/重做，而普通页并不落盘
         /// （只有文档页会经 SaveDocumentPageIfNeeded 写入磁盘，也正因如此换页时
         ///  只有 pageDocumentMapping 中的页才会被置 null）。
         /// 因此只能清理超出 WhiteboardTotalCount 的槽位，范围内的页一律不能动，否则会丢内容。

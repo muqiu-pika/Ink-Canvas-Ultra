@@ -182,20 +182,6 @@ namespace Ink_Canvas
         /// </summary>
         private bool IsShapeDrawingToolActive => drawingShapeMode != 0;
 
-        /// <summary>
-        /// 收起两个「墨迹选项」面板（浮动栏 PenPalette 与白板 BoardPenPalette），
-        /// 不受「固定显示」影响 —— 激光笔书写时面板必须让开画布。
-        /// </summary>
-        private void HidePenPalettesForLaser()
-        {
-            try
-            {
-                AnimationsHelper.HideWithSlideAndFade((UIElement)PenPalette);
-                AnimationsHelper.HideWithSlideAndFade((UIElement)BoardPenPalette);
-            }
-            catch { }
-        }
-
         /// <summary>判断事件源是否位于画板区域（inkCanvas 或选择覆盖层），排除浮动栏/工具栏等 UI</summary>
         private bool IsInInkCanvasArea(object originalSource)
         {
@@ -239,13 +225,13 @@ namespace Ink_Canvas
                 // 激光笔书写时同样自动收起二级菜单（含「墨迹选项」），与普通书写时的行为一致。
                 // 激光笔在 Preview 阶段把输入标记 Handled，墨迹事件不会产生，
                 // 因此不会走到 StrokesOnStrokesChanged / Main_Grid_TouchDown 里的自动收起逻辑，需要在这里补上。
+                // 注意不要在这里额外强制收起「墨迹选项」：HideSubPanels 已按「固定显示」（图钉置顶）
+                // 跳过置顶的面板，这与普通书写的行为一致；激光轨迹绘制层位于浮动栏之下，
+                // 置顶面板悬浮在轨迹上方不会拦截输入，强制收起会让「画笔颜色置顶」失效。
                 if (!isHidingSubPanelsWhenInking)
                 {
                     isHidingSubPanelsWhenInking = true;
                     HideSubPanels();
-                    // HideSubPanels 会跳过「固定显示」的「墨迹选项」，但激光书写时该面板必须让开画布，
-                    // 因此这里再无条件收起一次（含浮动栏与白板两个面板）
-                    HidePenPalettesForLaser();
                 }
 
                 EndLaserTrail(key);

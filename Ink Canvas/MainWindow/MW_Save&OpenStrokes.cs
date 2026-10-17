@@ -1105,7 +1105,12 @@ namespace Ink_Canvas
                 }
                 else if (item.CommitType == TimeMachineHistoryType.ElementInsert)
                 {
-                    if (!item.StrokeHasBeenCleared) target.Children.Add(item.Element);
+                    // 去重：内容基线与原始撤销栈可能引用同一个元素（基线先回放添加过），
+                    // 无守卫重复 Add 会抛“已存在逻辑父级”异常导致该元素从存档画布中缺失
+                    if (!item.StrokeHasBeenCleared)
+                    {
+                        if (!target.Children.Contains(item.Element)) target.Children.Add(item.Element);
+                    }
                     else target.Children.Remove(item.Element);
                 }
             }

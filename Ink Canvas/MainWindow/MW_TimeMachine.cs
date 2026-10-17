@@ -337,7 +337,9 @@ namespace Ink_Canvas
                 }
                 if (!item.StrokeHasBeenCleared)
                 {
-                    inkCanvas.Children.Add(item.Element);
+                    // 去重：内容基线与原始撤销栈可能引用同一个元素（基线已回放添加过），
+                    // 无守卫重复 Add 会抛“已存在逻辑父级”异常，在存档回放里直接中断整条记录
+                    if (!inkCanvas.Children.Contains(item.Element)) inkCanvas.Children.Add(item.Element);
                 }
                 else
                 {

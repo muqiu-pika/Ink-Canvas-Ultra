@@ -173,6 +173,15 @@ namespace Ink_Canvas.Helpers
     {
         public TimeMachineHistoryType CommitType;
         public bool StrokeHasBeenCleared = false;
+        /// <summary>
+        /// 是否为「翻页内容基线」记录。
+        /// 换页保存时会把当前画布的完整快照（全部存活笔迹 + 全部子元素）包成若干条
+        /// 带此标记的记录，置于页面历史数组的头部，随后拼接原始撤销栈。
+        /// 恢复时先回放基线完整重建画布（不受撤销栈 MaxHistoryCount 上限影响），
+        /// 再仅导入原始撤销栈供撤销/重做使用。导出换页保存时要剔除旧的基线条目，
+        /// 避免每轮翻页重复叠加。
+        /// </summary>
+        public bool IsContentBaseline = false;
         public StrokeCollection CurrentStroke;
         public StrokeCollection ReplacedStroke;
         public UIElement Element;
