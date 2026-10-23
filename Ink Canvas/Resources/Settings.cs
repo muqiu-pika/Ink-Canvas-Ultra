@@ -78,6 +78,14 @@ namespace Ink_Canvas
         public int StopTimingThresholdMs { get; set; } = 600;
         [JsonProperty("stopTimingError")]
         public double StopTimingError { get; set; } = 5.0;
+
+        /// <summary>
+        /// 默认画笔颜色槽位（启动时初始选中色）。
+        /// 0-8 普通色 / 101-106 荧光笔色；-1 表示沿用内置默认
+        /// （浮动栏默认红、白板默认黑/白随背景），由「自定义画笔颜色」插件在设置中调整。
+        /// </summary>
+        [JsonProperty("defaultPenColorIndex")]
+        public int DefaultPenColorIndex { get; set; } = -1;
     }
 
     public enum OptionalOperation
@@ -343,7 +351,7 @@ namespace Ink_Canvas
         public int MinimumAutomationStrokeNumber { get; set; } = 0;
 
         [JsonProperty("autoSavedStrokesLocation")]
-        public string AutoSavedStrokesLocation = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Ink Canvas";
+        public string AutoSavedStrokesLocation = App.DefaultAutoSavedStrokesLocation;
 
         [JsonProperty("autoDelSavedFiles")]
         public bool AutoDelSavedFiles = false;

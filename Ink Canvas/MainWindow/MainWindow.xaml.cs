@@ -75,6 +75,10 @@ namespace Ink_Canvas
             // 顿笔拉直：Stylus 会话事件 + 窗口 Preview 抬笔兜底（MW_InkStraighten.cs）
             InitializeInkStraighten();
 
+            // 墨迹选项色块的修改颜色交互：鼠标右键 / 触摸长按 → PenSlotEditRequested 事件
+            // （由「自定义画笔颜色」插件响应；未安装插件时无人订阅，行为与旧版一致）
+            InitializePenPaletteEditGestures();
+
             // 手写笔活动监听：用于手掌误触保护（用笔书写时的手指/手掌触点不切橡皮擦）
             InitializePenActivityTracking();
 
@@ -295,6 +299,46 @@ namespace Ink_Canvas
                     SetToolbarHidden = (placement, hiddenIds) =>
                     {
                         Dispatcher.Invoke(() => SetToolbarHiddenInternal(placement, hiddenIds));
+                    },
+                    // 画笔颜色调色板（供「自定义画笔颜色」插件调用；不装插件时走内置颜色）
+                    GetPenColorSlots = () =>
+                    {
+                        return Dispatcher.Invoke((Func<IReadOnlyList<Plugins.PenColorSlotInfo>>)BuildPenColorSlots);
+                    },
+                    SetPenColorSlot = (slotIndex, color) =>
+                    {
+                        return Dispatcher.Invoke(() =>
+                        {
+                            if (!IsValidPenColorSlot(slotIndex)) return false;
+                            SetCustomPenColor(slotIndex, color);
+                            return true;
+                        });
+                    },
+                    ResetPenColorSlot = (slotIndex) =>
+                    {
+                        Dispatcher.Invoke(() => ResetCustomPenColor(slotIndex));
+                    },
+                    ResetPenColors = () =>
+                    {
+                        Dispatcher.Invoke(() => ResetAllCustomPenColors());
+                    },
+                    GetCurrentPenColorIndex = () =>
+                    {
+                        return Dispatcher.Invoke(() => inkColor);
+                    },
+                    SelectPenColor = (slotIndex) =>
+                    {
+                        return Dispatcher.Invoke(() =>
+                        {
+                            if (!IsValidPenColorSlot(slotIndex)) return false;
+                            CheckLastColor(slotIndex);
+                            return true;
+                        });
+                    },
+                    GetDefaultPenColorIndex = () => Settings.Canvas?.DefaultPenColorIndex ?? -1,
+                    SetDefaultPenColorIndex = (slotIndex) =>
+                    {
+                        Dispatcher.Invoke(() => ApplyDefaultPenColorSetting(slotIndex));
                     }
                 };
 
@@ -359,6 +403,9 @@ namespace Ink_Canvas
                 Dispatcher.Invoke(() =>
                 {
                     UpdatePluginBasedButtonVisibility();
+                    // 「自定义画笔颜色」插件的安装/卸载/启用/禁用会改变「墨迹选项」
+                    // 深/浅色切换按钮的形态（设置颜色入口 ↔ 主题切换），及时刷新
+                    try { UpdateColorThemeSwitchButtonVisual(); } catch { }
                     // 若侧栏已打开，同步刷新其模式
                     if (VideoPresenterSidebar != null && VideoPresenterSidebar.Visibility == Visibility.Visible)
                     {
@@ -498,6 +545,18 @@ namespace Ink_Canvas
         public static string settingsFileName = "Settings.json";
         bool isLoaded = false;
         bool _isLoadingSettings = false;
+
+        /// <summary>
+        /// 设置是否已完成本轮载入（LoadSettings 收尾置 true）。
+        /// 静态字段 Settings 在类型初始化时就是一份"全新默认值"，启动早期（插件构造期
+        /// 初始化、控件事件等）若触发 SaveSettingsToFile，会把这份默认值覆盖到用户的
+        /// Settings.json 上——表现为"每次启动都弹初始化向导、设置全部回到默认"。
+        /// 因此启动早期的保存必须被拦截；正规载入完成后才允许落盘。
+        /// </summary>
+        internal static bool _settingsReadyForSave = false;
+
+        /// <summary>「启动早期保存被拦截」日志只记一次，避免每次启动/每次保存刷日志</summary>
+        internal static bool _startupSaveBlockedLogged = false;
 
         // 拍照功能相关字段
         private ObservableCollection<CapturedImage> capturedPhotos = new ObservableCollection<CapturedImage>();
@@ -1236,6 +1295,10 @@ namespace Ink_Canvas
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // 构造期色块控件可能未就绪（挂载数为 0）：Loaded 后补挂「墨迹选项」色块的
+            // 右键/长按改色交互（内部幂等，已挂载过则直接返回）
+            InitializePenPaletteEditGestures();
+
             loadPenCanvas();
             //加载设置
             LoadSettings(true);

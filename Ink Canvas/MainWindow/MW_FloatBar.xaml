@@ -455,21 +455,58 @@
 
                                 Orientation="Vertical">
 
-                                <ui:FontIcon
+                                <!-- Grid 不要设固定 Height：隐藏浮动栏文字时 MW_SettingsToLoad 会把
+                                     Icon_Pen.Height 调成 32，Grid 必须随之长高，选中态蓝色底
+                                     （Pen_Icon.Background 的 ImageBrush）才能与其它按钮一致 -->
 
-                                    x:Name="Icon_Pen"
+                                <Grid
 
-                                    Width="30"
+                                    Width="30">
 
-                                    Height="22"
+                                    <ui:FontIcon
 
-                                    FontFamily="{StaticResource FluentIconFontFamily}"
+                                        x:Name="Icon_Pen"
 
-                                    FontSize="16"
+                                        Width="30"
 
-                                    Foreground="{DynamicResource FloatBarForeground}"
+                                        Height="22"
 
-                                    Glyph="&#xee56;" />
+                                        HorizontalAlignment="Center"
+
+                                        VerticalAlignment="Center"
+
+                                        FontFamily="{StaticResource FluentIconFontFamily}"
+
+                                        FontSize="16"
+
+                                        Foreground="{DynamicResource FloatBarForeground}"
+
+                                        Glyph="&#xee56;" />
+
+                                    <!-- 批注按钮显示画笔颜色：右下角色点始终显示当前笔色
+                                         （浅色/白色也能看见，描边自动取对比色），图标同时按笔色着色 -->
+
+                                    <Ellipse
+
+                                        x:Name="PenIconColorDot"
+
+                                        Width="8"
+
+                                        Height="8"
+
+                                        Margin="0,0,2,0"
+
+                                        HorizontalAlignment="Right"
+
+                                        VerticalAlignment="Bottom"
+
+                                        Fill="Red"
+
+                                        Stroke="#B0FFFFFF"
+
+                                        StrokeThickness="1" />
+
+                                </Grid>
 
                                 <TextBlock
 
@@ -1007,7 +1044,7 @@
 
                                                                                     Foreground="{DynamicResource FloatBarForeground}"
 
-                                                                                    Text="亮系" />
+                                                                                    Text="调整" />
 
                                                                             </Grid>
 

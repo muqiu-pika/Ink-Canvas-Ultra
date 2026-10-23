@@ -147,95 +147,30 @@ namespace Ink_Canvas
                 inkColor = lastBoardInkColor;
             }
 
-            if (inkColor == 101)
-            { // Highlighter Red
-                inkCanvas.DefaultDrawingAttributes.Color = Color.FromRgb(220, 38, 38);
-            }
-            else if (inkColor == 102)
-            { // Highlighter Orange
-                inkCanvas.DefaultDrawingAttributes.Color = Color.FromRgb(234, 88, 12);
-            }
-            else if (inkColor == 103)
-            { // Highlighter Yellow
-                inkCanvas.DefaultDrawingAttributes.Color = Color.FromRgb(234, 179, 8);
-            }
-            else if (inkColor == 104)
-            { // Highlighter Teal
-                inkCanvas.DefaultDrawingAttributes.Color = Color.FromRgb(13, 148, 136);
-            }
-            else if (inkColor == 105)
-            { // Highlighter Blue
-                inkCanvas.DefaultDrawingAttributes.Color = Color.FromRgb(37, 99, 235);
-            }
-            else if (inkColor == 106)
-            { // Highlighter Purple
-                inkCanvas.DefaultDrawingAttributes.Color = Color.FromRgb(147, 51, 234);
-            }
-            else if (isUselightThemeColor)
-            {
-                inkCanvas.DefaultDrawingAttributes.Color = inkColorLightThemeMapping[inkColor];
-            }
-            else
-            {
-                inkCanvas.DefaultDrawingAttributes.Color = inkColorDarkThemeMapping[inkColor];
-            }
-            if (isUselightThemeColor)
-            { // 亮系
-                // Red
-                BorderPenColorRed.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-                BoardBorderPenColorRed.Background = new SolidColorBrush(Color.FromRgb(239, 68, 68));
-                // Green
-                BorderPenColorGreen.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94));
-                BoardBorderPenColorGreen.Background = new SolidColorBrush(Color.FromRgb(34, 197, 94));
-                // Blue
-                BorderPenColorBlue.Background = new SolidColorBrush(Color.FromRgb(59, 130, 246));
-                BoardBorderPenColorBlue.Background = new SolidColorBrush(Color.FromRgb(59, 130, 246));
-                // Yellow
-                BorderPenColorYellow.Background = new SolidColorBrush(Color.FromRgb(250, 204, 21));
-                BoardBorderPenColorYellow.Background = new SolidColorBrush(Color.FromRgb(250, 204, 21));
-                // Pink ( Purple )
-                BorderPenColorPink.Background = new SolidColorBrush(Color.FromRgb(236, 72, 153));
-                BoardBorderPenColorPink.Background = new SolidColorBrush(Color.FromRgb(236, 72, 153));
-                // Teal
-                BorderPenColorTeal.Background = new SolidColorBrush(Color.FromRgb(20, 184, 166));
-                BoardBorderPenColorTeal.Background = new SolidColorBrush(Color.FromRgb(20, 184, 166));
-                // Orange
-                BorderPenColorOrange.Background = new SolidColorBrush(Color.FromRgb(249, 115, 22));
-                BoardBorderPenColorOrange.Background = new SolidColorBrush(Color.FromRgb(249, 115, 22));
+            // 统一解析当前落笔颜色：插件自定义色优先，其次内置主题色
+            // （荧光笔内置笔色、普通色亮/暗主题映射都收敛到 ResolvePenColor，见 MW_PenColorPalette.cs）
+            inkCanvas.DefaultDrawingAttributes.Color = ResolvePenColor(inkColor);
 
+            // 主题切换按钮的图标/文字（亮系时提示切到"暗系"，反之亦然）
+            if (isUselightThemeColor)
+            {
                 ColorThemeSwitchIcon.Glyph = "\uE708";
                 BoardColorThemeSwitchIcon.Glyph = "\uE708";
                 ColorThemeSwitchTextBlock.Text = "暗系";
             }
             else
-            { // 暗系
-                // Red
-                BorderPenColorRed.Background = new SolidColorBrush(Color.FromRgb(220, 38, 38));
-                BoardBorderPenColorRed.Background = new SolidColorBrush(Color.FromRgb(220, 38, 38));
-                // Green
-                BorderPenColorGreen.Background = new SolidColorBrush(Color.FromRgb(22, 163, 74));
-                BoardBorderPenColorGreen.Background = new SolidColorBrush(Color.FromRgb(22, 163, 74));
-                // Blue
-                BorderPenColorBlue.Background = new SolidColorBrush(Color.FromRgb(37, 99, 235));
-                BoardBorderPenColorBlue.Background = new SolidColorBrush(Color.FromRgb(37, 99, 235));
-                // Yellow
-                BorderPenColorYellow.Background = new SolidColorBrush(Color.FromRgb(234, 179, 8));
-                BoardBorderPenColorYellow.Background = new SolidColorBrush(Color.FromRgb(234, 179, 8));
-                // Pink ( Purple )
-                BorderPenColorPink.Background = new SolidColorBrush(Color.FromRgb(147, 51, 234));
-                BoardBorderPenColorPink.Background = new SolidColorBrush(Color.FromRgb(147, 51, 234));
-                // Teal
-                BorderPenColorTeal.Background = new SolidColorBrush(Color.FromRgb(13, 148, 136));
-                BoardBorderPenColorTeal.Background = new SolidColorBrush(Color.FromRgb(13, 148, 136));
-                // Orange
-                BorderPenColorOrange.Background = new SolidColorBrush(Color.FromRgb(234, 88, 12));
-                BoardBorderPenColorOrange.Background = new SolidColorBrush(Color.FromRgb(234, 88, 12));
-
-
+            {
                 ColorThemeSwitchIcon.Glyph = "\uE706";
                 BoardColorThemeSwitchIcon.Glyph = "\uE706";
                 ColorThemeSwitchTextBlock.Text = "亮系";
             }
+
+            // 应用调色板：浮动栏/白板栏各 9 个普通色块 + 6 个荧光笔色块，
+            // 并同步「批注」按钮的画笔颜色指示（色点 + 图标着色）
+            ApplyPenPaletteColors();
+
+            // 安装了「自定义画笔颜色」插件时，深/浅色切换按钮整体变为「设置颜色」入口
+            UpdateColorThemeSwitchButtonVisual();
             if (drawingAttributes != null && isLoaded)
             {
                 if (inkColor > 100)
@@ -362,20 +297,11 @@ namespace Ink_Canvas
         /// <summary>
         /// 按调色板索引取实际颜色：0-8 为普通颜色（随明暗主题映射），101-106 为荧光笔颜色。
         /// 索引非法时退化为 1（红）。激光笔颜色也复用这套索引，保证与用户点选的色块所见即所得。
+        /// 自定义色优先（见 MW_PenColorPalette.ResolvePenColor）。
         /// </summary>
         private Color GetInkColorByIndex(int index)
         {
-            switch (index)
-            {
-                case 101: return Color.FromRgb(220, 38, 38);
-                case 102: return Color.FromRgb(234, 88, 12);
-                case 103: return Color.FromRgb(234, 179, 8);
-                case 104: return Color.FromRgb(13, 148, 136);
-                case 105: return Color.FromRgb(37, 99, 235);
-                case 106: return Color.FromRgb(147, 51, 234);
-            }
-            if (index < 0 || index > 8) index = 1;
-            return isUselightThemeColor ? inkColorLightThemeMapping[index] : inkColorDarkThemeMapping[index];
+            return ResolvePenColor(index);
         }
 
         private void CheckLastColor(int inkColor)
@@ -383,10 +309,11 @@ namespace Ink_Canvas
             StrokeCollection strokes = inkCanvas.GetSelectedStrokes();
             if (strokes.Count > 0)
             {
-                Color targetedColor = inkColorLightThemeMapping[inkColor];
+                // 选中笔迹的改色也用当前生效颜色（自定义色优先，与色块显示一致）
+                Color targetedColor = ResolvePenColor(inkColor);
                 if (!isUselightThemeColor)
                 {
-                    inkCanvas.DefaultDrawingAttributes.Color = inkColorDarkThemeMapping[inkColor];
+                    inkCanvas.DefaultDrawingAttributes.Color = ResolvePenColor(inkColor);
                 }
                 foreach (Stroke stroke in strokes)
                 {

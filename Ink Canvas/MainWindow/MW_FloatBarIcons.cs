@@ -1771,12 +1771,106 @@ namespace Ink_Canvas
 
         private void ColorThemeSwitch_MouseUp(object sender, RoutedEventArgs e)
         {
-            isUselightThemeColor = !isUselightThemeColor;
-            if (currentMode == 0)
+            // 深/浅色切换按钮已直接替换为「设置颜色」入口：
+            // 已安装「自定义画笔颜色」插件 → 直接跳转插件工坊内该插件的设置面板；
+            // 未安装 → 弹窗提示需要安装，「是」前往插件工坊，「否」仅关闭提示
+            if (IsPenColorsPluginActive())
             {
-                isDesktopUselightThemeColor = isUselightThemeColor;
+                OpenPenColorsPluginSettings();
+                return;
             }
-            CheckColorTheme();
+
+            ShowPenColorsPluginPrompt();
+        }
+
+        /// <summary>「自定义画笔颜色」插件是否活跃（安装+启用+加载）</summary>
+        private bool IsPenColorsPluginActive()
+        {
+            try { return Plugins.PluginHost.Instance?.IsPluginActive(PenColorsPluginId) == true; }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// 未安装「自定义画笔颜色」插件时的引导提示窗：
+        /// 「是」→ 打开插件工坊（安装/启用该插件）；「否」→ 仅关闭提示。
+        /// 色块右键/长按无人处理时也走此提示，保证用户明确知道“手势已识别、缺插件”。
+        /// </summary>
+        private void ShowPenColorsPluginPrompt()
+        {
+            try
+            {
+                var prompt = new PenColorsPluginPromptWindow(() =>
+                {
+                    OpenPluginWorkshopInternal();
+                });
+                prompt.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"显示插件安装提示失败: {ex.Message}", LogHelper.LogType.Error);
+            }
+        }
+
+        /// <summary>打开插件工坊（不指定插件，仅置前显示）</summary>
+        private void OpenPluginWorkshopInternal()
+        {
+            try
+            {
+                if (!System.IO.Directory.Exists(PluginDirectory))
+                    System.IO.Directory.CreateDirectory(PluginDirectory);
+
+                var settings = SettingsWindow;
+                if (settings != null) settings.Hide();
+
+                if (PluginWorkshopWindow.HasInstance)
+                {
+                    var existing = PluginWorkshopWindow.GetOrCreate(null);
+                    if (!existing.IsVisible) existing.Show();
+                    Helpers.PopupWindowLayerHelper.BringToFront(existing);
+                    return;
+                }
+
+                var workshop = PluginWorkshopWindow.GetOrCreate(null);
+                workshop.Show();
+                Helpers.PopupWindowLayerHelper.BringToFront(workshop);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"打开插件工坊失败: {ex.Message}", LogHelper.LogType.Error);
+                ShowNotificationAsync("打开插件工坊失败");
+            }
+        }
+
+        /// <summary>打开插件工坊并直接展开「自定义画笔颜色」插件的设置面板</summary>
+        private void OpenPenColorsPluginSettings()
+        {
+            try
+            {
+                if (!System.IO.Directory.Exists(PluginDirectory))
+                    System.IO.Directory.CreateDirectory(PluginDirectory);
+
+                var settings = SettingsWindow;
+                if (settings != null) settings.Hide();
+
+                if (PluginWorkshopWindow.HasInstance)
+                {
+                    var existing = PluginWorkshopWindow.GetOrCreate(null);
+                    if (!existing.IsVisible) existing.Show();
+                    existing.OpenPluginSettings(PenColorsPluginId);
+                    Helpers.PopupWindowLayerHelper.BringToFront(existing);
+                    return;
+                }
+
+                var workshop = PluginWorkshopWindow.GetOrCreate(null);
+                workshop.Show();
+                workshop.OpenPluginSettings(PenColorsPluginId);
+                Helpers.PopupWindowLayerHelper.BringToFront(workshop);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"打开自定义画笔颜色设置失败: {ex.Message}", LogHelper.LogType.Error);
+                ShowNotificationAsync("打开自定义画笔颜色设置失败");
+            }
         }
 
         private void EraserIcon_Click(object sender, RoutedEventArgs e)

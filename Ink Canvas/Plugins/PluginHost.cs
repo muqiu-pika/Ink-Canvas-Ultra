@@ -6,6 +6,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using Ink_Canvas.Helpers;
 using Newtonsoft.Json;
@@ -79,6 +80,8 @@ namespace Ink_Canvas.Plugins
         public event EventHandler<PluginElementSelectionChangedEventArgs> ElementSelectionChanged;
         public event EventHandler<PluginElementEventArgs> ElementRemoved;
         public event EventHandler<PluginElementEventArgs> ElementTransformed;
+        public event EventHandler PenColorsChanged;
+        public event EventHandler<PenSlotEditRequestedEventArgs> PenSlotEditRequested;
 
         /// <summary>已安装 plugin 列表或启用状态发生变化时触发，供插件工坊 UI 刷新</summary>
         public event EventHandler PluginListChanged;
@@ -501,6 +504,108 @@ namespace Ink_Canvas.Plugins
             ElementTransformed?.Invoke(this, new PluginElementEventArgs { Element = element });
         }
 
+        public void RaisePenColorsChanged()
+        {
+            try { PenColorsChanged?.Invoke(this, EventArgs.Empty); } catch { }
+        }
+
+        /// <summary>
+        /// 触发「墨迹选项」色块修改请求（鼠标右键 / 触摸长按）。
+        /// 返回是否有插件处理了该请求；无插件订阅时返回 false
+        /// ——不安装「自定义画笔颜色」插件时主程序据此弹安装引导（见 TryRaisePenSlotEditRequested）。
+        /// </summary>
+        public bool RaisePenSlotEditRequested(int slotIndex)
+        {
+            var handler = PenSlotEditRequested;
+            if (handler == null) return false;
+
+            var args = new PenSlotEditRequestedEventArgs { SlotIndex = slotIndex };
+            try { handler(this, args); }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("PenSlotEditRequested handler failed | " + ex.Message, LogHelper.LogType.Warning);
+            }
+
+            if (!args.Handled)
+            {
+                // 有监听者但未处理：记 Trace 便于排查，不打扰用户
+                LogHelper.WriteLogToFile($"色块修改请求未被处理（slot={slotIndex}）", LogHelper.LogType.Trace);
+            }
+            return args.Handled;
+        }
+
+        // ===== 画笔颜色调色板 =====
+
+        public IReadOnlyList<PenColorSlotInfo> GetPenColorSlots()
+        {
+            try
+            {
+                if (_opts.GetPenColorSlots != null) return _opts.GetPenColorSlots();
+            }
+            catch { }
+            return new List<PenColorSlotInfo>();
+        }
+
+        public bool SetPenColorSlot(int slotIndex, Color color)
+        {
+            try
+            {
+                if (_opts.SetPenColorSlot != null) return _opts.SetPenColorSlot(slotIndex, color);
+            }
+            catch { }
+            return false;
+        }
+
+        public void ResetPenColorSlot(int slotIndex)
+        {
+            try { _opts.ResetPenColorSlot?.Invoke(slotIndex); } catch { }
+        }
+
+        public void ResetPenColors()
+        {
+            try { _opts.ResetPenColors?.Invoke(); } catch { }
+        }
+
+        public int CurrentPenColorIndex
+        {
+            get
+            {
+                try
+                {
+                    if (_opts.GetCurrentPenColorIndex != null) return _opts.GetCurrentPenColorIndex();
+                }
+                catch { }
+                return -1;
+            }
+        }
+
+        public bool SelectPenColor(int slotIndex)
+        {
+            try
+            {
+                if (_opts.SelectPenColor != null) return _opts.SelectPenColor(slotIndex);
+            }
+            catch { }
+            return false;
+        }
+
+        public int DefaultPenColorIndex
+        {
+            get
+            {
+                try
+                {
+                    if (_opts.GetDefaultPenColorIndex != null) return _opts.GetDefaultPenColorIndex();
+                }
+                catch { }
+                return -1;
+            }
+            set
+            {
+                try { _opts.SetDefaultPenColorIndex?.Invoke(value); } catch { }
+            }
+        }
+
         private void RaisePluginListChanged()
         {
             try { PluginListChanged?.Invoke(this, EventArgs.Empty); } catch { }
@@ -882,6 +987,48 @@ namespace Ink_Canvas.Plugins
         }
 
         /// <summary>获取所有已安装 plugin 的 manifest（含禁用状态），用于插件工坊展示</summary>
+        /// <summary>插件是否已安装（不论启用/加载状态）</summary>
+        public bool IsPluginInstalled(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return false;
+            try
+            {
+                foreach (var info in GetAllInstalledPlugins())
+                {
+                    if (info.Manifest != null &&
+                        string.Equals(info.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
+        /// <summary>
+        /// 插件是否活跃：已安装 + 已启用 + 加载成功 + 版本兼容。
+        /// 主程序 UI 用它条件切换入口（如装了「自定义画笔颜色」插件后，
+        /// 「墨迹选项」深/浅色切换按钮变成设置颜色入口）。
+        /// </summary>
+        public bool IsPluginActive(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return false;
+            try
+            {
+                foreach (var info in GetAllInstalledPlugins())
+                {
+                    if (info.Manifest != null &&
+                        string.Equals(info.Manifest.Id, pluginId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return info.IsEnabled && info.IsLoaded && info.IsCompatible;
+                    }
+                }
+            }
+            catch { }
+            return false;
+        }
+
         public IReadOnlyList<InstalledPluginInfo> GetAllInstalledPlugins()
         {
             var result = new List<InstalledPluginInfo>();
@@ -1150,6 +1297,16 @@ namespace Ink_Canvas.Plugins
         public Func<string, string, IReadOnlyList<HotkeyActionInfo>> GetConflictingHotkeys { get; set; }
         public Action SuspendHotkeys { get; set; }
         public Action ResumeHotkeys { get; set; }
+
+        // 画笔颜色调色板（普通色 0-8 + 荧光笔 101-106）
+        public Func<IReadOnlyList<PenColorSlotInfo>> GetPenColorSlots { get; set; }
+        public Func<int, Color, bool> SetPenColorSlot { get; set; }
+        public Action<int> ResetPenColorSlot { get; set; }
+        public Action ResetPenColors { get; set; }
+        public Func<int> GetCurrentPenColorIndex { get; set; }
+        public Func<int, bool> SelectPenColor { get; set; }
+        public Func<int> GetDefaultPenColorIndex { get; set; }
+        public Action<int> SetDefaultPenColorIndex { get; set; }
     }
 
     /// <summary>已安装 plugin 信息（含启用/加载状态），用于插件工坊展示</summary>

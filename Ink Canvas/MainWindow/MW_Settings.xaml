@@ -4356,8 +4356,6 @@
 
                                         Width="320"
 
-                                        Text="D:\Ink Canvas"
-
                                         TextChanged="AutoSavedStrokesLocationTextBox_TextChanged"
 
                                         TextWrapping="Wrap" />

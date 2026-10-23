@@ -36,6 +36,51 @@ namespace Ink_Canvas
         private static bool _userDataPathInitialized = false;
 
         /// <summary>
+        /// 照片/墨迹/截图等自动保存位置的默认目录：当前用户的「文档\Ink Canvas」。
+        /// 全仓唯一默认值来源——此前该表达式在 Settings 字段初始值、设置加载回退、
+        /// 崩溃路径回退、截图回退各处重复，且截图回退还是硬编码的 D:\Ink Canvas
+        /// （无 D 盘的机器上截图/自动保存全部失败）。统一走此属性，保证任何机器
+        /// 都解析到"当前用户"的目录，不再出现写死的盘符或他人用户名。
+        /// </summary>
+        public static string DefaultAutoSavedStrokesLocation =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Ink Canvas");
+
+        /// <summary>
+        /// 判断路径是否指向"本机不存在的他人用户配置文件目录"（如 C:\Users\muqiu\...）。
+        /// 便携包被整目录拷贝到其它电脑、或旧版写在 exe 目录的 Settings.json 被迁移时，
+        /// 会带入原机器的用户路径——该目录在本机既不存在也不可写，会导致照片/墨迹/截图
+        /// 全部保存失败。仅在"本机没有这个用户目录"时判定为外来，多用户共享机上用户
+        /// 有意设置的他人可见路径不受影响。
+        /// </summary>
+        public static bool IsForeignUserProfilePath(string path)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(path)) return false;
+
+                string currentProfile = Environment.GetEnvironmentVariable("USERPROFILE");
+                if (string.IsNullOrEmpty(currentProfile)) return false;
+                if (path.StartsWith(currentProfile, StringComparison.OrdinalIgnoreCase)) return false;
+
+                const string usersMarker = @"\Users\";
+                int usersIdx = path.IndexOf(usersMarker, StringComparison.OrdinalIgnoreCase);
+                if (usersIdx < 0) return false;
+
+                int afterUsers = usersIdx + usersMarker.Length;
+                int nextSlash = path.IndexOf('\\', afterUsers);
+                if (nextSlash < 0) return false;
+
+                // 取出 <盘>:\Users\<用户名> 段，本机不存在该用户目录才视为外来配置
+                string foreignProfile = path.Substring(0, nextSlash);
+                return !Directory.Exists(foreignProfile);
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
         /// 初始化 UserDataPath 并在首次启动时把旧版本遗留在 exe 目录下的 Settings.json 迁移过来。
         /// 必须在 App_Startup 中 RootPath 被重新赋值之后调用。
         /// </summary>
@@ -270,7 +315,7 @@ namespace Ink_Canvas
                 string location = Ink_Canvas.MainWindow.Settings?.Automation?.AutoSavedStrokesLocation;
                 string autoPath = !string.IsNullOrEmpty(location)
                     ? location
-                    : (Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Ink Canvas");
+                    : DefaultAutoSavedStrokesLocation;
                 var basePath = autoPath + @"\Auto Saved - Session";
                 try { if (!Directory.Exists(basePath)) Directory.CreateDirectory(basePath); } catch { }
                 File.WriteAllText(basePath + @"\RestartReason.txt", reason);

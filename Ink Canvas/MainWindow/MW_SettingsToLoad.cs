@@ -111,7 +111,16 @@ namespace Ink_Canvas
             if (Settings.Automation == null) Settings.Automation = new Automation();
             if (string.IsNullOrWhiteSpace(Settings.Automation.AutoSavedStrokesLocation))
             {
-                Settings.Automation.AutoSavedStrokesLocation = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Ink Canvas";
+                Settings.Automation.AutoSavedStrokesLocation = App.DefaultAutoSavedStrokesLocation;
+            }
+            else if (App.IsForeignUserProfilePath(Settings.Automation.AutoSavedStrokesLocation))
+            {
+                // 便携包整目录拷贝 / 旧版 exe 目录设置迁移会带入其它电脑用户的路径
+                // （如 C:\Users\muqiu\Documents\Ink Canvas）——本机无此目录，保存必失败，重置为当前用户默认目录
+                LogHelper.WriteLogToFile(
+                    $"AutoSavedStrokesLocation 指向本机不存在的他人用户目录，已重置为默认目录。原值: {Settings.Automation.AutoSavedStrokesLocation}",
+                    LogHelper.LogType.Warning);
+                Settings.Automation.AutoSavedStrokesLocation = App.DefaultAutoSavedStrokesLocation;
             }
             if (Settings.PowerPointSettings == null) Settings.PowerPointSettings = new PowerPointSettings();
             if (Settings.Canvas == null) Settings.Canvas = new Canvas();
@@ -279,10 +288,10 @@ namespace Ink_Canvas
 
                 ToggleSwitchFoldAtStartup.IsOn = Settings.Startup.IsFoldAtStartup;
             }
-            else
-            {
-                Settings.Startup = new Startup();
-            }
+            // 注：此处原有一个 else{ Settings.Startup = new Startup(); } 分支，附着于上面
+            // 的 if (Settings.Startup != null)。由于第 129 行已保证 Startup 非空，该分支
+            // 实为死代码，且一旦 Startup 为空它会重建默认对象、读到的设置全部作废，
+            // 与 129 行的兜底重复。现直接删除，空值兜底统一收敛到 129 行。
             if (Settings.InkToShape != null)
             {
                 ToggleSwitchEnableInkToShape.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
@@ -952,6 +961,12 @@ namespace Ink_Canvas
             finally
             {
                 _isLoadingSettings = false;
+                // 设置已完成本轮载入/应用：此后才允许把内存中的设置落盘。
+                // 这个守卫用于阻止「启动早期（LoadSettings 之前）的保存」——
+                // 插件在 MainWindow 构造期初始化时若触发保存，会把尚未从磁盘载入的
+                // 默认 Settings 覆盖掉用户的设置文件（典型症状：每次启动都弹初始化向导、
+                // 上次会话/外观等设置全部丢失）。
+                _settingsReadyForSave = true;
             }
         }
 
@@ -1034,6 +1049,17 @@ namespace Ink_Canvas
         /// </summary>
         private void ApplySettingsSideEffects(bool isStartup)
         {
+            try
+            {
+                // 启动时应用「默认画笔颜色」设置（-1 = 不干预，保持内置默认：批注红 / 白板随背景黑或白）。
+                // 只在启动时应用：否则每次打开设置窗口都会把用户当前选的色重置回默认值。
+                if (isStartup) ApplyStartupDefaultPenColor();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("ApplySettingsSideEffects | default pen color: " + ex.Message, LogHelper.LogType.Warning);
+            }
+
             try
             {
                 // PPT 支持：启动 PPT 检测定时器，才能在放映时自动进入 PPT 模式
@@ -1129,8 +1155,16 @@ namespace Ink_Canvas
         {
             try
             {
-                if (Settings?.Startup == null) return;
+                if (Settings?.Startup == null)
+                {
+                    LogHelper.WriteLogToFile("TryShowInitialSetupWizard: Settings/Startup 为 null，跳过", LogHelper.LogType.Warning);
+                    return;
+                }
+
                 if (Settings.Startup.IsInitialSetupCompleted) return;
+
+                // 仅在确实要弹出向导时留痕（正常启动不产生日志）
+                LogHelper.WriteLogToFile("首次启动：显示初始化设置向导", LogHelper.LogType.Event);
 
                 // 避免在特殊无界面模式下弹窗（如某些自动化场景），此处仅在主窗口正常显示后调用
                 // 不指定 Owner：由 PopupWindowLayerHelper 统一绑到主窗口

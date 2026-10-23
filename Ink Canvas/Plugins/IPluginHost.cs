@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Media.Imaging;
 
 namespace Ink_Canvas.Plugins
@@ -177,6 +178,70 @@ namespace Ink_Canvas.Plugins
         /// <summary>将指定工具栏恢复为默认按钮顺序。</summary>
         void ResetToolbarPlacement(string placement);
 
+        // ===== 画笔颜色调色板（18 个内置色块：9 普通色 + 6 荧光笔色） =====
+
+        /// <summary>
+        /// 获取当前调色板全部槽位（普通色索引 0-8 在前，荧光笔索引 101-106 在后）。
+        /// 未自定义的槽位返回内置主题色，因此不装插件时也能正常读取。
+        /// </summary>
+        IReadOnlyList<PenColorSlotInfo> GetPenColorSlots();
+
+        /// <summary>
+        /// 自定义某槽位颜色（立即应用到色块、当前笔色与批注按钮颜色指示）。
+        /// 自定义只存在于运行时：插件被禁用/卸载（Shutdown）后需自行恢复，或调用 ResetPenColors。
+        /// </summary>
+        /// <returns>槽位索引非法时返回 false。</returns>
+        bool SetPenColorSlot(int slotIndex, Color color);
+
+        /// <summary>把某槽位恢复为内置主题色。</summary>
+        void ResetPenColorSlot(int slotIndex);
+
+        /// <summary>把所有槽位恢复为内置主题色。</summary>
+        void ResetPenColors();
+
+        /// <summary>当前选中的画笔颜色槽位索引（0-8 / 101-106）。</summary>
+        int CurrentPenColorIndex { get; }
+
+        /// <summary>立即切换到某槽位颜色（等同点击调色板色块）。</summary>
+        /// <returns>槽位索引非法时返回 false。</returns>
+        bool SelectPenColor(int slotIndex);
+
+        /// <summary>
+        /// 默认画笔颜色槽位（启动时初始选中色，会持久化到主设置）。
+        /// 取值为 0-8 / 101-106；设为 -1 表示沿用内置默认（批注=红、白板=黑/白随背景）。
+        /// </summary>
+        int DefaultPenColorIndex { get; set; }
+
+        /// <summary>调色板发生变化（自定义色、恢复默认、选色或主题切换）。</summary>
+        event EventHandler PenColorsChanged;
+
+        /// <summary>
+        /// 用户在「墨迹选项」中右键（鼠标）或长按（触摸）某个颜色色块，请求修改该槽位颜色。
+        /// 由「自定义画笔颜色」插件订阅并弹取色器；无订阅者时静默忽略，
+        /// 因此不安装插件时色块的左键/轻触选色行为与旧版完全一致。
+        /// </summary>
+        event EventHandler<PenSlotEditRequestedEventArgs> PenSlotEditRequested;
+
+        /// <summary>
+        /// 供主程序内部触发色块修改请求（一般插件无需调用）。
+        /// 返回是否有插件处理了该请求（弹过修改界面）；false 表示未安装/未启用相关插件。
+        /// </summary>
+        bool RaisePenSlotEditRequested(int slotIndex);
+
+        /// <summary>
+        /// 某插件是否处于活跃状态（已安装、已启用且加载成功）。
+        /// 主程序 UI 据此条件切换功能入口（如安装了「自定义画笔颜色」插件时，
+        /// 「墨迹选项」的深/浅色切换按钮变为设置颜色入口）。
+        /// </summary>
+        bool IsPluginActive(string pluginId);
+
+        /// <summary>
+        /// 某插件是否已安装（不论启用/加载状态）。
+        /// 供其它插件按依赖关系过滤自身功能（如「窗口边框开关」仅在安装了
+        /// 「自定义画笔颜色」插件时，才在设置里显示其安装提示窗的边框开关项）。
+        /// </summary>
+        bool IsPluginInstalled(string pluginId);
+
         // ===== 事件订阅 =====
 
         /// <summary>主程序即将退出</summary>
@@ -224,6 +289,41 @@ namespace Ink_Canvas.Plugins
     {
         /// <summary>受影响的元素（若批量操作则为首个元素）</summary>
         public UIElement Element { get; set; }
+    }
+
+    /// <summary>
+    /// 调色板单个颜色槽位。
+    /// 槽位索引沿用主程序既有约定：0-8 为普通颜色，101-106 为荧光笔颜色。
+    /// </summary>
+    public class PenColorSlotInfo
+    {
+        /// <summary>槽位索引（0-8 普通色，101-106 荧光笔色）</summary>
+        public int Index { get; set; }
+
+        /// <summary>槽位展示名（黑/红/绿/蓝/黄/白/粉/青/橙，荧光笔红…）</summary>
+        public string Name { get; set; }
+
+        /// <summary>是否为荧光笔槽位</summary>
+        public bool IsHighlighter { get; set; }
+
+        /// <summary>当前生效颜色（自定义优先，否则为内置主题色）</summary>
+        public Color Color { get; set; }
+
+        /// <summary>是否已被插件自定义（false = 使用内置主题色）</summary>
+        public bool IsCustomized { get; set; }
+    }
+
+    /// <summary>
+    /// 「墨迹选项」色块上请求修改颜色的事件参数（鼠标右键 / 触摸长按触发）。
+    /// 插件处理完后应把 Handled 置 true；未处理时主程序按"未安装该功能"静默忽略。
+    /// </summary>
+    public class PenSlotEditRequestedEventArgs : EventArgs
+    {
+        /// <summary>被操作的槽位索引（0-8 普通色，101-106 荧光笔色）</summary>
+        public int SlotIndex { get; set; }
+
+        /// <summary>插件是否已处理（弹过修改界面）</summary>
+        public bool Handled { get; set; }
     }
 
     /// <summary>

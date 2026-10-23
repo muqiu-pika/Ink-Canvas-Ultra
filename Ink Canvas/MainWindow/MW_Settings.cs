@@ -962,7 +962,7 @@ namespace Ink_Canvas
 
         private void SetAutoSavedStrokesLocationToDocumentFolderButton_Click(object sender, RoutedEventArgs e)
         {
-            var path = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) + @"\Ink Canvas";
+            var path = App.DefaultAutoSavedStrokesLocation;
             if (AutoSavedStrokesLocation != null)
                 AutoSavedStrokesLocation.Text = path;
             Settings.Automation.AutoSavedStrokesLocation = path;
@@ -1526,6 +1526,32 @@ namespace Ink_Canvas
 
         public static void SaveSettingsToFile()
         {
+            // 守卫：设置尚未从磁盘载入（启动早期）且磁盘上已有设置文件时，绝不落盘——
+            // 此时静态字段 Settings 还是一份全新默认值，写下去会覆盖用户配置
+            // （典型症状：每次启动都弹初始化向导、外观/会话等设置丢失）。
+            if (!_settingsReadyForSave)
+            {
+                try
+                {
+                    string probeFile = App.UserDataPath + settingsFileName;
+                    string legacyFile = App.RootPath + settingsFileName;
+                    if (File.Exists(probeFile) || File.Exists(legacyFile))
+                    {
+                        // 只在首次拦截时记录一条：启动早期（插件初始化等）的保存是正常的
+                        // 可恢复路径，无需每次启动都刷日志
+                        if (!_startupSaveBlockedLogged)
+                        {
+                            _startupSaveBlockedLogged = true;
+                            LogHelper.WriteLogToFile(
+                                "已拦截启动早期的设置保存（设置尚未载入，避免默认值覆盖用户配置）",
+                                LogHelper.LogType.Info);
+                        }
+                        return;
+                    }
+                }
+                catch { }
+            }
+
             string text = JsonConvert.SerializeObject(Settings, Formatting.Indented);
 
             // 优先写入用户数据目录（始终可写，避免安装到 Program Files 时静默保存失败）

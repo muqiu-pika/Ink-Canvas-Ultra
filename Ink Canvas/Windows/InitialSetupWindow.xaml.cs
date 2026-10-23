@@ -878,6 +878,20 @@ namespace Ink_Canvas
 
         protected override void OnClosed(EventArgs e)
         {
+            // 无论通过「完成」「跳过」还是标题栏 X / Alt+F4 关闭，都不再反复弹出：
+            // 关闭即视为“本次不再打扰”，写入完成标记并持久化（用户可在设置中随时重新打开向导）。
+            // 曾经只有「完成/跳过」两条路径写标记，X 关闭后标记停留在 false，
+            // 配合 LoadSettings 的旧缺陷表现为“每次启动都弹初始化设置”。
+            try
+            {
+                if (MainWindow.Settings?.Startup != null && !MainWindow.Settings.Startup.IsInitialSetupCompleted)
+                {
+                    MainWindow.Settings.Startup.IsInitialSetupCompleted = true;
+                    MainWindow.SaveSettingsToFile();
+                }
+            }
+            catch { }
+
             StopNavTimer();
             StopConfetti();
             StopEmojiAnimations();

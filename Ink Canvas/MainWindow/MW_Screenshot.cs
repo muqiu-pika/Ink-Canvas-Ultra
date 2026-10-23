@@ -124,7 +124,7 @@ namespace Ink_Canvas
             try
             {
                 var basePath = Settings?.Automation?.AutoSavedStrokesLocation;
-                if (string.IsNullOrWhiteSpace(basePath)) basePath = @"D:\Ink Canvas";
+                if (string.IsNullOrWhiteSpace(basePath)) basePath = App.DefaultAutoSavedStrokesLocation;
 
                 string folderPath = Path.Combine(basePath, "Auto Saved - PPT Screenshots");
                 if (Settings.Automation.IsSaveScreenshotsInDateFolders)
@@ -182,7 +182,7 @@ namespace Ink_Canvas
                 if (source == null) return null;
 
                 var basePath = Settings?.Automation?.AutoSavedStrokesLocation;
-                if (string.IsNullOrWhiteSpace(basePath)) basePath = @"D:\Ink Canvas";
+                if (string.IsNullOrWhiteSpace(basePath)) basePath = App.DefaultAutoSavedStrokesLocation;
 
                 string folderPath = Path.Combine(basePath, "Auto Saved - Screenshots");
                 if (Settings.Automation.IsSaveScreenshotsInDateFolders)

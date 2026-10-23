@@ -1,4 +1,4 @@
-<div align="center">
+﻿<div align="center">
 
 <img src="./Images/Ink Canvas Ultra.png" style="width:96px;"/>
 
@@ -133,7 +133,7 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 ## 🔄 版本信息
 
-当前版本：**V26.10.5**
+当前版本：**V26.10.6**
 
 ### 版本号命名规则（2026/8/30 起）
 

@@ -66,6 +66,108 @@ namespace Ink_Canvas
         /// <summary>当前是否已有插件工坊窗口实例</summary>
         public static bool HasInstance => _instance != null;
 
+        /// <summary>待展开设置面板的插件 ID（由 OpenPluginSettings 设置，渲染后消费）</summary>
+        private string _pendingExpandPluginId;
+
+        /// <summary>
+        /// 当前处于展开状态的插件 ID 集合。列表会因在线目录加载完成而二次渲染
+        /// （PanelInstalledPlugins.Children.Clear 后重建），不记录展开状态的话
+        /// 「设置颜色」入口点开后展开的面板会被二次渲染冲掉，故每次渲染后按此集合恢复。
+        /// </summary>
+        private readonly HashSet<string> _expandedPluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>插件 ID → 设置按钮（展开后图标切换为「折叠」）</summary>
+        private readonly Dictionary<string, Button> _pluginSettingsButtons = new Dictionary<string, Button>();
+
+        /// <summary>插件 ID → 设置面板容器</summary>
+        private readonly Dictionary<string, Border> _pluginSettingsPanelHosts = new Dictionary<string, Border>();
+
+        /// <summary>
+        /// 打开插件工坊并直接展开指定插件的设置面板（如「墨迹选项」的「设置颜色」入口）。
+        /// 列表可能经过多次渲染（在线目录加载后会二次重建），因此用“待展开”标记 +
+        /// 每次渲染后消费/恢复的方式，保证最终一定展开，且不会被二次渲染冲掉。
+        /// </summary>
+        public void OpenPluginSettings(string pluginId)
+        {
+            if (string.IsNullOrEmpty(pluginId)) return;
+            try
+            {
+                _pendingExpandPluginId = pluginId;
+
+                if (!IsVisible) Show();
+                Helpers.PopupWindowLayerHelper.BringToFront(this);
+
+                RefreshPluginList(silent: true);
+                // 渲染是同步完成的，但兜底再排一次，防止将来 RefreshPluginList 改为异步渲染
+                Dispatcher.BeginInvoke(new Action(TryConsumePendingExpand), System.Windows.Threading.DispatcherPriority.Background);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"OpenPluginSettings 失败: {ex.Message}", LogHelper.LogType.Warning);
+            }
+        }
+
+        /// <summary>渲染后尝试消费“待展开”标记并恢复所有展开状态</summary>
+        private void TryConsumePendingExpand()
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(_pendingExpandPluginId))
+                {
+                    string pluginId = _pendingExpandPluginId;
+                    Border host;
+                    if (_pluginSettingsPanelHosts.TryGetValue(pluginId, out host) && host != null)
+                    {
+                        ExpandPluginSettingsPanel(pluginId);
+                        _pendingExpandPluginId = null;
+                    }
+                    // 目标插件暂无设置面板（未渲染出来）：保留标记等下一次渲染
+                }
+
+                // 恢复此前展开的面板（二次渲染会清空容器，这里按状态集合重建）
+                if (_expandedPluginIds.Count > 0)
+                {
+                    foreach (var id in _expandedPluginIds.ToList())
+                    {
+                        ExpandPluginSettingsPanel(id);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"TryConsumePendingExpand 失败: {ex.Message}", LogHelper.LogType.Warning);
+            }
+        }
+
+        /// <summary>展开某插件的设置面板（幂等；已展开则只做滚动定位）</summary>
+        private void ExpandPluginSettingsPanel(string pluginId)
+        {
+            Border host;
+            if (!_pluginSettingsPanelHosts.TryGetValue(pluginId, out host) || host == null) return;
+
+            Button btn;
+            _pluginSettingsButtons.TryGetValue(pluginId, out btn);
+
+            if (host.Visibility != Visibility.Visible)
+            {
+                host.Child = null;
+                try
+                {
+                    var factory = host.Tag as Func<UIElement>;
+                    if (factory != null) host.Child = factory();
+                }
+                catch { }
+                host.Visibility = Visibility.Visible;
+                if (btn != null)
+                {
+                    btn.Content = BuildSettingsGlyph("\uE70D");
+                    btn.ToolTip = "收起设置";
+                }
+            }
+
+            try { host.BringIntoView(); } catch { }
+        }
+
         // plugin 存放目录（位于程序运行目录下的 Plugins 文件夹）
         private static string PluginDirectory => App.RootPath + "Plugins\\";
 
@@ -141,6 +243,11 @@ namespace Ink_Canvas
             catch { }
 
             Loaded -= PluginWorkshopWindow_Loaded;
+
+            // 清理展开状态：下次打开不应残留上次的展开/待展开标记
+            _pendingExpandPluginId = null;
+            _expandedPluginIds.Clear();
+
             base.OnClosed(e);
         }
 
@@ -449,6 +556,8 @@ namespace Ink_Canvas
             if (PanelInstalledPlugins == null) return;
 
             PanelInstalledPlugins.Children.Clear();
+            _pluginSettingsButtons.Clear();
+            _pluginSettingsPanelHosts.Clear();
 
             if (installed.Count == 0)
             {
@@ -473,6 +582,10 @@ namespace Ink_Canvas
                 PanelInstalledPlugins.Children.Add(
                     BuildPluginItem(info));
             }
+
+            // 每次渲染后都尝试消费“待展开”标记：在线目录加载完成后会二次渲染，
+            // 若不在此处消费，首次展开会被二次渲染的清空冲掉
+            Dispatcher.BeginInvoke(new Action(TryConsumePendingExpand), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         /// <summary>构建顶部「N 个插件可更新」汇总提示文本。</summary>
@@ -636,6 +749,7 @@ namespace Ink_Canvas
                     ToolTip = "设置"
                 };
                 settingsBtn.Content = BuildSettingsGlyph("\uE713");
+                settingsBtn.Tag = pluginId; // 供展开状态集合识别
                 Grid.SetColumn(settingsBtn, 3);
                 grid.Children.Add(settingsBtn);
 
@@ -651,6 +765,10 @@ namespace Ink_Canvas
                 };
                 // 记录工厂，展开时用其重建 UI 以获得最新状态
                 settingsPanelHost.Tag = settingsFactory;
+
+                // 登记到字典，供 OpenPluginSettings 编程展开
+                _pluginSettingsButtons[pluginId] = settingsBtn;
+                _pluginSettingsPanelHosts[pluginId] = settingsPanelHost;
 
                 setupSettingsPanelToggle(settingsBtn, settingsPanelHost);
             }
@@ -738,6 +856,13 @@ namespace Ink_Canvas
                     panelHost.Visibility = Visibility.Collapsed;
                     settingsBtn.Content = BuildSettingsGlyph("\uE713");
                     settingsBtn.ToolTip = "设置";
+                    var collapsedId = settingsBtn.Tag as string;
+                    if (!string.IsNullOrEmpty(collapsedId))
+                    {
+                        _expandedPluginIds.Remove(collapsedId);
+                        if (string.Equals(_pendingExpandPluginId, collapsedId, StringComparison.OrdinalIgnoreCase))
+                            _pendingExpandPluginId = null; // 用户手动收起：停止自动展开
+                    }
                 }
                 else
                 {
@@ -752,6 +877,13 @@ namespace Ink_Canvas
                     panelHost.Visibility = Visibility.Visible;
                     settingsBtn.Content = BuildSettingsGlyph("\uE70D");
                     settingsBtn.ToolTip = "收起设置";
+                    var expandedId = settingsBtn.Tag as string;
+                    if (!string.IsNullOrEmpty(expandedId))
+                    {
+                        _expandedPluginIds.Add(expandedId);
+                        if (string.Equals(_pendingExpandPluginId, expandedId, StringComparison.OrdinalIgnoreCase))
+                            _pendingExpandPluginId = null;
+                    }
                 }
             };
         }

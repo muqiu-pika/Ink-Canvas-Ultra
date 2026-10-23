@@ -275,6 +275,7 @@ namespace Ink_Canvas
         private dynamic FloatBarSelectIconTextBlock => FindXamlPart(MWFloatBarHost, nameof(FloatBarSelectIconTextBlock));
         private dynamic Pen_Icon => FindXamlPart(MWFloatBarHost, nameof(Pen_Icon));
         private dynamic Icon_Pen => FindXamlPart(MWFloatBarHost, nameof(Icon_Pen));
+        private dynamic PenIconColorDot => FindXamlPart(MWFloatBarHost, nameof(PenIconColorDot));
         private dynamic StackPanelCanvasControls => FindXamlPart(MWFloatBarHost, nameof(StackPanelCanvasControls));
         private dynamic PenPalette => FindXamlPart(MWFloatBarHost, nameof(PenPalette));
         private dynamic PenPaletteScaleHost => FindXamlPart(MWFloatBarHost, nameof(PenPaletteScaleHost));
