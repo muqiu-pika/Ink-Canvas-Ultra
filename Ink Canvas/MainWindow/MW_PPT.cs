@@ -1090,6 +1090,14 @@ namespace Ink_Canvas
 
             Application.Current.Dispatcher.Invoke(() =>
             {
+                // 放映已经结束（结束放映的清理可能排在本事件之前执行）：迟到的切页事件
+                // 绝不能再"缓存当前画布 → 清空 → 恢复该页笔迹"，否则上一页/当前页的
+                // PPT 笔迹会被画回桌面画布（"退出放映后 PPT 墨迹出现在浮动栏层的画布上"）。
+                if (!_isPptSlideShowActive)
+                {
+                    LogHelper.WriteLogToFile("PowerPoint Next Slide skipped: slideshow already ended", LogHelper.LogType.Trace);
+                    return;
+                }
                 // 画板模式下画布是白板墨迹（批注墨迹已由进入画板时的 SaveStrokes(true) 暂存到
                 // TimeMachineHistories[0]），不能把画布内容缓存为放映页笔迹，
                 // 否则白板墨迹会污染演示文稿的页笔迹缓存与自动截图。

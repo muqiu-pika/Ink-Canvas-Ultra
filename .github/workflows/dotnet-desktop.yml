@@ -29,6 +29,45 @@ jobs:
       with:
         nuget-version: '5.x'
 
+    # 提取版本号（唯一来源：csproj 的 ApplicationVersion）
+    - name: Extract version
+      id: version
+      run: |
+        $csproj = "Ink Canvas\Ink Canvas.csproj"
+        [xml]$project = Get-Content $csproj
+        # csproj 中存在多个 PropertyGroup，.ApplicationVersion 返回数组，
+        # 只有一个 PropertyGroup 包含 ApplicationVersion，其余为 $null，
+        # 取第一个非空值，避免数组转字符串时出现多余空格
+        $appVersion = ($project.Project.PropertyGroup.ApplicationVersion | Where-Object { $_ } | Select-Object -First 1)
+        $version = ($appVersion -replace '\.%\w+$', '').Trim()
+        Write-Output "Extracted version: $version"
+        "version=$version" >> $env:GITHUB_OUTPUT
+
+    # 版本号同步：exe 内嵌版本（AssemblyInfo）与安装包版本（iss）都取自上面的 ApplicationVersion。
+    # 以前这三处需要手工各改一次，漏改一处就会出现"装完新版本、程序里仍显示旧版本号"，
+    # 并导致自动更新反复提示同一版本（远端版本 > 本地内嵌版本，永远判定为未更新）。
+    - name: Sync version
+      run: |
+        $version = "${{ steps.version.outputs.version }}"
+        if ([string]::IsNullOrWhiteSpace($version)) { Write-Error "版本号为空，终止"; exit 1 }
+
+        # 1) AssemblyInfo.cs -> AssemblyVersion("X.Y.Z.0")（只改未被注释的那一行）
+        $assemblyInfo = "Ink Canvas\Properties\AssemblyInfo.cs"
+        $text = Get-Content $assemblyInfo -Raw
+        $pattern = '(?m)^\[assembly: AssemblyVersion\("\d+(\.\d+){3}"\)\]'
+        $updated = [regex]::Replace($text, $pattern, "[assembly: AssemblyVersion(""$version.0"")]")
+        if ($updated -eq $text) { Write-Error "AssemblyVersion 未替换成功（文件格式可能已变）"; exit 1 }
+        Set-Content -Path $assemblyInfo -Value $updated -Encoding UTF8
+
+        # 2) 安装包脚本 -> #define MyAppVersion "X.Y.Z"
+        $iss = "Ink Canvas Ultra-AnyCPU.iss"
+        $issText = Get-Content $iss -Raw
+        $issUpdated = [regex]::Replace($issText, '#define\s+MyAppVersion\s+"[^"]*"', "#define MyAppVersion ""$version""")
+        if ($issUpdated -eq $issText) { Write-Error "iss 的 MyAppVersion 未替换成功"; exit 1 }
+        Set-Content -Path $iss -Value $issUpdated -Encoding UTF8
+
+        Write-Output "版本已同步：AssemblyInfo/iss = $version"
+
     # 还原 NuGet 包
     - name: NuGet restore
       run: nuget restore
@@ -42,20 +81,6 @@ jobs:
       run: |
         msbuild -t:restore /p:GitFlow="Github Action"
         msbuild -target:"Ink Canvas" /p:Configuration=Release /p:Platform="Any CPU" /p:GitFlow="Github Action"
-        
-    # 提取版本号
-    - name: Extract version
-      id: version
-      run: |
-        $csproj = "Ink Canvas\Ink Canvas.csproj"
-        [xml]$project = Get-Content $csproj
-        # csproj 中存在多个 PropertyGroup，.ApplicationVersion 返回数组，
-        # 只有一个 PropertyGroup 包含 ApplicationVersion，其余为 $null，
-        # 取第一个非空值，避免数组转字符串时出现多余空格
-        $appVersion = ($project.Project.PropertyGroup.ApplicationVersion | Where-Object { $_ } | Select-Object -First 1)
-        $version = ($appVersion -replace '\.%\w+$', '').Trim()
-        Write-Output "Extracted version: $version"
-        "version=$version" >> $env:GITHUB_OUTPUT
 
     # 上传编译成品
     - name: Upload to artifact

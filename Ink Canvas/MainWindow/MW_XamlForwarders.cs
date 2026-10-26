@@ -71,6 +71,7 @@ namespace Ink_Canvas
         private dynamic BoardToggleSwitchEnableTwoFingerZoom => FindXamlPart(MWBoardHost, nameof(BoardToggleSwitchEnableTwoFingerZoom));
         private dynamic BoardToggleSwitchEnableTwoFingerRotation => FindXamlPart(MWBoardHost, nameof(BoardToggleSwitchEnableTwoFingerRotation));
         private dynamic BoardSelect => FindXamlPart(MWBoardHost, nameof(BoardSelect));
+        private dynamic BoardSelectInPalette => FindXamlPart(MWBoardHost, nameof(BoardSelectInPalette));
         private dynamic BoardPen => FindXamlPart(MWBoardHost, nameof(BoardPen));
         private dynamic BoardPenIcon => FindXamlPart(MWBoardHost, nameof(BoardPenIcon));
         private dynamic BoardPenPalette => FindXamlPart(MWBoardHost, nameof(BoardPenPalette));
@@ -275,7 +276,9 @@ namespace Ink_Canvas
         private dynamic FloatBarSelectIconTextBlock => FindXamlPart(MWFloatBarHost, nameof(FloatBarSelectIconTextBlock));
         private dynamic Pen_Icon => FindXamlPart(MWFloatBarHost, nameof(Pen_Icon));
         private dynamic Icon_Pen => FindXamlPart(MWFloatBarHost, nameof(Icon_Pen));
-        private dynamic PenIconColorDot => FindXamlPart(MWFloatBarHost, nameof(PenIconColorDot));
+        private dynamic Icon_PenOutline => FindXamlPart(MWFloatBarHost, nameof(Icon_PenOutline));
+        private dynamic BoardIcon_Pen => FindXamlPart(MWBoardHost, nameof(BoardIcon_Pen));
+        private dynamic BoardIcon_PenOutline => FindXamlPart(MWBoardHost, nameof(BoardIcon_PenOutline));
         private dynamic StackPanelCanvasControls => FindXamlPart(MWFloatBarHost, nameof(StackPanelCanvasControls));
         private dynamic PenPalette => FindXamlPart(MWFloatBarHost, nameof(PenPalette));
         private dynamic PenPaletteScaleHost => FindXamlPart(MWFloatBarHost, nameof(PenPaletteScaleHost));

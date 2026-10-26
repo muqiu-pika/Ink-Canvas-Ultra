@@ -14,7 +14,15 @@ namespace Ink_Canvas
 
         private void InkWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
-            if (!isLoaded || _isLoadingSettings) return;
+            if (!isLoaded || _isLoadingSettings)
+            {
+                // 载入/刷新设置期间不允许写入（半途写入会用旧值污染设置），
+                // 但必须把滑块 UI 弹回持久化值：否则滑块停在新位置、画布与设置却仍是旧值，
+                // 随后任何 CheckColorTheme 都会把旧宽度写回 drawingAttributes ——
+                // 表现为"明明是调细的，写出来是粗的，重新拉一下粗细才正常"。
+                RevertInkWidthSlidersToSettings();
+                return;
+            }
             if (sender == BoardInkWidthSlider) InkWidthSlider.Value = ((Slider)sender).Value;
             if (sender == InkWidthSlider) BoardInkWidthSlider.Value = ((Slider)sender).Value;
             Settings.Canvas.InkWidth = ((Slider)sender).Value / 2;
@@ -29,6 +37,20 @@ namespace Ink_Canvas
                 drawingAttributes.Width = ((Slider)sender).Value / 2;
             }
             SaveSettingsToFile();
+        }
+
+        /// <summary>把粗细滑块 UI 弹回设置里的持久化值（仅在"不允许写入"的分支调用）。</summary>
+        private void RevertInkWidthSlidersToSettings()
+        {
+            try
+            {
+                double persisted = (Settings?.Canvas != null ? Settings.Canvas.InkWidth : 2.5) * 2;
+                if (InkWidthSlider != null && Math.Abs(InkWidthSlider.Value - persisted) > 0.001)
+                    InkWidthSlider.Value = persisted;
+                if (BoardInkWidthSlider != null && Math.Abs(BoardInkWidthSlider.Value - persisted) > 0.001)
+                    BoardInkWidthSlider.Value = persisted;
+            }
+            catch { }
         }
 
         private void ColorSwitchCheck()
@@ -319,6 +341,19 @@ namespace Ink_Canvas
                 {
                     stroke.DrawingAttributes.Color = targetedColor;
                 }
+                // 同步激活笔色状态与色块高亮。此前这里直接 return：
+                // lastDesktopInkColor/lastBoardInkColor 与 inkColor 都不更新，导致
+                // ①色块高亮停在旧颜色；②此后任何 CheckColorTheme（换页/改透明度/插件改色）
+                // 都会按旧 inkColor 把 DefaultDrawingAttributes.Color 弹回去 —— "改了色不生效"。
+                if (currentMode == 0)
+                {
+                    lastDesktopInkColor = inkColor;
+                }
+                else
+                {
+                    lastBoardInkColor = inkColor;
+                }
+                try { ApplyPenPaletteColors(); } catch { }
                 return;
             }
 

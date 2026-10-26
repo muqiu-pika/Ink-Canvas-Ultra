@@ -524,6 +524,11 @@ namespace Ink_Canvas
                     BoardEraser.Opacity = 1;
                     BoardSelect.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
                     BoardSelect.Opacity = 1;
+                    if (BoardSelectInPalette != null)
+                    {
+                        BoardSelectInPalette.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
+                        BoardSelectInPalette.Opacity = 1;
+                    }
                     BoardEraserByStrokes.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
                     BoardEraserByStrokes.Opacity = 1;
                 }
@@ -562,6 +567,11 @@ namespace Ink_Canvas
                     else if (mode == "select")
                     {
                         BoardSelect.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                        if (BoardSelectInPalette != null)
+                        {
+                            BoardSelectInPalette.Background = new ImageBrush(new BitmapImage(new Uri("pack://application:,,,/Resources/Icons-png/check-box-background.png"))) { Opacity = 0.5 };
+                            BoardSelectInPalette.Opacity = 0.99;
+                        }
                         // 如果不是来自白板的调用，才更新浮动栏按钮状态
                         if (!isFromBoard)
                         {
@@ -911,9 +921,166 @@ namespace Ink_Canvas
         }
 
         bool isDisplayingOrHidingBlackboard = false;
+        /// <summary>进入白板前桌面浮动栏所处的模式，退出时原样恢复</summary>
+        private enum DesktopFloatBarMode
+        {
+            Cursor,          // 鼠标模式（批注关闭，画布隐藏）
+            Pen,             // 批注（画笔）
+            Eraser,          // 面积擦
+            EraserByStrokes, // 墨迹擦
+            Select           // 选择
+        }
+
+        private DesktopFloatBarMode _desktopModeBeforeBoard = DesktopFloatBarMode.Pen;
+        private bool _hasDesktopModeSnapshot = false;
+
+        /// <summary>
+        /// 画布是否处于"隐藏（鼠标模式）"状态。
+        /// 不能用 Main_Grid.Background == Brushes.Transparent 判断：那是引用比较，
+        /// XAML/代码里赋的 Transparent 未必是 Brushes 的同一个静态实例，
+        /// 一旦不是同一实例就会误判成"笔模式"（退出白板后错误恢复成批注的直接原因之一）。
+        /// 改为按颜色 alpha 判定：alpha==0（含 null）即视为隐藏 —— 批注打开时背景是 #01FFFFFF。
+        /// </summary>
+        private bool IsInkCanvasHiddenByBackground()
+        {
+            var bg = Main_Grid?.Background;
+            if (bg == null) return true;
+            if (bg is SolidColorBrush solid) return solid.Color.A == 0;
+            return false;
+        }
+
+        /// <summary>
+        /// 进入白板前记录桌面浮动栏当前模式。
+        /// 退出白板时按这份快照恢复 —— 以前退出时会无条件 BtnHideInkCanvas_Click()（强制批注），
+        /// 导致"无论进入白板前是什么状态，退出后都变成批注模式"。
+        /// </summary>
+        private void CaptureDesktopFloatBarModeBeforeBoard()
+        {
+            try
+            {
+                if (IsInkCanvasHiddenByBackground())
+                {
+                    _desktopModeBeforeBoard = DesktopFloatBarMode.Cursor;
+                }
+                else if (EraserByStrokes_Icon?.Background != null)
+                {
+                    _desktopModeBeforeBoard = DesktopFloatBarMode.EraserByStrokes;
+                }
+                else if (Eraser_Icon?.Background != null)
+                {
+                    _desktopModeBeforeBoard = DesktopFloatBarMode.Eraser;
+                }
+                else if (SymbolIconSelect?.Background != null)
+                {
+                    _desktopModeBeforeBoard = DesktopFloatBarMode.Select;
+                }
+                else
+                {
+                    _desktopModeBeforeBoard = DesktopFloatBarMode.Pen;
+                }
+                _hasDesktopModeSnapshot = true;
+                LogHelper.WriteLogToFile($"进入白板：记录桌面浮动栏模式 {_desktopModeBeforeBoard}", LogHelper.LogType.Info);
+            }
+            catch (Exception ex)
+            {
+                _hasDesktopModeSnapshot = false;
+                LogHelper.WriteLogToFile("进入白板：记录桌面浮动栏模式失败 | " + ex.Message, LogHelper.LogType.Warning);
+            }
+        }
+
+        /// <summary>退出白板后按进入前的快照恢复桌面浮动栏模式（画布可见性 + 当前工具）。</summary>
+        private void RestoreDesktopFloatBarModeAfterBoard()
+        {
+            try
+            {
+                if (!_hasDesktopModeSnapshot)
+                {
+                    // 没有快照（极少见）：保持原有兜底 —— 桌面有墨迹就进批注，否则回到鼠标
+                    if (inkCanvas.Strokes.Count > 0) BtnHideInkCanvas_Click(null, null);
+                    else CursorIcon_Click(null, null);
+                    return;
+                }
+
+                var mode = _desktopModeBeforeBoard;
+                _hasDesktopModeSnapshot = false;
+                LogHelper.WriteLogToFile($"退出白板：恢复桌面浮动栏模式 {mode}", LogHelper.LogType.Info);
+
+                // 画布当前一定是可见的（白板期间一直在显示），需要隐藏时由 Cursor 分支处理
+                switch (mode)
+                {
+                    case DesktopFloatBarMode.Cursor:
+                        if (!IsInkCanvasHiddenByBackground()) CursorIcon_Click(null, null);
+                        break;
+                    case DesktopFloatBarMode.Eraser:
+                        if (IsInkCanvasHiddenByBackground()) BtnHideInkCanvas_Click(null, null);
+                        EraserIcon_Click(null, null);
+                        break;
+                    case DesktopFloatBarMode.EraserByStrokes:
+                        if (IsInkCanvasHiddenByBackground()) BtnHideInkCanvas_Click(null, null);
+                        EraserIconByStrokes_Click(null, null);
+                        break;
+                    case DesktopFloatBarMode.Select:
+                        if (IsInkCanvasHiddenByBackground()) BtnHideInkCanvas_Click(null, null);
+                        SymbolIconSelect_Click(null, null);
+                        break;
+                    default: // Pen
+                        RestorePenModeWithoutTogglingPalette();
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("退出白板：恢复桌面浮动栏模式失败 | " + ex.Message, LogHelper.LogType.Warning);
+            }
+        }
+
+        /// <summary>
+        /// 退出白板后把画布恢复到「批注（画笔）」状态，但**不展开**「墨迹选项」面板。
+        /// 不能直接复用 PenIcon_Click：它的 else 分支语义是"切换墨迹选项面板的显隐"，
+        /// 当画布已可见且「批注」已高亮时（退出白板后正好是这种状态）会命中该分支，
+        /// 于是退出白板后自动弹出「墨迹选项」窗口 —— 用户并没有点「批注」按钮。
+        /// 这里只做模式/画布/指示器的恢复，显隐交给 HideSubPanels（其语义就是收起）。
+        /// </summary>
+        private void RestorePenModeWithoutTogglingPalette()
+        {
+            try
+            {
+                if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
+                forceEraser = false;
+                forcePointEraser = false;
+
+                if (IsInkCanvasHiddenByBackground())
+                {
+                    Main_Grid.Background = new SolidColorBrush(StringToColor("#01FFFFFF"));
+                }
+                inkCanvas.IsHitTestVisible = true;
+                inkCanvas.Visibility = Visibility.Visible;
+                GridBackgroundCoverHolder.Visibility = Visibility.Visible;
+                GridInkCanvasSelectionCover.Visibility = Visibility.Collapsed;
+                StackPanelCanvasControls.Visibility = Visibility.Visible;
+
+                if (inkCanvas.EditingMode != InkCanvasEditingMode.Ink)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                }
+                try { CheckEnableTwoFingerGestureBtnVisibility(true); } catch { }
+
+                // 只更新「批注」按钮指示器并确保面板收起（不会展开）
+                HideSubPanels("pen");
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("退出白板：恢复批注状态失败 | " + ex.Message, LogHelper.LogType.Warning);
+            }
+        }
+
         private void ImageBlackboard_Click(object sender, RoutedEventArgs e)
         {
             if (isDisplayingOrHidingBlackboard) return;
+            // 记录"进入白板前"的桌面浮动栏模式，必须在任何 Dispatcher 泵送之前采样：
+            // BeginBoardModeSwitch() 内部会 Dispatcher.Invoke(Background) 排空队列，
+            // 排队中的启动任务可能正好在这一刻把状态切成批注，导致快照抓到的不是用户看到的状态。
+            if (currentMode == 0) CaptureDesktopFloatBarModeBeforeBoard();
             isDisplayingOrHidingBlackboard = true;
 
             try
@@ -1086,8 +1253,13 @@ namespace Ink_Canvas
                     WindowFocusHelper.EnsureWindowFocus(this);
                     TouchLockFix.ReRegisterTouchWindow(this);
                 }
-                // 无论进入还是退出白板，最终都切回笔模式（批注模式）
-                BtnHideInkCanvas_Click(null, null);
+                // 进入白板：白板需要可落笔的画布，显示画布并进入笔模式。
+                // 退出白板的模式恢复统一放到方法末尾（RestoreDesktopFloatBarModeAfterBoard），
+                // 这里不能再无条件切批注 —— 否则退出后永远是批注状态。
+                if (currentMode == 1)
+                {
+                    BtnHideInkCanvas_Click(null, null);
+                }
             }
             else
             {
@@ -1160,10 +1332,11 @@ namespace Ink_Canvas
             }
 
             CompletePendingVideoPresenterActivation();
-
-            if (currentMode == 0 && inkCanvas.Strokes.Count == 0 && BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
+            if (currentMode == 0)
             {
-                CursorIcon_Click(null, null);
+                // 退出白板：恢复进入前的桌面浮动栏模式（批注/鼠标/橡皮/选择）。
+                // 原实现是"画布没墨迹就切鼠标"，用户进入白板前特意选的批注/橡皮状态会被丢掉。
+                RestoreDesktopFloatBarModeAfterBoard();
             }
 
             ThemeManager.Current.ApplicationTheme = ApplicationTheme.Dark;
@@ -1218,23 +1391,15 @@ namespace Ink_Canvas
         /// </summary>
         private bool _isInBoardModeSwitch = false;
 
-        /// <summary>
-        /// 过渡窗口内是否已检测到“新画布上的新书写”。为真时说明用户已开始在新模式画布上正常书写，
-        /// 后续笔迹应放行（不拦截），避免把用户新写的笔画误当残留笔迹删除。
-        /// </summary>
-        private bool _inputActivityAfterSwitch = false;
-
-        /// <summary>
-        /// 过渡窗口开启的时刻（单调时钟，用于区分“切换前的残留输入”与“切换后的新输入”）。
-        /// </summary>
-        private long _boardModeSwitchStartedTicks = 0;
+        /// <summary>过渡窗口开启时画布上已存在的笔迹引用快照（用于精确识别"切换前残留笔画"）。</summary>
+        private HashSet<Stroke> _preSwitchStrokeSnapshot = null;
 
         /// <summary>
         /// 模式（白板/桌面/批注）切换前的防护：
         /// 1) 同步排空排队中的输入事件（含 Win32 消息队列中延迟的 StylusUp/TouchUp）。
         ///    此阶段过渡窗口尚未开启，切换前“卡顿残留”的延迟笔画会在旧画布上先落地并计入旧历史，
         ///    随后由 SaveStrokes 保存到正确页面，而不是提交到新模式画布。
-        /// 2) 开启过渡窗口，兜底拦截排空后仍可能延迟到达的笔画提交。
+        /// 2) 快照当前画布笔迹引用 + 开启过渡窗口，兜底拦截排空后仍可能延迟到达的笔画提交。
         /// 3) 用户在过渡窗口内开始新书写（下笔）后自动放行，避免误删新笔画。
         /// </summary>
         private void BeginBoardModeSwitch()
@@ -1248,29 +1413,38 @@ namespace Ink_Canvas
             }
             catch { }
 
-            // 阶段二：开启过渡窗口。时刻在排空之后记录，确保排空阶段处理的输入被判定为“切换前”。
-            // 使用 Environment.TickCount（int，约 25 天回绕一次）作为单调时钟，不受系统时间调整影响。
-            _boardModeSwitchStartedTicks = Environment.TickCount;
-            _inputActivityAfterSwitch = false;
+            // 阶段一·补：快照画布上现存的笔迹引用。切换前"卡顿残留"的延迟笔画提交到新画布时，
+            // 提交的是这些旧 Stroke 对象本身；而用户的新笔画一定是新创建的对象。
+            // 因此"在快照内"就是残留笔画的精确判据 —— 不依赖输入路径是否调用了 RecordInputDown
+            // （鼠标下笔路径此前就漏记，导致过渡窗口内用鼠标新写的笔画被当残留误删，
+            // 表现为"翻页/重进后偶尔消失几条、偶尔断墨"）。
+            try
+            {
+                _preSwitchStrokeSnapshot = inkCanvas?.Strokes != null
+                    ? new HashSet<Stroke>(inkCanvas.Strokes)
+                    : null;
+            }
+            catch { _preSwitchStrokeSnapshot = null; }
+
+            // 阶段二：开启过渡窗口，兜底拦截排空后仍可能延迟到达的残留笔画。
             _isInBoardModeSwitch = true;
             Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ContextIdle,
-                new Action(() => _isInBoardModeSwitch = false));
+                new Action(() =>
+                {
+                    _isInBoardModeSwitch = false;
+                    _preSwitchStrokeSnapshot = null; // 窗口结束即释放快照，避免长期持有笔迹引用
+                }));
         }
 
         /// <summary>
-        /// 记录一次“下笔”输入（由 StylusDown/TouchDown 调用）。
-        /// 若发生在过渡窗口开启之后，说明用户已在新模式画布上开始书写，后续笔迹应放行。
+        /// 某笔迹是否为“模式切换前的残留笔画”（引用在切换前快照内）。
+        /// 快照为空（未开启切换/已结束）时一律视为新笔画，绝不移除。
         /// </summary>
-        private void RecordInputDown()
+        private bool IsPreSwitchResidualStroke(Stroke stroke)
         {
-            try
-            {
-                if (!_isInBoardModeSwitch) return;
-                // 以 int 比较：过渡窗口存活时间远小于 TickCount 约 25 天的回绕周期，可直接比较判定先后。
-                if (Environment.TickCount >= (int)_boardModeSwitchStartedTicks)
-                    _inputActivityAfterSwitch = true;
-            }
-            catch { }
+            if (stroke == null) return false;
+            var snapshot = _preSwitchStrokeSnapshot;
+            return snapshot != null && snapshot.Contains(stroke);
         }
 
         private void ImageCountdownTimer_Click(object sender, RoutedEventArgs e)

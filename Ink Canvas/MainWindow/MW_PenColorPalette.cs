@@ -202,6 +202,9 @@ namespace Ink_Canvas
         /// </summary>
         private void ApplyPenPaletteColors()
         {
+            // 调色板每次刷新都顺带补挂右键/长按手势（幂等：全部挂载后只做一次布尔判断）。
+            // 部分设备在构造期/Loaded 时控件未就绪，只靠两个固定时机会永久漏挂。
+            try { InitializePenPaletteEditGestures(); } catch { }
             try
             {
                 foreach (var i in PenColorNormalSlots) ApplyPenColorSwatch(i, ResolvePenSwatchColor(i));
@@ -283,50 +286,51 @@ namespace Ink_Canvas
         }
 
         /// <summary>
-        /// 批注按钮显示画笔颜色：
-        /// 1）按钮右下角的色点始终显示当前笔色（带自动对比描边，白色等浅色也看得见）；
-        /// 2）画笔图标的字形同时染成该颜色，但颜色过浅（如白色）时不染色、保持主题前景色，
-        ///    避免图标在浅色浮动栏上"消失"。
+        /// 批注按钮显示画笔颜色（笔图标本体填充方案）：
+        /// 1）把笔图标字形直接染成当前笔色 —— 颜色体现在笔"内部"，不再用右下角色点；
+        /// 2）极浅色（白/黄）在浅色栏上、极深色（黑）在深色栏上会看不清，
+        ///    因此按笔色明度切换一层等比例放大的对比描边（浅色用深描边、深色用浅描边），
+        ///    中间明度不需要描边、保持纯净。浮动栏与白板栏同步处理。
         /// </summary>
         private void UpdatePenIconColorIndicator()
         {
             try
             {
                 var color = ResolvePenColor(inkColor);
+                var fillBrush = new SolidColorBrush(color);
+                if (fillBrush.CanFreeze) fillBrush.Freeze();
 
-                if (PenIconColorDot != null)
-                {
-                    var dotBrush = new SolidColorBrush(color);
-                    if (dotBrush.CanFreeze) dotBrush.Freeze();
-                    PenIconColorDot.Fill = dotBrush;
+                // 描边策略：按笔色明度选对比色；中间明度不显示描边
+                double lum = GetRelativeLuminance(color);
+                bool needsOutline = lum >= 0.72 || lum <= 0.10;
+                Color outlineColor = lum >= 0.72
+                    ? Color.FromArgb(0x80, 0x00, 0x00, 0x00)
+                    : Color.FromArgb(0x80, 0xFF, 0xFF, 0xFF);
+                var outlineBrush = new SolidColorBrush(outlineColor);
+                if (outlineBrush.CanFreeze) outlineBrush.Freeze();
 
-                    var strokeBrush = new SolidColorBrush(GetPenColorContrastStroke(color));
-                    if (strokeBrush.CanFreeze) strokeBrush.Freeze();
-                    PenIconColorDot.Stroke = strokeBrush;
-                }
-
-                if (Icon_Pen != null)
-                {
-                    if (GetRelativeLuminance(color) < 0.85)
-                    {
-                        Icon_Pen.Foreground = new SolidColorBrush(color);
-                    }
-                    else
-                    {
-                        // 浅色（白/黄等）：字形回落到主题前景色，真实颜色由色点表达
-                        Icon_Pen.SetResourceReference(System.Windows.Controls.Control.ForegroundProperty, "FloatBarForeground");
-                    }
-                }
+                ApplyPenGlyphFill(Icon_Pen, Icon_PenOutline, fillBrush, outlineBrush, needsOutline);
+                ApplyPenGlyphFill(BoardIcon_Pen, BoardIcon_PenOutline, fillBrush, outlineBrush, needsOutline);
             }
             catch { }
         }
 
-        /// <summary>色点描边色：亮色用深灰、暗色用浅灰，保证任意笔色下都清晰</summary>
-        private static Color GetPenColorContrastStroke(Color color)
+        /// <summary>把单个「批注」按钮的笔字形染成笔色，并按需显示对比描边层。</summary>
+        private static void ApplyPenGlyphFill(dynamic icon, dynamic outline, Brush fillBrush, Brush outlineBrush, bool showOutline)
         {
-            return GetRelativeLuminance(color) > 0.6
-                ? Color.FromArgb(0xB0, 0x40, 0x40, 0x40)
-                : Color.FromArgb(0xB0, 0xFF, 0xFF, 0xFF);
+            try
+            {
+                if (icon != null)
+                {
+                    icon.Foreground = fillBrush;
+                }
+                if (outline != null)
+                {
+                    outline.Foreground = outlineBrush;
+                    outline.Visibility = showOutline ? Visibility.Visible : Visibility.Collapsed;
+                }
+            }
+            catch { }
         }
 
         /// <summary>相对亮度（sRGB 近似），用于判断颜色深浅</summary>
@@ -391,10 +395,15 @@ namespace Ink_Canvas
 
         private bool _penSlotEditGesturesAttached = false;
         private int _penSlotEditGesturesAttachedCount = 0;
+        private int _lastLoggedAttachCount = -1;
 
         private System.Windows.Threading.DispatcherTimer _penSlotLongPressTimer;
         private int _penSlotLongPressIndex = -1;
         private Point _penSlotLongPressOrigin;
+        /// <summary>长按进度环（长按期间存在，抬手/位移超限/围满一圈后移除）</summary>
+        private PenSlotLongPressRingAdorner _penSlotRingAdorner;
+        /// <summary>本次长按的开始时刻，用于计算环形进度</summary>
+        private DateTime _penSlotLongPressStartUtc;
         private const double PenSlotLongPressMoveTolerance = 20;
         private const int PenSlotLongPressMs = 500;
 
@@ -452,15 +461,25 @@ namespace Ink_Canvas
             }
 
             _penSlotEditGesturesAttachedCount += attached;
-            if (_penSlotEditGesturesAttachedCount > 0)
+            const int ExpectedSwatchCount = 30;
+            if (_penSlotEditGesturesAttachedCount >= ExpectedSwatchCount)
             {
                 _penSlotEditGesturesAttached = true;
                 LogHelper.WriteLogToFile($"色块修改颜色交互已挂载：{_penSlotEditGesturesAttachedCount}/30 个色块", LogHelper.LogType.Info);
             }
             else
             {
-                // 构造期控件未就绪：不置标志，等主窗口 Loaded 后再补
-                LogHelper.WriteLogToFile("色块修改颜色交互挂载数为 0，等待主窗口 Loaded 后重试", LogHelper.LogType.Warning);
+                // 关键：只要没有全部挂上就不置"已完成"标志，保留后续重试机会。
+                // 旧写法只要有 1 个挂上就永久返回，个别色块（构造期/Loaded 时控件未就绪）
+                // 从此失去右键/长按 —— 表现为"部分设备右键颜色没有弹出调色框"。
+                // 日志只在数量变化时记一次，避免高频刷新刷屏。
+                if (_lastLoggedAttachCount != _penSlotEditGesturesAttachedCount)
+                {
+                    _lastLoggedAttachCount = _penSlotEditGesturesAttachedCount;
+                    LogHelper.WriteLogToFile(
+                        $"色块修改颜色交互仅挂载 {_penSlotEditGesturesAttachedCount}/30 个色块，将在后续刷新时继续补挂",
+                        LogHelper.LogType.Warning);
+                }
             }
         }
 
@@ -495,6 +514,14 @@ namespace Ink_Canvas
                 var border = sender as System.Windows.Controls.Border;
                 if (border == null) return;
                 int slotIndex = border.Tag as int? ?? -1;
+                if (slotIndex < 0)
+                {
+                    // Tag 不是整数 = 该色块在挂载期没成功（控件未就绪被跳过）：
+                    // 就地补挂一次并重读，避免"这个色块右键永远没反应"
+                    LogHelper.WriteLogToFile("色块右键时发现未挂载（Tag 异常），执行补挂", LogHelper.LogType.Warning);
+                    InitializePenPaletteEditGestures();
+                    slotIndex = border.Tag as int? ?? -1;
+                }
                 LogHelper.WriteLogToFile($"色块右键请求改色 slot={slotIndex}", LogHelper.LogType.Info);
                 TryRaisePenSlotEditRequested(slotIndex);
                 e.Handled = true;
@@ -512,8 +539,19 @@ namespace Ink_Canvas
                 var border = sender as System.Windows.Controls.Border;
                 if (border == null) return;
 
+                int slotIndex = border.Tag as int? ?? -1;
+                if (slotIndex < 0)
+                {
+                    LogHelper.WriteLogToFile("色块触摸时发现未挂载（Tag 异常），执行补挂", LogHelper.LogType.Warning);
+                    InitializePenPaletteEditGestures();
+                }
                 _penSlotLongPressIndex = border.Tag as int? ?? -1;
                 _penSlotLongPressOrigin = e.GetTouchPoint(border).Position;
+                _penSlotLongPressStartUtc = DateTime.UtcNow;
+
+                // 长按反馈环：进度完全由 Adorner 内的 WPF 动画驱动（跟随渲染时钟，帧率稳定），
+                // 触发时机仍由下面这个定时器决定 —— 动画只负责"看得见的围圈过程"。
+                ShowPenSlotLongPressRing(border);
 
                 if (_penSlotLongPressTimer == null)
                 {
@@ -526,6 +564,8 @@ namespace Ink_Canvas
                         _penSlotLongPressTimer.Stop();
                         int index = _penSlotLongPressIndex;
                         _penSlotLongPressIndex = -1;
+                        // 先收环再弹取色器，避免取色器出现时环还挂在色块上
+                        HidePenSlotLongPressRing();
                         if (index >= 0)
                         {
                             LogHelper.WriteLogToFile($"色块长按请求改色 slot={index}", LogHelper.LogType.Info);
@@ -568,6 +608,104 @@ namespace Ink_Canvas
         {
             _penSlotLongPressIndex = -1;
             try { _penSlotLongPressTimer?.Stop(); } catch { }
+            HidePenSlotLongPressRing();
+        }
+
+        /// <summary>在色块上挂出长按进度环（颜色按画布明暗决定）。</summary>
+        private void ShowPenSlotLongPressRing(System.Windows.Controls.Border border)
+        {
+            HidePenSlotLongPressRing();
+            try
+            {
+                var brush = ResolvePenSlotLongPressRingBrush();
+                _penSlotRingAdorner = PenSlotLongPressRing.Attach(border, brush);
+                // 用动画一次性铺满整个长按时长：Web 帧率跟随渲染时钟，不会因为按住期间
+                // UI 线程持续处理 TouchMove 而掉帧（逐帧 setter 的版本就是卡在这里）
+                _penSlotRingAdorner?.StartProgress(PenSlotLongPressMs, null);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("色块长按反馈环显示失败 | " + ex.Message, LogHelper.LogType.Trace);
+                _penSlotRingAdorner = null;
+            }
+        }
+
+        /// <summary>移除长按进度环（幂等）。</summary>
+        private void HidePenSlotLongPressRing()
+        {
+            try { PenSlotLongPressRing.Detach(_penSlotRingAdorner); } catch { }
+            _penSlotRingAdorner = null;
+        }
+
+        /// <summary>
+        /// 长按进度环的颜色：暗底 → 白圈；亮底 → 软件主题蓝。
+        /// 白板/黑板模式下按墨迹选项对应的画布底色判断；
+        /// 桌面批注（画布透明、看到的是桌面）则按当前应用主题判断。
+        /// </summary>
+        private Brush ResolvePenSlotLongPressRingBrush()
+        {
+            bool darkBackground;
+            try
+            {
+                if (GridBackgroundCover != null && GridBackgroundCover.Visibility == Visibility.Visible)
+                {
+                    // 白板=白底（亮）→ 蓝圈；黑板=黑底（暗）→ 白圈
+                    darkBackground = !Settings.Canvas.UsingWhiteboard;
+                }
+                else
+                {
+                    darkBackground = iNKORE.UI.WPF.Modern.ThemeManager.Current.ApplicationTheme
+                        != iNKORE.UI.WPF.Modern.ApplicationTheme.Light;
+                }
+            }
+            catch
+            {
+                darkBackground = false;
+            }
+
+            if (darkBackground)
+            {
+                var white = new SolidColorBrush(Colors.White);
+                if (white.CanFreeze) white.Freeze();
+                return white;
+            }
+
+            return ResolveThemeAccentBrush();
+        }
+
+        /// <summary>软件主题强调色（优先取主题资源，取不到回落到默认蓝）。</summary>
+        private Brush ResolveThemeAccentBrush()
+        {
+            var keys = new object[]
+            {
+                "SystemAccentColor",
+                "SystemAccentColorLight1",
+                "AccentFillColorDefaultBrush",
+                "SystemControlHighlightAccentBrush"
+            };
+            foreach (var key in keys)
+            {
+                try
+                {
+                    var resource = TryFindResource(key);
+                    if (resource is Color color)
+                    {
+                        var brush = new SolidColorBrush(color);
+                        if (brush.CanFreeze) brush.Freeze();
+                        return brush;
+                    }
+                    if (resource is Brush brushResource)
+                    {
+                        return brushResource;
+                    }
+                }
+                catch { }
+            }
+
+            // 回落色：与 Windows/软件主题一致的默认蓝
+            var fallback = new SolidColorBrush(Color.FromRgb(0x00, 0x78, 0xD4));
+            if (fallback.CanFreeze) fallback.Freeze();
+            return fallback;
         }
 
         private void TryRaisePenSlotEditRequested(int slotIndex)

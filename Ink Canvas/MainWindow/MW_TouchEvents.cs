@@ -51,7 +51,6 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
-                RecordInputDown();
                 if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint
                     || inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke
                     || inkCanvas.EditingMode == InkCanvasEditingMode.Select) return;
@@ -104,7 +103,6 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
-                RecordInputDown();
                 MarkPenContact();
                 // 激光笔开启期间不进入「手写预览」路径：该路径不经过 InkCanvas 的编辑模式
                 // （激光态下 EditingMode 为 None 也拦不住它），抬手时会把预览笔迹直接写入
@@ -619,7 +617,6 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
-                RecordInputDown();
                 if (!isHidingSubPanelsWhenInking)
                 {
                     isHidingSubPanelsWhenInking = true;

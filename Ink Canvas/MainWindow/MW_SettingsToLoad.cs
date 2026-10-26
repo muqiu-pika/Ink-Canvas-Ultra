@@ -208,6 +208,13 @@ namespace Ink_Canvas
                 ApplyScaling();
                 ApplyVideoPresenterSidebarPosition();
             }
+            // 「墨迹选项」面板控件（浮动栏 + 白板栏）的状态同步必须每次载入设置都执行：
+            // 这些控件在浮动栏/白板栏 XAML 里，与设置窗口是否打开无关。
+            // 早期同步代码被放在下面「仅设置窗口打开时执行」的守卫块里，启动时整段被跳过，
+            // 面板停留在 XAML 默认值（笔尖模式恒开、粗细恒为 5 号、墨迹识别恒关），
+            // 表现为"每次进入都固定、重新调了也不固定""设置里开了识别但面板显示没开"。
+            SyncPenPaletteControlsFromSettings();
+
             // 以下设置 UI 控件填充仅在设置窗口打开时执行
             if (SettingsWindow != null)
             {
@@ -240,18 +247,6 @@ namespace Ink_Canvas
                     {
                         FoldFloatingBar_Click(Fold_Icon, null);
                     }
-                }
-                if (Settings.Startup.IsEnableNibMode)
-                {
-                    ToggleSwitchEnableNibMode.IsOn = true;
-                    BoardToggleSwitchEnableNibMode.IsOn = true;
-                    BoundsWidth = Settings.Advanced.NibModeBoundsWidth;
-                }
-                else
-                {
-                    ToggleSwitchEnableNibMode.IsOn = false;
-                    BoardToggleSwitchEnableNibMode.IsOn = false;
-                    BoundsWidth = Settings.Advanced.FingerModeBoundsWidth;
                 }
                 if (Settings.Startup.IsAutoUpdate)
                 {
@@ -299,12 +294,6 @@ namespace Ink_Canvas
                 ToggleSwitchEnableRectangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeRectangle;
                 ToggleSwitchEnableCircleRecognition.IsOn = Settings.InkToShape.IsInkToShapeCircle;
 
-                // 让浮动栏 / 白板模式下的墨迹识别主开关也与设置保持一致，
-                // 避免启动时左右两处开关停留在默认状态而与设置不同步。
-                if (ToggleSwitchEnableInkToShapeFloatBar != null)
-                    ToggleSwitchEnableInkToShapeFloatBar.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
-                if (ToggleSwitchEnableInkToShapeBoard != null)
-                    ToggleSwitchEnableInkToShapeBoard.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
 
                 LineStraightenSensitivitySlider.Value = Settings.InkToShape.LineStraightenSensitivity;
             }
@@ -647,15 +636,6 @@ namespace Ink_Canvas
             // Canvas
             if (Settings.Canvas != null)
             {
-                drawingAttributes.Height = Settings.Canvas.InkWidth;
-                drawingAttributes.Width = Settings.Canvas.InkWidth;
-
-                InkWidthSlider.Value = Settings.Canvas.InkWidth * 2;
-                BoardInkWidthSlider.Value = Settings.Canvas.InkWidth * 2;
-                InkAlphaSlider.Value = Settings.Canvas.InkAlpha;
-                BoardInkAlphaSlider.Value = Settings.Canvas.InkAlpha;
-
-                ComboBoxHyperbolaAsymptoteOption.SelectedIndex = (int)Settings.Canvas.HyperbolaAsymptoteOption;
 
                 if (Settings.Canvas.UsingWhiteboard)
                 {
@@ -682,8 +662,6 @@ namespace Ink_Canvas
                 // 同步"上传照片时压缩画质"开关，避免重启后 UI 始终为关
                 ToggleSwitchCompressPicturesUploaded.IsOn = Settings.Canvas.IsCompressPicturesUploaded;
 
-                ComboBoxPenStyle.SelectedIndex = Settings.Canvas.InkStyle;
-                BoardComboBoxPenStyle.SelectedIndex = Settings.Canvas.InkStyle;
 
                 ComboBoxEraserSize.SelectedIndex = Settings.Canvas.EraserSize;
 
@@ -759,11 +737,6 @@ namespace Ink_Canvas
                 {
                     ToggleSwitchEnableInkToShape.IsOn = false;
                 }
-                // 重置后同时同步浮动栏 / 白板主开关，避免三处状态不一致
-                if (ToggleSwitchEnableInkToShapeFloatBar != null)
-                    ToggleSwitchEnableInkToShapeFloatBar.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
-                if (ToggleSwitchEnableInkToShapeBoard != null)
-                    ToggleSwitchEnableInkToShapeBoard.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
             }
             else
             {
@@ -1145,6 +1118,56 @@ namespace Ink_Canvas
                 {
                     LogHelper.WriteLogToFile("ApplySettingsSideEffects | auto update: " + ex.Message, LogHelper.LogType.Error);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 把设置里的「墨迹选项」面板状态同步到浮动栏与白板栏控件（笔尖模式、粗细、不透明度、
+        /// 笔锋、双曲线 asymptote 选项、墨迹识别主开关）。每次 LoadSettings 都调用——
+        /// 含启动时（设置窗口未打开），因为这些控件位于浮动栏/白板栏 XAML，本就该随设置刷新。
+        /// </summary>
+        private void SyncPenPaletteControlsFromSettings()
+        {
+            try
+            {
+                // 笔尖模式：浮动栏 + 白板栏两个开关，以及触摸判定宽度
+                bool nibMode = Settings.Startup?.IsEnableNibMode ?? false;
+                if (ToggleSwitchEnableNibMode != null) ToggleSwitchEnableNibMode.IsOn = nibMode;
+                if (BoardToggleSwitchEnableNibMode != null) BoardToggleSwitchEnableNibMode.IsOn = nibMode;
+                BoundsWidth = nibMode
+                    ? Settings.Advanced.NibModeBoundsWidth
+                    : Settings.Advanced.FingerModeBoundsWidth;
+
+                if (Settings.Canvas != null)
+                {
+                    double width = Settings.Canvas.InkWidth;
+                    if (drawingAttributes != null)
+                    {
+                        drawingAttributes.Height = width;
+                        drawingAttributes.Width = width;
+                    }
+                    if (InkWidthSlider != null) InkWidthSlider.Value = width * 2;
+                    if (BoardInkWidthSlider != null) BoardInkWidthSlider.Value = width * 2;
+                    if (InkAlphaSlider != null) InkAlphaSlider.Value = Settings.Canvas.InkAlpha;
+                    if (BoardInkAlphaSlider != null) BoardInkAlphaSlider.Value = Settings.Canvas.InkAlpha;
+                    if (ComboBoxHyperbolaAsymptoteOption != null)
+                        ComboBoxHyperbolaAsymptoteOption.SelectedIndex = (int)Settings.Canvas.HyperbolaAsymptoteOption;
+                    if (ComboBoxPenStyle != null) ComboBoxPenStyle.SelectedIndex = Settings.Canvas.InkStyle;
+                    if (BoardComboBoxPenStyle != null) BoardComboBoxPenStyle.SelectedIndex = Settings.Canvas.InkStyle;
+                }
+
+                // 墨迹识别主开关：浮动栏 + 白板栏
+                if (Settings.InkToShape != null)
+                {
+                    if (ToggleSwitchEnableInkToShapeFloatBar != null)
+                        ToggleSwitchEnableInkToShapeFloatBar.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
+                    if (ToggleSwitchEnableInkToShapeBoard != null)
+                        ToggleSwitchEnableInkToShapeBoard.IsOn = Settings.InkToShape.IsInkToShapeEnabled;
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("同步墨迹选项面板状态失败 | " + ex.Message, LogHelper.LogType.Warning);
             }
         }
 

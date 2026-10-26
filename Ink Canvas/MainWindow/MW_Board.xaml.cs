@@ -78,6 +78,13 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(BoardEraserIconByStrokes_Click), sender, e);
         }
 
+        private void SymbolIconSelect_Click(object sender, RoutedEventArgs e)
+        {
+            // 白板栏「墨迹选项」里的选择入口：与浮动栏同款按钮共用主窗口处理
+            // （BtnSelect_Click + HideSubPanels("select")，与当前模式无关）
+            InvokeMainWindowHandler(nameof(SymbolIconSelect_Click), sender, e);
+        }
+
         private void BoardBtnLaserPointer_Click(object sender, RoutedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(BoardBtnLaserPointer_Click), sender, e);

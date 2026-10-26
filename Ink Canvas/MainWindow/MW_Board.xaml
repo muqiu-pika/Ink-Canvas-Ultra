@@ -1333,19 +1333,30 @@
 
                                         Orientation="Horizontal">
 
-                                        <ui:FontIcon
-
-                                            Width="28"
-
-                                            Height="22"
-
-                                            FontFamily="{StaticResource FluentIconFontFamily}"
-
-                                            FontSize="22"
-
-                                            Foreground="{DynamicResource BoardBarForeground}"
-
-                                            Glyph="&#xee56;" />
+                                        <Grid>
+                                            <!-- 笔图标本体按当前笔色填充；浅色/极深色笔时下面这层描边可见（代码控制） -->
+                                            <ui:FontIcon
+                                                x:Name="BoardIcon_PenOutline"
+                                                Width="28"
+                                                Height="22"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontFamily="{StaticResource FluentIconFontFamily}"
+                                                FontSize="23"
+                                                Foreground="#80000000"
+                                                Glyph="&#xee56;"
+                                                Visibility="Collapsed" />
+                                            <ui:FontIcon
+                                                x:Name="BoardIcon_Pen"
+                                                Width="28"
+                                                Height="22"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                FontFamily="{StaticResource FluentIconFontFamily}"
+                                                FontSize="22"
+                                                Foreground="{DynamicResource BoardBarForeground}"
+                                                Glyph="&#xee56;" />
+                                        </Grid>
 
                                     </ikw:SimpleStackPanel>
 
@@ -1801,37 +1812,25 @@
 
                                                                             MouseUp="ColorThemeSwitch_MouseUp">
 
-                                                                            <Grid Margin="5">
-
-                                                                                <ui:FontIcon
-
-                                                                                    x:Name="BoardColorThemeSwitchIcon"
-
-                                                                                    Width="26"
-
-                                                                                    Height="26"
-
-                                                                                    VerticalAlignment="Top"
-
-                                                                                    FontFamily="{StaticResource FluentIconFontFamily}"
-
-                                                                                    Foreground="{DynamicResource BoardBarForeground}"
-
-                                                                                    Glyph="&#xe706;" />
-
-                                                                                <TextBlock
-
+                                                                            <Viewbox Stretch="Uniform" StretchDirection="DownOnly">
+                                                                                <ikw:SimpleStackPanel
+                                                                                    Margin="5"
                                                                                     HorizontalAlignment="Center"
-
-                                                                                    VerticalAlignment="Bottom"
-
-                                                                                    FontSize="13"
-
-                                                                                    Foreground="{DynamicResource BoardBarForeground}"
-
-                                                                                    Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FloatBarHostBridge.ColorThemeSwitchTextBlockBridge.Text}" />
-
-                                                                            </Grid>
+                                                                                    Orientation="Vertical">
+                                                                                    <ui:FontIcon
+                                                                                        x:Name="BoardColorThemeSwitchIcon"
+                                                                                        Width="26"
+                                                                                        Height="26"
+                                                                                        FontFamily="{StaticResource FluentIconFontFamily}"
+                                                                                        Foreground="{DynamicResource BoardBarForeground}"
+                                                                                        Glyph="&#xe706;" />
+                                                                                    <TextBlock
+                                                                                        HorizontalAlignment="Center"
+                                                                                        FontSize="13"
+                                                                                        Foreground="{DynamicResource BoardBarForeground}"
+                                                                                        Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FloatBarHostBridge.ColorThemeSwitchTextBlockBridge.Text}" />
+                                                                                </ikw:SimpleStackPanel>
+                                                                            </Viewbox>
 
                                                                         </Border>
 
@@ -2896,6 +2895,53 @@
 
                             </Border>
 
+                        </Button>
+                        <Button
+                            Width="60"
+                            Height="55"
+                            Padding="0"
+                            BorderThickness="0"
+                            ToolTip="选择"
+                            Click="SymbolIconSelect_Click">
+                            <Border
+                                x:Name="BoardSelectInPalette"
+                                Width="60"
+                                Height="55"
+                                Background="{DynamicResource BoardBarBackground}"
+                                BorderBrush="{DynamicResource BoardBarBorderBrush}"
+                                BorderThickness="0,1,0.25,1">
+                                <Grid Margin="5">
+                                    <ikw:SimpleStackPanel
+                                        Width="28"
+                                        Height="28"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Top"
+                                        Background="Transparent"
+                                        Orientation="Horizontal">
+                                        <ui:FontIcon
+                                            Width="28"
+                                            Height="22"
+                                            FontFamily="{StaticResource FluentIconFontFamily}"
+                                            FontSize="22"
+                                            Foreground="{DynamicResource BoardBarForeground}"
+                                            Glyph="&#xe958;" />
+                                        <ui:FontIcon
+                                            Width="10"
+                                            Height="22"
+                                            Margin="-14,0,0,-10.5"
+                                            FontFamily="{StaticResource FluentIconFontFamily}"
+                                            FontSize="12"
+                                            Foreground="{DynamicResource BoardBarForeground}"
+                                            Glyph="&#xf8af;" />
+                                    </ikw:SimpleStackPanel>
+                                    <TextBlock
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Bottom"
+                                        FontSize="12"
+                                        Foreground="{DynamicResource BoardBarForeground}"
+                                        Text="选择" />
+                                </Grid>
+                            </Border>
                         </Button>
 
                         <Button

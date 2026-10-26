@@ -1202,7 +1202,6 @@ namespace Ink_Canvas
             {
                 _syncingInkToShapeToggles = false;
             }
-
             // 主开关关闭时隐藏子开关并置为关闭；重新启用时恢复显示并还原之前状态
             UpdateInkRecognitionSubOptionsVisibility(isOn);
         }

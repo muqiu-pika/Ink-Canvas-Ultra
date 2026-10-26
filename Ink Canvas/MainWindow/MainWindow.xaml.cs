@@ -406,6 +406,9 @@ namespace Ink_Canvas
                     // 「自定义画笔颜色」插件的安装/卸载/启用/禁用会改变「墨迹选项」
                     // 深/浅色切换按钮的形态（设置颜色入口 ↔ 主题切换），及时刷新
                     try { UpdateColorThemeSwitchButtonVisual(); } catch { }
+                    // 插件加载完成的时机上色块控件必然已就绪：这里补挂右键/长按手势，
+                    // 兜住"构造期/Loaded 时控件未就绪导致部分色块没有改色交互"的设备
+                    try { InitializePenPaletteEditGestures(); } catch { }
                     // 若侧栏已打开，同步刷新其模式
                     if (VideoPresenterSidebar != null && VideoPresenterSidebar.Visibility == Visibility.Visible)
                     {
@@ -1029,9 +1032,54 @@ namespace Ink_Canvas
                 case WM_POWERBROADCAST:
                     ScheduleInputDeviceRecovery();
                     break;
+                case WM_DISPLAYCHANGE:
+                    // 分辨率/DPI 变化（接投影、PPT 放映结束回切、远程桌面等）：最大化窗口不会
+                    // 跟着新的显示器尺寸重排，会留下一条露出任务栏的空隙——
+                    // 表现为"任务栏重叠在白板上方"，重启后（重新按当前分辨率布局）才正常。
+                    ScheduleDisplayChangeRecovery();
+                    break;
             }
 
             return IntPtr.Zero;
+        }
+
+        private bool isDisplayChangeRecoveryScheduled = false;
+
+        /// <summary>
+        /// 显示器分辨率/DPI 变化后的恢复：重新最大化窗口以重建全屏边界，并刷新布局与缩放。
+        /// 延迟到 Background 优先级执行，避免在 WM_DISPLAYCHANGE 处理过程中同步改变窗口状态。
+        /// </summary>
+        private void ScheduleDisplayChangeRecovery()
+        {
+            if (!isLoaded || isDisplayChangeRecoveryScheduled) return;
+
+            isDisplayChangeRecoveryScheduled = true;
+            Dispatcher.BeginInvoke(new Action(async () =>
+            {
+                try
+                {
+                    // 等系统先把显示器拓扑/工作区更新完再重排
+                    await Task.Delay(200);
+                    LogHelper.WriteLogToFile("显示分辨率变化，重建窗口全屏边界", LogHelper.LogType.Info);
+
+                    // 最大化状态下 WPF 不会按新分辨率重算窗口边界：Normal → Maximized 强制重排
+                    WindowState = WindowState.Normal;
+                    WindowState = WindowState.Maximized;
+                    UpdateLayout();
+
+                    // 重新对齐浮动栏边距与整体缩放，避免按钮停留在旧屏幕坐标
+                    try { ApplyScaling(); } catch { }
+                    try { TouchLockFix.ReRegisterTouchWindow(this); } catch { }
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile("显示分辨率变化恢复失败 | " + ex.Message, LogHelper.LogType.Warning);
+                }
+                finally
+                {
+                    isDisplayChangeRecoveryScheduled = false;
+                }
+            }), System.Windows.Threading.DispatcherPriority.Background);
         }
 
         private void ScheduleInputDeviceRecovery()
@@ -1318,6 +1366,9 @@ namespace Ink_Canvas
 
             if (AppVersionTextBlock != null)
                 AppVersionTextBlock.Text = AutoUpdateHelper.GetDisplayVersion();
+
+
+
             LogHelper.WriteLogToFile("Ink Canvas Loaded", LogHelper.LogType.Event);
             
             // 初始化摄像头设备管理器
@@ -5656,7 +5707,6 @@ namespace Ink_Canvas
         }
 
         
-
         /// <summary>
         /// 获取当前页面上所有可旋转的图像元素
         /// </summary>

@@ -849,8 +849,10 @@ namespace Ink_Canvas.Helpers
                 // /CLOSEAPPLICATIONS：关闭正在运行的应用（配合 iss 的 CloseApplications），
                 //   避免主程序文件被占用导致安装失败。
                 // /NORESTART：安装后不自动重启。
-                string InstallCommand = $"\"{setupFilePath}\" /SILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /NORESTART";
-                if (isInSilence) InstallCommand += " /VERYSILENT";
+                // 只放开关，安装包路径单独传给 ProcessStartInfo.FileName：
+                // 旧写法把路径和开关拼成一整条命令行，带空格的路径容易被引号规则拆坏。
+                string InstallArguments = "/SILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /NORESTART";
+                if (isInSilence) InstallArguments += " /VERYSILENT";
 
                 // ===== 便携版就地更新 =====
                 // 安装包的 DefaultDirName 是 %LOCALAPPDATA%\Programs\Ink Canvas Ultra。
@@ -887,7 +889,7 @@ namespace Ink_Canvas.Helpers
 
                     // /DIR 指定安装目录；/NOICONS 与取消 desktopicon 任务避免给便携版用户
                     // 额外塞进开始菜单/桌面快捷方式。
-                    InstallCommand += $" /DIR=\"{appDir}\" /NOICONS /MERGETASKS=\"!desktopicon\"";
+                    InstallArguments += $" /DIR=\"{appDir}\" /NOICONS /MERGETASKS=\"!desktopicon\"";
                     LogHelper.WriteLogToFile($"AutoUpdate | 就地更新模式：目标目录 {appDir}", LogHelper.LogType.Info);
                 }
 
@@ -895,7 +897,29 @@ namespace Ink_Canvas.Helpers
                 // 由 HandlePendingInstallAttempts() 作废缓存重试 / 最终提示手动下载。
                 MarkInstallAttempt(version);
 
-                ExecuteCommandLine(InstallCommand);
+                // 拉起"安装 → 重启程序"的串行脚本（见 StartInstallerAndRelaunch 的说明）。
+                string relaunchExePath = null;
+                try { relaunchExePath = Process.GetCurrentProcess().MainModule?.FileName; } catch { }
+                if (string.IsNullOrEmpty(relaunchExePath))
+                {
+                    relaunchExePath = Path.Combine(GetAppDirectory() ?? string.Empty, "Ink Canvas Ultra.exe");
+                }
+
+                if (!StartInstallerAndRelaunch(setupFilePath, InstallArguments, relaunchExePath, version))
+                {
+                    if (!isInSilence)
+                    {
+                        MessageBoxHelper.Show(
+                            "安装程序未能启动，更新未生效。\n\n"
+                            + $"请稍后重试，或手动下载最新版：\n{ManualDownloadPageUrl}",
+                            "Ink Canvas Ultra",
+                            MessageBoxButton.OK,
+                            MessageBoxImage.Warning);
+                    }
+                    return;
+                }
+
+                Application.Current.Shutdown();
             }
             catch (Exception ex)
             {
@@ -904,29 +928,72 @@ namespace Ink_Canvas.Helpers
         }
 
 
-        private static void ExecuteCommandLine(string command)
+        /// <summary>
+        /// 用一个临时脚本串起「安装 → 重新拉起程序」，保证用户看到的总是刚装好的新版本。
+        ///
+        /// 替换掉的旧实现的三个问题：
+        ///   1) 把安装包路径拼进一条 cmd 命令行，带空格的路径容易被引号规则拆坏；
+        ///   2) RedirectStandardOutput/Error 会建立管道，而紧接着 Application.Shutdown()
+        ///      关闭了读端 —— 安装包再往已关闭的管道写日志就会失败，整条命令可能就此中断，
+        ///      表现为"提示安装过、实际文件没换、下次打开还是旧版本"；
+        ///   3) 安装结束后没有任何人或流程拉起程序，用户自己点开的往往还是旧副本。
+        /// 脚本方式的收益：cmd 同步执行安装包（装完才往下走）、输出落到日志文件不依赖管道、
+        /// 结束时无论成败都重新拉起程序。
+        /// </summary>
+        private static bool StartInstallerAndRelaunch(string setupPath, string arguments, string exePath, string version)
         {
             try
             {
-                ProcessStartInfo processStartInfo = new ProcessStartInfo
+                string logPath = Path.Combine(updatesFolderPath, $"InstallV{version}.log");
+                string scriptPath = Path.Combine(Path.GetTempPath(), $"icu_update_{version}.cmd");
+
+                // 每行独立成句、路径全部加引号，避免引号/转义规则拆坏带空格的路径
+                string script =
+                    "@echo off\r\n" +
+                    $"\"{setupPath}\" {arguments} > \"{logPath}\" 2>&1\r\n" +
+                    "set RC=%ERRORLEVEL%\r\n" +
+                    $"echo exitcode=%RC% >> \"{logPath}\"\r\n" +
+                    // 成功→新版本；失败→旧版本仍在（下次启动会走"安装未生效"提示手动下载）
+                    $"start \"\" \"{exePath}\"\r\n" +
+                    "exit /b %RC%\r\n";
+
+                // 脚本用系统 ANSI 代码页解析，必须按默认编码写盘（UTF-8 的 BOM 会破坏首行）
+                File.WriteAllText(scriptPath, script, System.Text.Encoding.Default);
+
+                // 顺手清掉上次更新残留的脚本，避免临时目录堆积
+                try
                 {
-                    FileName = "cmd.exe",
-                    Arguments = $"/c {command}",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
+                    foreach (string stale in Directory.GetFiles(Path.GetTempPath(), "icu_update_*.cmd"))
+                    {
+                        if (!string.Equals(stale, scriptPath, StringComparison.OrdinalIgnoreCase))
+                        {
+                            TryDeleteFileQuietly(stale);
+                        }
+                    }
+                }
+                catch { }
+
+                var startInfo = new ProcessStartInfo
+                {
+                    FileName = scriptPath,
+                    UseShellExecute = true,          // 与当前进程的句柄/管道解耦：我们退出不影响安装
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    WorkingDirectory = Path.GetTempPath()
                 };
 
-                using (Process process = new Process { StartInfo = processStartInfo })
+                using (var process = Process.Start(startInfo))
                 {
-                    process.Start();
-                    Application.Current.Shutdown();
-                    /*process.WaitForExit();
-                    int exitCode = process.ExitCode;*/
+                    LogHelper.WriteLogToFile(
+                        $"AutoUpdate | 已启动安装脚本 pid={process?.Id.ToString() ?? "null"} setup={setupPath} args={arguments} log={logPath}",
+                        LogHelper.LogType.Info);
                 }
+                return true;
             }
-            catch { }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile($"AutoUpdate | 启动安装脚本失败 | {ex.Message}", LogHelper.LogType.Error);
+                return false;
+            }
         }
 
         public static void DeleteUpdatesFolder()

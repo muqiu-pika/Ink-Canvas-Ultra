@@ -385,15 +385,27 @@ namespace Ink_Canvas
 
             // 模式切换（白板/桌面/批注）过渡窗口内到达的“用户笔画”，是切换前桌面/白板残留笔迹被延迟提交，
             // 若不拦截会混入新模式的画布（“浮动栏笔迹替换白板笔迹”的根因）。此处立即将其从画布移除且不入历史。
-            // 注意：若过渡窗口内用户已开始在新画布上书写（_inputActivityAfterSwitch == true），
-            // 说明这是新的正常笔画，应放行而不是误删。
-            if (_isInBoardModeSwitch && e.Added.Count != 0 && !_inputActivityAfterSwitch)
+            // 判定用「引用快照」而非单纯的时间窗：切换前卡住的那几笔提交到新画布时仍是旧的 Stroke 对象
+            // （BeginBoardModeSwitch 已快照其引用），而用户在过渡窗口内新写的笔画（无论触笔/触摸/鼠标）
+            // 都是新对象，一律放行。早先按 _inputActivityAfterSwitch 一刀切的写法会漏掉鼠标下笔路径
+            // （未调 RecordInputDown），把用户的新笔画当残留删掉，表现为“重进后偶尔消失几条/断墨”。
+            if (_isInBoardModeSwitch && e.Added.Count != 0)
             {
-                var strayStrokes = e.Added;
-                _currentCommitType = CommitReason.CodeInput;
-                try { inkCanvas.Strokes.Remove(strayStrokes); } catch { }
-                _currentCommitType = CommitReason.UserInput;
-                return;
+                var residual = new StrokeCollection();
+                foreach (var stroke in e.Added)
+                {
+                    if (IsPreSwitchResidualStroke(stroke)) residual.Add(stroke);
+                }
+                if (residual.Count > 0)
+                {
+                    _currentCommitType = CommitReason.CodeInput;
+                    try { inkCanvas.Strokes.Remove(residual); } catch { }
+                    _currentCommitType = CommitReason.UserInput;
+                    // 整批都是残留才终止本次处理；若同一批里混有新笔画（如兜底补提交与残留同时到达），
+                    // 移除残留后继续往下走，让新笔画正常进入历史提交，避免被一起丢弃。
+                    if (residual.Count == e.Added.Count) return;
+                }
+                // 没有残留笔迹：说明是切换后新画布上的正常书写，放行继续走后续历史提交流程
             }
 
             // 文档页笔迹任何变更（新增/擦除）后立即调度自动保存（防抖），

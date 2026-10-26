@@ -1691,6 +1691,9 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
+                // 与真手写笔落笔同一套兜底：触摸/双指手势流程会把 EditingMode 临时置为 None，
+                // 若残留未恢复，鼠标落笔同样会被完全忽略——表现为"写了一笔没反应、下一笔又正常"。
+                EnsurePenInkModeAvailable();
                 isMouseDown = true;
                 // 顿笔拉直：鼠标路径会话入口（笔提升的鼠标事件在内部跳过，由 Stylus 会话接管）
                 HandleMouseStraightenDown(e);
