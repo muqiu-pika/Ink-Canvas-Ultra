@@ -4,17 +4,6 @@ using System.Runtime.CompilerServices;
 
 namespace Ink_Canvas.Helpers
 {
-    /// <summary>
-    /// <para>用於實現修改系統屬性<c>System.EdgeGesture.DisableTouchWhenFullscreen</c>達到暫時停用邊緣手勢的效果</para>
-    /// <para>僅支持Windows10和Windows11，具體請查閱微軟官方MSDN：<see href="https://learn.microsoft.com/en-us/windows/win32/properties/props-system-edgegesture-disabletouchwhenfullscreen"/></para>
-    /// <para><c>========================</c></para>
-    /// <para>該代碼來自 Ink Canvas Ultra 的Fork項目：InkCanvasForClass</para>
-    /// <para>
-    ///     ICC開源地址(Gitea)：<see href="https://gitea.bliemhax.com/kriastans/InkCanvasForClass"/><br/>
-    ///     ICC開源地址(Github)：<see href="https://github.com/kriastans/InkCanvasForClass"/><br/>
-    ///     ICC官網：<see href="https://icc.bliemhax.com"/>
-    /// </para>
-    /// </summary>
     public static class EdgeGestureUtil
     {
 
@@ -87,7 +76,6 @@ namespace Ink_Canvas.Helpers
             [FieldOffset(8)]
             private IntPtr pwszVal;
 
-
             /// <summary>
             /// Helper method to gets blob data
             /// </summary>
@@ -98,9 +86,6 @@ namespace Ink_Canvas.Helpers
                 return Result;
             }
 
-            /// <summary>
-            /// Property value
-            /// </summary>
             public object Value
             {
                 get
@@ -135,14 +120,6 @@ namespace Ink_Canvas.Helpers
             public int Length;
 
             public IntPtr Data;
-            //Code Should Compile at warning level4 without any warnings, 
-            //However this struct will give us Warning CS0649: Field [Fieldname] 
-            //is never assigned to, and will always have its default value
-            //You can disable CS0649 in the project options but that will disable
-            //the warning for the whole project, it's a nice warning and we do want 
-            //it in other places so we make a nice dummy function to keep the compiler
-            //happy.
-            // 代码应该在警告级别 4 下编译而不会出现任何警告，但是此结构将给出警告 CS0649：字段 [Fieldname] 从未分配，并且始终具有其默认值。您可以在项目选项中禁用 CS0649，但这将禁用整个项目的警告，这是一个很好的警告，我们确实希望它在其他地方，所以我们制作了一个不错的虚拟函数来让编译器满意。
             private void FixCS0649()
             {
                 Length = 0;

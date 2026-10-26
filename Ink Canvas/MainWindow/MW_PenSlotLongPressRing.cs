@@ -6,21 +6,10 @@ using System.Windows.Media.Animation;
 
 namespace Ink_Canvas
 {
-    /// <summary>
-    /// 「墨迹选项」色块长按的环形进度反馈：在色块外围画一圈从 12 点方向开始逐渐闭合的圆弧，
-    /// 走到一整圈时触发取色器。
-    /// 用 Adorner 而不是往布局里插元素：色块位于 UniformGrid / SimpleStackPanel 中，
-    /// 直接加子元素会挤占布局；Adorner 不参与布局、不被裁剪到元素边界内，
-    /// 正好用来做"外围一圈"这种临时装饰。
-    /// 进度由 WPF 动画（<see cref="DoubleAnimation"/>）驱动而非定时器逐帧 setter：
-    /// 动画跟随渲染时钟插值，不会因为按住期间 UI 线程忙于处理 TouchMove 而掉帧。
-    /// </summary>
     internal sealed class PenSlotLongPressRingAdorner : Adorner
     {
-        /// <summary>环与色块边缘的间距（设备无关像素）</summary>
         private const double RingGap = 5;
 
-        /// <summary>环的粗细</summary>
         private const double RingThickness = 3;
 
         /// <summary>长按进度 0..1；AffectsRender 让动画每帧自动触发重绘，无需手动 InvalidateVisual。</summary>
@@ -48,7 +37,6 @@ namespace Ink_Canvas
             IsHitTestVisible = false;
         }
 
-        /// <summary>长按进度 0..1</summary>
         public double Progress
         {
             get { return (double)GetValue(ProgressProperty); }

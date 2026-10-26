@@ -32,7 +32,6 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- 头部 -->
             <Grid Grid.Row="0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -71,14 +70,12 @@
                     Text="步骤 1 / 5" Margin="634,42,31,0" />
             </Grid>
 
-            <!-- 主内容区 -->
             <Grid Grid.Row="1" Margin="0,20,0,20">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="2.2*" x:Name="LeftColumn" />
                     <ColumnDefinition Width="*" x:Name="RightColumn" />
                 </Grid.ColumnDefinitions>
 
-                <!-- 左侧：分步内容 -->
                 <ScrollViewer Grid.Column="0" Margin="0,0,20,0" VerticalScrollBarVisibility="Auto" ManipulationBoundaryFeedback="SCManipulationBoundaryFeedback" PanningMode="VerticalFirst">
                     <Grid x:Name="ContentHostGrid">
                         <Grid x:Name="Step1Grid" Opacity="1">
@@ -197,7 +194,6 @@
                             </StackPanel>
                         </Grid>
 
-                        <!-- Step 3: 外观选项 -->
                         <Grid x:Name="Step3Grid" Opacity="0" Visibility="Collapsed">
                             <StackPanel>
                                 <TextBlock
@@ -503,7 +499,6 @@
                     </Grid>
                 </ScrollViewer>
 
-                <!-- 右侧：插画 / 提示 + Emoji 动画 -->
                 <Border
                     Grid.Column="1"
                     Background="{DynamicResource PopupWindowBackground}"
@@ -680,7 +675,6 @@
                 </Border>
             </Grid>
 
-            <!-- 底部：导航按钮 -->
             <Grid Grid.Row="2">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />

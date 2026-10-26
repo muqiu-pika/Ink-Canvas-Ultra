@@ -18,13 +18,6 @@ namespace Ink_Canvas
         static extern bool UnregisterHotKey(IntPtr hWnd, int id);
         #endregion
 
-        /// <summary>
-        /// 注册快捷键
-        /// </summary>
-        /// <param name="window">持有快捷键窗口</param>
-        /// <param name="fsModifiers">组合键</param>
-        /// <param name="key">快捷键</param>
-        /// <param name="callBack">回调函数</param>
         public static bool Regist(Window window, HotkeyModifiers fsModifiers, Key key, HotKeyCallBackHanlder callBack)
         {
             var hwnd = new WindowInteropHelper(window).Handle;
@@ -47,9 +40,6 @@ namespace Ink_Canvas
             return true;
         }
 
-        /// <summary> 
-        /// 快捷键消息处理 
-        /// </summary> 
         static IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
             if (msg == WM_HOTKEY)
@@ -64,11 +54,6 @@ namespace Ink_Canvas
             return IntPtr.Zero;
         }
 
-        /// <summary> 
-        /// 注销快捷键 
-        /// </summary> 
-        /// <param name="hWnd">持有快捷键窗口的句柄</param> 
-        /// <param name="callBack">回调函数</param> 
         public static void UnRegist(IntPtr hWnd, HotKeyCallBackHanlder callBack)
         {
             List<int> removeIds = new List<int>();

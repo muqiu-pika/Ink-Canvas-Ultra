@@ -7,11 +7,6 @@ using System.Windows.Interop;
 
 namespace Ink_Canvas
 {
-    /// <summary>
-    /// 内置快捷键管理中心：管理「动作 → 组合键」的注册，支持被插件动态重绑定与复位默认。
-    /// 软件自带的默认按键在此注册；插件可通过 IPluginHost 的 Get/Set/Reset Hotkey 修改。
-    /// 若插件被禁用或未安装，动作将保持默认按键搭配。
-    /// </summary>
     public class HotkeyService
     {
         private readonly Window _window;
@@ -86,9 +81,6 @@ namespace Ink_Canvas
             return result;
         }
 
-        /// <summary>
-        /// 注册一个软件自带动作的默认快捷键。
-        /// </summary>
         internal void RegisterAction(string actionId, string name, string description,
             HotkeyModifiers defaultModifiers, Key defaultKey, Hotkey.HotKeyCallBackHanlder callback)
         {
@@ -135,17 +127,10 @@ namespace Ink_Canvas
             return _actions.TryGetValue(actionId, out var action) && !action.Disabled;
         }
 
-        /// <summary>
-        /// 为一个动作设置新的组合键。
-        /// </summary>
-        /// <param name="actionId">动作标识</param>
-        /// <param name="combo">组合键文本，如 "Ctrl+Shift+V"；空字符串/空值为禁用该动作。</param>
-        /// <returns>是否设置成功（含 Win32 注册失败返回 false）。</returns>
         public bool SetHotkey(string actionId, string combo)
         {
             if (!_actions.TryGetValue(actionId, out var action)) return false;
 
-            // 禁用：注销当前注册
             if (string.IsNullOrWhiteSpace(combo))
             {
                 Unregister(action);
@@ -163,7 +148,6 @@ namespace Ink_Canvas
             return Register(action);
         }
 
-        /// <summary>将某个动作恢复为软件默认按键。</summary>
         public bool ResetHotkey(string actionId)
         {
             if (!_actions.TryGetValue(actionId, out var action)) return false;
@@ -174,7 +158,6 @@ namespace Ink_Canvas
             return Register(action);
         }
 
-        /// <summary>将所有动作恢复为软件默认按键。</summary>
         public void ResetAllHotkeys()
         {
             foreach (var id in _actions.Keys.ToList())
@@ -334,8 +317,6 @@ namespace Ink_Canvas
             return m;
         }
 
-        // ===== 组合键文本转换 =====
-
         internal static string FormatCombo(HotkeyModifiers mods, Key key)
         {
             var parts = new List<string>();
@@ -409,13 +390,10 @@ namespace Ink_Canvas
         /// <summary>动作唯一标识（如 "capture"）</summary>
         public string Id { get; set; }
 
-        /// <summary>动作名称（如 "截图"）</summary>
         public string Name { get; set; }
 
-        /// <summary>动作说明</summary>
         public string Description { get; set; }
 
-        /// <summary>软件默认组合键（如 "Alt+C"）</summary>
         public string DefaultCombo { get; set; }
 
         /// <summary>当前生效的组合键；空字符串表示已禁用。</summary>

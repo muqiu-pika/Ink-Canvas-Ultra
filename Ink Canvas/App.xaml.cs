@@ -35,23 +35,9 @@ namespace Ink_Canvas
         public static string UserDataPath = Environment.GetEnvironmentVariable("APPDATA") + "\\Ink Canvas\\";
         private static bool _userDataPathInitialized = false;
 
-        /// <summary>
-        /// 照片/墨迹/截图等自动保存位置的默认目录：当前用户的「文档\Ink Canvas」。
-        /// 全仓唯一默认值来源——此前该表达式在 Settings 字段初始值、设置加载回退、
-        /// 崩溃路径回退、截图回退各处重复，且截图回退还是硬编码的 D:\Ink Canvas
-        /// （无 D 盘的机器上截图/自动保存全部失败）。统一走此属性，保证任何机器
-        /// 都解析到"当前用户"的目录，不再出现写死的盘符或他人用户名。
-        /// </summary>
         public static string DefaultAutoSavedStrokesLocation =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Ink Canvas");
 
-        /// <summary>
-        /// 判断路径是否指向"本机不存在的他人用户配置文件目录"（如 C:\Users\muqiu\...）。
-        /// 便携包被整目录拷贝到其它电脑、或旧版写在 exe 目录的 Settings.json 被迁移时，
-        /// 会带入原机器的用户路径——该目录在本机既不存在也不可写，会导致照片/墨迹/截图
-        /// 全部保存失败。仅在"本机没有这个用户目录"时判定为外来，多用户共享机上用户
-        /// 有意设置的他人可见路径不受影响。
-        /// </summary>
         public static bool IsForeignUserProfilePath(string path)
         {
             try
@@ -247,13 +233,6 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>
-        /// 保存会话快照并静默重启。先写 RestartReason 标记（尽量在任何可能的中断前完成），
-        /// 再写快照（内部先写 meta），最后启动新进程。供 UI 线程与后台线程崩溃时共用。
-        /// 带"连续崩溃防抖"：短时间内反复崩溃（尤其是主窗口还没建起来就崩）时，
-        /// 到达上限会放弃自动重启（返回 false），把控制权交回调用方去提示用户并结束进程，
-        /// 否则旧行为会形成"启动 → 崩溃 → 重启"的死循环，把日志刷到几十 MB。
-        /// </summary>
         private bool TrySnapshotRestartAndExit(Ink_Canvas.MainWindow mw, string reason)
         {
             bool silentRestart = true;
@@ -302,7 +281,6 @@ namespace Ink_Canvas
                 return false;
             }
 
-            // 4) 重启新进程
             try { RestartApplication(); } catch { }
             return true;
         }
@@ -450,16 +428,8 @@ namespace Ink_Canvas
             // 因此这里延迟清零不会影响"连续崩溃"的判定。
             ScheduleCrashRestartCounterReset();
 
-            // 解析命令行参数
             ParseCommandLineArgs(e.Args);
 
-            // 在 MainWindow 创建前，确保应用级资源里存在自定义主题键。
-            // Release 下 iNKORE 的 XamlControlsResources 会重建应用级资源字典，可能把 App.xaml
-            // 静态合并的 Light.xaml 冲刷掉；若不在此及时补回，MainWindow 渲染浮动栏/白板栏时，
-            // 其中的 DynamicResource（FloatBar*/BoardBar*）会瞬间找不到键而刷一批
-            // "Resource not found" Warning，随后主题切换才恢复。
-            // 注意 FloatBar* 与 BoardBar* 分属 Light.xaml 与 Light-Board.xaml 两个文件，必须成对补齐。
-            // 随后 MainWindow 构造函数里的 SetTheme 会按设置自动纠正为正确主题，故此处默认 Light 即可。
             try
             {
                 Helpers.ResourceDictionaryHelper.EnsureStartupThemeKeys();
@@ -475,7 +445,6 @@ namespace Ink_Canvas
             {
                 string lowerArg = arg.ToLower();
                 
-                // 处理 URI 格式：inkcanvasultra://xxx
                 if (lowerArg.StartsWith("inkcanvasultra://"))
                 {
                     string path = lowerArg.Substring("inkcanvasultra://".Length);
@@ -497,7 +466,6 @@ namespace Ink_Canvas
                     continue;
                 }
                 
-                // 处理命令行参数格式
                 if (lowerArg == "--whiteboard" || lowerArg == "-w" || lowerArg == "--whiteboard-mode")
                 {
                     CurrentStartupMode = StartupMode.Whiteboard;

@@ -10,7 +10,7 @@
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     mc:Ignorable="d">
     <Grid>
-        <!--  // 选择选项窗口 //  -->
+
         <Grid>
             <Grid
                 Name="GridInkCanvasSelectionCover"
@@ -27,7 +27,6 @@
                 PreviewTouchUp="GridInkCanvasSelectionCover_PreviewTouchUp"
                 Visibility="Visible">
 
-                <!-- 墨迹选择框（虚线边框，不参与命中测试，仅显示） -->
                 <Rectangle
                     Name="SelectionRectangle"
                     HorizontalAlignment="Left"
@@ -38,9 +37,7 @@
                     IsHitTestVisible="False"
                     Visibility="Collapsed" />
 
-                <!-- 墨迹选择把手：四角点 + 四边中点，共 8 个可拖动点 -->
                 <Canvas Name="SelectionHandlesCanvas" Visibility="Collapsed">
-                    <!-- 四个角选择点（拖动为同时缩放+旋转，以水平对边中点为枢轴） -->
                     <Rectangle Name="TopLeftHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
                                Cursor="Cross" HorizontalAlignment="Left" VerticalAlignment="Top"
                                MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
@@ -58,7 +55,6 @@
                                MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
                                TouchDown="SelectionHandle_TouchDown" TouchMove="SelectionHandle_TouchMove" TouchUp="SelectionHandle_TouchUp" />
 
-                    <!-- 四个边选择点（拖动为缩放，对边固定） -->
                     <Rectangle Name="TopHandle" Width="12" Height="12" RadiusX="6" RadiusY="6" Fill="White" Stroke="#1a73e8" StrokeThickness="2"
                                Cursor="SizeNS" HorizontalAlignment="Left" VerticalAlignment="Top"
                                MouseDown="SelectionHandle_MouseDown" MouseMove="SelectionHandle_MouseMove" MouseUp="SelectionHandle_MouseUp"
@@ -730,15 +726,12 @@
                                     Foreground="{DynamicResource FloatBarForeground}"
                                     Text="触屏：单指移动，两指缩放/旋转" />
                             </Border>
-
                         </ikw:SimpleStackPanel>
-                        <!-- 插件插槽：视频控件 plugin 通过 host.RegisterSelectionControlBar 注册到此容器 -->
                         <StackPanel x:Name="VideoControlContainer" Margin="0,4,0,0" />
                     </ikw:SimpleStackPanel>
                 </Viewbox>
             </Border>
 
-            <!-- 圈选后默认折叠成的小按钮：点击展开/收起上方设置框 -->
             <Border
                 x:Name="BorderStrokeSelectionExpand"
                 Width="44"

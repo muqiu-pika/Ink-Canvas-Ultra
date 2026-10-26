@@ -9,22 +9,8 @@ using System.Threading.Tasks;
 
 namespace Ink_Canvas.Helpers
 {
-    /// <summary>
-    /// 多源顺序下载器：按优先级依次尝试多个镜像源，任一源成功立即返回；
-    /// 只有全部源都失败时才判定为网络问题。
-    ///
-    /// 超时分为三个阶段（各阶段含义不同，不能混为一谈）：
-    ///   1. 首字节超时（10s）：从发起请求到收到响应头。超过即认定该源不可达，换下一个源。
-    ///   2. 整体超时（小文件 15s / 大文件 30min）：从发起请求到内容读完。
-    ///   3. 停滞超时（30s）：传输过程中连续 30 秒没有任何新数据即换源，
-    ///      用于应对"连上了但速度接近 0"的假死源。
-    ///
-    /// 之所以不用 HttpClient.Timeout：它是"整个请求"的单一超时，没法区分上述阶段；
-    /// 这里改为共享一个 Timeout=Infinite 的 HttpClient，各阶段用 CancellationToken 精确控制。
-    /// </summary>
     internal static class MultiSourceDownloader
     {
-        /// <summary>首字节（响应头）超时，秒。</summary>
         public const int FirstByteTimeoutSeconds = 10;
 
         /// <summary>小文件（版本文件 / 市场目录 / 插件包）整体超时，秒。</summary>
@@ -33,7 +19,6 @@ namespace Ink_Canvas.Helpers
         /// <summary>传输停滞超时，秒：连续这么久没收到任何数据就放弃当前源。</summary>
         public const int StallTimeoutSeconds = 30;
 
-        /// <summary>大文件（安装包）整体超时，分钟。</summary>
         public const int LargeFileTotalTimeoutMinutes = 30;
 
         /// <summary>
@@ -66,15 +51,6 @@ namespace Ink_Canvas.Helpers
             "codeload.github.com"
         };
 
-        /// <summary>
-        /// 给"直连 GitHub"的源套上代理前缀（设置 → 自动更新 → 代理）。
-        ///
-        /// 只对 GitHub 自有域名生效：自建代理（gh.muqiu.eu.org）、plugin.muqiu.eu.org、
-        /// jsDelivr 这些本身已经可达的源不再套一层，否则反而绕远路，
-        /// 还可能被代理自身的白名单拒掉。
-        /// </summary>
-        /// <param name="url">源地址</param>
-        /// <param name="proxy">代理前缀，例如 https://ghproxy.net/ ；为空则原样返回</param>
         public static string WithProxy(string url, string proxy)
         {
             if (string.IsNullOrWhiteSpace(url) || string.IsNullOrWhiteSpace(proxy)) return url;
@@ -96,7 +72,6 @@ namespace Ink_Canvas.Helpers
             return url;
         }
 
-        /// <summary>文本下载结果。</summary>
         internal sealed class TextDownloadResult
         {
             public bool Success { get; set; }
@@ -105,7 +80,6 @@ namespace Ink_Canvas.Helpers
             public string FailureReason { get; set; }
         }
 
-        /// <summary>文件下载结果。</summary>
         internal sealed class FileDownloadResult
         {
             public bool Success { get; set; }
@@ -116,7 +90,6 @@ namespace Ink_Canvas.Helpers
             /// <summary>服务器给出的总长度（-1 = 未知）。</summary>
             public long ExpectedBytes { get; set; } = -1;
 
-            /// <summary>实际收到的字节数。</summary>
             public long ReceivedBytes { get; set; }
         }
 
@@ -193,15 +166,6 @@ namespace Ink_Canvas.Helpers
             };
         }
 
-        /// <summary>
-        /// 依次尝试各源下载文件。
-        /// </summary>
-        /// <param name="urls">按优先级排列的源地址</param>
-        /// <param name="destinationPath">目标文件路径（每次尝试都会覆盖重写）</param>
-        /// <param name="progressCallback">进度回调，参数为百分比；服务器未给出长度时为 -1</param>
-        /// <param name="largeFile">true = 安装包等大文件，整体超时放宽到 30 分钟</param>
-        /// <param name="validate">下载完成后的校验委托：返回 null 表示通过，返回字符串表示失败原因（会换下一个源）</param>
-        /// <param name="onSourceChanged">切换源时回调，参数为（当前第几个源，总源数）</param>
         public static async Task<FileDownloadResult> DownloadFileAsync(
             IEnumerable<string> urls,
             string destinationPath,
@@ -233,7 +197,6 @@ namespace Ink_Canvas.Helpers
                 long receivedBytes = 0;
                 try
                 {
-                    // ① 首字节：10 秒
                     using (var headCts = new CancellationTokenSource(TimeSpan.FromSeconds(FirstByteTimeoutSeconds)))
                     using (HttpResponseMessage response = await SharedClient
                         .GetAsync(url, HttpCompletionOption.ResponseHeadersRead, headCts.Token)

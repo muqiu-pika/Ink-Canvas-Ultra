@@ -27,9 +27,6 @@ namespace Ink_Canvas
 
         private readonly Dictionary<string, int> cameraPageMapping = new Dictionary<string, int>();
 
-        /// <summary>
-        /// 获取板幕布侧栏的前景色画刷
-        /// </summary>
         private System.Windows.Media.Brush GetBoardBarForegroundBrush()
         {
             try
@@ -212,11 +209,6 @@ namespace Ink_Canvas
                     currentFrame = (Bitmap)e.Frame.Clone();
                 }
                 
-                // 仅在确实存在订阅者时才复制帧。
-                // 此前无论是否有订阅者都会调用 GetFrameCopy()：它内部 new Bitmap(...) 会新建一张
-                // 全分辨率 GDI+ 位图，在无订阅者时被直接丢弃且从未 Dispose，只能等 finalizer 回收，
-                // 于是摄像头开启期间以约 30fps 持续泄漏非托管内存与 GDI 句柄。
-                // 注意 currentFrame 仍需在上方无条件更新，定时器取帧路径（30fps 刷新）依赖它。
                 var handler = OnNewFrameProcessed;
                 if (handler == null) return;
 
@@ -250,12 +242,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 在帧锁内直接把当前帧的像素拷入调用方提供的可复用缓冲，全程不新建 Bitmap。
-        /// 这是 30fps 刷新路径应使用的取帧方式：旧的 GetFrameCopy() 会 new 一整张全分辨率
-        /// Bitmap，而旧调用方拿到后还要再 PNG 编码+解码一次，等于每帧两次大块分配。
-        /// </summary>
-        /// <returns>成功取到一帧返回 true；相机未启动或帧尚未就绪返回 false。</returns>
         public bool TryFillFrameBuffer(Helpers.CameraFrameBuffer buffer)
         {
             if (buffer == null) return false;
@@ -300,9 +286,6 @@ namespace Ink_Canvas
             return selectedDeviceName;
         }
 
-        /// <summary>
-        /// 获取当前页码
-        /// </summary>
         private int GetCurrentPageIndex()
         {
             return mainWindow.GetCurrentPageIndex();
@@ -321,9 +304,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 跳转到指定页码
-        /// </summary>
         private void SwitchToPage(int pageIndex)
         {
             mainWindow.Dispatcher.BeginInvoke(new Action(() =>
@@ -341,14 +321,12 @@ namespace Ink_Canvas
 
         private void OnCameraSelected(string deviceName)
         {
-            // 检查该摄像头设备是否已经插入过白板
             if (cameraPageMapping.ContainsKey(deviceName))
             {
                 // 如果已经插入过，直接跳转到该设备所在的页码
                 int targetPage = cameraPageMapping[deviceName];
                 Console.WriteLine($"摄像头设备 {deviceName} 已存在于页码 {targetPage}，正在跳转...");
                 
-                // 启动摄像头
                 selectedDeviceName = deviceName;
                 StartCamera(deviceName);
                 
@@ -358,11 +336,9 @@ namespace Ink_Canvas
                     // 合并多个Dispatcher调用，减少UI线程负担
                     mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                     {
-                        // 跳转到目标页码
                         SwitchToPage(targetPage);
                         Console.WriteLine($"已跳转到页码 {targetPage}，摄像头画面已存在，无需重新插入");
                         
-                        // 合并检查和启动定时器的操作
                         bool hasCurrentCameraFrame = mainWindow.HasCameraFrameOnCurrentPage();
                         
                         // 一次性获取timer字段，避免重复反射
@@ -385,7 +361,6 @@ namespace Ink_Canvas
             // 增强检测逻辑，检查photoPageMapping中是否有与当前页面关联的照片
             mainWindow.Dispatcher.Invoke(new Action(() =>
             {
-                // 首先检查画布上的元素
                 hasCameraFrameOrPhoto = mainWindow.HasCameraFrameOrPhotoOnCurrentPage();
                 
                 // 然后检查是否有照片与当前页面关联（通过反射访问photoPageMapping）
@@ -410,7 +385,6 @@ namespace Ink_Canvas
                 }
             }));
             
-            // 启动摄像头
             selectedDeviceName = deviceName;
             StartCamera(deviceName);
             
@@ -429,25 +403,20 @@ namespace Ink_Canvas
 
         private void OnCameraDeselected()
         {
-            // 停止摄像头并移除画面
             selectedDeviceName = "";
             StopCamera();
             
-            // 通知主窗口移除摄像头画面
             mainWindow.Dispatcher.BeginInvoke(new Action(() =>
             {
                 mainWindow.RemoveCameraFrame();
             }));
         }
 
-        // 页面切换事件处理
         public void HandlePageChanged(int newPageIndex)
         {
-            // 检查新页面是否有摄像头画面或照片
             bool hasCameraFrameOrPhotoOnNewPage = false;
             string cameraDeviceOnNewPage = null;
             
-            // 查找新页面是否有关联的摄像头设备
             foreach (var mapping in cameraPageMapping)
             {
                 if (mapping.Value == newPageIndex)
@@ -485,7 +454,6 @@ namespace Ink_Canvas
             {
                 Console.WriteLine($"切换到页码 {newPageIndex}，检测到摄像头画面，恢复摄像头显示");
                 
-                // 检查当前运行的摄像头设备是否与新页面的设备一致
                 bool needToSwitchCamera = currentVideoDevice == null || 
                                          !currentVideoDevice.IsRunning || 
                                          selectedDeviceName != cameraDeviceOnNewPage;
@@ -502,7 +470,6 @@ namespace Ink_Canvas
                     // 首先确保currentCameraImage引用正确
                     mainWindow.HasCameraFrameOnCurrentPage();
                     
-                    // 强制启动定时器，确保画面持续更新
                     var cameraFrameTimerField = mainWindow.GetType().GetField("cameraFrameTimer", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                     if (cameraFrameTimerField != null)
                     {
@@ -541,7 +508,6 @@ namespace Ink_Canvas
                 // 如果新页面没有摄像头画面或照片，停止摄像头设备以节省资源
                 Console.WriteLine($"切换到页码 {newPageIndex}，无摄像头画面或照片，停止摄像头设备以节省资源");
                 
-                // 停止摄像头设备以释放资源
                 if (currentVideoDevice != null && currentVideoDevice.IsRunning)
                 {
                     StopCamera();
@@ -566,7 +532,6 @@ namespace Ink_Canvas
                 
                 if (hasCurrentCameraFrameOrPhoto)
                 {
-                    // 通知主窗口移除摄像头画面
                     mainWindow.Dispatcher.BeginInvoke(new Action(() =>
                     {
                         mainWindow.RemoveCameraFrame();
@@ -590,19 +555,16 @@ namespace Ink_Canvas
                 }));
             }
             
-            // 更新拍照按钮状态
             mainWindow.Dispatcher.BeginInvoke(new Action(() =>
             {
                 mainWindow.UpdateCapturePhotoButtonState();
             }));
         }
         
-        // 退出按钮点击事件处理
         public void HandleExitButtonClicked()
         {
             Console.WriteLine("退出按钮点击，暂停摄像头显示以节省资源");
             
-            // 停止摄像头设备以节省资源
             StopCamera();
             
             // 停止摄像头画面定时器，防止空转占用资源
@@ -614,7 +576,6 @@ namespace Ink_Canvas
                 Console.WriteLine("已停止摄像头画面定时器（退出白板/应用）");
             }
             
-            // 通知主窗口移除摄像头画面
             mainWindow.Dispatcher.BeginInvoke(new Action(() =>
             {
                 mainWindow.RemoveCameraFrame();
@@ -626,10 +587,8 @@ namespace Ink_Canvas
         /// </summary>
         public void ClearDeviceSelection()
         {
-            // 停止摄像头
             StopCamera();
             
-            // 清空选中状态
             selectedDeviceName = "";
             
             // 在UI线程上取消所有RadioButton的选中状态
@@ -649,7 +608,6 @@ namespace Ink_Canvas
                 }
                 suppressSelectionHandlers = false;
                 
-                // 更新拍照按钮状态
                 mainWindow.UpdateCapturePhotoButtonState();
             }));
         }

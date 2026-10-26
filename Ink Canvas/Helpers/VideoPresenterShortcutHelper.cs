@@ -5,18 +5,6 @@ using Ink_Canvas.Plugins;
 
 namespace Ink_Canvas.Helpers
 {
-    /// <summary>
-    /// 桌面「视频展台」快捷方式的生命周期管理。
-    ///
-    /// 约定：
-    ///   安装并启用 / 手动启用 → 创建；
-    ///   手动禁用 / 卸载插件 / 版本不兼容 → 删除；
-    ///   卸载软件 → 由 Inno Setup 的 [UninstallDelete] 删除（路径须与 ShortcutPath 使用的桌面一致）。
-    ///
-    /// 快捷方式直接指向主程序 + --video-presenter 参数，不依赖任何 .vbs 启动脚本。
-    /// 单独成类而非放在插件工坊窗口内，是因为启动流程（MainWindow.InitializePluginSystem）
-    /// 也需要在未打开插件工坊的情况下同步快捷方式状态。
-    /// </summary>
     public static class VideoPresenterShortcutHelper
     {
         /// <summary>桌面快捷方式文件名。改动此值须同步修改 .iss 的 [UninstallDelete] 段。</summary>
@@ -36,7 +24,6 @@ namespace Ink_Canvas.Helpers
                        string.Equals(ep?.Route, "video-presenter", StringComparison.OrdinalIgnoreCase)));
         }
 
-        /// <summary>获取视频展台桌面快捷方式的完整路径。</summary>
         public static string GetShortcutPath()
         {
             return Path.Combine(
@@ -44,10 +31,6 @@ namespace Ink_Canvas.Helpers
                 ShortcutFileName);
         }
 
-        /// <summary>
-        /// 在桌面创建视频展台快捷方式，目标指向当前软件安装位置。
-        /// 幂等：已存在则直接覆盖。
-        /// </summary>
         public static void Create()
         {
             try

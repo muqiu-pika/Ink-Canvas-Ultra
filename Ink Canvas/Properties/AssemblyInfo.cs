@@ -2,9 +2,6 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows;
 
-// General Information about an assembly is controlled through the following
-// set of attributes. Change these attribute values to modify the information
-// associated with an assembly.
 [assembly: AssemblyTitle("Ink Canvas Ultra")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
@@ -19,15 +16,7 @@ using System.Windows;
 // COM, set the ComVisible attribute to true on that type.
 [assembly: ComVisible(false)]
 
-//In order to begin building localizable applications, set
-//<UICulture>CultureYouAreCodingWith</UICulture> in your .csproj file
-//inside a <PropertyGroup>.  For example, if you are using US english
-//in your source files, set the <UICulture> to en-US.  Then uncomment
-//the NeutralResourceLanguage attribute below.  Update the "en-US" in
-//the line below to match the UICulture setting in the project file.
-
 //[assembly: NeutralResourcesLanguage("en-US", UltimateResourceFallbackLocation.Satellite)]
-
 
 [assembly: ThemeInfo(
     ResourceDictionaryLocation.None, //where theme specific resource dictionaries are located
@@ -38,20 +27,6 @@ using System.Windows;
                                               // app, or any theme specific resource dictionaries)
 )]
 
-
-// Version information for an assembly consists of the following four values:
-//
-//      Major Version
-//      Minor Version
-//      Build Number
-//      Revision
-//
-// You can specify all the values or you can default the Build and Revision Numbers
-// by using the '*' as shown below:
-// [assembly: AssemblyVersion("5.0.2.0")]
-// 自 2026/8/30 起，版本号采用「年份 + 月份 + 当月第几个版本」三段式命名：
-// 26.9.1 = 2026 年 9 月第 1 个版本。程序集版本末段固定为 0，
-// 更新检测与界面展示时统一按前三段处理（见 Helpers/AutoUpdateHelper.cs）。
 [assembly: AssemblyVersion("26.10.7.0")]
 [assembly: AssemblyFileVersion("26.10.7.0")]
 

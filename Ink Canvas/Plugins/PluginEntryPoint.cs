@@ -8,21 +8,12 @@ namespace Ink_Canvas.Plugins
     /// </summary>
     public class PluginEntryPoint
     {
-        /// <summary>入口点路由键。主程序预定义的可选值：
-        /// - "video-presenter" 激活视频展台侧栏
-        /// - "settings:appearance" 跳转到外观设置
-        /// 后续可由主程序扩展。</summary>
         [JsonProperty("route", Required = Required.Always)]
         public string Route { get; set; }
 
-        /// <summary>放置位置。可选值：
-        /// - "board-toolbar" 白板工具栏
-        /// - "float-bar" 浮动工具栏
-        /// - "sidebar" 侧栏头部</summary>
         [JsonProperty("placement", Required = Required.Always)]
         public string Placement { get; set; }
 
-        /// <summary>按钮显示文本（任意语言）</summary>
         [JsonProperty("label", Required = Required.Always)]
         public string Label { get; set; }
 
@@ -38,7 +29,6 @@ namespace Ink_Canvas.Plugins
         [JsonProperty("order")]
         public int Order { get; set; } = 100;
 
-        /// <summary>鼠标悬停提示文本</summary>
         [JsonProperty("tooltip")]
         public string Tooltip { get; set; }
     }

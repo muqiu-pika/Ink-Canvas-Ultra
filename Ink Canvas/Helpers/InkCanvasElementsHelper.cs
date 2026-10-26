@@ -169,7 +169,6 @@ namespace Ink_Canvas.Helpers
             };
             clonedMediaElement.Loaded += (sender, args) =>
             {
-                // 所有模式导入后自动播放
                 clonedMediaElement.Play();
                 // 不再使用 Adorner 附加控制栏，改用 Border 控件统一管理
             };

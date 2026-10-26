@@ -83,7 +83,6 @@ namespace Ink_Canvas
             catch { }
         }
 
-
         bool foldFloatingBarByUser = false, // 保持收纳操作不受自动收纳的控制
             unfoldFloatingBarByUser = false; // 允许用户在希沃软件内进行展开操作
 
@@ -197,11 +196,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // ViewboxFloatingBar 是 DispatcherObject（UI 元素）。System.Timers.Timer.Elapsed
-                // 在 ThreadPool 线程上触发，若直接读取其 .Visibility 会抛出 InvalidOperationException
-                // （"调用线程无法访问此对象，因为另一个线程拥有它"）。
-                // 把"判空 / 可见性 / 窗口类名 / 置顶"整体封送到 UI 线程执行：
-                // 既消除跨线程异常，也修复此前因提前抛异常而导致窗口置顶逻辑从未真正执行的问题。
                 Dispatcher.BeginInvoke((Action)(() =>
                 {
                     try

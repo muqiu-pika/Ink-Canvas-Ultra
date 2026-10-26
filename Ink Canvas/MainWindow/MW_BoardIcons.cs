@@ -13,7 +13,6 @@ namespace Ink_Canvas
     {
         private void BoardChangeBackgroundColorBtn_Click(object sender, RoutedEventArgs e)
         {
-            // 如果长按已触发，则不执行点击操作
             if (_canvasBtnLongPressFired)
             {
                 _canvasBtnLongPressFired = false;
@@ -50,18 +49,12 @@ namespace Ink_Canvas
             {
                 BoardEraserByStrokes.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
             }
-            // 刷新方格纸颜色
             RefreshGridPaper();
         }
 
         // 白板模式画笔按钮点击事件 - 独立处理，不影响浮动栏按钮
         private void BoardPenIcon_Click(object sender, RoutedEventArgs e)
         {
-            // 画布当前不是「可书写」状态（选择/橡皮擦/None 等）时，即使「批注」按钮仍是当前工具，
-            // 也必须先切回墨迹；否则点击「批注」只会收起/展开墨迹选项面板，
-            // 画布一直停留在橡皮擦状态，表现为“插入图片后无法批注书写”。
-            // 例外：激光笔开启时 EditingMode 本来就是 None，此时点「批注」只应收起/展开
-            // 「墨迹选项」，不能顺手把激光笔关掉（否则「墨迹选项」一关闭激光笔也跟着关闭）。
             bool needRestoreInk = !isLaserPointerEnabled
                 && drawingShapeMode == 0
                 && inkCanvas.EditingMode != InkCanvasEditingMode.Ink;

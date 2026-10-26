@@ -32,7 +32,6 @@ namespace Ink_Canvas
             // 进入动画（仿 Windows OOBE 轻微上滑+淡入）
             AnimationsHelper.ShowWithSlideFromBottomAndFade(this, 0.25);
 
-            // 根据主窗口主题应用弹窗样式
             try
             {
                 if (_mainWindow != null)
@@ -63,7 +62,6 @@ namespace Ink_Canvas
             LoadFromSettings();
             UpdateStepVisual();
             
-            // 初始化完成，允许滑块值变化事件正常工作
             _isInitializing = false;
         }
 
@@ -75,7 +73,6 @@ namespace Ink_Canvas
             {
                 if (MainWindow.Settings == null) return;
 
-                // Step1 - 启动选项
                 var startup = MainWindow.Settings.Startup;
                 if (startup != null)
                 {
@@ -96,7 +93,6 @@ namespace Ink_Canvas
                     catch { }
                 }
 
-                // Step2 - 墨迹识别选项
                 var inkToShape = MainWindow.Settings.InkToShape;
                 var canvas = MainWindow.Settings.Canvas;
                 if (inkToShape != null)
@@ -114,7 +110,6 @@ namespace Ink_Canvas
                     try { CheckBoxAutoClearOnExitWizard.IsChecked = canvas.HideStrokeWhenSelecting; } catch { }
                 }
 
-                // Step3 - 外观选项
                 var appearance = MainWindow.Settings.Appearance;
                 if (appearance != null)
                 {
@@ -154,7 +149,6 @@ namespace Ink_Canvas
                     CheckBoxShowButtonPPTNavigationSides.IsChecked = ppt.IsShowPPTNavigationSides;
                 }
 
-                // Step4 - PPT 选项
                 if (ppt != null)
                 {
                     CheckBoxSupportPowerPoint.IsChecked = ppt.PowerPointSupport;
@@ -164,7 +158,6 @@ namespace Ink_Canvas
                     CheckBoxNotifyAutoPlayPresentation.IsChecked = ppt.IsNotifyAutoPlayPresentation;
                 }
 
-                // Step5 - 高级选项
                 var adv = MainWindow.Settings.Advanced;
                 if (adv != null)
                 {
@@ -185,7 +178,6 @@ namespace Ink_Canvas
             {
                 if (MainWindow.Settings == null) return;
 
-                // Step1 - 启动选项
                 if (MainWindow.Settings.Startup != null)
                 {
                     MainWindow.Settings.Startup.IsAutoUpdate = CheckBoxIsAutoUpdate.IsChecked == true;
@@ -214,7 +206,6 @@ namespace Ink_Canvas
                     catch { }
                 }
 
-                // Step2 - 墨迹识别选项
                 if (MainWindow.Settings.InkToShape != null)
                 {
                     MainWindow.Settings.InkToShape.IsInkToShapeEnabled = CheckBoxEnableInkToShape.IsChecked == true;
@@ -226,17 +217,14 @@ namespace Ink_Canvas
                 {
                     MainWindow.Settings.Canvas.AutoStraightenLine = CheckBoxAutoStraightenLine.IsChecked == true;
                     MainWindow.Settings.Canvas.LineEndpointSnapping = CheckBoxLineEndpointSnapping.IsChecked == true;
-                    // 保存画笔与笔迹相关设置
                     MainWindow.Settings.Canvas.IsShowCursor = CheckBoxShowCursorWizard.IsChecked == true;
                 }
                 
-                // 保存退出画板模式后隐藏墨迹的设置
                 if (MainWindow.Settings.Canvas != null)
                 {
                     MainWindow.Settings.Canvas.HideStrokeWhenSelecting = CheckBoxAutoClearOnExitWizard.IsChecked == true;
                 }
 
-                // Step3 - 外观选项
                 if (MainWindow.Settings.Appearance != null)
                 {
                     MainWindow.Settings.Appearance.FloatingBarScale = SliderFloatingBarScaleWizard.Value;
@@ -259,7 +247,6 @@ namespace Ink_Canvas
                     MainWindow.Settings.PowerPointSettings.IsShowPPTNavigationSides = CheckBoxShowButtonPPTNavigationSides.IsChecked == true;
                 }
 
-                // Step4 - PPT 选项
                 if (MainWindow.Settings.PowerPointSettings != null)
                 {
                     MainWindow.Settings.PowerPointSettings.PowerPointSupport = CheckBoxSupportPowerPoint.IsChecked == true;
@@ -269,7 +256,6 @@ namespace Ink_Canvas
                     MainWindow.Settings.PowerPointSettings.IsNotifyAutoPlayPresentation = CheckBoxNotifyAutoPlayPresentation.IsChecked == true;
                 }
 
-                // Step5 - 高级选项
                 if (MainWindow.Settings.Advanced != null)
                 {
                     MainWindow.Settings.Advanced.IsSpecialScreen = CheckBoxIsSpecialScreen.IsChecked == true;
@@ -279,14 +265,12 @@ namespace Ink_Canvas
                     MainWindow.Settings.Advanced.IsEnableSilentRestartOnCrash = CheckBoxIsEnableSilentRestartOnCrash.IsChecked == true;
                 }
 
-                // 注册 URI 协议
                 try
                 {
                     App.RegisterUriScheme();
                 }
                 catch { }
 
-                // 标记首次向导已完成
                 if (MainWindow.Settings.Startup != null)
                 {
                     MainWindow.Settings.Startup.IsInitialSetupCompleted = true;
@@ -309,14 +293,12 @@ namespace Ink_Canvas
 
             BtnNextTextBlock.Text = _currentStep == 5 ? "完成" : "下一步";
 
-            // 圆点指示
             DotStep1.Fill = _currentStep == 1 ? (System.Windows.Media.Brush)FindResource("PopupWindowDarkBlueBorderBackground") : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x80, 0x80, 0x80));
             DotStep2.Fill = _currentStep == 2 ? (System.Windows.Media.Brush)FindResource("PopupWindowDarkBlueBorderBackground") : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x80, 0x80, 0x80));
             DotStep3.Fill = _currentStep == 3 ? (System.Windows.Media.Brush)FindResource("PopupWindowDarkBlueBorderBackground") : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x80, 0x80, 0x80));
             DotStep4.Fill = _currentStep == 4 ? (System.Windows.Media.Brush)FindResource("PopupWindowDarkBlueBorderBackground") : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x80, 0x80, 0x80));
             DotStep5.Fill = _currentStep == 5 ? (System.Windows.Media.Brush)FindResource("PopupWindowDarkBlueBorderBackground") : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x40, 0x80, 0x80, 0x80));
 
-            // 简单淡入淡出动画
             ShowStepGrid(Step1Grid, _currentStep == 1);
             ShowStepGrid(Step2Grid, _currentStep == 2);
             ShowStepGrid(Step3Grid, _currentStep == 3);
@@ -412,19 +394,6 @@ namespace Ink_Canvas
             return true;
         }
 
-        /// <summary>
-        /// 按运行时语义推导校准值并静默写入设置（不弹窗）。
-        ///
-        /// 橡皮圆：运行时「面积擦橡皮圆直径 = 接触宽 × EraserSize × TouchMultiplier」（见 Main_Grid_TouchDown），
-        /// 因此把 EraserSize 固定为 1.0、令 TouchMultiplier = 目标直径 ÷ (面积擦接触宽 × 1.1)，
-        /// 特殊屏上的橡皮圆也能保持同一可见大小（≈45px），不受驱动上报单位影响；
-        /// 同时打开「特殊屏幕模式」开关（倍数为 0 时该开关会禁用手指擦除，故倍数有下限保护）。
-        ///
-        /// 擦除阈值 T 的约束是「书写接触宽 &lt; 基准宽 × T &lt; 面积擦接触宽」：
-        ///   两个样本都有 → 取几何中点；只有面积擦样本 → 0.7 × 面积擦宽（原有口径）；
-        ///   只有书写样本 → 2.5 × 书写宽（普通屏上正好等于默认阈值 2.5，不改变默认手感）。
-        /// </summary>
-        /// <param name="fromAreaEraserTest">true 表示本次由「面积擦检测」触发（用于选择反馈文本的显示位置）</param>
         private void RecomputeAndApplyCalibration(bool fromAreaEraserTest)
         {
             try
@@ -512,7 +481,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 清空笔迹，只显示面积擦圆形范围
                 InkCanvasAreaEraserTest.Strokes.Clear();
                 InkCanvasAreaEraserTest.EraserShape = new EllipseStylusShape(2, 2);
             }
@@ -556,7 +524,6 @@ namespace Ink_Canvas
                 InkCanvasAreaEraserTest.EraserShape = new EllipseStylusShape(width, height);
                 InkCanvasAreaEraserTest.EditingMode = InkCanvasEditingMode.EraseByPoint;
 
-                // 更新视觉反馈圆圈 - 显示面积擦范围
                 if (AreaEraserCursor != null)
                 {
                     AreaEraserCursor.Width = width;
@@ -573,7 +540,6 @@ namespace Ink_Canvas
         {
             try
             {
-                 // 隐藏视觉反馈圆圈
                  if (AreaEraserCursor != null)
                  {
                      AreaEraserCursor.Visibility = Visibility.Collapsed;
@@ -587,7 +553,6 @@ namespace Ink_Canvas
                      AddContactSample(_eraseContactSamples, value);
                      RecomputeAndApplyCalibration(true);
 
-                     // 清空笔迹以便再次测试
                      InkCanvasAreaEraserTest.Strokes.Clear();
                  }
             }
@@ -735,13 +700,10 @@ namespace Ink_Canvas
                 ShowStepGrid(Step5Grid, false);
                 ShowStepGrid(Step6Grid, true);
                 
-                // 隐藏底部导航面板
                 if (BottomNavPanel != null) BottomNavPanel.Visibility = Visibility.Collapsed;
                 
-                // 隐藏步骤指示器
                 if (StepIndicatorTextBlock != null) StepIndicatorTextBlock.Visibility = Visibility.Collapsed;
                 
-                // 1. 隐藏右侧插画区域
                 var rightBorder = this.FindName("RightBorder") as Border;
                 if (rightBorder == null)
                 {
@@ -944,7 +906,6 @@ namespace Ink_Canvas
 
         private void BtnSkip_Click(object sender, RoutedEventArgs e)
         {
-            // 跳过也视为已完成，以免反复弹出
             try
             {
                 if (MainWindow.Settings?.Startup != null)

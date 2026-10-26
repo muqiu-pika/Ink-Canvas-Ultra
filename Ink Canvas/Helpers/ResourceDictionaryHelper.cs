@@ -3,23 +3,10 @@ using System.Windows;
 
 namespace Ink_Canvas.Helpers
 {
-    /// <summary>
-    /// 应用级资源字典（Application.Current.Resources.MergedDictionaries）的合并工具。
-    ///
-    /// 背景：各弹窗窗口过去都在构造函数里直接
-    ///     Application.Current.Resources.MergedDictionaries.Add(new ResourceDictionary { Source = ... });
-    /// 而窗口关闭时从不移除，于是每打开一次窗口就往应用级资源里堆一份字典 —— 内存只增不减，
-    /// 同时资源查找链越来越长（样式命中变慢，间接拖慢窗口打开速度）。
-    ///
-    /// 这里按 Source 去重：已存在则复用（必要时挪到列表末尾，保持“后加者优先”的覆盖语义），
-    /// 不存在才新建，从而把字典数量收敛为常数。
-    /// </summary>
     internal static class ResourceDictionaryHelper
     {
-        /// <summary>浅色弹窗样式字典</summary>
         public static readonly Uri LightPopupWindow = new Uri("Resources/Styles/Light-PopupWindow.xaml", UriKind.Relative);
 
-        /// <summary>深色弹窗样式字典</summary>
         public static readonly Uri DarkPopupWindow = new Uri("Resources/Styles/Dark-PopupWindow.xaml", UriKind.Relative);
 
         /// <summary>浅色主主题字典（FloatBar*、SettingsPage* 等）</summary>
@@ -32,19 +19,6 @@ namespace Ink_Canvas.Helpers
         /// </summary>
         public static readonly Uri LightBoard = new Uri("Resources/Styles/Light-Board.xaml", UriKind.Relative);
 
-        /// <summary>
-        /// 在构建任何 UI 之前把"基础主题键"补进应用级资源（幂等）。
-        ///
-        /// 目的仅是让 DynamicResource 在首次解析时一定能命中，消除成百上千条
-        /// "System.Windows.ResourceDictionary Warning: 9 : Resource not found"。
-        /// 起因：MainWindow 的 InitializeComponent() 会立刻构建浮动栏 / 白板栏并解析其中的
-        /// DynamicResource（FloatBar* / BoardBar*），而此时主题字典尚未合并；
-        /// 且 Release 下 iNKORE 的 XamlControlsResources / ThemeManager 会重建应用级资源字典，
-        /// 把更早合并进去的字典冲刷掉。
-        ///
-        /// 这里默认用浅色仅作"占位"：随后 MainWindow 构造里的 SetTheme/SetBoardTheme
-        /// 会按设置移除不需要的那一支并合并正确主题，二者之间不存在渲染帧，因此不会闪色。
-        /// </summary>
         public static void EnsureStartupThemeKeys()
         {
             MergeOnce(LightTheme);

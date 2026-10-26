@@ -35,19 +35,6 @@ namespace Ink_Canvas
         // object maybe TransformGroup or ElementData
         private Dictionary<string, object> ElementsInitialHistory = new Dictionary<string, object>();
 
-        /// <summary>
-        /// 清理 ElementsInitialHistory 中已经失效的条目。
-        ///
-        /// 这个字典原先全仓只写不删：而 ElementData 直接强引用 FrameworkElement
-        /// （克隆出的图片元素内含全分辨率 BitmapSource），于是每克隆/粘贴一次图片，
-        /// 就会永久钉住一个元素，长时间使用下内存单调增长。
-        ///
-        /// 判定为死条目需要「两条都不能满足」，缺一不可：
-        ///   1) 元素仍在画布上——之后还可能被操作，需要它的初始变换；
-        ///   2) 撤销栈中仍有引用该 key 的 Manipulation 历史——撤销删除元素时要靠
-        ///      ElementData 把元素重新加回画布（见本文件 Undo 分支对 ElementData 的使用）。
-        /// 只按第 1 条删会让「撤销删除元素」失效，因此必须同时检查第 2 条。
-        /// </summary>
         public void PruneElementsInitialHistory()
         {
             try
@@ -56,7 +43,6 @@ namespace Ink_Canvas
 
                 var liveKeys = new HashSet<string>();
 
-                // 1) 仍然挂在画布上的元素
                 foreach (UIElement child in inkCanvas.Children)
                 {
                     var frameworkElement = child as FrameworkElement;
@@ -89,7 +75,6 @@ namespace Ink_Canvas
             }
             catch
             {
-                // 清理失败不应影响正常功能
             }
         }
 
@@ -105,7 +90,6 @@ namespace Ink_Canvas
             { DrawingAttributeIds.StylusWidth, new List<Stroke>() }
         };
         private TimeMachine timeMachine = new TimeMachine();
-
 
         public UIElement GetElementByTimestamp(InkCanvas inkCanvas, string timestamp)
         {
@@ -383,12 +367,6 @@ namespace Ink_Canvas
             }
             if (_currentCommitType == CommitReason.CodeInput || _currentCommitType == CommitReason.ShapeDrawing) return;
 
-            // 模式切换（白板/桌面/批注）过渡窗口内到达的“用户笔画”，是切换前桌面/白板残留笔迹被延迟提交，
-            // 若不拦截会混入新模式的画布（“浮动栏笔迹替换白板笔迹”的根因）。此处立即将其从画布移除且不入历史。
-            // 判定用「引用快照」而非单纯的时间窗：切换前卡住的那几笔提交到新画布时仍是旧的 Stroke 对象
-            // （BeginBoardModeSwitch 已快照其引用），而用户在过渡窗口内新写的笔画（无论触笔/触摸/鼠标）
-            // 都是新对象，一律放行。早先按 _inputActivityAfterSwitch 一刀切的写法会漏掉鼠标下笔路径
-            // （未调 RecordInputDown），把用户的新笔画当残留删掉，表现为“重进后偶尔消失几条/断墨”。
             if (_isInBoardModeSwitch && e.Added.Count != 0)
             {
                 var residual = new StrokeCollection();

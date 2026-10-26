@@ -56,11 +56,6 @@ namespace Ink_Canvas
             else
                 BtnWhiteBoardAdd_Click(null, null);
 
-            // 目标页就绪后、真正往画布添加笔迹前再开启 CodeInput：此时过渡窗口尚未关闭
-            // （_isInBoardModeSwitch 仍为 true），若不标记 CodeInput，新增的克隆笔迹会被
-            // 时间机器的残留笔迹拦截逻辑误删（见 MW_TimeMachine 的 strayStrokes 分支），
-            // 导致新页面上立即看不到笔迹。结束前显式把克隆笔迹提交到时间机器历史，
-            // 保证换页后仍能正确恢复。
             _currentCommitType = CommitReason.CodeInput;
             try
             {
@@ -263,9 +258,6 @@ namespace Ink_Canvas
             centeredTransformGroup.Children.Add(new MatrixTransform(matrix));
             transformGroup.Children.Add(centeredTransformGroup);
 
-            // 防性能退化：滚轮/双指不断平移缩放时，每步都会向 RenderTransform 追加一个矩阵。
-            // 元素越多、操作越久，TransformGroup 越长，渲染时需合成的矩阵越多，必然渐进变卡。
-            // 子项超过阈值时压缩为单个等价的 MatrixTransform，值与之前完全一致，仅折叠链长度。
             const int maxTransformAppendSteps = 16;
             if (transformGroup.Children.Count > maxTransformAppendSteps)
             {
@@ -374,9 +366,7 @@ namespace Ink_Canvas
             Vector trans = new Vector(mousePoint.X - lastMousePoint.X, mousePoint.Y - lastMousePoint.Y);
             lastMousePoint = mousePoint;
             Matrix m = new Matrix();
-            // add Translate
             m.Translate(trans.X, trans.Y);
-            // handle UIElement
             List<UIElement> elements;
             if (ElementsSelectionClone.Count != 0)
             {
@@ -390,7 +380,6 @@ namespace Ink_Canvas
             {
                 ApplyElementMatrixTransform(element, m);
             }
-            // handle strokes
             StrokeCollection strokes = inkCanvas.GetSelectedStrokes();
             if (StrokesSelectionClone.Count != 0)
             {
@@ -446,12 +435,10 @@ namespace Ink_Canvas
 
             StrokeCollection strokes = inkCanvas.GetSelectedStrokes();
             List<UIElement> elements = InkCanvasElementsHelper.GetSelectedElements(inkCanvas);
-            // handle UIElement
             foreach (UIElement element in elements)
             {
                 ApplyElementMatrixTransform(element, m);
             }
-            // handle strokes
             foreach (Stroke stroke in strokes)
             {
                 stroke.Transform(m, false);
@@ -564,7 +551,6 @@ namespace Ink_Canvas
                 IconStrokeSelectionClone.SetResourceReference(TextBlock.ForegroundProperty, "FloatBarForeground");
                 ToggleButtonStrokeSelectionClone.IsChecked = false;
                 isStrokeSelectionCloneOn = false;
-                // 每次新选中默认折叠为小按钮
                 isStrokeSelectionToolbarExpanded = false;
                 UpdateBorderStrokeSelectionControlLocation();
             }
@@ -573,11 +559,8 @@ namespace Ink_Canvas
         // 若仍按旧值 695 计算，Viewbox 会把整条内容压缩到约 86% 导致文字变小
         double BorderStrokeSelectionControlWidth = 810;
         double BorderStrokeSelectionControlHeight = 104;
-        /// <summary>设置框最小缩放比例（保证用户能看清）</summary>
         const double SelectionControlMinScale = 0.7;
-        /// <summary>小按钮尺寸</summary>
         const double SelectionExpandButtonSize = 44;
-        /// <summary>设置框是否展开（默认折叠为小按钮）</summary>
         bool isStrokeSelectionToolbarExpanded = false;
 
         /// <summary>
@@ -604,7 +587,6 @@ namespace Ink_Canvas
                 return;
             }
 
-            // 计算设置框（不遮挡选中区域）的最佳位置与缩放
             double barLeft, barTop, barW, barH, scale;
             ComputeSelectionBarPlacement(selectionBounds, out barLeft, out barTop, out barW, out barH, out scale);
 
@@ -648,15 +630,9 @@ namespace Ink_Canvas
                 }
             }
 
-            // 同步刷新 8 个选择把手与选择框
             UpdateSelectionDisplay();
         }
 
-        /// <summary>
-        /// 计算设置框的最佳位置与缩放，保证不遮挡选中区域。
-        /// 依次尝试下方、上方、右方、左方，必要时按比例缩小（不小于最小可读比例）；
-        /// 均放不下时按可读比例放到屏幕边缘。
-        /// </summary>
         private void ComputeSelectionBarPlacement(Rect sel, out double barLeft, out double barTop,
             out double barW, out double barH, out double scale)
         {
@@ -676,21 +652,18 @@ namespace Ink_Canvas
                 NudgeAwayFromFloatingBar(ref barTop, barLeft, barW, barH, sel);
                 return;
             }
-            // 2) 上方
             if (TryFitBar(margin, margin, winW - margin * 2, sel.Top - margin * 2,
                           selCx, selCy, fullW, fullH, out barLeft, out barTop, out scale))
             {
                 barW = fullW * scale; barH = fullH * scale;
                 return;
             }
-            // 3) 右方
             if (TryFitBar(sel.Right + margin, margin, winW - (sel.Right + margin) - margin, winH - margin * 2,
                           selCx, selCy, fullW, fullH, out barLeft, out barTop, out scale))
             {
                 barW = fullW * scale; barH = fullH * scale;
                 return;
             }
-            // 4) 左方
             if (TryFitBar(margin, margin, sel.Left - margin * 2, winH - margin * 2,
                           selCx, selCy, fullW, fullH, out barLeft, out barTop, out scale))
             {
@@ -746,14 +719,12 @@ namespace Ink_Canvas
                 bool vOverlap = barTop < vBottom && barTop + barH > vTop;
                 if (!(hOverlap && vOverlap)) return;
 
-                // 尝试放到浮动栏下方
                 double below = vBottom + 5;
                 if (below + barH <= ActualHeight && !(below < sel.Bottom && below + barH > sel.Top))
                 {
                     barTop = below;
                     return;
                 }
-                // 尝试放到浮动栏上方
                 double above = vTop - barH - 5;
                 if (above >= 0 && !(above < sel.Bottom && above + barH > sel.Top))
                 {
@@ -763,7 +734,6 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>点击圈选折叠小按钮：展开/收起设置框</summary>
         private void BorderStrokeSelectionExpand_MouseUp(object sender, MouseButtonEventArgs e)
         {
             if (lastBorderMouseDownObject != sender) return;
@@ -773,30 +743,22 @@ namespace Ink_Canvas
 
         #region Selection Display and Handles (8 点: 四角缩放+旋转, 四边缩放)
 
-        /// <summary>选择把手尺寸（像素）</summary>
         private const double SelectionHandleSize = 12;
 
-        /// <summary>是否正在拖拽缩放（四边点）</summary>
         private bool isResizing = false;
-        /// <summary>当前缩放把手名</summary>
         private string currentResizeHandle = "";
         /// <summary>缩放起始点（画布坐标）</summary>
         private Point resizeStartPoint;
         /// <summary>是否正在拖拽角点组合变换（四角点：同时缩放+旋转）</summary>
         private bool isCornerTransform = false;
-        /// <summary>当前角点把手名</summary>
         private string currentCornerHandle = "";
         /// <summary>组合变换枢轴（水平对边中点，画布坐标）</summary>
         private Point cornerPivotPoint;
         /// <summary>拖拽开始时 枢轴→角点 向量的角度（度）</summary>
         private double cornerStartAngle;
-        /// <summary>拖拽开始时 枢轴→角点 向量的长度</summary>
         private double cornerStartDistance;
-        /// <summary>已累计应用的缩放倍数</summary>
         private double cornerAppliedScale = 1;
-        /// <summary>已累计应用的旋转角度（度）</summary>
         private double cornerAppliedAngle;
-        /// <summary>拖拽开始时的选区矩形</summary>
         private Rect originalSelectionBounds;
 
         /// <summary>
@@ -844,7 +806,6 @@ namespace Ink_Canvas
                 return;
             }
 
-            // 普通（轴对齐）状态
             Rect bounds = inkCanvas.GetSelectionBounds();
             if (bounds.IsEmpty || bounds.Width <= 0 || bounds.Height <= 0)
             {
@@ -862,14 +823,12 @@ namespace Ink_Canvas
             SelectionHandlesCanvas.Visibility = Visibility.Visible;
         }
 
-        /// <summary>隐藏选择框与所有把手</summary>
         private void HideSelectionDisplay()
         {
             if (SelectionRectangle == null || SelectionHandlesCanvas == null) return;
             SelectionRectangle.RenderTransform = Transform.Identity;
             SelectionRectangle.Visibility = Visibility.Collapsed;
             SelectionHandlesCanvas.Visibility = Visibility.Collapsed;
-            // 同步隐藏圈选设置框与折叠小按钮
             if (BorderStrokeSelectionControl != null) BorderStrokeSelectionControl.Visibility = Visibility.Collapsed;
             if (BorderStrokeSelectionExpand != null) BorderStrokeSelectionExpand.Visibility = Visibility.Collapsed;
         }
@@ -881,13 +840,11 @@ namespace Ink_Canvas
             double cx = bounds.Left + bounds.Width / 2;
             double cy = bounds.Top + bounds.Height / 2;
 
-            // 四边中点
             TopHandle.Margin = new Thickness(cx - half, bounds.Top - half, 0, 0);
             BottomHandle.Margin = new Thickness(cx - half, bounds.Bottom - half, 0, 0);
             LeftHandle.Margin = new Thickness(bounds.Left - half, cy - half, 0, 0);
             RightHandle.Margin = new Thickness(bounds.Right - half, cy - half, 0, 0);
 
-            // 四角
             TopLeftHandle.Margin = new Thickness(bounds.Left - half, bounds.Top - half, 0, 0);
             TopRightHandle.Margin = new Thickness(bounds.Right - half, bounds.Top - half, 0, 0);
             BottomLeftHandle.Margin = new Thickness(bounds.Left - half, bounds.Bottom - half, 0, 0);
@@ -928,7 +885,6 @@ namespace Ink_Canvas
             {
                 double dx = pts[i].X - p.X;
                 double dy = pts[i].Y - p.Y;
-                // 先以枢轴为原点缩放，再旋转
                 double sx = dx * scale;
                 double sy = dy * scale;
                 pts[i] = new Point(p.X + sx * cos - sy * sin, p.Y + sx * sin + sy * cos);
@@ -987,7 +943,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>应用一次把手拖拽（鼠标/触摸共用）</summary>
         private void ApplyHandleMove(string handleName, Point currentPoint)
         {
             if (isCornerTransform && handleName == currentCornerHandle)
@@ -1035,7 +990,6 @@ namespace Ink_Canvas
             UpdateBorderStrokeSelectionControlLocation();
         }
 
-        /// <summary>结束一次把手拖拽，提交历史并刷新显示</summary>
         private void EndHandleOperation(Rectangle handle)
         {
             isResizing = false;
@@ -1182,9 +1136,6 @@ namespace Ink_Canvas
         {
             if (!(sender is Rectangle handle)) return;
             StartHandleOperation(handle.Name, e.GetTouchPoint(inkCanvas).Position);
-            // 显式捕获触摸设备：与鼠标版 CaptureMouse 对应。
-            // 没有捕获时，手指一旦移出 12x12 的小把手矩形，TouchMove 命中测试不再命中把手，
-            // 拖拽即中断；且触摸可能被父级 IsManipulationEnabled 的覆盖层接管，把手彻底收不到 Move。
             handle.CaptureTouch(e.TouchDevice);
             e.Handled = true;
         }
@@ -1271,7 +1222,6 @@ namespace Ink_Canvas
                     Vector scale = md.Scale;
                     Point center = GetMatrixTransformCenterPoint(e.ManipulationOrigin, e.Source as FrameworkElement);
                     Matrix m = new Matrix();
-                    // add Scale
                     m.ScaleAt(scale.X, scale.Y, center.X, center.Y);
                     StrokeCollection strokes = inkCanvas.GetSelectedStrokes();
                     if (StrokesSelectionClone.Count != 0)
@@ -1280,10 +1230,8 @@ namespace Ink_Canvas
                     }
                     else if (Settings.Gesture.IsEnableTwoFingerRotationOnSelection)
                     {
-                        // add Rotate
                         m.RotateAt(rotate, center.X, center.Y);
                     }
-                    // add Translate
                     m.Translate(trans.X, trans.Y);
                     List<UIElement> elements = new List<UIElement>();
                     if (ElementsSelectionClone.Count != 0)
@@ -1311,7 +1259,6 @@ namespace Ink_Canvas
                         elementMatrix.Translate(trans.X, trans.Y);
                         ApplyElementMatrixTransform(element, elementMatrix);
                     }
-                    // handle strokes
                     foreach (Stroke stroke in strokes)
                     {
                         stroke.Transform(m, false);
@@ -1347,7 +1294,6 @@ namespace Ink_Canvas
                 return;
             }
             dec.Add(e.TouchDevice.Id);
-            //设备1个的时候，记录中心点
             if (dec.Count == 1)
             {
                 TouchPoint touchPoint = e.GetTouchPoint(null);

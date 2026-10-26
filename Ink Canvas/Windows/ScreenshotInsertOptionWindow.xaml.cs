@@ -7,22 +7,10 @@ namespace Ink_Canvas
     /// </summary>
     public partial class ScreenshotInsertOptionWindow : Window
     {
-        /// <summary>
-        /// 用户选择的插入选项
-        /// </summary>
         public enum InsertOption
         {
-            /// <summary>
-            /// 取消操作
-            /// </summary>
             Cancel,
-            /// <summary>
-            /// 插入到画板
-            /// </summary>
             InsertToCanvas,
-            /// <summary>
-            /// 插入到白板照片列表
-            /// </summary>
             InsertToBoard,
             /// <summary>
             /// 复制到剪贴板（同时生成图片文件，便于粘贴/复制到其他位置）
@@ -30,9 +18,6 @@ namespace Ink_Canvas
             CopyToClipboard
         }
 
-        /// <summary>
-        /// 获取用户选择的选项
-        /// </summary>
         public InsertOption SelectedOption { get; private set; } = InsertOption.Cancel;
 
         public ScreenshotInsertOptionWindow()
@@ -42,9 +27,6 @@ namespace Ink_Canvas
             Helpers.PopupWindowLayerHelper.Register(this);
         }
 
-        /// <summary>
-        /// 插入到画板
-        /// </summary>
         private void BtnInsertToCanvas_Click(object sender, RoutedEventArgs e)
         {
             SelectedOption = InsertOption.InsertToCanvas;
@@ -52,9 +34,6 @@ namespace Ink_Canvas
             Close();
         }
 
-        /// <summary>
-        /// 插入到白板照片列表
-        /// </summary>
         private void BtnInsertToBoard_Click(object sender, RoutedEventArgs e)
         {
             SelectedOption = InsertOption.InsertToBoard;
@@ -62,9 +41,6 @@ namespace Ink_Canvas
             Close();
         }
 
-        /// <summary>
-        /// 复制到剪贴板
-        /// </summary>
         private void BtnCopyToClipboard_Click(object sender, RoutedEventArgs e)
         {
             SelectedOption = InsertOption.CopyToClipboard;
@@ -72,9 +48,6 @@ namespace Ink_Canvas
             Close();
         }
 
-        /// <summary>
-        /// 取消操作
-        /// </summary>
         private void BtnCancel_Click(object sender, RoutedEventArgs e)
         {
             SelectedOption = InsertOption.Cancel;

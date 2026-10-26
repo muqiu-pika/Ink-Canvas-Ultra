@@ -231,9 +231,6 @@ namespace Ink_Canvas
             else tab.Background = Brushes.Transparent;
         }
 
-        /// <summary>
-        /// 重建两个图形面板中的图库缩略图墙
-        /// </summary>
         private void ReloadInkGallery()
         {
             foreach (var view in _galleryViews)
@@ -436,7 +433,6 @@ namespace Ink_Canvas
 
             if (target == null || device == null) return;
 
-            // 手指已抬起 → 不是长按
             if (!device.IsActive) return;
 
             // 滑动开始后触摸会被 ScrollViewer 的滚动接管，此时手指已经移开原位 → 取消长按

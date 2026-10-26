@@ -156,7 +156,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 创建用于保存的可序列化画布（将所有内存图像替换为文件引用）
         private InkCanvas CreateSerializableCanvasForSnapshot()
         {
             var canvas = new InkCanvas();
@@ -253,7 +252,6 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    // 其他类型暂不保存依赖文件
                 }
             }
         }
@@ -300,14 +298,12 @@ namespace Ink_Canvas
                 using (FileStream fs = new FileStream(savePathWithName, FileMode.Create))
                 using (var archive = new ZipArchive(fs, ZipArchiveMode.Create))
                 {
-                    // Save strokes
                     var strokesEntry = archive.CreateEntry("strokes.icstk");
                     using (var strokesStream = strokesEntry.Open())
                     {
                         inkCanvas.Strokes.Save(strokesStream);
                     }
 
-                    // Save UI elements
                     var elementsEntry = archive.CreateEntry("elements.xaml");
                     using (var elementsStream = elementsEntry.Open())
                     {
@@ -366,8 +362,6 @@ namespace Ink_Canvas
             }
         }
 
-
-
         private void SymbolIconOpenInkCanvasFile_Click(object sender, RoutedEventArgs e)
         {
             AnimationsHelper.HideWithSlideAndFade(BorderTools);
@@ -394,7 +388,6 @@ namespace Ink_Canvas
                         {
                             using (var archive = new ZipArchive(fs, ZipArchiveMode.Read))
                             {
-                                // load strokes
                                 var strokesEntry = archive.GetEntry("strokes.icstk");
                                 if (strokesEntry != null)
                                 {
@@ -408,11 +401,9 @@ namespace Ink_Canvas
                                     }
                                 }
 
-                                // load URL files
                                 string saveDirectory = Settings.Automation.AutoSavedStrokesLocation;
                                 ExtractUrlFiles(archive, saveDirectory);
 
-                                // load UI Elements
                                 var elementsEntry = archive.GetEntry("elements.xaml");
                                 using (var elementsStream = elementsEntry.Open())
                                 {
@@ -476,7 +467,6 @@ namespace Ink_Canvas
                                                     mediaElement.UnloadedBehavior = MediaState.Manual;
                                                     mediaElement.Loaded += (_, args) =>
                                                     {
-                                                        // 所有模式导入后自动播放
                                                         mediaElement.Play();
                                                     };
                                                 }
@@ -597,22 +587,10 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 保存一个固定路径的会话快照，用于重启后恢复。
-        /// 文件会保存到 AutoSavedStrokesLocation\Auto Saved - Session\LastSession.icart。
-        /// 同时保存会话元信息到 SessionMeta.txt。
-        /// </summary>
         public void SaveLastSessionSnapshot()
         {
             try
             {
-                // 本方法也会被“崩溃兜底”路径调用（App_DispatcherUnhandledException /
-                // CurrentDomain_UnhandledException → TrySnapshotRestartAndExit）。
-                // 那种场景下 MainWindow 往往只构造了一半（例如 InitializeComponent 抛异常，
-                // 或主窗口构造前就崩溃），inkCanvas / BtnPPTSlideShowEnd 这些 XAML 字段、
-                // 以及 Settings.Automation 都可能是 null；直接解引用会抛 NullReferenceException，
-                // 把“保存会话快照失败”刷成日志噪音（曾一次崩溃循环刷出 200+ 条）。
-                // 统一做空值防护：条件不满足就安静退出，由上层决定是否提示/重启。
                 if (inkCanvas == null) return;
 
                 string autoSavedLocation = Settings?.Automation?.AutoSavedStrokesLocation;
@@ -805,7 +783,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 添加一个标志来跟踪用户是否已确认恢复会话
         private bool _isRestoreSessionConfirmed = false;
 
         // 当用户通过对话框确认恢复会话时，设置此标志
@@ -819,7 +796,6 @@ namespace Ink_Canvas
             // 只有在用户确认恢复会话后才执行恢复操作
             if (!_isRestoreSessionConfirmed)
             {
-                // 检查是否存在会话文件，但不自动恢复
                 string basePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
                 string pageDir = System.IO.Path.Combine(basePath, "pages", pageIndex.ToString());
                 string strokesPath = System.IO.Path.Combine(pageDir, "strokes.icstk");
@@ -910,7 +886,6 @@ namespace Ink_Canvas
                                                             }
                                                             catch (Exception ex)
                                                             {
-                                                                // 记录错误但不中断程序
                                                                 Ink_Canvas.Helpers.LogHelper.WriteLogToFile("Failed to load image: " + ex.Message, Ink_Canvas.Helpers.LogHelper.LogType.Error);
                                                             }
                                                         }

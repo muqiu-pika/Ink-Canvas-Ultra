@@ -26,7 +26,6 @@ namespace Ink_Canvas.Helpers
 
                 var sb = new Storyboard();
 
-                // 渐变动画
                 var fadeInAnimation = new DoubleAnimation
                 {
                     From = 0.5,
@@ -76,7 +75,6 @@ namespace Ink_Canvas.Helpers
 
                 var sb = new Storyboard();
 
-                // 渐变动画
                 var fadeInAnimation = new DoubleAnimation
                 {
                     From = 0.5,
@@ -85,7 +83,6 @@ namespace Ink_Canvas.Helpers
                 };
                 Storyboard.SetTargetProperty(fadeInAnimation, new PropertyPath(UIElement.OpacityProperty));
 
-                // 滑动动画
                 var slideAnimation = new DoubleAnimation
                 {
                     From = element.RenderTransform.Value.OffsetX - 20, // 滑动距离
@@ -116,7 +113,6 @@ namespace Ink_Canvas.Helpers
 
                 var sb = new Storyboard();
 
-                // 水平方向的缩放动画
                 var scaleXAnimation = new DoubleAnimation
                 {
                     From = 0,
@@ -125,7 +121,6 @@ namespace Ink_Canvas.Helpers
                 };
                 Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath("(UIElement.RenderTransform).(ScaleTransform.ScaleX)"));
 
-                // 垂直方向的缩放动画
                 var scaleYAnimation = new DoubleAnimation
                 {
                     From = 0,
@@ -157,7 +152,6 @@ namespace Ink_Canvas.Helpers
 
                 var sb = new Storyboard();
 
-                // 水平方向的缩放动画
                 var scaleXAnimation = new DoubleAnimation
                 {
                     From = 0,
@@ -166,7 +160,6 @@ namespace Ink_Canvas.Helpers
                 };
                 Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath("(UIElement.RenderTransform).(ScaleTransform.ScaleX)"));
 
-                // 垂直方向的缩放动画
                 var scaleYAnimation = new DoubleAnimation
                 {
                     From = 0,
@@ -198,7 +191,6 @@ namespace Ink_Canvas.Helpers
 
                 var sb = new Storyboard();
 
-                // 水平方向的缩放动画
                 var scaleXAnimation = new DoubleAnimation
                 {
                     From = 0,
@@ -207,7 +199,6 @@ namespace Ink_Canvas.Helpers
                 };
                 Storyboard.SetTargetProperty(scaleXAnimation, new PropertyPath("(UIElement.RenderTransform).(ScaleTransform.ScaleX)"));
 
-                // 垂直方向的缩放动画
                 var scaleYAnimation = new DoubleAnimation
                 {
                     From = 0,
@@ -247,7 +238,6 @@ namespace Ink_Canvas.Helpers
 
                 var sb = new Storyboard();
 
-                // 渐变动画
                 var fadeOutAnimation = new DoubleAnimation
                 {
                     From = 1,

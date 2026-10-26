@@ -111,11 +111,6 @@ namespace Ink_Canvas.Models
             Timestamp = TryExtractTimestampFromFilePath(videoFilePath) ?? DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss.fff");
         }
 
-        /// <summary>
-        /// 释放全尺寸大图 Image 以节省内存。调用前需确保图片已落盘（FilePath 有效），
-        /// 之后如需原始图片可由 CreateBitmapImageFromFileOrMemory 从文件重新加载。
-        /// 缩略图与像素尺寸缓存保留，照片列表显示不受影响。
-        /// </summary>
         public void ReleaseImageMemory()
         {
             if (IsImageReleased) return;
@@ -184,7 +179,6 @@ namespace Ink_Canvas.Models
             var dv = new DrawingVisual();
             using (var dc = dv.RenderOpen())
             {
-                // 深色渐变背景
                 dc.DrawRectangle(
                     new LinearGradientBrush(
                         Color.FromRgb(0x2D, 0x2D, 0x30),
@@ -201,7 +195,6 @@ namespace Ink_Canvas.Models
                     null,
                     new System.Windows.Point(cx, cy), r, r);
 
-                // 三角形（向右）
                 var triStart = cx - 7;
                 var triTop = cy - 10;
                 var triBottom = cy + 10;

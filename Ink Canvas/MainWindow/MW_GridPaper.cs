@@ -15,7 +15,6 @@ namespace Ink_Canvas
         private double _gridSpacingX = 30.0; // 水平方格间距
         private double _gridSpacingY = 30.0; // 垂直方格间距
 
-        // 触屏长按相关字段
         private DispatcherTimer _canvasBtnLongPressTimer;
         private bool _isCanvasBtnTouchActive = false;
         private bool _canvasBtnLongPressFired = false;
@@ -29,7 +28,6 @@ namespace Ink_Canvas
         {
             if (BoardGridPaperBorder == null) return;
 
-            // 切换弹窗显示状态
             if (BoardGridPaperBorder.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BoardGridPaperBorder);
@@ -53,7 +51,6 @@ namespace Ink_Canvas
             _canvasBtnLongPressFired = false;
             _canvasBtnTouchPoint = e.GetTouchPoint(null).Position;
 
-            // 创建并启动长按计时器
             _canvasBtnLongPressTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(LongPressDurationMs)
@@ -73,12 +70,8 @@ namespace Ink_Canvas
             // 不设置 e.Handled，让短按可以正常触发 Click 事件
         }
 
-        /// <summary>
-        /// 长按计时器触发 - 显示方格纸窗口
-        /// </summary>
         private void CanvasBtnLongPressTimer_Tick(object sender, EventArgs e)
         {
-            // 先停止计时器
             if (_canvasBtnLongPressTimer != null)
             {
                 _canvasBtnLongPressTimer.Stop();
@@ -102,9 +95,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 取消长按计时器
-        /// </summary>
         private void CancelCanvasBtnLongPress()
         {
             _isCanvasBtnTouchActive = false;
@@ -124,9 +114,6 @@ namespace Ink_Canvas
             return _canvasBtnLongPressFired;
         }
 
-        /// <summary>
-        /// 方格纸开关切换事件
-        /// </summary>
         private void ToggleSwitchGridPaper_Toggled(object sender, RoutedEventArgs e)
         {
             if (!isLoaded || _isLoadingSettings) return;
@@ -135,9 +122,6 @@ namespace Ink_Canvas
             UpdateGridPaperVisibility();
         }
 
-        /// <summary>
-        /// 水平间距滑动条值改变事件
-        /// </summary>
         private void GridSpacingXSlider_ValueChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
         {
             if (!isLoaded || _isLoadingSettings) return;
@@ -146,9 +130,6 @@ namespace Ink_Canvas
             DrawGridPaper();
         }
 
-        /// <summary>
-        /// 垂直间距滑动条值改变事件
-        /// </summary>
         private void GridSpacingYSlider_ValueChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
         {
             if (!isLoaded || _isLoadingSettings) return;
@@ -157,9 +138,6 @@ namespace Ink_Canvas
             DrawGridPaper();
         }
 
-        /// <summary>
-        /// 更新方格纸显示状态
-        /// </summary>
         private void UpdateGridPaperVisibility()
         {
             if (GridPaperCanvas == null) return;
@@ -175,14 +153,10 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 绘制方格纸
-        /// </summary>
         private void DrawGridPaper()
         {
             if (GridPaperCanvas == null) return;
 
-            // 获取画布尺寸
             double width = GridPaperCanvas.ActualWidth;
             double height = GridPaperCanvas.ActualHeight;
 
@@ -195,7 +169,6 @@ namespace Ink_Canvas
                 return;
             }
 
-            // 取消订阅（如果之前订阅过）
             GridPaperCanvas.SizeChanged -= GridPaperCanvas_SizeChanged;
 
             GridPaperCanvas.Children.Clear();
@@ -207,7 +180,6 @@ namespace Ink_Canvas
 
             SolidColorBrush gridBrush = new SolidColorBrush(Color.FromArgb(gridOpacity, gridColor.R, gridColor.G, gridColor.B));
 
-            // 绘制垂直线
             for (double x = 0; x <= width; x += _gridSpacingX)
             {
                 Line verticalLine = new Line
@@ -222,7 +194,6 @@ namespace Ink_Canvas
                 GridPaperCanvas.Children.Add(verticalLine);
             }
 
-            // 绘制水平线
             for (double y = 0; y <= height; y += _gridSpacingY)
             {
                 Line horizontalLine = new Line
@@ -249,9 +220,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 刷新方格纸（当背景色改变时调用）
-        /// </summary>
         public void RefreshGridPaper()
         {
             if (_isGridPaperEnabled && GridPaperCanvas != null && GridPaperCanvas.Visibility == Visibility.Visible)

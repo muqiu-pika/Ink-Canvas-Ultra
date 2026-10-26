@@ -22,11 +22,9 @@ namespace Ink_Canvas.Plugins
         [JsonProperty("version", Required = Required.Always)]
         public string Version { get; set; }
 
-        /// <summary>作者或组织名</summary>
         [JsonProperty("author")]
         public string Author { get; set; }
 
-        /// <summary>简短描述（建议 ≤ 128 字符）</summary>
         [JsonProperty("description")]
         public string Description { get; set; }
 
@@ -52,11 +50,6 @@ namespace Ink_Canvas.Plugins
         [JsonProperty("icon")]
         public string Icon { get; set; }
 
-        /// <summary>
-        /// 声明式 UI 入口点。plugin 可不写任何代码，仅通过 manifest 声明
-        /// 在主程序某个区域显示一个按钮，点击时由主程序内建路由处理。
-        /// 例如 entryPoint = "video-presenter" 时主程序自动激活视频展台侧栏。
-        /// </summary>
         [JsonProperty("entryPoints")]
         public PluginEntryPoint[] EntryPoints { get; set; }
     }

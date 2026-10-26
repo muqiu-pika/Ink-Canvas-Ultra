@@ -74,7 +74,6 @@ namespace Ink_Canvas
             {
                 Application.Current.Dispatcher.Invoke(() =>
                 {
-                    //Play sound
                     player.Stream = Properties.Resources.TimerDownNotice;
                     player.Play();
                 });
@@ -268,7 +267,6 @@ namespace Ink_Canvas
         {
             if (isPaused && isTimerRunning)
             {
-                //继续
                 startTime += DateTime.Now - pauseTime;
                 ProcessBarTime.IsPaused = false;
                 SymbolIconStart.Glyph = "\uEdb4";
@@ -280,7 +278,6 @@ namespace Ink_Canvas
             }
             else if (isTimerRunning)
             {
-                //暂停
                 pauseTime = DateTime.Now;
                 ProcessBarTime.IsPaused = true;
                 SymbolIconStart.Glyph = "\uEdb5";
@@ -291,7 +288,6 @@ namespace Ink_Canvas
             }
             else
             {
-                //从头开始
                 startTime = DateTime.Now;
                 totalSeconds = ((hour * 60) + minute) * 60 + second;
                 ProcessBarTime.IsPaused = false;
@@ -385,7 +381,6 @@ namespace Ink_Canvas
                 BigViewController.Visibility = Visibility.Visible;
                 TbCurrentTime.Visibility = Visibility.Collapsed;
 
-                // Set to center
                 double dpiScaleX = 1, dpiScaleY = 1;
                 PresentationSource source = PresentationSource.FromVisual(this);
                 if (source != null)

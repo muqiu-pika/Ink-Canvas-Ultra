@@ -10,15 +10,6 @@ using Ink_Canvas.Plugins;
 
 namespace Ink_Canvas
 {
-    /// <summary>
-    /// 工具栏按钮排序（宿主实现）。
-    /// 浮动工具栏按显隐行为分为三组：
-    ///   - float-bar:fixed      固定组   （鼠标/画笔/清空，永不被折叠）
-    ///   - float-bar:collapsible 折叠组   （内嵌 StackPanelCanvasControls，随折叠显隐）
-    ///   - float-bar:trailing    右侧组   （画板/工具/隐藏，只能在本组内调整）
-    /// 白板工具栏为单组，但“选择/画布/更多/退出”以及两侧边缘按钮（手势/重做，其边框需保持位置固定）
-    /// 固定不参与排序。每组内只调整自身按钮顺序，绝不跨容器移动，因此折叠/边框等行为不变。
-    /// </summary>
     public partial class MainWindow
     {
         private const string PlaceFloatFixed = "float-bar:fixed";
@@ -32,9 +23,6 @@ namespace Ink_Canvas
         // 「工具」按钮受保护，不允许隐藏 / 删除
         private const string ProtectedToolButtonId = "SymbolIconTools_Click";
 
-        // 白板工具栏固定按钮（不参与排序）：手势 / 画布 / 更多 / 退出。
-        // 中间的工具按钮（含左边缘“选择”与右边缘“重做”）都可排序；
-        // 排序后用 ApplyBoardEdgeBorders 自动把圆角边框加到位于中间区两端的按钮上。
         private static readonly HashSet<string> BoardPinnedHandlers = new HashSet<string>(StringComparer.Ordinal)
         {
             "TwoFingerGestureBorder_Click",      // 手势（左端固定）
@@ -55,8 +43,6 @@ namespace Ink_Canvas
         private static readonly Thickness BoardEdgeRightThickness = new Thickness(0, 1, 1, 1);
         private static readonly CornerRadius BoardInteriorRadius = new CornerRadius(0);
         private static readonly Thickness BoardInteriorThickness = new Thickness(0, 1, 0.25, 1);
-
-        // ===== 枚举 =====
 
         private IReadOnlyList<ToolbarReorderGroup> BuildToolbarReorderGroups()
         {
@@ -157,8 +143,6 @@ namespace Ink_Canvas
             return false;
         }
 
-        // ===== 应用 / 重置 =====
-
         private bool ApplyToolbarOrderInternal(string placement, IReadOnlyList<string> orderedItemIds)
         {
             try
@@ -239,8 +223,6 @@ namespace Ink_Canvas
             }
         }
 
-        // ===== 浮动工具栏容器解析 =====
-
         private Panel GetFloatBarTopPanel()
         {
             try { return MWFloatBarHost?.StackPanelFloatingBar as Panel; } catch { return null; }
@@ -272,18 +254,11 @@ namespace Ink_Canvas
             return null;
         }
 
-        // ===== 白板工具栏容器 =====
-
         private Panel GetBoardToolsPanel()
         {
             try { return MWBoardHost?.BoardToolsPanel as Panel; } catch { return null; }
         }
 
-        /// <summary>
-        /// 白板中间工具按钮的边框自动跟随位置：位于中间区最左的按钮加左圆角边框，
-        /// 最右的按钮加右圆角边框，其余中间按钮用平直内部边框；固定按钮不改动。
-        /// 这样无论按钮怎么重排，两端圆角始终留在中间工具栏的边缘按钮上。
-        /// </summary>
         private void ApplyBoardEdgeBorders(Panel panel)
         {
             try
@@ -291,7 +266,6 @@ namespace Ink_Canvas
                 if (panel == null) return;
                 var children = panel.Children.Cast<UIElement>().ToList();
 
-                // 中间在最左 / 最右的可排序按钮
                 Button left = null, right = null;
                 for (int i = 0; i < children.Count; i++)
                     if (children[i] is Button b && !IsBoardPinned(b)) { left = b; break; }
@@ -345,8 +319,6 @@ namespace Ink_Canvas
             catch { }
             return null;
         }
-
-        // ===== 通用单容器重排 =====
 
         /// <summary>
         /// 重排某容器内的功能按钮。usePinned=true 时（白板工具栏）仅重排“非固定”按钮，
@@ -404,8 +376,6 @@ namespace Ink_Canvas
             foreach (var r in result) panel.Children.Add(r);
             return true;
         }
-
-        // ===== id / 名称解析 =====
 
         private static string GetButtonId(Button btn, int fallbackOrdinal)
         {

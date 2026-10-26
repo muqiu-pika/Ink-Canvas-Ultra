@@ -35,22 +35,11 @@ namespace Ink_Canvas
 
         public MainWindow()
         {
-            // 必须在 InitializeComponent() 之前补齐主题键：
-            // InitializeComponent() 会立刻构建浮动栏 / 白板栏并解析其中的 DynamicResource
-            // （FloatBar* 定义在 Light.xaml，BoardBar* 却定义在另一个 Light-Board.xaml），
-            // 此时键若不存在就会刷出成百上千条 "Resource not found" Warning。
-            // App_Startup 里只补了 Light.xaml（漏了 BoardBar 那一族），且在 Release 下还会被
-            // iNKORE 重建应用级资源字典冲刷掉，因此这里在 UI 构建前再兜一次底。
-            // 真实主题随后由 SetTheme/SetBoardTheme 纠正，二者之间无渲染帧，不会闪色。
+            // 必须在 InitializeComponent 之前补齐主题键，否则会刷出大量 Resource not found
             Helpers.ResourceDictionaryHelper.EnsureStartupThemeKeys();
 
             InitializeComponent();
 
-            // 主窗口置顶状态变化时，把设置/插件工坊/倒计时等弹出层窗口一起同步。
-            // 屏幕/批注模式下主窗口是 topmost，若这些窗口不跟着置顶，就会跌到主窗口（含浮动栏）之下，
-            // 出现“设置窗口被浮动栏挡住、鼠标移上去仍是批注光标、点不动”的情况；
-            // 黑板/白板模式下主窗口不置顶，它们也随之让位，外部窗口才能正常盖在上面。
-            // 用属性变更监听而非逐处改赋值，可覆盖所有 Topmost 切换入口（含模式切换与定时器）。
             try
             {
                 System.ComponentModel.DependencyPropertyDescriptor
@@ -162,13 +151,11 @@ namespace Ink_Canvas
 
             CheckColorTheme(true);
 
-            // 注册窗口大小变化事件
             this.SizeChanged += MainWindow_SizeChanged;
 
             // 提前初始化内置快捷键，确保插件加载(Initialize)时即可查询/重绑定快捷键
             RegisterGlobalHotkeys();
 
-            // ===== 初始化 plugin 系统 =====
             InitializePluginSystem();
         }
 
@@ -180,7 +167,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 注入主程序能力委托
                 var opts = new Plugins.PluginHostOptions
                 {
                     GetInkCanvas = () => inkCanvas,
@@ -362,7 +348,6 @@ namespace Ink_Canvas
                     }
                 });
 
-                // 扫描并加载所有 plugin
                 host.LoadAll();
 
                 // 启动时单向同步视频展台桌面快捷方式：
@@ -409,7 +394,6 @@ namespace Ink_Canvas
                     // 插件加载完成的时机上色块控件必然已就绪：这里补挂右键/长按手势，
                     // 兜住"构造期/Loaded 时控件未就绪导致部分色块没有改色交互"的设备
                     try { InitializePenPaletteEditGestures(); } catch { }
-                    // 若侧栏已打开，同步刷新其模式
                     if (VideoPresenterSidebar != null && VideoPresenterSidebar.Visibility == Visibility.Visible)
                     {
                         var host = Plugins.PluginHost.Instance;
@@ -435,9 +419,6 @@ namespace Ink_Canvas
                 var host = Plugins.PluginHost.Instance;
                 if (host == null) return;
 
-                // 视频展台按钮：始终显示，但根据插件可用性切换外观
-                //   - 插件可用：图标=摄像头，文本="视频展台"
-                //   - 插件不可用：图标=照片，文本="照片列表"
                 if (BtnVideoPresenter != null)
                 {
                     BtnVideoPresenter.Visibility = Visibility.Visible;
@@ -456,9 +437,6 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>
-        /// 窗口大小变化事件处理
-        /// </summary>
         private void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (VideoPresenterSidebar.Visibility == Visibility.Visible)
@@ -549,24 +527,15 @@ namespace Ink_Canvas
         bool isLoaded = false;
         bool _isLoadingSettings = false;
 
-        /// <summary>
-        /// 设置是否已完成本轮载入（LoadSettings 收尾置 true）。
-        /// 静态字段 Settings 在类型初始化时就是一份"全新默认值"，启动早期（插件构造期
-        /// 初始化、控件事件等）若触发 SaveSettingsToFile，会把这份默认值覆盖到用户的
-        /// Settings.json 上——表现为"每次启动都弹初始化向导、设置全部回到默认"。
-        /// 因此启动早期的保存必须被拦截；正规载入完成后才允许落盘。
-        /// </summary>
         internal static bool _settingsReadyForSave = false;
 
         /// <summary>「启动早期保存被拦截」日志只记一次，避免每次启动/每次保存刷日志</summary>
         internal static bool _startupSaveBlockedLogged = false;
 
-        // 拍照功能相关字段
         private ObservableCollection<CapturedImage> capturedPhotos = new ObservableCollection<CapturedImage>();
         // 侧栏照片选中状态（使用时间戳标识当前选中照片）
         private string selectedPhotoTimestamp = null;
         
-        // 照片页面管理相关字段
         private Dictionary<string, int> photoPageMapping = new Dictionary<string, int>(); // 记录照片时间戳与页码的关联
         private Dictionary<int, string> pageDocumentMapping = new Dictionary<int, string>(); // 记录页码与文档来源路径的关联
         private System.Windows.Controls.Image currentPhotoImage; // 当前显示的照片元素
@@ -588,7 +557,6 @@ namespace Ink_Canvas
             new System.Collections.Generic.List<System.Threading.Tasks.Task>();
         // 照片列表交互：右键/长按弹出的操作覆盖层
         private FrameworkElement _activePhotoActionOverlay;
-        // 照片列表手动排序
         private bool _isReorderingPhotos = false;
         private int _photoReorderSourceIndex = -1;
         private int _photoReorderTargetIndex = -1;
@@ -680,29 +648,20 @@ namespace Ink_Canvas
             }), DispatcherPriority.Background);
         }
 
-        /// <summary>
-        /// 根据视频展台插件可用性切换侧栏模式。
-        ///   - 插件可用（完整模式）：标题="视频展台"，显示摄像头设备选择区、拍照按钮
-        ///   - 插件不可用（照片列表模式）：标题="照片列表"，隐藏摄像头相关区域，仅保留照片列表+清除+旋转+插入媒体
-        /// 插入媒体按钮始终显示。
-        /// </summary>
         private void UpdateSidebarMode(bool videoPresenterAvailable)
         {
             try
             {
-                // 标题
                 if (SidebarTitleTextBlock != null)
                 {
                     SidebarTitleTextBlock.Text = videoPresenterAvailable ? "视频展台" : "照片列表";
                 }
 
-                // 摄像头设备选择区（Row 2）
                 if (CameraDeviceBorder != null)
                 {
                     CameraDeviceBorder.Visibility = videoPresenterAvailable ? Visibility.Visible : Visibility.Collapsed;
                 }
 
-                // 拍照按钮
                 if (BtnCapturePhoto != null)
                 {
                     BtnCapturePhoto.Visibility = videoPresenterAvailable ? Visibility.Visible : Visibility.Collapsed;
@@ -816,7 +775,6 @@ namespace Ink_Canvas
                 return;
             }
 
-            // 处理来自第二个实例的文档打开请求
             const string documentOpenPrefix = "document-open|";
             if (command.StartsWith(documentOpenPrefix, StringComparison.OrdinalIgnoreCase))
             {
@@ -1244,11 +1202,6 @@ namespace Ink_Canvas
         {
             LogHelper.WriteLogToFile("Input device change detected, starting recovery...", LogHelper.LogType.Info);
 
-            // 若当前正处于书写/触控/拖拽过程中，必须跳过本轮抢断式恢复：
-            // 恢复流程会先释放鼠标/触笔/触摸捕获，再清空笔迹预览状态并重注册触摸窗口，
-            // 若在笔画进行中执行，会把正在绘制的笔画从中间掐断——后半段不再渲染/提交。
-            // 典型触发场景：PPT 演示中点击“翻页”后，PowerPoint 抢回焦点再交还焦点时，
-            // WM_ACTIVATEAPP 触发的恢复恰落到新页面“第一笔”的书写过程中。
             if (IsInputEngaged())
             {
                 LogHelper.WriteLogToFile("Input recovery skipped: drawing/touch/drag input in progress", LogHelper.LogType.Info);
@@ -1269,12 +1222,6 @@ namespace Ink_Canvas
             try
             {
                 isMouseDown = false;
-                // isInMultiTouchMode 表示“多指书写”处理器是否已挂载（与设置开关一一对应），
-                // 输入设备恢复只应重置进行中的输入状态，不能把它强置为 false。
-                // 否则当多指书写开启时发生设备恢复（WM_DEVICECHANGE / 失焦重获 / 电源事件），
-                // 标志位变为 false 但 MainWindow_TouchDown 等处理器仍挂载着，
-                // 之后用户关闭“多指书写”开关会因 isInMultiTouchMode==false 而不执行卸载，
-                // 造成“未开多指书写却仍可多指书写”。此处按设置值恢复以保持两者一致。
                 isInMultiTouchMode = Settings.Gesture?.IsEnableMultiTouchMode ?? false;
                 isSingleFingerDragMode = false;
                 twoFingerGestureType = TwoFingerGestureType.None;
@@ -1348,13 +1295,7 @@ namespace Ink_Canvas
             InitializePenPaletteEditGestures();
 
             loadPenCanvas();
-            //加载设置
             LoadSettings(true);
-
-            // 「自动收纳」检测定时器已在 LoadSettings → ApplySettingsSideEffects() 中统一启动。
-            // 这里原来的补丁随之移除：它只补了 timerCheckAutoFold 一个，而同样问题的
-            // timerCheckPPT（PPT 检测）与 timerKillProcess（希沃查杀）仍被遗漏，
-            // 逐个打补丁会继续漏，故统一收敛到 ApplySettingsSideEffects()。
 
             if (Environment.Is64BitProcess && GroupBoxInkRecognition != null)
             {
@@ -1367,11 +1308,8 @@ namespace Ink_Canvas
             if (AppVersionTextBlock != null)
                 AppVersionTextBlock.Text = AutoUpdateHelper.GetDisplayVersion();
 
-
-
             LogHelper.WriteLogToFile("Ink Canvas Loaded", LogHelper.LogType.Event);
             
-            // 初始化摄像头设备管理器
             InitializeCameraDeviceManager();
 
             // 初始化笔迹图库：把「我的图库」区块挂进两个图形面板，并监听落笔插入
@@ -1406,7 +1344,6 @@ namespace Ink_Canvas
             timerFixFloatingBarZOrder?.Start();
             HookInputDeviceNotifications();
 
-            // 注册触摸窗口以确保触摸事件正常工作
             TouchLockFix.ReRegisterTouchWindow(this);
 
             // 诊断用：审计"刚写完就被移出画布"的笔迹（正常情况下不产生日志）
@@ -1416,13 +1353,11 @@ namespace Ink_Canvas
             // 触屏上便于直接拖动，免去精确抓取极小缩略块。仅设属性，不改外观。
             SetTouchFriendlySliders(this);
 
-            // 启动后提示是否恢复上次会话
             PromptRestoreLastSessionOnStartup();
 
             // 注意：启动时不再扫描磁盘照片填充照片列表，照片列表保持初始空状态。
             // 文档照片仅在「打开文档」时从该文档的缓存文件夹加载（或重新转换后放入）。
 
-            // 首次安装引导
             TryShowInitialSetupWizard();
 
             // 软件刚更新完（版本变化）时展示一次「版本更新」窗口（延迟到启动弹窗都处理完之后）
@@ -1445,13 +1380,6 @@ namespace Ink_Canvas
                 }
             }
 
-            // 移除启动后空闲时对设置窗口的无条件预构建：
-            // 它会在启动后几秒就把整个 170KB XAML 的设置窗口常驻内存（几十 MB），平时隐藏仍占用，
-            // 抬高启动后的内存基线。设置窗口改为首次点击“设置”时才构建并缓存复用（见 BtnSettings_Click），
-            // 代价仅是首次打开时有一次解析延迟，换取启动内存显著下降。
-            // 若需恢复，可将此行取消注释并保留 PrebuildSettingsWindow 相关方法。
-            // Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.ApplicationIdle,
-            //     (System.Action)PrebuildSettingsWindow);
         }
 
         private void Window_Closing(object sender, System.ComponentModel.CancelEventArgs e)
@@ -1489,7 +1417,6 @@ namespace Ink_Canvas
             // 关闭被缓存/隐藏的设置窗口：隐藏窗口在 WPF 中仍属“已打开”，
             // 不显式关闭会阻止应用退出（默认 ShutdownMode 为 OnLastWindowClose），内存也无法释放
             try { CloseCachedSettingsWindow(); } catch { }
-            // 关闭其余仍然存活的附属窗口（插件工坊、倒计时、抽奖等）
             try { CloseRemainingOwnedWindows(); } catch { }
             // 停止并释放所有后台定时器：System.Timers.Timer 的 Elapsed 处理函数持有本窗口引用，
             // 若窗口关闭后仍在运行，会阻止主窗口与其可视化树、以及各附属窗口被回收。
@@ -1500,9 +1427,7 @@ namespace Ink_Canvas
             StopSingleInstanceCommandServer();
             // 通知所有 plugin 主程序即将退出
             try { Plugins.PluginHost.Instance?.ShutdownAll(); } catch { }
-            // 移除摄像头画面
             RemoveCameraFrame();
-            // 清理摄像头资源
             cameraDeviceManager?.Dispose();
             // 释放照片列表大图内存并主动回收，减少退出/关闭时的内存占用
             try { ReleaseAllCapturedPhotoMemory(); } catch { }
@@ -1599,10 +1524,8 @@ namespace Ink_Canvas
                     {
                         try
                         {
-                            // 首先确认恢复会话，设置全局标志
                             ConfirmRestoreSession();
                             
-                            // 读取元信息
                             int metaMode = currentMode;
                             int metaWhiteboardIndex = CurrentWhiteboardIndex;
                             int metaPpt = 0;
@@ -1625,13 +1548,11 @@ namespace Ink_Canvas
                             }
                             catch { }
 
-                            // 切换模式以匹配快照
                             if (metaMode != currentMode)
                             {
                                 ImageBlackboard_Click(null, null);
                             }
 
-                            // 恢复快照
                             bool ok = OpenLastSessionSnapshotIfExists();
                             if (ok)
                             {
@@ -1713,9 +1634,6 @@ namespace Ink_Canvas
                                                 if (System.IO.File.Exists(tryLocal)) candidate = tryLocal;
                                             }
 
-                                            // 文档照片的 Tag 存储的是原始文档路径（如 C:\Docs\report.pdf）
-                                            // 用于恢复 SourceFilePath，使文档去重与笔迹加载在重启后仍可生效
-                                            // （分块照片的 Tag 形如「文档路径#块序号」，需剥离块序号后按文档识别）
                                             if (!string.IsNullOrEmpty(tagPath) && IsDocumentFilePath(StripChunkSuffix(tagPath)))
                                             {
                                                 sourceFilePath = tagPath;
@@ -1771,10 +1689,8 @@ namespace Ink_Canvas
             }
         }
 
-        // 视频展台按钮点击事件
         private void BtnVideoPresenter_Click(object sender, RoutedEventArgs e)
         {
-            // 切换视频展台侧栏的可见性
             if (VideoPresenterSidebar.Visibility == Visibility.Visible)
             {
                 VideoPresenterSidebar.Visibility = Visibility.Collapsed;
@@ -1787,7 +1703,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 关闭视频展台侧栏按钮点击事件
         private void BtnCloseVideoPresenter_Click(object sender, RoutedEventArgs e)
         {
             VideoPresenterSidebar.Visibility = Visibility.Collapsed;
@@ -1795,12 +1710,9 @@ namespace Ink_Canvas
             // 摄像头画面会继续显示在白板中，即使侧栏被隐藏
         }
 
-        // 摄像头设备管理器
         private CameraDeviceManager cameraDeviceManager;
-        // 当前显示的摄像头画面元素
         private System.Windows.Controls.Image currentCameraImage;
         private Dictionary<int, System.Windows.Controls.Image> cameraFramesByPage = new Dictionary<int, System.Windows.Controls.Image>();
-        // 摄像头画面更新定时器
         private DispatcherTimer cameraFrameTimer;
         // 摄像头帧的可复用像素缓冲：替代原先「每帧 PNG 编码再解码」的取帧方式。
         // 稳态下每帧零分配，仅在分辨率或像素格式变化时重建缓冲与 WriteableBitmap。
@@ -1811,7 +1723,6 @@ namespace Ink_Canvas
 
         #region Photo Capture Functions
 
-        // 防重复点击计时器
         private DateTime lastCaptureTime = DateTime.MinValue;
         private const int CAPTURE_COOLDOWN_MS = 1000; // 1秒冷却时间
 
@@ -1819,7 +1730,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 防重复点击检查
                 if ((DateTime.Now - lastCaptureTime).TotalMilliseconds < CAPTURE_COOLDOWN_MS)
                 {
                     Console.WriteLine("拍照功能冷却中，请稍后再试");
@@ -1839,10 +1749,8 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 记录本次拍照时间
                 lastCaptureTime = DateTime.Now;
 
-                // 获取当前摄像头画面的旋转角度
                 double rotationAngle = 0;
                 if (currentCameraImage != null && currentCameraImage.RenderTransform is TransformGroup tg)
                 {
@@ -1904,7 +1812,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 获取当前页面上所有可旋转的图像元素
                 var rotatableElements = GetRotatableElementsOnCurrentPage();
                 
                 if (rotatableElements.Count == 0)
@@ -1916,7 +1823,6 @@ namespace Ink_Canvas
                 // 如果有多个可旋转元素，优先旋转最近添加的或当前选中的
                 UIElement elementToRotate = rotatableElements[rotatableElements.Count - 1]; // 默认旋转最后一个
                 
-                // 检查是否有选中的元素
                 var selectedElements = InkCanvasElementsHelper.GetSelectedElements(inkCanvas);
                 if (selectedElements.Count > 0)
                 {
@@ -1928,7 +1834,6 @@ namespace Ink_Canvas
                     }
                 }
                 
-                // 旋转图像元素
                 RotateImageElement(elementToRotate, 90);
                 
                 Console.WriteLine($"图像已向右旋转90度，元素类型: {elementToRotate.GetType().Name}");
@@ -1943,14 +1848,12 @@ namespace Ink_Canvas
         {
             if (!(imageElement is FrameworkElement frameworkElement)) return;
             
-            // 获取或创建变换组
             if (!(frameworkElement.RenderTransform is TransformGroup transformGroup))
             {
                 transformGroup = new TransformGroup();
                 frameworkElement.RenderTransform = transformGroup;
             }
 
-            // 记录初始状态
             if (!ElementsInitialHistory.ContainsKey(frameworkElement.Name))
             {
                 ElementsInitialHistory[frameworkElement.Name] = transformGroup.Clone();
@@ -1962,10 +1865,8 @@ namespace Ink_Canvas
             double centerX = bounds.Left + bounds.Width / 2;
             double centerY = bounds.Top + bounds.Height / 2;
 
-            // 创建旋转变换，设置中心点为元素的实际中心
             var rotateTransform = new RotateTransform(angle, centerX, centerY);
             
-            // 添加到变换组
             transformGroup.Children.Add(rotateTransform);
 
             // 记录变换历史（使用与MW_SelectionGestures.cs相同的方式）
@@ -1977,7 +1878,6 @@ namespace Ink_Canvas
             ElementsManipulationHistory[frameworkElement.Name] =
                 new Tuple<object, TransformGroup>(ElementsInitialHistory[frameworkElement.Name], transformGroup.Clone());
             
-            // 提交变换历史
             timeMachine.CommitStrokeManipulationHistory(null, ElementsManipulationHistory);
         }
 
@@ -2006,7 +1906,6 @@ namespace Ink_Canvas
                 return null;
             }
         }
-
 
         private void AddCapturedPhoto(BitmapImage image)
         {
@@ -2094,11 +1993,6 @@ namespace Ink_Canvas
             return ext == ".docx" || ext == ".xls" || ext == ".xlsx" || ext == ".pdf";
         }
 
-        /// <summary>
-        /// 剥离文档分块照片的块序号后缀（"文档路径#N" → "文档路径"）。
-        /// 文档过大时会被拆分为多张照片，每张来源标识为「文档路径#块序号」，
-        /// 需要按原始文档路径识别同一文档。
-        /// </summary>
         private static string StripChunkSuffix(string filePath)
         {
             if (string.IsNullOrEmpty(filePath)) return filePath;
@@ -2159,11 +2053,6 @@ namespace Ink_Canvas
                 .ToList();
         }
 
-        /// <summary>
-        /// 从内存照片列表重建指定文档页的照片瓦片到画布。
-        /// 用于磁盘保存文件尚未就绪（如退出白板后立即重进）时，保证文档照片不丢失。
-        /// 返回是否成功重建了照片。
-        /// </summary>
         private bool ReinsertDocumentPhotosFromMemory(int pageIndex)
         {
             try
@@ -2383,13 +2272,6 @@ namespace Ink_Canvas
             _documentPageSaveTimer.Change(1500, Timeout.Infinite);
         }
 
-        /// <summary>
-        /// 如果指定页面对应文档照片，则保存该页全部内容（墨迹+元素）到文件名对应文件夹。
-        /// 保存方式与 PPT 笔迹自动保存保持一致：
-        /// - 墨迹流保存为 {pageIndex:0000}.icstk（与 PPT 的 .icstk 文件格式相同）
-        /// - UI 元素保存为 {pageIndex:0000}.xaml
-        /// - 依赖文件保存到 File Dependency 子文件夹
-        /// </summary>
         private void SaveDocumentPageIfNeeded(int pageIndex, bool sync = false)
         {
             try
@@ -2430,14 +2312,6 @@ namespace Ink_Canvas
                     }
                 }
                 catch { }
-
-                // 保存墨迹与 UI 元素到磁盘。
-                // 重要：StrokeCollection.Save / XamlWriter.Save 必须在本（UI）线程执行，
-                // 因为 InkCanvas 及其子元素均为 DispatcherObject，不能在后台线程访问其 Children。
-                // 之前把这两步放到 Task.Run 中导致「调用线程无法访问此对象」与「流已关闭」异常，
-                // 使得 .icstk/.xaml 从未真正落盘，进而任何文档页恢复都失败、回退逻辑重复插入照片。
-                // 这里先在 UI 线程完成全部序列化（得到字节数组 / XAML 文本），
-                // 再在后台线程仅做纯磁盘写入，既避免跨线程异常，也避免长时间阻塞 UI。
 
                 // 序列化墨迹（与 PPT 的 .icstk 格式一致，均为 ISF 字节流）
                 byte[] strokesBytes;
@@ -2623,17 +2497,11 @@ namespace Ink_Canvas
             return list;
         }
 
-        /// <summary>
-        /// 在文档页文件夹中查找存在的保存文件基路径。
-        /// 优先匹配当前页码 {pageIndex:0000}，未命中则回退到文件夹内任意页文件（页码可能因重启变化）。
-        /// 返回基路径（不含扩展名），不存在则返回 null。
-        /// </summary>
         private string FindDocumentPageBasePath(string folderPath, int pageIndex)
         {
             if (string.IsNullOrEmpty(folderPath) || !Directory.Exists(folderPath))
                 return null;
 
-            // 1. 优先精确匹配当前页码
             string basePath = System.IO.Path.Combine(folderPath, pageIndex.ToString("0000"));
             if (File.Exists(basePath + ".icstk") || File.Exists(basePath + ".xaml"))
                 return basePath;
@@ -2654,11 +2522,6 @@ namespace Ink_Canvas
             return null;
         }
 
-        /// <summary>
-        /// 导入文档前检测是否已有对应保存的笔迹/元素，有则自动恢复到当前页。
-        /// 行为与 PPT 幻灯片开始时检测并加载已有墨迹一致。
-        /// 返回是否成功找到并恢复了保存的内容。
-        /// </summary>
         private bool RestoreDocumentPageIfSavedInternal(string sourceFilePath)
         {
             try
@@ -2675,7 +2538,6 @@ namespace Ink_Canvas
                 if (basePathName == null)
                     return false;
 
-                // 建立/更新页码与文档的映射关系
                 pageDocumentMapping[pageIndex] = sourceFilePath;
                 // 清空当前页已有内容，然后从文件恢复（与 PPT 检测到已有墨迹后加载的行为一致）
                 RestoreDocumentPageIfAvailable(pageIndex);
@@ -2739,15 +2601,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 尝试从文件名对应文件夹加载指定页的文档内容。
-        /// 加载方式与 PPT 笔迹保存保持一致：
-        /// - 墨迹从 {pageIndex:0000}.icstk 加载（页码不匹配时回退到文件夹内任意页文件）
-        /// - UI 元素从 {pageIndex:0000}.xaml 加载（同上）
-        /// - 依赖文件从本文件夹下的 File Dependency 子文件夹加载
-        /// 如果加载成功，会清空当前画布并覆盖为保存的内容，同时清空该页内存历史。
-        /// 返回是否成功找到并加载了文档页。
-        /// </summary>
         private bool RestoreDocumentPageIfAvailable(int pageIndex)
         {
             try
@@ -2798,7 +2651,6 @@ namespace Ink_Canvas
                 StrokeCollection loadedStrokes = null;
                 var loadedElements = new List<UIElement>();
 
-                // 加载墨迹（与 PPT 的 .icstk 格式一致）
                 if (hasStrokes)
                 {
                     using (var fs = new FileStream(strokesFilePath, FileMode.Open, FileAccess.Read))
@@ -2807,7 +2659,6 @@ namespace Ink_Canvas
                     }
                 }
 
-                // 加载 UI 元素（单个子元素失败不影响其他元素）
                 if (hasElements)
                 {
                     string xamlText;
@@ -3150,12 +3001,9 @@ namespace Ink_Canvas
                 safeFileName);
         }
 
-        /// <summary>文档照片本地缓存的状态</summary>
         private enum DocumentPhotoCacheState
         {
-            /// <summary>本地没有转换缓存（或缓存文件不完整）</summary>
             Missing,
-            /// <summary>缓存有效：同名文档且文件未被修改</summary>
             Valid,
             /// <summary>同名同路径文档，但文件内容已被修改，需要重新转换并替换原照片（保留笔迹）</summary>
             ModifiedSameDocument,
@@ -3163,12 +3011,6 @@ namespace Ink_Canvas
             DifferentDocument
         }
 
-        /// <summary>
-        /// 打开文档（带本地转换缓存检查）：
-        /// 1. 照片列表中已有该文档照片 → 直接返回；
-        /// 2. 磁盘缓存有效（同名且未修改）→ 从缓存文件夹加载照片到照片列表；
-        /// 3. 未转换过 / 同名但已修改 → 触发插件自动转换，完成后自动存储缓存并插入照片列表。
-        /// </summary>
         public void OpenDocumentWithPhotoCache(string filePath)
         {
             try
@@ -3374,11 +3216,6 @@ namespace Ink_Canvas
             return 0;
         }
 
-        /// <summary>
-        /// 将文档转换的照片写入本地缓存（photo.png，重名则替换原照片），
-        /// 并写入 photo.meta（来源路径 + 最后修改时间 + 文件长度）用于同名修改检测。
-        /// 缓存文件夹与该文档笔迹保存文件夹相同。
-        /// </summary>
         private string SaveDocumentPhotoToCache(string sourceFilePath, BitmapImage image)
         {
             try
@@ -3525,12 +3362,6 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>
-        /// 文档照片的插入适配：
-        /// 无论如何都不调整缩放比例，保持照片原始像素尺寸插入，保证文字清晰不糊。
-        /// 水平居中，垂直顶部对齐（超长/超宽时可拖动画面阅读全文）。
-        /// 直接设置元素宽高与位置（不使用 RenderTransform），保证保存/恢复后几何一致。
-        /// </summary>
         private void CenterAndScaleDocumentPhoto(FrameworkElement element)
         {
             double canvasWidth = inkCanvas.ActualWidth;
@@ -3543,7 +3374,6 @@ namespace Ink_Canvas
             InkCanvas.SetLeft(element, Math.Max(0, left));
             InkCanvas.SetTop(element, Math.Max(0, top));
 
-            // 确保元素宽高为整数像素值
             if (element.Width > 0) element.Width = Math.Round(element.Width);
             if (element.Height > 0) element.Height = Math.Round(element.Height);
         }
@@ -3651,7 +3481,6 @@ namespace Ink_Canvas
                     capturedPhotosStackPanel.Children.Add(photoButton);
                 }
 
-                // 根据照片数量控制清除按钮的可见性
                 if (BtnClearAllContent != null)
                 {
                     BtnClearAllContent.Visibility = capturedPhotos.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -3671,7 +3500,6 @@ namespace Ink_Canvas
                 int currentPage = GetCurrentPageIndex();
                 string timestampOnThisPage = null;
 
-                // 查找当前页关联的照片时间戳
                 foreach (var kvp in photoPageMapping)
                 {
                     if (kvp.Value == currentPage)
@@ -3690,7 +3518,6 @@ namespace Ink_Canvas
                     selectedPhotoTimestamp = null; // 当前页没有关联照片或相册中不存在该照片
                 }
 
-                // 刷新侧栏按钮样式
                 UpdateCapturedPhotosDisplay();
             }
             catch (Exception ex)
@@ -3719,7 +3546,6 @@ namespace Ink_Canvas
                 string docName = System.IO.Path.GetFileName(docPath);
                 if (docName.Length > 24) docName = docName.Substring(0, 21) + "...";
 
-                // 文件类型图标色块
                 var iconColor = System.Windows.Media.Color.FromRgb(0x2E, 0x7D, 0x32); // 默认绿色
                 if (ext == ".docx" || ext == ".doc") iconColor = System.Windows.Media.Color.FromRgb(0x2B, 0x57, 0xA1); // Word 蓝
                 else if (ext == ".xls" || ext == ".xlsx") iconColor = System.Windows.Media.Color.FromRgb(0x1E, 0x7B, 0x3C); // Excel 绿
@@ -3863,7 +3689,6 @@ namespace Ink_Canvas
             // 提升缩放质量，减少缩略图缩放时的模糊；配合渲染缓存避免每次重绘都重算
             RenderOptimizationHelper.EnableHighQualityCaching(image);
 
-            // 选中叠加层：居中显示天蓝色☑
             var checkOverlay = new TextBlock
             {
                 Text = "☑",
@@ -3879,7 +3704,6 @@ namespace Ink_Canvas
 
             contentGrid.Children.Add(image);
 
-            // 选中态叠加层（☑）
             System.Windows.Controls.Panel.SetZIndex(checkOverlay, 1);
             contentGrid.Children.Add(checkOverlay);
 
@@ -3899,7 +3723,6 @@ namespace Ink_Canvas
             Grid actionOverlay = null;
             Button button = null;
 
-            // === 交互状态 ===
             var longPressTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(350) };
             bool _touchActive = false;       // 触摸序列进行中
             bool _longPressFired = false;    // 长按已触发（显示覆盖层）
@@ -3917,7 +3740,6 @@ namespace Ink_Canvas
                 try { button?.ReleaseStylusCapture(); } catch { }
             };
 
-            // 显示覆盖层
             Action<bool> showOverlay = (startAutoHide) =>
             {
                 HideActivePhotoActionOverlay();
@@ -3928,7 +3750,6 @@ namespace Ink_Canvas
                 if (startAutoHide) autoHideTimer.Start();
             };
 
-            // 隐藏覆盖层
             Action hideOverlay = () =>
             {
                 actionOverlay.Visibility = Visibility.Collapsed;
@@ -3983,7 +3804,6 @@ namespace Ink_Canvas
                 Tag = photo.Timestamp
             };
 
-            // 点击动作
             Action performClick = () =>
             {
                 if (photo.IsVideo)
@@ -4041,7 +3861,6 @@ namespace Ink_Canvas
                 }
             };
 
-            // 右键：立即显示操作覆盖层
             button.PreviewMouseRightButtonDown += (s, e) =>
             {
                 showOverlay(true);
@@ -4059,7 +3878,6 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 隐藏其他按钮的覆盖层
                 HideActivePhotoActionOverlay();
 
                 _touchActive = true;
@@ -4131,7 +3949,6 @@ namespace Ink_Canvas
 
             button.PreviewTouchUp += (s, e) =>
             {
-                // 始终抑制触摸到鼠标的提升
                 e.Handled = true;
 
                 try { e.TouchDevice.Capture(null); } catch { }
@@ -4143,9 +3960,6 @@ namespace Ink_Canvas
 
                 if (_longPressFired)
                 {
-                    // 长按松手：保持覆盖层显示，启动 3 秒自动隐藏
-                    // 设置独立标志 _longPressReleased 来抑制后续提升的 Click 事件
-                    // _longPressFired 可在下一次按下时重置而不影响抑制逻辑
                     _longPressReleased = true;
                     autoHideTimer.Stop();
                     autoHideTimer.Start();
@@ -4160,11 +3974,9 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 短按：选中照片
                 performClick();
             };
 
-            // === 鼠标处理 ===
             button.PreviewMouseLeftButtonDown += (s, e) =>
             {
                 if (_touchActive) return;
@@ -4175,7 +3987,6 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 隐藏其他按钮的覆盖层
                 HideActivePhotoActionOverlay();
 
                 _moved = false;
@@ -4227,7 +4038,6 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 短按：选中照片
                 performClick();
             };
 
@@ -4260,7 +4070,6 @@ namespace Ink_Canvas
                 VerticalAlignment = VerticalAlignment.Center
             };
 
-            // 左侧：排序按钮
             var sortBtn = CreateCircularActionButton("\uE8CB", "#4A90D9");
             sortBtn.PreviewMouseLeftButtonDown += (s, e) =>
             {
@@ -4276,10 +4085,8 @@ namespace Ink_Canvas
             };
             btnPanel.Children.Add(sortBtn);
 
-            // 间隔
             btnPanel.Children.Add(new Border { Width = 20 });
 
-            // 右侧：删除按钮
             var deleteBtn = CreateCircularActionButton("\uE74D", "#E83E3E");
             deleteBtn.PreviewMouseLeftButtonDown += (s, e) =>
             {
@@ -4326,7 +4133,6 @@ namespace Ink_Canvas
             return border;
         }
 
-        /// <summary>隐藏当前显示的照片操作覆盖层</summary>
         private void HideActivePhotoActionOverlay()
         {
             if (_activePhotoActionOverlay != null)
@@ -4339,8 +4145,6 @@ namespace Ink_Canvas
             }
         }
 
-
-        /// <summary>从照片列表中删除指定照片</summary>
         private void DeletePhotoFromList(CapturedImage photo)
         {
             try
@@ -4385,7 +4189,6 @@ namespace Ink_Canvas
             // 初始放置指示线（在捕获鼠标前，避免同步 MouseMove 时状态不一致）
             UpdateReorderIndicatorPosition();
 
-            // 捕获输入设备以跟踪拖拽
             object spObj = CapturedPhotosStackPanel;
             if (spObj is StackPanel sp)
             {
@@ -4396,7 +4199,6 @@ namespace Ink_Canvas
                 }
             }
 
-            // 启动自动滚动计时器
             if (_reorderAutoScrollTimer == null)
             {
                 _reorderAutoScrollTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
@@ -4423,7 +4225,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>更新蓝色指示线位置</summary>
         private void UpdateReorderIndicatorPosition()
         {
             if (!_isReorderingPhotos) return;
@@ -4431,7 +4232,6 @@ namespace Ink_Canvas
             object spObj = CapturedPhotosStackPanel;
             if (!(spObj is StackPanel sp)) return;
 
-            // 移除旧指示线
             if (sp.Children.Contains(_reorderIndicatorLine))
                 sp.Children.Remove(_reorderIndicatorLine);
 
@@ -4500,7 +4300,6 @@ namespace Ink_Canvas
                 }
             }
 
-            // 转换为数据索引（排除指示线后的照片索引）
             int targetDataIndex = 0;
             for (int i = 0; i < targetVisualIndex; i++)
             {
@@ -4528,7 +4327,6 @@ namespace Ink_Canvas
                 {
                     if (sp.IsMouseCaptured) sp.ReleaseMouseCapture();
 
-                    // 移除指示线
                     if (sp.Children.Contains(_reorderIndicatorLine))
                         sp.Children.Remove(_reorderIndicatorLine);
 
@@ -4538,7 +4336,6 @@ namespace Ink_Canvas
                     // 源在目标之前时，移除源后目标索引需要减 1
                     if (_photoReorderSourceIndex < actualTarget) actualTarget--;
 
-                    // 移动数据
                     if (actualTarget >= 0 && actualTarget < capturedPhotos.Count && actualTarget != _photoReorderSourceIndex)
                     {
                         var photo = capturedPhotos[_photoReorderSourceIndex];
@@ -4594,7 +4391,6 @@ namespace Ink_Canvas
                 }
             }
 
-            // 计算目标插入位置（基于照片中线判定上/下）
             int targetVisualIndex = sp.Children.Count; // 默认末尾
             foreach (var item in photoItems)
             {
@@ -4606,7 +4402,6 @@ namespace Ink_Canvas
                 }
             }
 
-            // 转换为数据索引（排除指示线后的照片索引）
             int targetDataIndex = 0;
             for (int i = 0; i < targetVisualIndex; i++)
             {
@@ -4639,15 +4434,12 @@ namespace Ink_Canvas
                     if (sp.IsMouseCaptured) sp.ReleaseMouseCapture();
                     try { sp.ReleaseStylusCapture(); } catch { }
 
-                    // 移除指示线
                     if (sp.Children.Contains(_reorderIndicatorLine))
                         sp.Children.Remove(_reorderIndicatorLine);
 
-                    // 计算实际目标数据索引
                     int actualTarget = _photoReorderTargetIndex;
                     if (_photoReorderSourceIndex < actualTarget) actualTarget--;
 
-                    // 移动数据
                     if (actualTarget >= 0 && actualTarget < capturedPhotos.Count && actualTarget != _photoReorderSourceIndex)
                     {
                         var photo = capturedPhotos[_photoReorderSourceIndex];
@@ -4669,9 +4461,6 @@ namespace Ink_Canvas
             }
         }
 
-        // ===== 画板拖拽插入照片 =====
-
-        /// <summary>画板拖拽进入：显示虚线插入指示器</summary>
         private void inkCanvas_DragEnter(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent("CapturedPhoto"))
@@ -4688,7 +4477,6 @@ namespace Ink_Canvas
             e.Handled = true;
         }
 
-        /// <summary>画板拖拽移动：更新虚线插入指示器位置</summary>
         private void inkCanvas_DragOver(object sender, DragEventArgs e)
         {
             if (e.Data.GetDataPresent("CapturedPhoto"))
@@ -4705,7 +4493,6 @@ namespace Ink_Canvas
             e.Handled = true;
         }
 
-        /// <summary>画板拖拽离开：隐藏虚线插入指示器</summary>
         private void inkCanvas_DragLeave(object sender, DragEventArgs e)
         {
             HidePhotoDragIndicator();
@@ -4791,7 +4578,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>隐藏拖拽插入虚线指示器</summary>
         private void HidePhotoDragIndicator()
         {
             if (_photoDragInsertionAdorner != null)
@@ -4820,7 +4606,6 @@ namespace Ink_Canvas
                 // 不清除页面上已有的媒体内容，仅追加新照片
                 // 仅更新当前照片引用（旧引用保留在画布上不受影响）
 
-                // 创建图片元素
                 var imageElement = new System.Windows.Controls.Image
                 {
                     Source = CreateBitmapImageFromFileOrMemory(photo, forceOnLoad: !IsDocumentPhoto(photo)),
@@ -4875,7 +4660,6 @@ namespace Ink_Canvas
                     }
                 }
 
-                // 设置位置（以鼠标位置为图片中心）
                 double left = position.X - imageElement.Width / 2;
                 double top = position.Y - imageElement.Height / 2;
                 if (left < 0) left = 0;
@@ -4886,11 +4670,9 @@ namespace Ink_Canvas
                 inkCanvas.Children.Add(imageElement);
 
                 currentPhotoImage = imageElement;
-                // 记录照片与页码的关联
                 photoPageMapping[photo.Timestamp] = currentPage;
                 Console.WriteLine($"照片已通过拖拽插入到页面 {currentPage}，位置({left},{top})");
 
-                // 记录文档页关联
                 if (IsDocumentPhoto(photo))
                 {
                     pageDocumentMapping[currentPage] = StripChunkSuffix(photo.SourceFilePath);
@@ -4913,20 +4695,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 分批插入文档瓦片（拖拽/点击两条插入路径共用）。
-        /// 关键优化：瓦片位图在后台线程完整解码（OnLoad + Freeze，原始分辨率，不压缩画质），
-        /// 避免几十张全分辨率 PNG 以 OnDemand 方式挤在渲染线程逐张同步解码造成整机假死；
-        /// UI 线程每批只做轻量的 Image 创建与 Children.Add，批间让出消息循环保证输入/渲染响应。
-        /// 页码在插入过程中被切换时立即中止，避免把剩余瓦片插到错误页面。
-        /// </summary>
-        /// <param name="tiles">按块序号升序排列的瓦片</param>
-        /// <param name="left">瓦片列的水平起点</param>
-        /// <param name="topStart">第一张瓦片的垂直起点</param>
-        /// <param name="currentPage">插入目标页码（用于映射与翻页中止检测）</param>
-        /// <param name="docPath">原始文档路径（用于 pageDocumentMapping）</param>
-        /// <param name="restoreAfterInsert">插入完成后是否尝试恢复该页已保存的笔迹（点击插入路径需要）</param>
-        /// <returns>第一张瓦片的 Image（用于 currentPhotoImage 与历史提交）；全部被中止时可能为 null</returns>
         private async Task<System.Windows.Controls.Image> InsertDocumentTilesCoreAsync(
             List<CapturedImage> tiles, double left, double topStart, int currentPage, string docPath, bool restoreAfterInsert)
         {
@@ -5026,7 +4794,6 @@ namespace Ink_Canvas
                 // 去重判断：检查当前页面是否已经有该照片
                 int currentPage = GetCurrentPageIndex();
                 
-                // 检查照片与页码的映射关系
                 if (photoPageMapping.ContainsKey(photo.Timestamp))
                 {
                     int existingPage = photoPageMapping[photo.Timestamp];
@@ -5045,33 +4812,27 @@ namespace Ink_Canvas
                     }
                 }
                 
-                // 检查当前页面是否已经有照片元素或摄像头画面
                 if (HasPhotoOnCurrentPage() || HasCameraFrameOnCurrentPage())
                 {
                     Console.WriteLine($"当前页面 {currentPage} 已有照片或摄像头画面，将移除现有元素并插入新照片");
                     
-                    // 移除当前页面的照片元素
                     if (currentPhotoImage != null)
                     {
                         inkCanvas.Children.Remove(currentPhotoImage);
                         currentPhotoImage = null;
                     }
                     
-                    // 移除当前页面的摄像头画面元素
                     if (currentCameraImage != null)
                     {
                         inkCanvas.Children.Remove(currentCameraImage);
                         currentCameraImage = null;
                     }
                     
-                    // 清除可能存在的其他照片元素
                     ClearPhotoElementsFromCanvas();
                     
-                    // 清除可能存在的其他摄像头元素
                     ClearCameraElementsFromCanvas();
                 }
 
-                // 创建图片元素
                 var imageElement = new System.Windows.Controls.Image
                 {
                     Source = CreateBitmapImageFromFileOrMemory(photo, forceOnLoad: !IsDocumentPhoto(photo)),
@@ -5084,7 +4845,6 @@ namespace Ink_Canvas
                 };
                 RenderOptimizationHelper.EnableHighQualityCaching(imageElement);
 
-                // 居中并缩放
                 if (IsDocumentPhoto(photo))
                 {
                     // 文档照片：瓦片化前端拼接
@@ -5095,19 +4855,16 @@ namespace Ink_Canvas
                     if (HasDocumentTilesOnCurrentPage(docPath))
                     {
                         Console.WriteLine($"文档照片 {docPath} 已存在于当前页面 {currentPage}，跳过重复插入");
-                        // 更新选中等
                         selectedPhotoTimestamp = photo.Timestamp;
                         UpdateCapturedPhotosDisplay();
                         return;
                     }
 
-                    // 移除当前页面的所有照片/摄像头元素，准备插入新瓦片集
                     if (currentPhotoImage != null) { inkCanvas.Children.Remove(currentPhotoImage); currentPhotoImage = null; }
                     if (currentCameraImage != null) { inkCanvas.Children.Remove(currentCameraImage); currentCameraImage = null; }
                     ClearPhotoElementsFromCanvas();
                     ClearCameraElementsFromCanvas();
 
-                    // 获取同一文档的所有瓦片，按块序号升序排列
                     var tiles = GetDocumentTiles(docPath);
                     if (tiles.Count == 0)
                     {
@@ -5135,7 +4892,6 @@ namespace Ink_Canvas
 
                         Console.WriteLine($"文档照片瓦片化插入完成: {tiles.Count} 张, 文档: {docPath}");
 
-                        // 选中第一张瓦片
                         selectedPhotoTimestamp = tiles[0].Timestamp;
                         UpdateCapturedPhotosDisplay();
 
@@ -5167,20 +4923,13 @@ namespace Ink_Canvas
                     Console.WriteLine($"照片插入后布局更新失败: {ex.Message}");
                 }
 
-                // 非文档照片：元素已入画布且布局完成，此时 ActualWidth/ActualHeight 才有效，
-                // 再据此居中缩放（此前在加入画布前计算，新建页面时画布尺寸为 0，
-                // 算出负偏移会把图片平移到画布外，表现为"画板中无任何显示"）。
-                // 与插入媒体一致，用绝对定位居中，保证白板模式下照片列表选中插入的照片精确居中。
-                // 文档照片的居中已由 CenterAndScaleDocumentPhoto 处理，不在此重复。
                 if (!IsDocumentPhoto(photo))
                 {
                     CenterAndFitMedia(imageElement);
                 }
 
-                // 记录当前照片元素引用
                 currentPhotoImage = imageElement;
 
-                // 记录照片与页码的关联
                 photoPageMapping[photo.Timestamp] = currentPage;
                 Console.WriteLine($"照片已记录到页码: {currentPage}");
 
@@ -5190,13 +4939,10 @@ namespace Ink_Canvas
                     pageDocumentMapping[currentPage] = StripChunkSuffix(photo.SourceFilePath);
                 }
 
-                // 记录历史
                 timeMachine.CommitElementInsertHistory(imageElement);
 
-                // 显示成功提示
                 Console.WriteLine($"照片已成功插入白板: {photo.Timestamp}");
 
-                // 更新选中状态与侧栏样式
                 selectedPhotoTimestamp = photo.Timestamp;
                 UpdateCapturedPhotosDisplay();
 
@@ -5218,7 +4964,6 @@ namespace Ink_Canvas
 
         #endregion
 
-        // 自动计算照片显示区域高度算法
         private void AutoCalculatePhotoAreaHeight()
         {
             try
@@ -5270,20 +5015,17 @@ namespace Ink_Canvas
             }
         }
 
-        // 初始化摄像头设备管理器
         private void InitializeCameraDeviceManager()
         {
             cameraDeviceManager = new CameraDeviceManager(this);
             cameraDeviceManager.RefreshCameraDevices();
             
-            // 初始化摄像头画面更新定时器（30fps）
             cameraFrameTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(33) // ~30fps
             };
             cameraFrameTimer.Tick += CameraFrameTimer_Tick;
             
-            // 设置拍照按钮的初始状态
             UpdateCapturePhotoButtonState();
         }
 
@@ -5300,7 +5042,6 @@ namespace Ink_Canvas
             {
                 if (!inkCanvas.Children.Contains(existing))
                 {
-                    // 检查当前页面是否已经有照片或其他摄像头画面
                     if (HasPhotoOnCurrentPage() || HasCameraFrameOnCurrentPage())
                     {
                         Console.WriteLine($"当前页面 {currentPage} 已有照片或摄像头画面，将切换到下一页插入");
@@ -5328,7 +5069,6 @@ namespace Ink_Canvas
             SwitchToNextBoardAndInsertCameraFrame();
         }
 
-        // 检测当前页面是否有摄像头画面
         public bool HasCameraFrameOnCurrentPage()
         {
             // 首先检查currentCameraImage引用
@@ -5353,7 +5093,6 @@ namespace Ink_Canvas
             return false;
         }
         
-        // 更新拍照按钮状态
         public void UpdateCapturePhotoButtonState()
         {
             if (BtnCapturePhoto == null) return;
@@ -5361,7 +5100,6 @@ namespace Ink_Canvas
             bool hasCameraFrame = HasCameraFrameOnCurrentPage();
             BtnCapturePhoto.IsEnabled = hasCameraFrame;
 
-            // 根据按钮状态更新视觉样式
             if (hasCameraFrame)
             {
                 BtnCapturePhoto.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Colors.SkyBlue);
@@ -5372,7 +5110,6 @@ namespace Ink_Canvas
             }
         }
         
-        // 清除所有内容按钮点击事件
         public void BtnClearAllContent_Click(object sender, RoutedEventArgs e)
         {
             var notificationWindow = new YesOrNoNotificationWindow(
@@ -5420,9 +5157,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 清除所有白板内容，恢复至初始默认状态
-        /// </summary>
         private void ClearAllWhiteboardContent()
         {
             // 1. 清除摄像头设备选中状态并停止摄像头
@@ -5435,16 +5169,13 @@ namespace Ink_Canvas
                 Console.WriteLine($"清除摄像头设备选中状态失败: {ex.Message}");
             }
 
-            // 2. 停止摄像头画面定时器
             cameraFrameTimer?.Stop();
 
-            // 3. 清除所有页面的墨迹历史
             for (int i = 0; i < TimeMachineHistories.Length; i++)
             {
                 TimeMachineHistories[i] = null;
             }
 
-            // 4. 清除时间机器的当前历史
             timeMachine?.ClearStrokeHistory();
 
             // 5. 清除当前画布上的所有墨迹和元素
@@ -5453,11 +5184,9 @@ namespace Ink_Canvas
             inkCanvas.Children.Clear();
             _currentCommitType = CommitReason.UserInput;
 
-            // 6. 重置页面计数到初始状态
             CurrentWhiteboardIndex = 1;
             WhiteboardTotalCount = 1;
 
-            // 7. 设置第一页为空白页面
             TimeMachineHistories[1] = new TimeMachineHistory[0];
 
             // 8. 清除照片列表和页面映射（含文档页映射，否则关闭时会把空画布误存进文档保存文件）
@@ -5466,16 +5195,12 @@ namespace Ink_Canvas
             pageDocumentMapping.Clear();
             selectedPhotoTimestamp = null;
 
-            // 9. 清除摄像头画面映射和引用
             cameraFramesByPage.Clear();
             currentCameraImage = null;
             currentPhotoImage = null;
             // 释放摄像头帧缓冲（含 WriteableBitmap），避免清空画布后仍长期占着一整帧像素内存
             cameraFrameBuffer.Reset();
 
-            // 清空元素初始状态缓存：上方步骤 4/5 已重置撤销历史并清空画布，
-            // 此时所有条目都不再可能被查用。ElementData 强引用元素（内含全分辨率位图），
-            // 不清会让整批图片元素一直驻留。
             ElementsInitialHistory.Clear();
 
             // 10. 恢复默认画笔状态（如果在白板模式下），不展开墨迹选项面板
@@ -5497,7 +5222,6 @@ namespace Ink_Canvas
                 }
             }
 
-            // 12. 更新所有UI显示
             UpdateCapturedPhotosDisplay();
             UpdateIndexInfoDisplay();
             UpdateCapturePhotoButtonState();
@@ -5515,7 +5239,6 @@ namespace Ink_Canvas
             Console.WriteLine("所有白板内容已清除并恢复至默认状态");
         }
 
-        // 检测当前页面是否有照片
         public bool HasPhotoOnCurrentPage()
         {
             // 首先检查currentPhotoImage引用
@@ -5671,7 +5394,6 @@ namespace Ink_Canvas
                             bi.EndInit();
                             bi.Freeze();
 
-                            // 读取 .src 伴随文件恢复文档来源路径
                             string sourceFilePath = null;
                             try
                             {
@@ -5684,7 +5406,6 @@ namespace Ink_Canvas
                             }
                             catch { }
 
-                            // 去重：同一文档来源只保留最新一张
                             if (!string.IsNullOrEmpty(sourceFilePath) &&
                                 capturedPhotos.Any(p => !string.IsNullOrEmpty(p.SourceFilePath) &&
                                     string.Equals(p.SourceFilePath, sourceFilePath, StringComparison.OrdinalIgnoreCase)))
@@ -5706,20 +5427,14 @@ namespace Ink_Canvas
             }
         }
 
-        
-        /// <summary>
-        /// 获取当前页面上所有可旋转的图像元素
-        /// </summary>
         private List<UIElement> GetRotatableElementsOnCurrentPage()
         {
             var rotatableElements = new List<UIElement>();
 
             foreach (var element in inkCanvas.Children)
             {
-                // 检查图像元素（包括摄像头画面、照片列表照片、导入媒体图片）
                 if (element is System.Windows.Controls.Image imageElement)
                 {
-                    // 检查元素名称前缀，包括所有类型的图像元素
                     if (imageElement.Name.StartsWith("camera_") || 
                         imageElement.Name.StartsWith("photo_") || 
                         imageElement.Name.StartsWith("img_"))
@@ -5727,7 +5442,6 @@ namespace Ink_Canvas
                         rotatableElements.Add(imageElement);
                     }
                 }
-                // 检查媒体元素（视频）
                 else if (element is MediaElement mediaElement)
                 {
                     if (mediaElement.Name.StartsWith("media_"))
@@ -5746,14 +5460,12 @@ namespace Ink_Canvas
             return HasCameraFrameOnCurrentPage() || HasPhotoOnCurrentPage();
         }
 
-        // 清除画布上的所有照片元素
         private void ClearPhotoElementsFromCanvas()
         {
             try
             {
                 if (inkCanvas == null) return;
                 
-                // 收集所有照片元素
                 var photoElements = new List<System.Windows.Controls.Image>();
                 
                 foreach (var child in inkCanvas.Children)
@@ -5766,13 +5478,11 @@ namespace Ink_Canvas
                     }
                 }
                 
-                // 移除所有照片元素
                 foreach (var photoElement in photoElements)
                 {
                     inkCanvas.Children.Remove(photoElement);
                 }
                 
-                // 重置当前照片引用
                 currentPhotoImage = null;
                 
                 Console.WriteLine($"已清除画布上的 {photoElements.Count} 个照片元素");
@@ -5783,7 +5493,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 处理页面切换时的照片显示逻辑
         private void HandlePhotoDisplayOnPageChange(int newPageIndex)
         {
             try
@@ -5793,7 +5502,6 @@ namespace Ink_Canvas
                     !string.IsNullOrEmpty(docSourcePath))
                 {
                     string folderPath = GetDocumentPageFolderPath(docSourcePath);
-                    // 页码可能因重启变化，使用回退搜索
                     string baseFilePath = FindDocumentPageBasePath(folderPath, newPageIndex);
                     if (baseFilePath != null)
                     {
@@ -5810,14 +5518,12 @@ namespace Ink_Canvas
                     }
                 }
 
-                // 清除当前照片显示
                 if (currentPhotoImage != null)
                 {
                     inkCanvas.Children.Remove(currentPhotoImage);
                     currentPhotoImage = null;
                 }
 
-                // 检查新页面是否有关联的照片
                 bool hasPhotoOnNewPage = false;
 
                 // 遍历photoPageMapping字典，查找与新页面关联的照片
@@ -5825,17 +5531,13 @@ namespace Ink_Canvas
                 {
                     if (kvp.Value == newPageIndex)
                     {
-                        // 找到与新页面关联的照片
                         hasPhotoOnNewPage = true;
 
-                        // 在照片集合中查找对应的照片
                         var photo = capturedPhotos.FirstOrDefault(p => p.Timestamp.Equals(kvp.Key));
                         if (photo != null)
                         {
-                            // 在新页面上显示照片
                             InsertPhotoToCanvas(photo);
                             Console.WriteLine($"页码 {newPageIndex} 上的照片已恢复显示");
-                            // 同步侧栏选中状态
                             selectedPhotoTimestamp = photo.Timestamp;
                             UpdateCapturedPhotosDisplay();
                         }
@@ -5846,7 +5548,6 @@ namespace Ink_Canvas
                 if (!hasPhotoOnNewPage)
                 {
                     Console.WriteLine($"页码 {newPageIndex} 上没有关联的照片");
-                    // 清除选中状态并刷新侧栏样式
                     selectedPhotoTimestamp = null;
                     UpdateCapturedPhotosDisplay();
                 }
@@ -5857,13 +5558,11 @@ namespace Ink_Canvas
             }
         }
 
-        // 获取当前页码
         public int GetCurrentPageIndex()
         {
             return CurrentWhiteboardIndex;
         }
 
-        // 切换到下一页白板并插入摄像头画面
         public void SwitchToNextBoardAndInsertCameraFrame()
         {
             try
@@ -5931,7 +5630,6 @@ namespace Ink_Canvas
                                     }
                                 });
 
-                                // 创建图片元素
                                 currentCameraImage = new System.Windows.Controls.Image
                                 {
                                     Source = bitmapImage,
@@ -5940,15 +5638,12 @@ namespace Ink_Canvas
                                     Name = "camera_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff")
                                 };
 
-                                // 居中并缩放
                                 CenterAndScaleElement(currentCameraImage);
 
-                                // 添加到画布
                                 InkCanvas.SetLeft(currentCameraImage, 0);
                                 InkCanvas.SetTop(currentCameraImage, 0);
                                 inkCanvas.Children.Add(currentCameraImage);
 
-                                // 记录历史
                                 timeMachine.CommitElementInsertHistory(currentCameraImage);
                                 try
                                 {
@@ -5988,7 +5683,6 @@ namespace Ink_Canvas
             }
         }
         
-        // 切换到下一页白板并插入照片
         public async void SwitchToNextBoardAndInsertPhoto(CapturedImage photo)
         {
             try
@@ -5997,7 +5691,6 @@ namespace Ink_Canvas
                 BtnWhiteBoardAdd_Click(null, null);
                 int targetPage = GetCurrentPageIndex();
                 
-                // 等待页面切换完成
                 await System.Threading.Tasks.Task.Delay(300);
 
                 if (GetCurrentPageIndex() != targetPage)
@@ -6005,7 +5698,6 @@ namespace Ink_Canvas
                     SwitchToPage(targetPage);
                 }
 
-                // 插入照片
                 InsertPhotoToCanvas(photo);
 
                 // 插入后同步一次摄像头设备侧栏选中显示（仅视觉同步，不触发逻辑）
@@ -6034,7 +5726,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 跳转到指定页码
         public void SwitchToPage(int pageIndex)
         {
             try
@@ -6046,19 +5737,14 @@ namespace Ink_Canvas
                     BeginBoardModeSwitch();
                     CancelInProgressStroke();
 
-                    // 保存当前页面的墨迹
                     SaveStrokes(false);
-                    // 保存当前文档页内容
                     SaveDocumentPageIfNeeded(currentPage);
 
-                    // 清除当前画布
                     ClearStrokes(true);
 
-                    // 重置摄像头画面和照片引用
                     currentCameraImage = null;
                     currentPhotoImage = null;
 
-                    // 设置新的页码
                     CurrentWhiteboardIndex = pageIndex;
 
                     // 优先尝试恢复文档页；未恢复再尝试会话恢复与墨迹历史
@@ -6070,17 +5756,13 @@ namespace Ink_Canvas
                         RestoreStrokes(false);
                     }
 
-                    // 处理页面切换时的照片显示逻辑
                     HandlePhotoDisplayOnPageChange(pageIndex);
                     // 再次仅刷新侧栏选中状态，确保视觉完全同步
                     UpdatePhotoSelectionIndicators();
                     
-                    // 通知摄像头管理器页面切换
                     cameraDeviceManager?.HandlePageChanged(pageIndex);
                     
-                    // 更新页面显示
                     UpdateIndexInfoDisplay();
-                    // 更新拍照按钮状态
                     UpdateCapturePhotoButtonState();
                     
                     Console.WriteLine($"已成功切换到页码: {pageIndex}");
@@ -6096,7 +5778,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 移除摄像头画面
         public void RemoveCameraFrame()
         {
             // 不停止定时器，以便翻页后可以继续使用
@@ -6104,11 +5785,9 @@ namespace Ink_Canvas
             // 移除页面上所有摄像头画面元素，避免残留导致重复
             ClearCameraElementsFromCanvas();
             
-            // 更新拍照按钮状态
             UpdateCapturePhotoButtonState();
         }
 
-        // 清除画布上的所有摄像头画面元素
         private void ClearCameraElementsFromCanvas()
         {
             try
@@ -6136,9 +5815,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 摄像头画面更新定时器事件
-        /// </summary>
         private async void CameraFrameTimer_Tick(object sender, EventArgs e)
         {
             if (cameraDeviceManager == null) return;
@@ -6216,7 +5892,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 转换Bitmap到BitmapImage
                 var bitmapImage = await Task.Run(() =>
                 {
                     using (var memoryStream = new MemoryStream())
@@ -6235,7 +5910,6 @@ namespace Ink_Canvas
                     }
                 });
 
-                // 创建图片元素
                 currentCameraImage = new System.Windows.Controls.Image
                 {
                     Source = bitmapImage,
@@ -6244,15 +5918,12 @@ namespace Ink_Canvas
                     Name = "camera_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff")
                 };
 
-                // 居中并缩放
                 CenterAndScaleElement(currentCameraImage);
 
-                // 添加到画布
                 InkCanvas.SetLeft(currentCameraImage, 0);
                 InkCanvas.SetTop(currentCameraImage, 0);
                 inkCanvas.Children.Add(currentCameraImage);
 
-                // 记录历史
                 timeMachine.CommitElementInsertHistory(currentCameraImage);
                 try
                 {
@@ -6266,10 +5937,6 @@ namespace Ink_Canvas
                 MessageBoxHelper.Show($"插入摄像头画面失败: {ex.Message}", "错误", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-        // 原 UpdateCameraFrameAsync 已移除。它对每一帧做整图 PNG 编码 + BitmapImage 解码，
-        // 是摄像头预览最大的 CPU 与 GC 热点。30fps 刷新现由 CameraFrameTimer_Tick 经
-        // CameraFrameBuffer（LockBits 直拷 + 复用 WriteableBitmap）完成，稳态下每帧零分配。
 
         /// <summary>
         /// 侧栏"插入媒体"按钮：支持一次选中多个图片/视频文件，
@@ -6482,7 +6149,6 @@ namespace Ink_Canvas
                 player.MediaFailed += failedHandler;
                 player.Open(new Uri(videoFilePath, UriKind.Absolute));
 
-                // 最多等待 5 秒
                 var finishedTask = await Task.WhenAny(openedCompletionSource.Task, Task.Delay(5000)).ConfigureAwait(true);
                 if (finishedTask != openedCompletionSource.Task)
                 {
@@ -6490,13 +6156,11 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 传播打开失败的异常
                 await openedCompletionSource.Task.ConfigureAwait(true);
 
                 player.MediaOpened -= openedHandler;
                 player.MediaFailed -= failedHandler;
 
-                // 定位到首帧并等待解码输出该帧
                 player.Pause();
                 player.Position = TimeSpan.Zero;
                 await Task.Delay(300).ConfigureAwait(true);
@@ -6565,7 +6229,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 查找当前摄像头画面元素
         private void FindCurrentCameraImage()
         {
             currentCameraImage = null;

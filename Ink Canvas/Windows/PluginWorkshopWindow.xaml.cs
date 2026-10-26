@@ -19,7 +19,6 @@ namespace Ink_Canvas
 {
     public partial class PluginWorkshopWindow : Window
     {
-        // ===== 单例：避免重复打开多个插件工坊窗口 =====
         private static PluginWorkshopWindow _instance;
         private static readonly object _instanceLock = new object();
 
@@ -32,9 +31,6 @@ namespace Ink_Canvas
                 {
                     try
                     {
-                        // 已存在实例：恢复到最前。
-                        // 窗口 Topmost=True 且与设置等窗口共享主窗口 Owner，
-                        // 因此置前只会让它排到同组最前，不会破坏彼此的先后关系
                         Helpers.PopupWindowLayerHelper.BringToFront(_instance);
                         return _instance;
                     }
@@ -46,10 +42,6 @@ namespace Ink_Canvas
                 }
 
                 _instance = new PluginWorkshopWindow();
-                // Owner 由 PopupWindowLayerHelper 统一设为主窗口：
-                // 既保证插件工坊永不被画板/浮动栏/工具栏/侧栏覆盖，
-                // 又让它在与设置等窗口的相互层级中只跟随激活顺序（点谁谁在前）。
-                // 关闭后延时后台 GC，回收插件工坊窗口可视化树内存
                 Helpers.WindowMemoryHelper.ReleaseOnClose(_instance);
                 _instance.Closed += (s, e) =>
                 {
@@ -63,30 +55,18 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>当前是否已有插件工坊窗口实例</summary>
         public static bool HasInstance => _instance != null;
 
         /// <summary>待展开设置面板的插件 ID（由 OpenPluginSettings 设置，渲染后消费）</summary>
         private string _pendingExpandPluginId;
 
-        /// <summary>
-        /// 当前处于展开状态的插件 ID 集合。列表会因在线目录加载完成而二次渲染
-        /// （PanelInstalledPlugins.Children.Clear 后重建），不记录展开状态的话
-        /// 「设置颜色」入口点开后展开的面板会被二次渲染冲掉，故每次渲染后按此集合恢复。
-        /// </summary>
         private readonly HashSet<string> _expandedPluginIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         /// <summary>插件 ID → 设置按钮（展开后图标切换为「折叠」）</summary>
         private readonly Dictionary<string, Button> _pluginSettingsButtons = new Dictionary<string, Button>();
 
-        /// <summary>插件 ID → 设置面板容器</summary>
         private readonly Dictionary<string, Border> _pluginSettingsPanelHosts = new Dictionary<string, Border>();
 
-        /// <summary>
-        /// 打开插件工坊并直接展开指定插件的设置面板（如「墨迹选项」的「设置颜色」入口）。
-        /// 列表可能经过多次渲染（在线目录加载后会二次重建），因此用“待展开”标记 +
-        /// 每次渲染后消费/恢复的方式，保证最终一定展开，且不会被二次渲染冲掉。
-        /// </summary>
         public void OpenPluginSettings(string pluginId)
         {
             if (string.IsNullOrEmpty(pluginId)) return;
@@ -171,15 +151,8 @@ namespace Ink_Canvas
         // plugin 存放目录（位于程序运行目录下的 Plugins 文件夹）
         private static string PluginDirectory => App.RootPath + "Plugins\\";
 
-        // .icplugin 安装包扩展名
         private const string PluginFileExtension = ".icplugin";
 
-        // 在线插件商店目录地址（按优先级尝试）：
-        //   1. plugin.muqiu.eu.org（EdgeOne Pages，只托管 market 目录，国内最快）
-        //   2. gh.muqiu.eu.org（自建 GitHub 反向代理）
-        //   3. jsDelivr CDN
-        //   4. GitHub RAW 直连
-        // 顺序尝试，任一源成功即用；全部失败才提示网络问题。
         private static readonly string[] MarketSources = new[]
         {
             "https://plugin.muqiu.eu.org/v1/market.json",
@@ -203,7 +176,6 @@ namespace Ink_Canvas
             return list.ToArray();
         }
 
-        // 最近一次获取到的在线插件列表
         private List<OnlinePluginInfo> _availablePlugins = new List<OnlinePluginInfo>();
 
         public PluginWorkshopWindow()
@@ -290,8 +262,6 @@ namespace Ink_Canvas
             e.Handled = true;
         }
 
-        // ===== 从本地安装 .icplugin =====
-
         private void BtnPluginInstallFromLocal_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -320,11 +290,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 开始安装指定的 .icplugin 文件。
-        /// .icplugin 是一个 ZIP 格式的安装包，安装时会解压到 Plugins\&lt;包名&gt;\ 子目录。
-        /// 若已存在同名 plugin 目录，会弹窗询问是否覆盖（先卸载旧版再删除目录）。
-        /// </summary>
         private void BeginInstallPluginFromFile(string sourceFile)
         {
             if (!File.Exists(sourceFile))
@@ -354,7 +319,6 @@ namespace Ink_Canvas
 
             if (exists)
             {
-                // 询问是否覆盖
                 var confirm = new YesOrNoNotificationWindow(
                     $"已存在同名 plugin \"{fileNameWithoutExt}\"，是否覆盖安装？",
                     yesAction: () => DoInstallPluginFromFile(sourceFile, destDir, overwrite: true, autoEnable: true),
@@ -407,7 +371,6 @@ namespace Ink_Canvas
                 string manifestPath = Path.Combine(destDir, "plugin.icplugin");
                 if (!File.Exists(manifestPath))
                 {
-                    // 清理无效安装
                     try { Directory.Delete(destDir, recursive: true); } catch { }
                     ShowInlineMessage("安装包无效：缺少 plugin.icplugin 清单文件");
                     return;
@@ -458,8 +421,6 @@ namespace Ink_Canvas
             }
         }
 
-        // ===== 刷新 plugin 列表 =====
-
         private void BtnPluginRefresh_Click(object sender, RoutedEventArgs e)
         {
             RefreshPluginList(silent: false);
@@ -499,7 +460,6 @@ namespace Ink_Canvas
 
                 RenderInstalledPlugins(installed);
 
-                // 同步加载在线插件商店目录
                 if (!silent)
                     ShowInlineMessage("正在加载在线插件列表...");
                 await RefreshAvailablePluginsAsync(installed);
@@ -537,7 +497,6 @@ namespace Ink_Canvas
             }
             else
             {
-                // 全部源都失败才算网络问题
                 LogHelper.WriteLogToFile($"获取在线 plugin 目录失败: {result.FailureReason}", LogHelper.LogType.Error);
                 ShowInlineMessage("获取在线插件列表失败，请检查网络连接。");
             }
@@ -698,7 +657,6 @@ namespace Ink_Canvas
             Grid.SetColumn(titlePanel, 0);
             grid.Children.Add(titlePanel);
 
-            // 状态标签
             var statusTag = new Border
             {
                 Padding = new Thickness(8, 2, 8, 2),
@@ -773,7 +731,6 @@ namespace Ink_Canvas
                 setupSettingsPanelToggle(settingsBtn, settingsPanelHost);
             }
 
-            // 在线有更新时显示「更新」按钮
             if (update != null)
             {
                 var updateBtn = new Button
@@ -852,7 +809,6 @@ namespace Ink_Canvas
             {
                 if (panelHost.Visibility == Visibility.Visible)
                 {
-                    // 折叠：图标切回「设置」
                     panelHost.Visibility = Visibility.Collapsed;
                     settingsBtn.Content = BuildSettingsGlyph("\uE713");
                     settingsBtn.ToolTip = "设置";
@@ -967,7 +923,6 @@ namespace Ink_Canvas
                         bool ok = host.UninstallPlugin(pluginId);
                         if (ok && VideoPresenterShortcutHelper.IsVideoPresenterPlugin(target?.Manifest))
                         {
-                            // 插件已移除，同步删除桌面快捷方式
                             VideoPresenterShortcutHelper.Delete();
                         }
                         ShowInlineMessage(ok
@@ -986,8 +941,6 @@ namespace Ink_Canvas
                 ShowInlineMessage("卸载失败：" + ex.Message);
             }
         }
-
-        // ===== 在线插件商店 =====
 
         /// <summary>查找指定已安装插件是否有可用在线更新。</summary>
         private OnlinePluginInfo FindOnlineUpdate(InstalledPluginInfo installed)
@@ -1133,8 +1086,6 @@ namespace Ink_Canvas
             return border;
         }
 
-        // ===== 安装进度 UI =====
-
         private void ShowInstallProgress(string status, string detail = "")
         {
             Dispatcher.Invoke(() =>
@@ -1206,7 +1157,6 @@ namespace Ink_Canvas
                     return;
                 }
 
-                // 安装
                 SetInstallProgressIndeterminate($"正在安装 {plugin.Name}", "解压并加载插件...");
                 BeginInstallPluginFromFile(tempFile);
 
@@ -1258,7 +1208,6 @@ namespace Ink_Canvas
                         VideoPresenterShortcutHelper.Delete();
                 }
 
-                // 2. 下载最新版本
                 UpdateInstallProgress(0, $"正在下载 {plugin.Name}", "正在连接下载源...");
                 string tempFile = null;
                 try
@@ -1327,24 +1276,14 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>下载并校验插件包的结果。</summary>
         private sealed class PluginDownloadResult
         {
             /// <summary>通过校验的临时文件路径；失败时为 null。</summary>
             public string TempFile { get; set; }
 
-            /// <summary>失败原因；成功时为 null。</summary>
             public string FailureReason { get; set; }
         }
 
-        /// <summary>
-        /// 依次尝试各源下载插件包，并在每个源下载后就地校验；
-        /// 校验不通过会自动换下一个源，全部源都失败才返回失败。
-        /// 目录记录的 size 仅作参考（插件重新打包后 size 可能未同步），不一致时只记警告并继续；
-        /// 完整性以 SHA256 为准。
-        /// </summary>
-        /// <param name="plugin">在线插件信息</param>
-        /// <returns>成功时 TempFile 为临时文件路径；全部源均失败时 TempFile 为 null 并给出 FailureReason</returns>
         private async Task<PluginDownloadResult> DownloadAndVerifyPluginAsync(OnlinePluginInfo plugin)
         {
             var sources = BuildPluginPackageSources(plugin);
@@ -1446,15 +1385,6 @@ namespace Ink_Canvas
             if (!sources.Contains(url)) sources.Add(url);
         }
 
-        /// <summary>
-        /// 构造插件包的候选源（按优先级）。
-        /// 插件包地址由 market.json 下发，这里解析出 owner/repo/ref/文件 后，
-        /// 按「自建代理 → jsDelivr → GitHub RAW」重建源列表，使插件包也能多源回退。
-        /// 解析不出来时（目录给了其它形态的地址），退回使用目录里给出的 downloadUrl / fallbackUrl。
-        ///
-        /// 注意：plugin.muqiu.eu.org 只托管 market/ 目录、不分发 .icplugin，
-        /// 因此它只参与市场目录的下载，不参与插件包下载。
-        /// </summary>
         private static List<string> BuildPluginPackageSources(OnlinePluginInfo plugin)
         {
             string proxy = AutoUpdateHelper.GetEffectiveProxy();
@@ -1489,8 +1419,6 @@ namespace Ink_Canvas
             }
         }
 
-        // ===== 打开 plugin 目录 =====
-
         private void BtnPluginOpenFolder_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -1506,8 +1434,6 @@ namespace Ink_Canvas
                 ShowInlineMessage("打开 plugin 目录失败：" + ex.Message);
             }
         }
-
-        // ===== 辅助 =====
 
         private static PluginManifest TryReadManifest(string pluginDir)
         {
@@ -1538,8 +1464,6 @@ namespace Ink_Canvas
             }
             catch { return null; }
         }
-
-        // ===== 简易内联提示 =====
 
         private void ShowInlineMessage(string message)
         {

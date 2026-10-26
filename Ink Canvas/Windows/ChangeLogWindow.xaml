@@ -33,7 +33,6 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <!-- 头部标题栏 -->
         <Grid Grid.Row="0" Margin="0,0,0,20">
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                 <ui:FontIcon
@@ -63,7 +62,6 @@
             </StackPanel>
         </Grid>
 
-        <!-- 中间内容区 -->
         <Grid Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Center">
             <StackPanel HorizontalAlignment="Center">
                 <Border
@@ -101,7 +99,6 @@
             </StackPanel>
         </Grid>
 
-        <!-- 底部按钮区 -->
         <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
             <Button
                 Width="150"

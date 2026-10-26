@@ -33,7 +33,6 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-            <!-- 头部标题栏 -->
             <Grid Grid.Row="0" Margin="0,0,0,16">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <ui:FontIcon
@@ -62,7 +61,6 @@
                 </StackPanel>
             </Grid>
 
-            <!-- 操作工具栏 -->
             <Border
                 Grid.Row="1"
                 Margin="0,0,0,14"
@@ -170,7 +168,6 @@
                 </Grid>
             </Border>
 
-            <!-- 主内容区 -->
             <ui:ScrollViewerEx
                 Grid.Row="2"
                 Margin="0,0,0,14"
@@ -179,7 +176,6 @@
                 ManipulationBoundaryFeedback="SCManipulationBoundaryFeedback">
                 <ikw:SimpleStackPanel Spacing="12">
 
-                    <!-- 已安装 plugin 列表标题 -->
                     <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="6">
                         <ui:FontIcon
                             VerticalAlignment="Center"
@@ -195,7 +191,6 @@
                             Text="已安装" />
                     </ikw:SimpleStackPanel>
 
-                    <!-- 已安装 plugin 列表容器 -->
                     <Border
                         MinHeight="100"
                         Padding="10"
@@ -213,7 +208,6 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- 在线可安装 plugin 列表标题 -->
                     <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="6">
                         <ui:FontIcon
                             VerticalAlignment="Center"
@@ -229,7 +223,6 @@
                             Text="可安装" />
                     </ikw:SimpleStackPanel>
 
-                    <!-- 在线 plugin 列表容器 -->
                     <Border
                         MinHeight="140"
                         Padding="10"
@@ -257,7 +250,6 @@
                 </ikw:SimpleStackPanel>
             </ui:ScrollViewerEx>
 
-            <!-- 底部按钮区 -->
             <Grid Grid.Row="3">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
@@ -299,7 +291,6 @@
                     Content="关闭" />
             </Grid>
 
-            <!-- 安装进度遮罩 -->
             <Grid
                 x:Name="GridInstallProgress"
                 Grid.Row="0"

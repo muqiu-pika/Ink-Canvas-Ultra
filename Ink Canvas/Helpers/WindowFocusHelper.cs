@@ -37,13 +37,11 @@ namespace Ink_Canvas.Helpers
             var interopHelper = new WindowInteropHelper(window);
             IntPtr hWnd = interopHelper.Handle;
 
-            // 如果窗口最小化，先恢复
             if (IsIconic(hWnd))
             {
                 ShowWindow(hWnd, SW_RESTORE);
             }
 
-            // 设置窗口为前台窗口
             SetForegroundWindow(hWnd);
         }
 
@@ -59,9 +57,6 @@ namespace Ink_Canvas.Helpers
                 window.Topmost = isTopmost;
             }
 
-            // 重新压 Z 序统一交给下面的 SetWindowPos(HWND_TOPMOST)。
-            // 原先这里用「Topmost=false → true」翻转来强制刷新层级，属于重复劳动：
-            // 翻转本身要付两次窗口样式变更，而紧随其后的 SetWindowPos 已经能保证置顶。
             IntPtr hWnd = new WindowInteropHelper(window).Handle;
             if (hWnd == IntPtr.Zero) return;
             SetWindowPos(

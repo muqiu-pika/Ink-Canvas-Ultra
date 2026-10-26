@@ -121,7 +121,6 @@ namespace Ink_Canvas
                                 if (!inkCanvas.Strokes.Contains(circles[i].Stroke)) {
                                     // 自动修复：若该圆的Stroke点数过少（如小于3），则判定为异常直线，移除
                                     if (circles[i].Stroke.StylusPoints.Count < 3) {
-                                        // 新增：从画布中彻底移除异常直线
                                         inkCanvas.Strokes.Remove(circles[i].Stroke);
                                         circles.RemoveAt(i);
                                         i--;
@@ -154,7 +153,6 @@ namespace Ink_Canvas
                                 {
                                     foreach (Circle circle in circles)
                                     {
-                                        //判断是否画同心圆
                                         if (Math.Abs(result.Centroid.X - circle.Centroid.X) / shape.Width < 0.12 &&
                                             Math.Abs(result.Centroid.Y - circle.Centroid.Y) / shape.Width < 0.12)
                                         {
@@ -166,7 +164,6 @@ namespace Ink_Canvas
                                             double d = (result.Centroid.X - circle.Centroid.X) * (result.Centroid.X - circle.Centroid.X) +
                                                (result.Centroid.Y - circle.Centroid.Y) * (result.Centroid.Y - circle.Centroid.Y);
                                             d = Math.Sqrt(d);
-                                            //判断是否画外切圆
                                             double x = shape.Width / 2.0 + circle.R - d;
                                             if (Math.Abs(x) / shape.Width < 0.1)
                                             {
@@ -176,7 +173,6 @@ namespace Ink_Canvas
                                                 double newY = result.Centroid.Y + x * sinTheta;
                                                 result.Centroid = new Point(newX, newY);
                                             }
-                                            //判断是否画外切圆
                                             x = Math.Abs(circle.R - shape.Width / 2.0) - d;
                                             if (Math.Abs(x) / shape.Width < 0.1)
                                             {
@@ -209,9 +205,6 @@ namespace Ink_Canvas
                             else if (result != null && result.InkDrawingNode != null && result.InkDrawingNode.GetShapeName().Contains("Ellipse") && Settings.InkToShape.IsInkToShapeCircle)
                             {
                                 var shape = result.InkDrawingNode.GetShape();
-                                //var shape1 = result.InkDrawingNode.GetShape();
-                                //shape1.Fill = Brushes.Gray;
-                                //Canvas.Children.Add(shape1);
                                 var p = result.InkDrawingNode.HotPoints;
                                 double a = GetDistance(p[0], p[2]) / 2; //长半轴
                                 double b = GetDistance(p[1], p[3]) / 2; //短半轴
@@ -232,7 +225,6 @@ namespace Ink_Canvas
 
                                     foreach (Circle circle in circles)
                                     {
-                                        //判断是否画同心椭圆
                                         if (Math.Abs(result.Centroid.X - circle.Centroid.X) / a < 0.2 &&
                                             Math.Abs(result.Centroid.Y - circle.Centroid.Y) / a < 0.2)
                                         {
@@ -240,7 +232,6 @@ namespace Ink_Canvas
                                             iniP = new Point(result.Centroid.X - shape.Width / 2, result.Centroid.Y - shape.Height / 2);
                                             endP = new Point(result.Centroid.X + shape.Width / 2, result.Centroid.Y + shape.Height / 2);
 
-                                            //再判断是否与圆相切
                                             if (Math.Abs(a - circle.R) / a < 0.2)
                                             {
                                                 if (shape.Width >= shape.Height)
@@ -312,7 +303,6 @@ namespace Ink_Canvas
                                         }
                                     }
 
-                                    //纠正垂直与水平关系
                                     var newPoints = FixPointsDirection(p[0], p[2]);
                                     p[0] = newPoints[0];
                                     p[2] = newPoints[1];
@@ -353,7 +343,6 @@ namespace Ink_Canvas
                                 if ((Math.Max(Math.Max(p[0].X, p[1].X), p[2].X) - Math.Min(Math.Min(p[0].X, p[1].X), p[2].X) >= 100 ||
                                     Math.Max(Math.Max(p[0].Y, p[1].Y), p[2].Y) - Math.Min(Math.Min(p[0].Y, p[1].Y), p[2].Y) >= 100) && result.InkDrawingNode.HotPoints.Count == 3)
                                 {
-                                    //纠正垂直与水平关系
                                     var newPoints = FixPointsDirection(p[0], p[1]);
                                     p[0] = newPoints[0];
                                     p[1] = newPoints[1];
@@ -393,7 +382,6 @@ namespace Ink_Canvas
                                 if ((Math.Max(Math.Max(Math.Max(p[0].X, p[1].X), p[2].X), p[3].X) - Math.Min(Math.Min(Math.Min(p[0].X, p[1].X), p[2].X), p[3].X) >= 100 ||
                                     Math.Max(Math.Max(Math.Max(p[0].Y, p[1].Y), p[2].Y), p[3].Y) - Math.Min(Math.Min(Math.Min(p[0].Y, p[1].Y), p[2].Y), p[3].Y) >= 100) && result.InkDrawingNode.HotPoints.Count == 4)
                                 {
-                                    //纠正垂直与水平关系
                                     var newPoints = FixPointsDirection(p[0], p[1]);
                                     p[0] = newPoints[0];
                                     p[1] = newPoints[1];
@@ -429,12 +417,8 @@ namespace Ink_Canvas
                     InkToShapeProcess();
                 }
 
-
                 foreach (StylusPoint stylusPoint in e.Stroke.StylusPoints)
                 {
-                    //LogHelper.WriteLogToFile(stylusPoint.PressureFactor.ToString(), LogHelper.LogType.Info);
-                    // 检查是否是压感笔书写
-                    //if (stylusPoint.PressureFactor != 0.5 && stylusPoint.PressureFactor != 0)
                     if ((stylusPoint.PressureFactor > 0.501 || stylusPoint.PressureFactor < 0.5) && stylusPoint.PressureFactor != 0)
                     {
                         return;
@@ -444,7 +428,6 @@ namespace Ink_Canvas
                         return;
                     }
                 }
-
 
                 try
                 {
@@ -625,7 +608,6 @@ namespace Ink_Canvas
         {
             if (Math.Abs(p1.X - p2.X) / Math.Abs(p1.Y - p2.Y) > 8)
             {
-                //水平
                 double x = Math.Abs(p1.Y - p2.Y) / 2;
                 if (p1.Y > p2.Y)
                 {
@@ -640,7 +622,6 @@ namespace Ink_Canvas
             }
             else if (Math.Abs(p1.Y - p2.Y) / Math.Abs(p1.X - p2.X) > 8)
             {
-                //垂直
                 double x = Math.Abs(p1.X - p2.X) / 2;
                 if (p1.X > p2.X)
                 {
@@ -660,7 +641,6 @@ namespace Ink_Canvas
         public StylusPointCollection GenerateFakePressureTriangle(StylusPointCollection points)
         {
             var result = new StylusPointCollection();
-            // 仅使用等粗线（非压感）
             result.Add(new StylusPoint(points[0].X, points[0].Y));
             result.Add(new StylusPoint(points[1].X, points[1].Y));
             result.Add(new StylusPoint(points[2].X, points[2].Y));
@@ -670,7 +650,6 @@ namespace Ink_Canvas
 
         public StylusPointCollection GenerateFakePressureRectangle(StylusPointCollection points)
         {
-            // 仅使用等粗线（非压感）
             return points;
         }
 

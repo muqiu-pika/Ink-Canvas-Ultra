@@ -56,8 +56,6 @@
 
     mc:Ignorable="d">
 
-    <!--  资源中添加命令  -->
-
     <Window.Resources>
 
         <ResourceDictionary>
@@ -101,8 +99,6 @@
         </ResourceDictionary>
 
     </Window.Resources>
-
-    <!--  输入命令绑定  -->
 
     <Window.InputBindings>
 
@@ -206,8 +202,6 @@
             Command="{StaticResource HotKey_PPTExit}" />
 
     </Window.InputBindings>
-
-    <!--  命令执行方法绑定  -->
 
     <Window.CommandBindings>
 
@@ -319,8 +313,6 @@
 
     <Grid x:Name="Main_Grid" Background="#01FFFFFF">
 
-        <!--  // 画板幕布 //  -->
-
         <Grid Name="GridBackgroundCoverHolder">
 
             <Grid
@@ -331,12 +323,9 @@
 
                 Visibility="Collapsed" />
 
-            <!-- 方格纸背景层 -->
             <Canvas Name="GridPaperCanvas" IsHitTestVisible="False" Visibility="Collapsed" />
 
         </Grid>
-
-        <!--  // 画板（包裹 AdornerDecorator 以支持视频底部控制栏） //  -->
 
         <AdornerDecorator>
 
@@ -396,12 +385,8 @@
 
         <local:MW_Selection x:Name="MWSelectionHost" Visibility="{Binding ElementName=inkCanvas, Path=Visibility}" />
 
-        <!-- 激光笔绘制层：位于画板与选择框之上、浮动栏之下；不参与命中测试，
-             轨迹只是临时视觉元素，不属于 inkCanvas 的子元素，因此不进入笔迹数据、不受保存/导出影响 -->
         <Canvas x:Name="LaserPointerCanvas" IsHitTestVisible="False" />
 
-        <!-- 白板浮动栏仅在白板模式(currentMode==1)下显示，Visibility 由 currentMode 的 setter 驱动，
-             不再绑定到 GridBackgroundCoverHolder（批注 PenIcon_Click 也会置其 Visible，会误呼出白板栏）。 -->
         <local:MW_Board x:Name="MWBoardHost" Visibility="Collapsed" />
 
         <local:MW_Notifications x:Name="MWNotificationsHost" />
@@ -409,8 +394,6 @@
         <local:MW_PPT x:Name="MWPPTHost" />
 
         <local:MW_FloatBar x:Name="MWFloatBarHost" />
-
-        <!--  // 笑脸拖动 //  -->
 
         <Grid
 
@@ -427,8 +410,6 @@
             TouchUp="GridForFloatingBarDraging_TouchUp"
 
             Visibility="Collapsed" />
-
-        <!--  // 墨迹播放 //  -->
 
         <InkCanvas
 

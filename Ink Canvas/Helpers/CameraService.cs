@@ -65,9 +65,6 @@ namespace Ink_Canvas.Helpers
             RefreshCameraList();
         }
 
-        /// <summary>
-        /// 刷新可用摄像头列表
-        /// </summary>
         public void RefreshCameraList()
         {
             try
@@ -88,10 +85,6 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        /// <summary>
-        /// 开始摄像头预览
-        /// </summary>
-        /// <param name="cameraIndex">摄像头索引</param>
         public bool StartPreview(int cameraIndex = 0)
         {
             try
@@ -112,26 +105,21 @@ namespace Ink_Canvas.Helpers
                     return false;
                 }
 
-                // 停止当前预览
                 StopPreview();
 
                 CurrentCamera = AvailableCameras[cameraIndex];
                 _videoSource = new VideoCaptureDevice(CurrentCamera.MonikerString);
 
-                // 检查摄像头是否被占用
                 if (!CheckCameraAvailability(CurrentCamera.MonikerString))
                 {
                     ErrorOccurred?.Invoke(this, "摄像头被占用");
                     return false;
                 }
 
-                // 设置视频源事件处理
                 _videoSource.NewFrame += VideoSource_NewFrame;
 
-                // 启动视频源
                 _videoSource.Start();
 
-                // 检查是否成功启动
                 if (!_videoSource.IsRunning)
                 {
                     ErrorOccurred?.Invoke(this, "摄像头无法启动，可能已被其他程序占用");
@@ -163,9 +151,6 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        /// <summary>
-        /// 检查摄像头是否可用（未被占用）
-        /// </summary>
         private bool CheckCameraAvailability(string monikerString)
         {
             VideoCaptureDevice tempDevice = null;
@@ -182,7 +167,6 @@ namespace Ink_Canvas.Helpers
             }
             finally
             {
-                // 清理资源
                 if (tempDevice != null)
                 {
                     try
@@ -201,12 +185,8 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        /// <summary>
-        /// 获取摄像头错误信息
-        /// </summary>
         private string GetCameraErrorMessage(System.Runtime.InteropServices.COMException ex)
         {
-            // 根据错误代码返回友好的错误信息
             uint errorCode = (uint)ex.HResult;
             switch (errorCode)
             {
@@ -228,9 +208,6 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        /// <summary>
-        /// 停止摄像头预览
-        /// </summary>
         public void StopPreview()
         {
             try
@@ -251,10 +228,6 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        /// <summary>
-        /// 切换到指定摄像头
-        /// </summary>
-        /// <param name="cameraIndex">摄像头索引</param>
         public bool SwitchCamera(int cameraIndex)
         {
             try
@@ -287,11 +260,9 @@ namespace Ink_Canvas.Helpers
 
                 try
                 {
-                    // 验证位图有效性
                     if (_currentFrame.Width <= 0 || _currentFrame.Height <= 0)
                         return null;
 
-                    // 使用更安全的方法转换位图
                     var bitmapData = _currentFrame.LockBits(
                         new Rectangle(0, 0, _currentFrame.Width, _currentFrame.Height),
                         ImageLockMode.ReadOnly,
@@ -344,17 +315,12 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-
-        /// <summary>
-        /// 视频源新帧事件处理
-        /// </summary>
         private void VideoSource_NewFrame(object sender, NewFrameEventArgs eventArgs)
         {
             try
             {
                 lock (_frameLock)
                 {
-                    // 释放之前的帧
                     _currentFrame?.Dispose();
 
                     // 创建新的位图，避免Clone的问题
@@ -369,7 +335,6 @@ namespace Ink_Canvas.Helpers
 
                             if (width > 0 && height > 0)
                             {
-                                // 应用旋转
                                 Bitmap rotatedFrame = ApplyRotation(sourceFrame);
 
                                 int targetWidth = _resolutionWidth;
@@ -430,17 +395,11 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        /// <summary>
-        /// 获取摄像头名称列表
-        /// </summary>
         public List<string> GetCameraNames()
         {
             return AvailableCameras.Select(camera => camera.Name).ToList();
         }
 
-        /// <summary>
-        /// 检查是否有可用摄像头
-        /// </summary>
         public bool HasAvailableCameras()
         {
             if (AvailableCameras.Count == 0)
@@ -450,9 +409,6 @@ namespace Ink_Canvas.Helpers
             return AvailableCameras.Count > 0;
         }
 
-        /// <summary>
-        /// 应用旋转到图像
-        /// </summary>
         private Bitmap ApplyRotation(Bitmap source)
         {
             if (_rotationAngle == 0)
@@ -471,9 +427,6 @@ namespace Ink_Canvas.Helpers
             return rotated;
         }
 
-        /// <summary>
-        /// 调整图像大小
-        /// </summary>
         private Bitmap ResizeImageWithAspectRatio(Bitmap source, int targetWidth, int targetHeight)
         {
             if (source.Width == targetWidth && source.Height == targetHeight)
@@ -483,7 +436,6 @@ namespace Ink_Canvas.Helpers
             double scaleY = (double)targetHeight / source.Height;
             double scale = Math.Min(scaleX, scaleY);
 
-            // 计算实际尺寸
             int actualWidth = (int)(source.Width * scale);
             int actualHeight = (int)(source.Height * scale);
 

@@ -16,14 +16,6 @@ namespace Ink_Canvas
         // 重量级设置填充是否已完成（用于避免重复填充）
         private bool _contentPrepared;
 
-        /// <summary>
-        /// 当前正在准备（尚未 Show）的设置窗口实例。
-        ///
-        /// WPF 的 Application.Current.Windows 只包含已 Show 的窗口，因此“Show 之前填充内容”
-        /// 这一刻，MainWindow.LoadSettings 通过 SettingsWindow 反查控件会拿到 null 并跳过整段 UI 填充。
-        /// 这里显式登记当前准备中的实例，供 MW_XamlForwarders.SettingsWindow 优先取用；
-        /// Show 之后该实例自然出现在 Application.Windows 中，登记随之失效，无需手动清理。
-        /// </summary>
         internal static MW_Settings PreparingInstance { get; private set; }
 
         public MW_Settings()
@@ -44,20 +36,6 @@ namespace Ink_Canvas
             Helpers.PopupWindowLayerHelper.Register(this);
         }
 
-        /// <summary>
-        /// 在窗口显示（Show）之前同步完成重量级设置填充。
-        ///
-        /// 为什么必须放在 Show() 之前：
-        /// Show() 执行后 DWM 会立即把窗口呈现到屏幕，若此刻内容还没填好，
-        /// 用户看到的第一帧就是空/黑色内容（俗称“黑闪”），要等下一帧才出现真实内容。
-        /// 原实现把填充推到 DispatcherPriority.Background 执行，而 Background(4) 的优先级
-        /// 低于 Render(7)，即“填充发生在首帧渲染之后”，这正是黑闪的直接成因；
-        /// 同时用 Window.Opacity 做淡入会让 WPF 把窗口切到 layered(WS_EX_LAYERED) 模式，
-        /// 而 DWM 的 Mica 背景对 layered 窗口不合成 → 内容区直接变黑。
-        ///
-        /// 调用方需保证自身已被登记为“当前准备中的设置窗口”，
-        /// 以便 MainWindow.LoadSettings 能通过 SettingsWindow 反查到本窗口的控件。
-        /// </summary>
         public void PrepareContentBeforeShow()
         {
             if (_contentPrepared)
@@ -88,7 +66,6 @@ namespace Ink_Canvas
             // 这里在 Loaded（早于首次 Render）同步补填，保证首帧仍是完整内容。
             PrepareContentBeforeShow();
 
-            // 轻量信息立即填充（几乎不耗时）
             if (AppVersionTextBlock != null)
                 AppVersionTextBlock.Text = AutoUpdateHelper.GetDisplayVersion();
 
@@ -103,9 +80,6 @@ namespace Ink_Canvas
             }
             catch { }
 
-            // 触控优化：将本窗口内所有滑块设为 IsMoveToPointEnabled，
-            // 触屏上轻触轨道即可让缩略块跳到触点并跟随拖动，无需精确抓取极小缩略块。
-            // 仅设置该行为属性，不改模板/外观，外观与之前完全一致。
             SetTouchFriendlySliders(this);
         }
 

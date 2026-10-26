@@ -49,20 +49,11 @@ namespace Ink_Canvas.Helpers
             return rawVersion.Trim().Trim('\uFEFF').TrimStart('v', 'V').Trim();
         }
 
-        // 版本文件三源（按优先级）：
-        //   1. 自建代理 gh.muqiu.eu.org（国内直连最快）
-        //   2. jsDelivr CDN 镜像
-        //   3. GitHub RAW 直连（最后兜底；若用户在设置里填了代理前缀，则走代理）
-        // 顺序尝试，任一源拿到内容即用；全部失败才算网络异常。
+        // 版本文件三源，按优先级自上而下：自建代理 → jsDelivr → GitHub Raw
         private const string VersionFileSelfProxy = "https://gh.muqiu.eu.org/gh/raw/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
         private const string VersionFileJsDelivr = "https://cdn.jsdelivr.net/gh/muqiu-pika/Ink-Canvas-Ultra@master/AutomaticUpdateVersionControl.txt";
         private const string VersionFileGitHubRaw = "https://raw.githubusercontent.com/muqiu-pika/Ink-Canvas-Ultra/master/AutomaticUpdateVersionControl.txt";
 
-        /// <summary>
-        /// 当前生效的 GitHub 代理前缀（设置 → 自动更新 → 代理）。
-        /// 开关未开启、或地址为空时返回空串。
-        /// 所有"直连 GitHub"的源（Releases 直连 / GitHub RAW）都会套上它。
-        /// </summary>
         public static string GetEffectiveProxy()
         {
             try
@@ -104,13 +95,6 @@ namespace Ink_Canvas.Helpers
             public string LatestVersion { get; set; }
         }
 
-        /// <summary>
-        /// 详细版本检测：能区分"确实没有新版本"与"网络异常/远端内容无效"，
-        /// 供手动检查使用——避免断网时误报"您已安装最新版"。
-        /// 并发合并：启动时可能有多个入口同时触发检测（启动检测 / 设置页 / 定时器），
-        /// 在"超时"场景下会并发挂起多个请求、超时后一次性刷出多条 TaskCanceledException。
-        /// 这里让同一 proxy 的在途检测共享同一个 Task，真正只发出一次网络请求。
-        /// </summary>
         private static readonly object CheckGate = new object();
         private static Task<UpdateCheckResult> _inFlightCheck;
         private static string _inFlightProxy = string.Empty;
@@ -276,18 +260,6 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        /// <summary>
-        /// 是否需要把安装包的目标目录强制指向"当前程序所在目录"。
-        ///
-        /// 背景（便携版用户"点了更新、也提示安装了，但每次启动仍弹窗、版本也没变"的根因）：
-        /// 安装包的 DefaultDirName 是 %LOCALAPPDATA%\Programs\Ink Canvas Ultra。
-        /// 便携版（从 zip 解压运行、从未安装过）静默安装时会装进那个默认目录，
-        /// **用户自己那份便携目录里的文件一个都不会被替换**，于是本地版本永远小于远端版本。
-        ///
-        /// 判定：只有当"Inno 记录的安装目录"就是"当前 exe 所在目录"时，才按普通安装版处理
-        /// （此时 UsePreviousAppDir 会自然回到同一个目录）；其余情况一律加 /DIR 指过来，
-        /// 这样便携目录会被就地替换，之后 Inno 记录的安装目录也变成该目录，后续更新同样落在原处。
-        /// </summary>
         private static bool NeedInstallDirOverride(out string appDir)
         {
             appDir = GetAppDirectory();
@@ -318,8 +290,6 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        // ===== 安装包完整性校验 =====
-
         private const long MinSetupFileSize = 1024 * 1024;   // 安装包约 6.5 MB，1 MB 以下必然是坏的
 
         /// <summary>
@@ -334,7 +304,6 @@ namespace Ink_Canvas.Helpers
                 if (!info.Exists) return "文件不存在";
                 if (info.Length < MinSetupFileSize) return $"文件不完整（仅 {info.Length} 字节）";
 
-                // PE 头：MZ + PE\0\0
                 using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
                 {
                     if (fs.ReadByte() != 0x4D || fs.ReadByte() != 0x5A) return "不是有效的可执行文件（缺少 MZ 头）";
@@ -367,13 +336,6 @@ namespace Ink_Canvas.Helpers
             Version v;
             return Version.TryParse(SanitizeRemoteVersion(text), out v) ? v : null;
         }
-
-        // ===== 安装尝试标记 / 自愈 =====
-        // 失败形态：安装包被启动过但版本没变化（安装目录不对、文件被占用、安装失败……）。
-        // 旧行为对此毫无感知：缓存状态一直是 true → 每次启动都照着弹、照着"装"，用户被卡在循环里。
-        // 现在：启动时发现"尝试安装的版本 > 当前版本"即判定未生效 →
-        //   第 1 次：作废已下载的安装包与状态文件，强制重新下载（可能换到另一个源）；
-        //   第 2 次：判定为自动更新不可用，写标记并提示用户手动下载；此后启动不再重复弹窗。
 
         private const int MaxInstallAttempts = 2;
 
@@ -543,13 +505,6 @@ namespace Ink_Canvas.Helpers
             catch { }
         }
 
-        // ===== 就地更新时的用户文件保护 =====
-        // 就地更新 = 用安装包替换 exe 目录里的程序文件。安装包只会"新增/覆盖它自己带的文件"，
-        // 不会删除目录里的其它内容（iss 没有 [InstallDelete]），Plugins 目录也在打包时被排除，
-        // 所以正常情况下用户的配置、插件、笔迹都不会丢。
-        // 这里再加一道保险：更新前把 exe 目录里的用户文件备份一份，更新后启动时校验内容、
-        // 缺失就自动恢复 —— 万一日后打包误把 Log.txt / Settings.json 打进安装包，也不会覆盖掉用户配置。
-
         private static string UpdateBackupRoot
         {
             get
@@ -651,11 +606,6 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-        /// <summary>
-        /// 就地更新后（新版首次启动时）校验 exe 目录里的用户文件：
-        /// 缺失 → 从备份恢复；内容被替换 → 保留用户当前文件并把备份留着供排查（不静默回滚用户的较新设置）。
-        /// 备份目录保留（下次就地更新时清理旧版本目录），便于用户/技术支持取回更新前的副本。
-        /// </summary>
         public static void VerifyUserFilesAfterUpdate()
         {
             try
@@ -766,10 +716,6 @@ namespace Ink_Canvas.Helpers
                     Path.Combine(updatesFolderPath, $"Ink.Canvas.Ultra.V{version}.Setup.exe"),
                     progressCallback,
                     largeFile: true,
-                    // 完整性校验：服务器给了 Content-Length 时长度不符、或不是可执行文件、或版本号对不上，
-                    // 都算这次源失败（下载器会自动换下一个源）。
-                    // 不校验的话，代理/网络半途截断但没抛异常会被当成"下载成功"并写状态 true，
-                    // 之后每次更新都会跳过重新下载、去跑一个损坏的安装包 —— 用户就永远卡在"装了也没用"。
                     validate: path => ValidateSetupFile(path, version));
 
                 if (!result.Success)
@@ -844,22 +790,9 @@ namespace Ink_Canvas.Helpers
                     return;
                 }
 
-                // /SILENT、/VERYSILENT：无界面安装。
-                // /SUPPRESSMSGBOXES：压制询问/提示框，避免静默安装卡死在确认框。
-                // /CLOSEAPPLICATIONS：关闭正在运行的应用（配合 iss 的 CloseApplications），
-                //   避免主程序文件被占用导致安装失败。
-                // /NORESTART：安装后不自动重启。
-                // 只放开关，安装包路径单独传给 ProcessStartInfo.FileName：
-                // 旧写法把路径和开关拼成一整条命令行，带空格的路径容易被引号规则拆坏。
                 string InstallArguments = "/SILENT /SUPPRESSMSGBOXES /CLOSEAPPLICATIONS /NORESTART";
                 if (isInSilence) InstallArguments += " /VERYSILENT";
 
-                // ===== 便携版就地更新 =====
-                // 安装包的 DefaultDirName 是 %LOCALAPPDATA%\Programs\Ink Canvas Ultra。
-                // 便携版（zip 解压即用、从未安装过）如果不指定 /DIR，安装包会装到那个默认目录，
-                // 用户自己那份便携目录里的文件一个都不会被替换 —— 现象就是"点了更新、也提示安装了，
-                // 但每次启动照样弹、版本号也没变"。这里把目标目录强制指到"当前 exe 所在目录"，
-                // 实现真正的就地更新；更新后 Inno 记录的安装目录也变成该目录，之后更新自然落在原处。
                 string appDir;
                 bool inPlace = NeedInstallDirOverride(out appDir);
                 if (inPlace && !string.IsNullOrEmpty(appDir))
@@ -927,19 +860,6 @@ namespace Ink_Canvas.Helpers
             }
         }
 
-
-        /// <summary>
-        /// 用一个临时脚本串起「安装 → 重新拉起程序」，保证用户看到的总是刚装好的新版本。
-        ///
-        /// 替换掉的旧实现的三个问题：
-        ///   1) 把安装包路径拼进一条 cmd 命令行，带空格的路径容易被引号规则拆坏；
-        ///   2) RedirectStandardOutput/Error 会建立管道，而紧接着 Application.Shutdown()
-        ///      关闭了读端 —— 安装包再往已关闭的管道写日志就会失败，整条命令可能就此中断，
-        ///      表现为"提示安装过、实际文件没换、下次打开还是旧版本"；
-        ///   3) 安装结束后没有任何人或流程拉起程序，用户自己点开的往往还是旧副本。
-        /// 脚本方式的收益：cmd 同步执行安装包（装完才往下走）、输出落到日志文件不依赖管道、
-        /// 结束时无论成败都重新拉起程序。
-        /// </summary>
         private static bool StartInstallerAndRelaunch(string setupPath, string arguments, string exePath, string version)
         {
             try

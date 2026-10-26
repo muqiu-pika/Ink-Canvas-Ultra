@@ -153,19 +153,15 @@ namespace Ink_Canvas
             _isEmojiBtnTouchActive = false;
             _emojiBtnTouchHandled = true;
 
-            // 释放触摸捕获
             e.TouchDevice.Capture(null);
 
-            // 拖动结束：锁定并持久化桌面位置
             PersistFloatingBarDesktopPosition();
 
-            // 隐藏快捷按钮窗口
             if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
             }
 
-            // 恢复拖动效果
             GridForFloatingBarDraging.Visibility = Visibility.Collapsed;
             SymbolIconEmoji1.Width = 28;
             SymbolIconEmoji2.Width = 0;
@@ -182,7 +178,6 @@ namespace Ink_Canvas
             // 如果当前正在处理触屏操作，则忽略提升的鼠标事件
             if (_isEmojiBtnTouchActive) return;
 
-            // 隐藏快捷按钮窗口
             if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
@@ -196,7 +191,6 @@ namespace Ink_Canvas
             isDragDropInEffect = true;
             pos = e.GetPosition(null);
             downPos = e.GetPosition(null);
-            // 确保拖拽开始时窗口保持在最顶层
             Topmost = true;
             GridForFloatingBarDraging.Visibility = Visibility.Visible;
             SymbolIconEmoji1.Width = 0;
@@ -218,17 +212,14 @@ namespace Ink_Canvas
 
             isDragDropInEffect = false;
 
-            // 拖动结束：锁定并持久化桌面位置
             PersistFloatingBarDesktopPosition();
 
-            // 如果长按已触发，则不执行点击操作
             if (_emojiBtnLongPressFired)
             {
                 _emojiBtnLongPressFired = false;
                 return;
             }
 
-            // 隐藏快捷按钮窗口
             if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
@@ -273,7 +264,6 @@ namespace Ink_Canvas
         {
             if (BorderQuickActions == null) return;
 
-            // 切换弹窗显示状态
             if (BorderQuickActions.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
@@ -307,13 +297,11 @@ namespace Ink_Canvas
                 e.TouchDevice.Capture(inputElement);
             }
 
-            // 隐藏快捷按钮窗口
             if (BorderQuickActions.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
             }
 
-            // 创建并启动长按计时器
             _emojiBtnLongPressTimer = new DispatcherTimer
             {
                 Interval = TimeSpan.FromMilliseconds(EmojiBtnLongPressDurationMs)
@@ -332,7 +320,6 @@ namespace Ink_Canvas
             // 使用屏幕坐标，与 TouchDown 一致
             var currentPos = e.GetTouchPoint(null).Position;
 
-            // 第一次移动超过阈值时，启动拖动
             if (!_emojiBtnTouchMoved)
             {
                 if (Math.Abs(currentPos.X - _emojiBtnTouchDownPos.X) > EmojiBtnTouchMoveThreshold ||
@@ -341,20 +328,17 @@ namespace Ink_Canvas
                     _emojiBtnTouchMoved = true;
                     CancelEmojiBtnLongPress();
 
-                    // 隐藏快捷按钮窗口
                     if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
                     {
                         AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
                     }
 
-                    // 停止可能正在进行的边距动画
                     if (isViewboxFloatingBarMarginAnimationRunning)
                     {
                         ViewboxFloatingBar.BeginAnimation(FrameworkElement.MarginProperty, null);
                         isViewboxFloatingBarMarginAnimationRunning = false;
                     }
 
-                    // 开始拖动效果
                     Topmost = true;
                     GridForFloatingBarDraging.Visibility = Visibility.Visible;
                     SymbolIconEmoji1.Width = 0;
@@ -379,10 +363,8 @@ namespace Ink_Canvas
         {
             _emojiBtnTouchHandled = true;
 
-            // 释放触摸捕获
             e.TouchDevice.Capture(null);
 
-            // 如果长按已触发，则只重置标志
             if (_emojiBtnLongPressFired)
             {
                 _emojiBtnLongPressFired = false;
@@ -390,19 +372,16 @@ namespace Ink_Canvas
                 return;
             }
 
-            // 如果发生了拖动，则不执行单点操作
             if (_emojiBtnTouchMoved)
             {
                 _emojiBtnTouchMoved = false;
                 CancelEmojiBtnLongPress();
 
-                // 隐藏快捷按钮窗口
                 if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
                 {
                     AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
                 }
 
-                // 恢复拖动效果
                 GridForFloatingBarDraging.Visibility = Visibility.Collapsed;
                 SymbolIconEmoji1.Width = 28;
                 SymbolIconEmoji2.Width = 0;
@@ -410,10 +389,8 @@ namespace Ink_Canvas
                 return;
             }
 
-            // 短按：执行折叠/展开操作
             CancelEmojiBtnLongPress();
 
-            // 隐藏快捷按钮窗口
             if (BorderQuickActions != null && BorderQuickActions.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
@@ -430,12 +407,8 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 长按计时器触发 - 显示快捷菜单
-        /// </summary>
         private void EmojiBtnLongPressTimer_Tick(object sender, EventArgs e)
         {
-            // 先停止计时器
             if (_emojiBtnLongPressTimer != null)
             {
                 _emojiBtnLongPressTimer.Stop();
@@ -446,10 +419,8 @@ namespace Ink_Canvas
             // 如果手指已经移动（正在拖动），则不触发长按
             if (!_isEmojiBtnTouchActive || _emojiBtnTouchMoved || BorderQuickActions == null) return;
 
-            // 标记长按已触发
             _emojiBtnLongPressFired = true;
 
-            // 切换弹窗显示状态
             if (BorderQuickActions.Visibility == Visibility.Visible)
             {
                 AnimationsHelper.HideWithSlideAndFade(BorderQuickActions);
@@ -460,9 +431,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 取消长按计时器
-        /// </summary>
         private void CancelEmojiBtnLongPress()
         {
             _isEmojiBtnTouchActive = false;
@@ -859,7 +827,6 @@ namespace Ink_Canvas
                 // 在白板模式下，保留照片和摄像头画面元素
                 if (currentMode == 1) // 白板模式
                 {
-                    // 保存需要保留的元素
                     var elementsToKeep = new List<UIElement>();
                     
                     foreach (UIElement element in inkCanvas.Children)
@@ -879,13 +846,10 @@ namespace Ink_Canvas
                         }
                     }
                     
-                    // 清除所有笔迹
                     inkCanvas.Strokes.Clear();
                     
-                    // 清除所有子元素
                     inkCanvas.Children.Clear();
                     
-                    // 重新添加需要保留的元素
                     foreach (var element in elementsToKeep)
                     {
                         inkCanvas.Children.Add(element);
@@ -895,7 +859,6 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    // 非白板模式下使用原来的清除逻辑
                     BtnClear_Click(null, null);
                 }
             }
@@ -934,13 +897,6 @@ namespace Ink_Canvas
         private DesktopFloatBarMode _desktopModeBeforeBoard = DesktopFloatBarMode.Pen;
         private bool _hasDesktopModeSnapshot = false;
 
-        /// <summary>
-        /// 画布是否处于"隐藏（鼠标模式）"状态。
-        /// 不能用 Main_Grid.Background == Brushes.Transparent 判断：那是引用比较，
-        /// XAML/代码里赋的 Transparent 未必是 Brushes 的同一个静态实例，
-        /// 一旦不是同一实例就会误判成"笔模式"（退出白板后错误恢复成批注的直接原因之一）。
-        /// 改为按颜色 alpha 判定：alpha==0（含 null）即视为隐藏 —— 批注打开时背景是 #01FFFFFF。
-        /// </summary>
         private bool IsInkCanvasHiddenByBackground()
         {
             var bg = Main_Grid?.Background;
@@ -1034,13 +990,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 退出白板后把画布恢复到「批注（画笔）」状态，但**不展开**「墨迹选项」面板。
-        /// 不能直接复用 PenIcon_Click：它的 else 分支语义是"切换墨迹选项面板的显隐"，
-        /// 当画布已可见且「批注」已高亮时（退出白板后正好是这种状态）会命中该分支，
-        /// 于是退出白板后自动弹出「墨迹选项」窗口 —— 用户并没有点「批注」按钮。
-        /// 这里只做模式/画布/指示器的恢复，显隐交给 HideSubPanels（其语义就是收起）。
-        /// </summary>
         private void RestorePenModeWithoutTogglingPalette()
         {
             try
@@ -1102,13 +1051,11 @@ namespace Ink_Canvas
             if (currentMode == 0)
             {
                 currentMode = 1;
-                //进入画板
                 PPTNavigationBottomLeft.Visibility = Visibility.Collapsed;
                 PPTNavigationBottomRight.Visibility = Visibility.Collapsed;
                 PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
                 PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
 
-                // 进入白板模式时直接隐藏浮动栏
                 ViewboxFloatingBar.Visibility = Visibility.Collapsed;
 
                 // 进入白板模式时，只更新白板按钮状态，不更新浮动栏按钮
@@ -1143,7 +1090,6 @@ namespace Ink_Canvas
                 currentMode = 0;
                 // 退出白板模式时，自动停止摄像头调用以节省资源
                 NotifyCameraManagerExitButtonClicked();
-                //退出画板
                 HideSubPanelsImmediately();
 
                 if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
@@ -1209,11 +1155,6 @@ namespace Ink_Canvas
             // （原 BtnSwitch_Click 只通过 TimeMachineHistory 保存/恢复笔迹，不处理照片元素）
             if (Main_Grid.Background == Brushes.Transparent)
             {
-                // 光标模式：先切换到笔模式。
-                // 注意：此处 currentMode 已在方法开头完成切换（0→1 进入白板 / 1→0 退出白板）。
-                // 必须与下方笔模式分支保持一致：进入白板要显示白板背景与侧边工具栏并取消置顶，
-                // 退出白板要保存白板内容（含照片）并恢复桌面笔迹。
-                // 否则会出现白板栏已显示但背景/布局错乱、或退出后白板内容丢失等切换异常。
                 if (currentMode == 1)
                 {
                     // 进入白板：显示白板背景与侧边工具栏，保存桌面笔迹，恢复白板笔迹
@@ -1384,40 +1325,19 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>
-        /// 模式（白板/桌面/批注）切换期间是否正处于“清空-恢复”过渡窗口。
-        /// 卡顿时，切换前残留的桌面笔迹其延迟的 StrokesChanged 会在过渡窗口内被提交到画布，
-        /// 造成“浮动栏笔迹混入/替换白板笔迹”。该窗口内到达的残留笔画会被 StrokesOnStrokesChanged 拦截移除。
-        /// </summary>
         private bool _isInBoardModeSwitch = false;
 
         /// <summary>过渡窗口开启时画布上已存在的笔迹引用快照（用于精确识别"切换前残留笔画"）。</summary>
         private HashSet<Stroke> _preSwitchStrokeSnapshot = null;
 
-        /// <summary>
-        /// 模式（白板/桌面/批注）切换前的防护：
-        /// 1) 同步排空排队中的输入事件（含 Win32 消息队列中延迟的 StylusUp/TouchUp）。
-        ///    此阶段过渡窗口尚未开启，切换前“卡顿残留”的延迟笔画会在旧画布上先落地并计入旧历史，
-        ///    随后由 SaveStrokes 保存到正确页面，而不是提交到新模式画布。
-        /// 2) 快照当前画布笔迹引用 + 开启过渡窗口，兜底拦截排空后仍可能延迟到达的笔画提交。
-        /// 3) 用户在过渡窗口内开始新书写（下笔）后自动放行，避免误删新笔画。
-        /// </summary>
         private void BeginBoardModeSwitch()
         {
             try
             {
-                // 阶段一：排空排队中的输入（Background 优先级会连带处理 Input/Normal 等更高优先级操作，
-                // 并泵送 Win32 消息队列）。此阶段 _isInBoardModeSwitch 尚未开启，
-                // 残留笔画会正常提交到旧画布并计入旧历史，不会混入新模式画布。
                 Dispatcher.Invoke(System.Windows.Threading.DispatcherPriority.Background, new Action(() => { }));
             }
             catch { }
 
-            // 阶段一·补：快照画布上现存的笔迹引用。切换前"卡顿残留"的延迟笔画提交到新画布时，
-            // 提交的是这些旧 Stroke 对象本身；而用户的新笔画一定是新创建的对象。
-            // 因此"在快照内"就是残留笔画的精确判据 —— 不依赖输入路径是否调用了 RecordInputDown
-            // （鼠标下笔路径此前就漏记，导致过渡窗口内用鼠标新写的笔画被当残留误删，
-            // 表现为"翻页/重进后偶尔消失几条、偶尔断墨"）。
             try
             {
                 _preSwitchStrokeSnapshot = inkCanvas?.Strokes != null
@@ -1582,7 +1502,6 @@ namespace Ink_Canvas
 
         private void SymbolIconTools_Click(object sender, RoutedEventArgs e)
         {
-            // 根据当前模式只显示对应窗口
             if (currentMode == 1) // 画板模式
             {
                 if (BoardBorderTools.Visibility == Visibility.Visible)
@@ -1625,7 +1544,6 @@ namespace Ink_Canvas
             }
             else if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible)
             {
-                // PPT 放映模式：固定为 0px
                 MarginFromEdge = 0;
             }
             else if (Topmost == false)
@@ -1639,7 +1557,6 @@ namespace Ink_Canvas
             
             await Dispatcher.InvokeAsync(() =>
             {
-                // 黑板模式下需要特殊处理
                 if (Topmost == false && BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
                 {
                     MarginFromEdge = -60;
@@ -1665,13 +1582,11 @@ namespace Ink_Canvas
                 double screenWidth = screen.Bounds.Width / dpiScaleX;
                 double screenHeight = screen.Bounds.Height / dpiScaleY;
 
-                // 使用更可靠的方法获取浮动栏宽度
                 double baseWidth = ViewboxFloatingBar.ActualWidth;
 
                 // 如果ActualWidth为0，尝试强制测量
                 if (baseWidth <= 0)
                 {
-                    // 强制测量以获取准确尺寸
                     double heightConstraint = ViewboxFloatingBar.Height;
                     if (double.IsNaN(heightConstraint) || heightConstraint <= 0) heightConstraint = 50;
                     ViewboxFloatingBar.Measure(new Size(double.PositiveInfinity, heightConstraint));
@@ -1687,7 +1602,6 @@ namespace Ink_Canvas
                 // 如果所有方法都失败，使用一个基于内容的估算值
                 if (baseWidth <= 0)
                 {
-                    // 根据浮动栏内容估算宽度
                     baseWidth = 200; // 最小宽度
                     LogHelper.WriteLogToFile($"浮动栏宽度无法获取，使用估算值: {baseWidth}");
                 }
@@ -1756,12 +1670,10 @@ namespace Ink_Canvas
             {
                 ViewboxFloatingBar.Margin = new Thickness(target.X, target.Y, -2000, -200);
                 pos = target;
-                // 折叠时隐藏浮动栏
                 if (isFloatingBarFolded)
                 {
                     ViewboxFloatingBar.Visibility = Visibility.Hidden;
                 }
-                // 确保浮动栏可见时始终保持在最顶层
                 else if (ViewboxFloatingBar.Visibility == Visibility.Visible)
                 {
                     Topmost = true;
@@ -1781,7 +1693,6 @@ namespace Ink_Canvas
             {
             // 切换到鼠标模式时自动关闭激光笔，避免鼠标事件仍被激光笔拦截
             if (isLaserPointerEnabled) SetLaserPointerEnabled(false);
-            // 切换前自动截图保存墨迹
             if (inkCanvas.Strokes.Count > 0 && inkCanvas.Strokes.Count > Settings.Automation.MinimumAutomationStrokeNumber)
             {
                 if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) SavePPTScreenshot($"{pptName}/{previousSlideID}_{DateTime.Now:HH-mm-ss}");
@@ -1817,9 +1728,7 @@ namespace Ink_Canvas
                 }
             }
 
-
             Main_Grid.Background = Brushes.Transparent;
-
 
             GridBackgroundCoverHolder.Visibility = Visibility.Collapsed;
             inkCanvas.Select(new StrokeCollection());
@@ -1832,7 +1741,6 @@ namespace Ink_Canvas
             }
 
             CheckEnableTwoFingerGestureBtnVisibility(false);
-
 
             StackPanelCanvasControls.Visibility = Visibility.Collapsed;
 
@@ -1876,12 +1784,6 @@ namespace Ink_Canvas
 
         private void PenIcon_Click(object sender, RoutedEventArgs e)
         {
-            // 画布当前不是「可书写」状态（选择/橡皮擦/None 等）时，即使「批注」按钮仍处于高亮，
-            // 也必须先执行切回墨迹的流程；否则用户点击「批注」只会切换墨迹选项面板，
-            // 画布一直停留在橡皮擦状态，表现为“插入图片后无法批注书写”。
-            // 例外：激光笔开启时 EditingMode 本来就是 None，那不是异常状态——
-            // 此时点「批注」只应收起/展开「墨迹选项」，不能顺手把激光笔关掉
-            // （否则「墨迹选项」一关闭激光笔也跟着关闭）。
             bool needRestoreInk = !isLaserPointerEnabled
                 && drawingShapeMode == 0
                 && inkCanvas.EditingMode != InkCanvasEditingMode.Ink;
@@ -1927,12 +1829,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 展开「墨迹选项」面板，并在展开前先落到上次拖动的固定位置。
-        /// 展开/收起动画都已改成「沿用当前 RenderTransform 偏移」，
-        /// 所以这里先把偏移写回面板，动画就会在固定位置原地滑入；
-        /// 若像原先那样延迟 300ms 再套用偏移，面板会先在初始位置闪现一下、再跳到固定位置。
-        /// </summary>
         private void ShowPenPaletteAtSavedPosition(object panel)
         {
             if (!(panel is FrameworkElement fe)) return;
@@ -1945,9 +1841,6 @@ namespace Ink_Canvas
 
         private void ColorThemeSwitch_MouseUp(object sender, RoutedEventArgs e)
         {
-            // 深/浅色切换按钮已直接替换为「设置颜色」入口：
-            // 已安装「自定义画笔颜色」插件 → 直接跳转插件工坊内该插件的设置面板；
-            // 未安装 → 弹窗提示需要安装，「是」前往插件工坊，「否」仅关闭提示
             if (IsPenColorsPluginActive())
             {
                 OpenPenColorsPluginSettings();
@@ -1964,11 +1857,6 @@ namespace Ink_Canvas
             catch { return false; }
         }
 
-        /// <summary>
-        /// 未安装「自定义画笔颜色」插件时的引导提示窗：
-        /// 「是」→ 打开插件工坊（安装/启用该插件）；「否」→ 仅关闭提示。
-        /// 色块右键/长按无人处理时也走此提示，保证用户明确知道“手势已识别、缺插件”。
-        /// </summary>
         private void ShowPenColorsPluginPrompt()
         {
             try
@@ -2308,7 +2196,6 @@ namespace Ink_Canvas
                 {
                     _settingsWindowInstance = null;
                 }
-                // 关闭即释放内存：延时后台 GC 回收窗口可视化树
                 Helpers.WindowMemoryHelper.ScheduleRelease();
             };
             // 与正常打开路径保持一致：先填充再 Show，避免屏外首帧也是空内容
@@ -2368,12 +2255,6 @@ namespace Ink_Canvas
             OpenSettingsWindow();
         }
 
-        /// <summary>
-        /// 打开设置窗口的唯一入口（浮动栏齿轮按钮、插件工坊“返回设置”等均走这里）。
-        ///
-        /// 顺序要点：复用实例 → 直接显示；新建实例 → 先 PrepareContentBeforeShow() 同步填充再 Show()。
-        /// 若先 Show 后填充，DWM 会把尚未渲染的空/黑内容呈现出来，用户会看到一闪而过的黑块。
-        /// </summary>
         internal void OpenSettingsWindow()
         {
             // 复用已存在的设置窗口实例（可能只是被隐藏/预构建缓存），点击即开，不再重复解析巨型 XAML
@@ -2491,8 +2372,6 @@ namespace Ink_Canvas
             }
         }
 
-        // ===== 插件工坊 =====
-
         // plugin 存放目录（位于程序运行目录下的 Plugins 文件夹）
         private static string PluginDirectory => App.RootPath + "Plugins\\";
 
@@ -2535,7 +2414,6 @@ namespace Ink_Canvas
 
         bool forceEraser = false;
 
-
         private void BtnClear_Click(object sender, RoutedEventArgs e)
         {
             forceEraser = false;
@@ -2556,9 +2434,6 @@ namespace Ink_Canvas
                 }
             }
 
-            // 原此处会判断笔迹非空后执行 strokeCollections[whiteboardIndex] = inkCanvas.Strokes.Clone()，
-            // 即整页笔迹的一次全量深拷贝。该数组全仓无读取（见 MW_BoardControls 注释），
-            // 纯粹浪费一次 Clone 的 CPU 并把整页笔迹长期钉住，已移除。
             ClearStrokes(false);
             inkCanvas.Children.Clear();
 
@@ -2583,11 +2458,6 @@ namespace Ink_Canvas
             isLongPressSelected = false;
         }
 
-        // 白板浮动栏(MWBoardHost)仅应在白板模式(currentMode == 1)下显示。
-        // 原先 XAML 将 MWBoardHost.Visibility 绑定到 GridBackgroundCoverHolder，
-        // 而批注(PenIcon_Click)也会把该 Holder 置为 Visible，导致点击"批注"误呼出白板栏。
-        // 改为由 currentMode 统一驱动：任何进入/退出白板模式的地方只需设置 currentMode，
-        // 工具栏可见性即自动同步，覆盖 ImageBlackboard_Click / BtnSwitch_Click / MW_PenColors / MW_PPT 等所有入口。
         private int _currentMode = 0;
         private int currentMode
         {
@@ -2636,7 +2506,6 @@ namespace Ink_Canvas
                     RestoreStrokes();
                 }
                 Topmost = true;
-                // 确保窗口获得焦点
                 WindowFocusHelper.EnsureWindowFocus(this);
                 // 重新注册触摸窗口以修复讯飞智慧窗触屏锁导致的触摸问题
                 TouchLockFix.ReRegisterTouchWindow(this);
@@ -2657,7 +2526,6 @@ namespace Ink_Canvas
                         ClearStrokes(true);
                         RestoreStrokes(true);
                         Topmost = true;
-                        // 确保窗口获得焦点
                         WindowFocusHelper.EnsureWindowFocus(this);
                         // 重新注册触摸窗口以修复讯飞智慧窗触屏锁导致的触摸问题
                         TouchLockFix.ReRegisterTouchWindow(this);
@@ -2736,7 +2604,6 @@ namespace Ink_Canvas
                         }
                     }
 
-
                     if (Settings.PowerPointSettings.IsShowStrokeOnSelectInPowerPoint)
                     {
                         inkCanvas.Visibility = Visibility.Visible;
@@ -2786,14 +2653,10 @@ namespace Ink_Canvas
         }
         #endregion
 
-        /// <summary>
-        /// 通知摄像头管理器处理退出按钮点击事件
-        /// </summary>
         private void NotifyCameraManagerExitButtonClicked()
         {
             try
             {
-                // 通过反射获取摄像头设备管理器实例
                 var cameraDeviceManagerField = typeof(MainWindow).GetField("cameraDeviceManager", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
                 if (cameraDeviceManagerField != null)
                 {

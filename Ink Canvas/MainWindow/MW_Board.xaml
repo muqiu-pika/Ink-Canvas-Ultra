@@ -10,11 +10,8 @@
     xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
     mc:Ignorable="d">
     <Grid>
-        <!--  // 画板界面 //  -->
 
         <Grid>
-
-            <!--  左下角  -->
 
             <Viewbox
 
@@ -52,15 +49,11 @@
 
                     <Grid.Resources>
 
-                        <!--  定义 SolidColorBrush 资源  -->
-
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundKey}" Color="{DynamicResource BoardBarButtonBackgroundKey}" />
 
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPointerOverKey}" Color="{DynamicResource BoardBarButtonBackgroundPointerOverKey}" />
 
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPressedKey}" Color="{DynamicResource BoardBarButtonButtonBackgroundPressedKey}" />
-
-                        <!--  定义按钮样式  -->
 
                         <Style TargetType="Button">
 
@@ -396,8 +389,6 @@
 
             </Viewbox>
 
-            <!--  中间  -->
-
             <Viewbox
 
                 x:Name="ViewboxBlackboardCenterSide"
@@ -430,15 +421,11 @@
 
                     <Grid.Resources>
 
-                        <!--  定义 SolidColorBrush 资源  -->
-
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundKey}" Color="{DynamicResource BoardBarButtonBackgroundKey}" />
 
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPointerOverKey}" Color="{DynamicResource BoardBarButtonBackgroundPointerOverKey}" />
 
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPressedKey}" Color="{DynamicResource BoardBarButtonButtonBackgroundPressedKey}" />
-
-                        <!--  定义按钮样式  -->
 
                         <Style TargetType="Button">
 
@@ -491,8 +478,6 @@
                     </Grid.Resources>
 
                     <ikw:SimpleStackPanel x:Name="BoardToolsPanel" Orientation="Horizontal">
-
-
 
                         <Button
 
@@ -944,7 +929,6 @@
 
                         </Button>
 
-                        <!-- 画布右键弹出：方格纸开关 -->
                         <Grid Width="0" Margin="0,0,0,5">
 
                             <Viewbox
@@ -1334,7 +1318,6 @@
                                         Orientation="Horizontal">
 
                                         <Grid>
-                                            <!-- 笔图标本体按当前笔色填充；浅色/极深色笔时下面这层描边可见（代码控制） -->
                                             <ui:FontIcon
                                                 x:Name="BoardIcon_PenOutline"
                                                 Width="28"
@@ -1382,12 +1365,6 @@
 
                             <Grid Width="0">
 
-                                <!--  缩放宿主：RenderTransform 不参与测量，缩放面板不会影响白板工具栏的 Viewbox 适配缩放；
-                                      Margin 移到宿主上。TransformGroup 三段式实现“围绕锚点缩放”：
-                                      面板通过负 Margin 从零宽锚点线向两侧弹出（左 248 / 右 190、上 218），
-                                      锚点线在面板内部 (248,218) 处——先平移 -a 把锚点移到原点，缩放后再平移回 +a，
-                                      缩放时面板与主条的挂靠关系保持不变（仅围绕锚点收放）。
-                                      直接用 ScaleTransform 会围绕左上角缩放，导致贴近主条的一侧漂移。  -->
                                 <Border
 
                                     x:Name="BoardPenPaletteScaleHost"
@@ -2226,9 +2203,6 @@
 
                                                 <ikw:SimpleStackPanel Width="115">
 
-                                                    <!-- 激光笔：与浮动栏「墨迹选项」中的位置一致，置于荧光笔标题上方。
-                                                         复用面板上方留白，不新增列宽，排布保持不变 -->
-
                                                     <Button
 
                                                         x:Name="BoardBtnLaserPointer"
@@ -2297,8 +2271,6 @@
 
                                                         TextAlignment="Center" />
 
-
-
                                                     <ikw:SimpleStackPanel
 
                                                         VerticalAlignment="Center"
@@ -2344,8 +2316,6 @@
                                                         </Viewbox>
 
                                                     </ikw:SimpleStackPanel>
-
-
 
                                                     <ikw:SimpleStackPanel>
 
@@ -2622,10 +2592,6 @@
                                                         </Controls:UniformGrid>
 
                                                     </ikw:SimpleStackPanel>
-
-
-
-
 
                                                 </ikw:SimpleStackPanel>
 
@@ -3022,11 +2988,6 @@
 
                         <Border Width="0">
 
-                            <!--  缩放宿主：RenderTransform 不参与测量，缩放面板不会影响白板工具栏的 Viewbox 适配缩放；
-                                  Margin 移到宿主上并保持默认 Stretch 对齐（与原面板一致：宽度由
-                                  左右负 Margin 撑出 280，宿主不能加 Left/Top 对齐，否则宽度变为
-                                  内容期望值导致初始位置偏移）。TransformGroup 实现围绕锚点
-                                  (200,288)（锚点线在面板内位置）缩放，挂靠关系不随缩放漂移。  -->
                             <Border
 
                                 x:Name="BoardBorderDrawShapeScaleHost"
@@ -4817,8 +4778,6 @@
 
             </Viewbox>
 
-            <!--  右下角  -->
-
             <Viewbox
 
                 x:Name="ViewboxBlackboardRightSide"
@@ -4855,15 +4814,11 @@
 
                     <Grid.Resources>
 
-                        <!--  定义 SolidColorBrush 资源  -->
-
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundKey}" Color="{DynamicResource BoardBarButtonBackgroundKey}" />
 
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPointerOverKey}" Color="{DynamicResource BoardBarButtonBackgroundPointerOverKey}" />
 
                         <SolidColorBrush x:Key="{x:Static ui:ThemeKeys.ButtonBackgroundPressedKey}" Color="{DynamicResource BoardBarButtonButtonBackgroundPressedKey}" />
-
-                        <!--  定义按钮样式  -->
 
                         <Style TargetType="Button">
 
@@ -4989,8 +4944,6 @@
 
                         </Button>
 
-
-
                         <Button
 
                             Width="60"
@@ -5106,8 +5059,6 @@
                             </Grid>
 
                         </Border>
-
-
 
                         <Button
 

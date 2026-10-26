@@ -79,11 +79,6 @@ namespace Ink_Canvas
         [JsonProperty("stopTimingError")]
         public double StopTimingError { get; set; } = 5.0;
 
-        /// <summary>
-        /// 默认画笔颜色槽位（启动时初始选中色）。
-        /// 0-8 普通色 / 101-106 荧光笔色；-1 表示沿用内置默认
-        /// （浮动栏默认红、白板默认黑/白随背景），由「自定义画笔颜色」插件在设置中调整。
-        /// </summary>
         [JsonProperty("defaultPenColorIndex")]
         public int DefaultPenColorIndex { get; set; } = -1;
     }
@@ -144,29 +139,14 @@ namespace Ink_Canvas
         [JsonProperty("lastUpdateCheckTime")]
         public string LastUpdateCheckTime { get; set; } = "";
 
-        /// <summary>
-        /// 上一次成功运行时的软件版本（三段式，如 26.10.2）。
-        /// 启动时若与当前版本不同，说明软件刚更新过 → 展示一次「版本更新」窗口。
-        /// 空串表示还没有记录（全新安装），此时只登记版本、不弹更新日志。
-        /// </summary>
         [JsonProperty("lastRunVersion")]
         public string LastRunVersion { get; set; } = "";
 
-        /// <summary>
-        /// 用户选择"忽略此版本"的版本号（三段式）。
-        /// 自动更新提示遇到该版本号时不再打扰；出现更新的版本后照常提示。
-        /// 设置页的「立即检查更新」不受它影响（手动检查总会询问）。
-        /// </summary>
         [JsonProperty("ignoredUpdateVersion")]
         public string IgnoredUpdateVersion { get; set; } = "";
 
         [JsonProperty("isEnableNibMode")]
         public bool IsEnableNibMode { get; set; } = false;
-        /*
-        [JsonProperty("isAutoHideCanvas")]
-        public bool IsAutoHideCanvas { get; set; } = true;
-        [JsonProperty("isAutoEnterModeFinger")]
-        public bool IsAutoEnterModeFinger { get; set; } = false;*/
         [JsonProperty("isFoldAtStartup")]
         public bool IsFoldAtStartup { get; set; } = false;
 
@@ -191,9 +171,6 @@ namespace Ink_Canvas
         [JsonProperty("enableViewboxBlackBoardScaleTransform")]
         public double BlackboardScale { get; set; } = 80.0;
 
-        // 「墨迹选项」面板独立缩放（%）：不再跟随浮动栏/黑板整体缩放，可单独调整。
-        // null（旧配置文件无此键）表示跟随整体缩放，保持升级前视觉不变；
-        // 用户在设置页调整过之后写入具体值，即开始独立生效。
         [JsonProperty("penPaletteScale")]
         public double? PenPaletteScale { get; set; } = null;
 
@@ -308,10 +285,6 @@ namespace Ink_Canvas
 
         [JsonProperty("isAutoFoldInWxBoardMain")]
         public bool IsAutoFoldInWxBoardMain { get; set; } = false;
-        /*
-        [JsonProperty("isAutoFoldInZySmartBoard")]
-        public bool IsAutoFoldInZySmartBoard { get; set; } = false;
-        */
         [JsonProperty("isAutoFoldInOldZyBoard")]
         public bool IsAutoFoldInOldZyBoard { get; set; } = false;
 
@@ -333,11 +306,6 @@ namespace Ink_Canvas
         [JsonProperty("isAutoSaveStrokesAtScreenshot")]
         public bool IsAutoSaveStrokesAtScreenshot { get; set; } = false;
 
-        /// <summary>
-        /// 截图保存后是否同时复制到剪贴板。
-        /// 开启后，自动截图（清屏/换页/退出批注等）保存的 PNG 会一并写入剪贴板，
-        /// 用户可直接粘贴为图片，或在资源管理器中粘贴为文件复制到其它位置。
-        /// </summary>
         [JsonProperty("isCopyScreenshotToClipboard")]
         public bool IsCopyScreenshotToClipboard { get; set; } = false;
 

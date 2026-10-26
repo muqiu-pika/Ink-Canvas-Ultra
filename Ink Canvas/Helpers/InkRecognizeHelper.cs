@@ -7,7 +7,6 @@ namespace Ink_Canvas.Helpers
 {
     public class InkRecognizeHelper
     {
-        // 判断所有笔迹颜色和粗细是否一致
         private static bool AreStrokesUniform(StrokeCollection strokes)
         {
             if (strokes == null || strokes.Count == 0) return true;
@@ -21,7 +20,6 @@ namespace Ink_Canvas.Helpers
             return true;
         }
 
-        //识别形状
         public static ShapeRecognizeResult RecognizeShape(StrokeCollection strokes)
         {
             if (strokes == null || strokes.Count == 0)
@@ -83,8 +81,6 @@ namespace Ink_Canvas.Helpers
         }
     }
 
-    //Recognizer 的实现
-
     public enum RecognizeLanguage
     {
         SimplifiedChinese = 0x0804,
@@ -111,92 +107,11 @@ namespace Ink_Canvas.Helpers
         public InkDrawingNode InkDrawingNode { get; }
     }
 
-    /// <summary>
-    /// 图形识别类
-    /// </summary>
-    //public class ShapeRecogniser
-    //{
-    //    public InkAnalyzer _inkAnalyzer = null;
-
-    //    private ShapeRecogniser()
-    //    {
-    //        this._inkAnalyzer = new InkAnalyzer
-    //        {
-    //            AnalysisModes = AnalysisModes.AutomaticReconciliationEnabled
-    //        };
-    //    }
-
-    //    /// <summary>
-    //    /// 根据笔迹集合返回图形名称字符串
-    //    /// </summary>
-    //    /// <param name="strokeCollection"></param>
-    //    /// <returns></returns>
-    //    public InkDrawingNode Recognition(StrokeCollection strokeCollection)
-    //    {
-    //        if (strokeCollection == null)
-    //        {
-    //            //MessageBox.Show("dddddd");
-    //            return null;
-    //        }
-
-    //        InkDrawingNode result = null;
-    //        try
-    //        {
-    //            this._inkAnalyzer.AddStrokes(strokeCollection);
-    //            if (this._inkAnalyzer.Analyze().Successful)
-    //            {
-    //                result = _internalAnalyzer(this._inkAnalyzer);
-    //                this._inkAnalyzer.RemoveStrokes(strokeCollection);
-    //            }
-    //        }
-    //        catch (System.Exception ex)
-    //        {
-    //            //result = ex.Message;
-    //            System.Diagnostics.Debug.WriteLine(ex.Message);
-    //        }
-
     //        return result;
     //    }
 
-    //    /// <summary>
-    //    /// 实现笔迹的分析，返回图形对应的字符串
-    //    /// 你在实际的应用中根据返回的字符串来生成对应的Shape
-    //    /// </summary>
-    //    /// <param name="ink"></param>
-    //    /// <returns></returns>
-    //    private InkDrawingNode _internalAnalyzer(InkAnalyzer ink)
-    //    {
-    //        try
-    //        {
-    //            ContextNodeCollection nodecollections = ink.FindNodesOfType(ContextNodeType.InkDrawing);
-    //            foreach (ContextNode node in nodecollections)
-    //            {
-    //                InkDrawingNode drawingNode = node as InkDrawingNode;
-    //                if (drawingNode != null)
-    //                {
-    //                    return drawingNode;//.GetShapeName();
-    //                }
-    //            }
-    //        }
-    //        catch (System.Exception ex)
-    //        {
-    //            System.Diagnostics.Debug.WriteLine(ex.Message);
-    //        }
-
     //        return null;
     //    }
-
-
-    //    private static ShapeRecogniser instance = null;
-    //    public static ShapeRecogniser Instance
-    //    {
-    //        get
-    //        {
-    //            return instance == null ? (instance = new ShapeRecogniser()) : instance;
-    //        }
-    //    }
-    //}
-
 
     //用于自动控制其他形状相对于圆的位置
 

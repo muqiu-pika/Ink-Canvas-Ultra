@@ -21,14 +21,6 @@ namespace Ink_Canvas.Helpers
 
         public event OnRedoStateChange OnRedoStateChanged;
 
-        /// <summary>
-        /// 撤销栈保留的最大记录数。
-        /// 原先这个栈没有任何上限：每条 TimeMachineHistory 都强引用一份 StrokeCollection 或
-        /// UIElement（ElementInsert 类型的 Element 内含全分辨率位图），而只有 redo 分支截断时会
-        /// 移除元素。于是长时间书写/反复擦除/插入图片后，被擦掉的笔迹与已删除的图片都因仍被
-        /// 历史强引用而永不回收，内存单调增长。
-        /// 超过上限时从最早的记录开始丢弃，这符合撤销栈的语义：最早的先变得不可撤销。
-        /// </summary>
         public const int MaxHistoryCount = 100;
 
         private void CheckHistoryIndex()
@@ -173,14 +165,6 @@ namespace Ink_Canvas.Helpers
     {
         public TimeMachineHistoryType CommitType;
         public bool StrokeHasBeenCleared = false;
-        /// <summary>
-        /// 是否为「翻页内容基线」记录。
-        /// 换页保存时会把当前画布的完整快照（全部存活笔迹 + 全部子元素）包成若干条
-        /// 带此标记的记录，置于页面历史数组的头部，随后拼接原始撤销栈。
-        /// 恢复时先回放基线完整重建画布（不受撤销栈 MaxHistoryCount 上限影响），
-        /// 再仅导入原始撤销栈供撤销/重做使用。导出换页保存时要剔除旧的基线条目，
-        /// 避免每轮翻页重复叠加。
-        /// </summary>
         public bool IsContentBaseline = false;
         public StrokeCollection CurrentStroke;
         public StrokeCollection ReplacedStroke;
@@ -189,7 +173,6 @@ namespace Ink_Canvas.Helpers
         public Dictionary<Stroke, Tuple<StylusPointCollection, StylusPointCollection>> StylusPointDictionary;
         public Dictionary<string, Tuple<object, TransformGroup>> ElementsManipulationHistory;
         public Dictionary<Stroke, Tuple<DrawingAttributes, DrawingAttributes>> DrawingAttributes;
-        // UserInput
         public TimeMachineHistory(StrokeCollection currentStroke, TimeMachineHistoryType commitType, bool strokeHasBeenCleared)
         {
             CommitType = commitType;
@@ -197,7 +180,6 @@ namespace Ink_Canvas.Helpers
             StrokeHasBeenCleared = strokeHasBeenCleared;
             ReplacedStroke = null;
         }
-        // Clear
         public TimeMachineHistory(StrokeCollection currentStroke, TimeMachineHistoryType commitType, bool strokeHasBeenCleared, StrokeCollection replacedStroke)
         {
             CommitType = commitType;
@@ -221,7 +203,6 @@ namespace Ink_Canvas.Helpers
             CommitType = commitType;
             DrawingAttributes = drawingAttributes;
         }
-        // Insert UIElement
         public TimeMachineHistory(UIElement element, TimeMachineHistoryType commitType, bool strokeHasBeenCleared)
         {
             CommitType = commitType;

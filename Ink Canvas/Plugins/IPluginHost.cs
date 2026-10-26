@@ -12,24 +12,18 @@ namespace Ink_Canvas.Plugins
     /// </summary>
     public interface IPluginHost
     {
-        // ===== 基础能力 =====
-
         /// <summary>plugin 自身所在的绝对目录（以 \ 结尾）</summary>
         string PluginDirectory { get; }
 
         /// <summary>主程序根目录（App.RootPath）</summary>
         string HostRootPath { get; }
 
-        /// <summary>主程序主窗口实例</summary>
         Window MainWindow { get; }
 
-        /// <summary>写日志到主程序 Log.txt</summary>
         void Log(string message, PluginLogLevel logLevel = PluginLogLevel.Info);
 
         /// <summary>显示一条主程序通知（轻量级、自动消失）</summary>
         void ShowNotification(string message);
-
-        // ===== 路由 =====
 
         /// <summary>
         /// 触发路由。优先调用 plugin 通过 RegisterRouteHandler 注册的处理器，
@@ -42,8 +36,6 @@ namespace Ink_Canvas.Plugins
 
         /// <summary>注销 plugin 之前注册的路由处理器</summary>
         void UnregisterRouteHandler(string route);
-
-        // ===== 主程序画布与元素 API =====
 
         /// <summary>获取主程序 InkCanvas（白板/批注画布）</summary>
         System.Windows.Controls.InkCanvas GetInkCanvas();
@@ -92,31 +84,16 @@ namespace Ink_Canvas.Plugins
         /// </summary>
         bool HasCapturedPhotoForFile(string sourceFilePath);
 
-        // ===== 选择控制条插槽 =====
-
         /// <summary>
         /// 将 plugin 自定义的选择控制条 UI 注册到主程序的选择浮条容器中。
         /// 主程序会根据当前选中元素类型决定显示/隐藏，由 plugin 自行处理 Visibility。
         /// </summary>
         void RegisterSelectionControlBar(UIElement controlBar);
 
-        /// <summary>注销之前注册的选择控制条</summary>
         void UnregisterSelectionControlBar(UIElement controlBar);
 
-        // ===== 快捷键重绑定 =====
-
-        /// <summary>
-        /// 获取软件内置快捷动作的当前信息列表。
-        /// 插件可用它做「自定义快捷键」设置界面。
-        /// </summary>
         IReadOnlyList<HotkeyActionInfo> GetHotkeyActions();
 
-        /// <summary>
-        /// 为一个内置快捷动作重新绑定组合键。
-        /// </summary>
-        /// <param name="actionId">动作标识（来自 GetHotkeyActions 的 Id）</param>
-        /// <param name="combo">组合键文本，如 "Ctrl+Shift+V"；空串/空值表示禁用该动作。</param>
-        /// <returns>是否设置成功。</returns>
         bool SetHotkey(string actionId, string combo);
 
         /// <summary>将一个内置快捷动作恢复为软件默认按键。</summary>
@@ -141,19 +118,9 @@ namespace Ink_Canvas.Plugins
         /// <summary>恢复被 SuspendHotkeys 挂起的所有快捷键并按当前配置重新注册。</summary>
         void ResumeHotkeys();
 
-        // ===== 插件工坊设置面板 =====
-
-        /// <summary>
-        /// 注册一个「工厂方法」用来构建插件在插件工坊里显示的设置面板 UI。
-        /// 插件被禁用/卸载时自动移除。工坊在该插件条目下展示，并用同一位置的图标展开/折叠。
-        /// 每次展开工坊会重新调用该工厂以刷新 UI。
-        /// </summary>
         void RegisterSettingsPanel(Func<UIElement> panelFactory);
 
-        /// <summary>注销之前注册的设置面板工厂。</summary>
         void UnregisterSettingsPanel();
-
-        // ===== 工具栏按钮排序 =====
 
         /// <summary>
         /// 获取当前可重排的工具栏分组（浮动工具栏 / 白板工具栏）。
@@ -168,14 +135,8 @@ namespace Ink_Canvas.Plugins
         /// </summary>
         bool ApplyToolbarOrder(string placement, IReadOnlyList<string> orderedItemIds);
 
-        /// <summary>
-        /// 隐藏 / 显示指定工具栏分组中的功能按钮（不移除按钮对象，仅折叠 Visibility，可恢复）。
-        /// hiddenItemIds 为该分组中应被隐藏的按钮 id 集合；其余按钮保持可见。
-        /// 「工具」按钮（id = SymbolIconTools_Click）受保护，不会被隐藏。
-        /// </summary>
         void SetToolbarHidden(string placement, IReadOnlyList<string> hiddenItemIds);
 
-        /// <summary>将指定工具栏恢复为默认按钮顺序。</summary>
         void ResetToolbarPlacement(string placement);
 
         // ===== 画笔颜色调色板（18 个内置色块：9 普通色 + 6 荧光笔色） =====
@@ -186,24 +147,15 @@ namespace Ink_Canvas.Plugins
         /// </summary>
         IReadOnlyList<PenColorSlotInfo> GetPenColorSlots();
 
-        /// <summary>
-        /// 自定义某槽位颜色（立即应用到色块、当前笔色与批注按钮颜色指示）。
-        /// 自定义只存在于运行时：插件被禁用/卸载（Shutdown）后需自行恢复，或调用 ResetPenColors。
-        /// </summary>
-        /// <returns>槽位索引非法时返回 false。</returns>
         bool SetPenColorSlot(int slotIndex, Color color);
 
-        /// <summary>把某槽位恢复为内置主题色。</summary>
         void ResetPenColorSlot(int slotIndex);
 
-        /// <summary>把所有槽位恢复为内置主题色。</summary>
         void ResetPenColors();
 
         /// <summary>当前选中的画笔颜色槽位索引（0-8 / 101-106）。</summary>
         int CurrentPenColorIndex { get; }
 
-        /// <summary>立即切换到某槽位颜色（等同点击调色板色块）。</summary>
-        /// <returns>槽位索引非法时返回 false。</returns>
         bool SelectPenColor(int slotIndex);
 
         /// <summary>
@@ -215,11 +167,6 @@ namespace Ink_Canvas.Plugins
         /// <summary>调色板发生变化（自定义色、恢复默认、选色或主题切换）。</summary>
         event EventHandler PenColorsChanged;
 
-        /// <summary>
-        /// 用户在「墨迹选项」中右键（鼠标）或长按（触摸）某个颜色色块，请求修改该槽位颜色。
-        /// 由「自定义画笔颜色」插件订阅并弹取色器；无订阅者时静默忽略，
-        /// 因此不安装插件时色块的左键/轻触选色行为与旧版完全一致。
-        /// </summary>
         event EventHandler<PenSlotEditRequestedEventArgs> PenSlotEditRequested;
 
         /// <summary>
@@ -228,35 +175,20 @@ namespace Ink_Canvas.Plugins
         /// </summary>
         bool RaisePenSlotEditRequested(int slotIndex);
 
-        /// <summary>
-        /// 某插件是否处于活跃状态（已安装、已启用且加载成功）。
-        /// 主程序 UI 据此条件切换功能入口（如安装了「自定义画笔颜色」插件时，
-        /// 「墨迹选项」的深/浅色切换按钮变为设置颜色入口）。
-        /// </summary>
         bool IsPluginActive(string pluginId);
 
-        /// <summary>
-        /// 某插件是否已安装（不论启用/加载状态）。
-        /// 供其它插件按依赖关系过滤自身功能（如「窗口边框开关」仅在安装了
-        /// 「自定义画笔颜色」插件时，才在设置里显示其安装提示窗的边框开关项）。
-        /// </summary>
         bool IsPluginInstalled(string pluginId);
 
-        // ===== 事件订阅 =====
-
-        /// <summary>主程序即将退出</summary>
         event EventHandler ApplicationExiting;
 
         /// <summary>白板模式变化（0=批注模式 / 1=白板模式）</summary>
         event EventHandler<BoardModeChangedEventArgs> BoardModeChanged;
 
-        /// <summary>InkCanvas 选择集变化</summary>
         event EventHandler<PluginElementSelectionChangedEventArgs> ElementSelectionChanged;
 
         /// <summary>元素被从画布移除（如用户删除笔迹/元素）</summary>
         event EventHandler<PluginElementEventArgs> ElementRemoved;
 
-        /// <summary>元素被变换（移动/缩放/旋转）</summary>
         event EventHandler<PluginElementEventArgs> ElementTransformed;
     }
 
@@ -284,7 +216,6 @@ namespace Ink_Canvas.Plugins
         public IReadOnlyList<UIElement> SelectedElements { get; set; }
     }
 
-    /// <summary>元素被移除或变换的事件参数</summary>
     public class PluginElementEventArgs : EventArgs
     {
         /// <summary>受影响的元素（若批量操作则为首个元素）</summary>
@@ -303,7 +234,6 @@ namespace Ink_Canvas.Plugins
         /// <summary>槽位展示名（黑/红/绿/蓝/黄/白/粉/青/橙，荧光笔红…）</summary>
         public string Name { get; set; }
 
-        /// <summary>是否为荧光笔槽位</summary>
         public bool IsHighlighter { get; set; }
 
         /// <summary>当前生效颜色（自定义优先，否则为内置主题色）</summary>
@@ -322,13 +252,9 @@ namespace Ink_Canvas.Plugins
         /// <summary>被操作的槽位索引（0-8 普通色，101-106 荧光笔色）</summary>
         public int SlotIndex { get; set; }
 
-        /// <summary>插件是否已处理（弹过修改界面）</summary>
         public bool Handled { get; set; }
     }
 
-    /// <summary>
-    /// 工具栏分组内可重排的单个功能按钮。
-    /// </summary>
     public class ToolbarReorderItem
     {
         /// <summary>稳定标识（功能按钮的唯一 id，跨重启保持不变）。</summary>
@@ -349,7 +275,6 @@ namespace Ink_Canvas.Plugins
         /// <summary>分组成员标识：<c>float-bar</c>（浮动工具栏）或 <c>board-toolbar</c>（白板工具栏）。</summary>
         public string Placement { get; set; }
 
-        /// <summary>分组展示名称（如「浮动工具栏」）。</summary>
         public string Name { get; set; }
 
         /// <summary>分组内可重排的功能按钮列表（按当前顺序）。</summary>

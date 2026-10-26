@@ -43,9 +43,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 多点触摸模式下的触摸按下事件处理
-        /// </summary>
         private void MainWindow_TouchDown(object sender, TouchEventArgs e)
         {
             try
@@ -104,10 +101,6 @@ namespace Ink_Canvas
             {
                 UpdateInputActivityTimestamp();
                 MarkPenContact();
-                // 激光笔开启期间不进入「手写预览」路径：该路径不经过 InkCanvas 的编辑模式
-                // （激光态下 EditingMode 为 None 也拦不住它），抬手时会把预览笔迹直接写入
-                // inkCanvas.Strokes，造成"激光轨迹已消失、画布上却残留笔迹"。
-                // 这里不登记预览状态，后面的 StylusMove/StylusUp 都会因查不到登记而直接跳过。
                 if (isLaserPointerEnabled) return;
                 if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint
                     || inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke
@@ -196,7 +189,6 @@ namespace Ink_Canvas
 
                 try
                 {
-                    // 触摸屏模式处理
                     StrokeCollection strokeCollection = null;
                     VisualCanvas visualCanvas = null;
                     if (StrokeVisualList.TryGetValue(stylusDeviceId, out var visual))
@@ -255,10 +247,6 @@ namespace Ink_Canvas
                     }
                     else
                     {
-                        // 预览层里没有这一笔（例如"点一下"就抬起、本笔一个 Move 都没收到、
-                        // 或者收到的点都被距离过滤掉）：直接用抬笔事件自带的点补一条笔迹。
-                        // 旧代码在这里直接 return，等于把这一笔静默丢掉
-                        // —— 用户看到的就是"写了一笔没反应，下一笔又好了"。
                         CommitStylusPointsFallback(e);
                     }
                 }
@@ -309,13 +297,6 @@ namespace Ink_Canvas
         private readonly Dictionary<Stroke, DateTime> _recentDrawnStrokes = new Dictionary<Stroke, DateTime>();
         private bool _strokeLossAuditHooked;
 
-        /// <summary>
-        /// 挂一个轻量审计：监视画布笔迹集合的变化，若某条"刚画上不到 1.5 秒"的笔迹被移出，
-        /// 记录一条日志（含同批新增/移除数量、笔迹总数变化、当时的不透明度/可见性/编辑模式）。
-        ///
-        /// 用途：定位"写完笔迹后短暂跳动（消失一会又显示出来）"这类问题。正常情况下这里没有输出，
-        /// 一旦出现日志就能直接分辨是"等量替换"（拉直 / 图形识别 / 撤销类操作）还是"凭空消失"。
-        /// </summary>
         private void HookStrokeLossAudit()
         {
             if (_strokeLossAuditHooked) return;
@@ -609,9 +590,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 主画布触摸按下事件处理
-        /// </summary>
         private void Main_Grid_TouchDown(object sender, TouchEventArgs e)
         {
             try
@@ -641,11 +619,6 @@ namespace Ink_Canvas
                     // 手掌误触保护：正在用笔书写（或刚写完）时的宽触点视为手掌/手指误触，
                     // 不切橡皮擦，避免正在写的笔迹被立即擦除（“写着写着突然变成橡皮擦”）
                     if (ShouldIgnoreTouchAsPalm()) return;
-                    // 图形绘制中：画布上的触点是画图输入，不能被"宽触点手指擦除"劫持成橡皮擦。
-                    // 否则选中图形工具后用手画图，落笔即被切成 EraseByPoint/EraseByStroke、
-                    // 画布停在橡皮擦状态，表现为"绘制图形时一直是橡皮擦状态"（inkCanvas_TouchMove
-                    // 的图形分支原先还会因此提前返回、连预览都不出，该提前返回已一并移除）。
-                    // 这里按画图输入放行：EditingMode 维持 None，由 inkCanvas_TouchMove 正常出图。
                     if (drawingShapeMode != 0) return;
                     // 记录擦除前的工具（手指擦除是一次性手势，抬起后恢复），避免画布此后一直是橡皮擦
                     RecordFingerEraserMode();
@@ -690,14 +663,10 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 获取触摸边界宽度
-        /// </summary>
         public double GetTouchBoundWidth(TouchEventArgs e)
         {
             var args = e.GetTouchPoint(null).Bounds;
             if (!Settings.Advanced.IsQuadIR) return args.Width;
-            // 四边红外屏幕使用宽高几何平均
             else return Math.Sqrt(args.Width * args.Height);
         }
 
@@ -708,22 +677,17 @@ namespace Ink_Canvas
         enum TwoFingerGestureType { None, Translate, Scale, Rotate }
         TwoFingerGestureType twoFingerGestureType = TwoFingerGestureType.None;
 
-        // 手势死区配置
         double translateDeadzone = 5.0;
         double pinchDeadzone = 0.03;
         double rotateDeadzone = 2.0;
         Vector translateAccum = new Vector(0, 0);
         double translateApplyThreshold = 2.0;
 
-        // 手势平滑处理
         private const int gestureSmoothingWindow = 8;
         private Queue<Vector> scaleHistory = new Queue<Vector>();
         private Queue<double> rotateHistory = new Queue<double>();
         private Queue<Vector> translateHistory = new Queue<Vector>();
 
-        /// <summary>
-        /// 重置触摸状态
-        /// </summary>
         private void ResetTouchState()
         {
             dec.Clear();
@@ -802,9 +766,6 @@ namespace Ink_Canvas
                 if (dec.Count == 0)
                 {
                     twoFingerGestureType = TwoFingerGestureType.None;
-                    // 原此处还有一段：比较 lastTouchDownStrokeCollection 与当前笔迹数后，写入
-                    // strokeCollections[whiteboardIndex]。该数组全仓无读取（见 MW_BoardControls 注释），
-                    // 整个分支除了这次写入没有其它作用，已移除。
                 }
             }
             catch (Exception ex)
@@ -835,7 +796,6 @@ namespace Ink_Canvas
                 twoFingerGestureType = TwoFingerGestureType.None;
                 translateAccum = new Vector(0, 0);
                 
-                // 重置手势平滑历史
                 scaleHistory.Clear();
                 rotateHistory.Clear();
                 translateHistory.Clear();
@@ -851,7 +811,6 @@ namespace Ink_Canvas
                 history.Dequeue();
             }
             
-            // 计算加权平均值，最新的数据权重更高
             double avgX = 0, avgY = 0;
             int weight = 1;
             int totalWeight = 0;
@@ -879,7 +838,6 @@ namespace Ink_Canvas
                 history.Dequeue();
             }
             
-            // 计算加权平均值，最新的数据权重更高
             double avg = 0;
             int weight = 1;
             int totalWeight = 0;
@@ -895,15 +853,11 @@ namespace Ink_Canvas
             return avg;
         }
         
-
-
-        // 节流机制
         private DateTime lastManipulationTime = DateTime.MinValue;
         private const int manipulationThrottleMs = 10; // 提高帧率，减少快速缩放时的延迟
 
         private void Main_Grid_ManipulationDelta(object sender, ManipulationDeltaEventArgs e)
         {
-            // 节流处理
             if ((DateTime.Now - lastManipulationTime).TotalMilliseconds < manipulationThrottleMs)
             {
                 return;
@@ -916,14 +870,11 @@ namespace Ink_Canvas
             {
                 Matrix m = new Matrix();
                 ManipulationDelta md = e.DeltaManipulation;
-                // Translation
                 Vector trans = md.Translation;
-                // Rotate, Scale
                 double rotate = md.Rotation;
                 Vector scale = md.Scale;
                 Point center = GetMatrixTransformCenterPoint(e.ManipulationOrigin, e.Source as FrameworkElement);
                 
-                // 应用手势平滑处理
                 trans = ApplyGestureSmoothing(trans, translateHistory);
                 rotate = ApplyGestureSmoothing(rotate, rotateHistory);
                 // 修正缩放平滑处理，使用Vector类型的历史队列
@@ -971,7 +922,6 @@ namespace Ink_Canvas
                 {
                     if (Settings.Gesture.IsEnableTwoFingerZoom)
                     {
-                        // 应用缩放变换
                 m.ScaleAt(scale.X, scale.Y, center.X, center.Y);
                 foreach (UIElement element in elements)
                 {
@@ -985,7 +935,6 @@ namespace Ink_Canvas
                     ApplyElementMatrixTransform(element, elementMatrix);
                 }
                 
-                // 对笔迹进行缩放变换
                 foreach (Stroke stroke in inkCanvas.Strokes)
                 {
                     stroke.Transform(m, false);

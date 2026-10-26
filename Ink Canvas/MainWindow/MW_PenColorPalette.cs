@@ -8,16 +8,6 @@ using System.Windows.Media;
 
 namespace Ink_Canvas
 {
-    /// <summary>
-    /// 画笔调色板：内置 9 个普通颜色 + 6 个荧光笔颜色。
-    ///
-    /// 设计原则：
-    /// - **不安装插件时行为与旧版完全一致**：没有任何自定义色时，颜色全部取自内置主题色表
-    ///   （亮色/暗色主题各一套，随白板背景切换），即原来的写死行为。
-    /// - 插件可通过 IPluginHost 的画笔颜色 API 覆盖任意槽位颜色、指定默认选中色；
-    ///   覆盖只存在于运行时（内存表），插件禁用/卸载后自动回到内置颜色，
-    ///   因此「不装插件默认颜色依然可用」由兜底逻辑保证，不需要把自定义色写进主设置。
-    /// </summary>
     public partial class MainWindow
     {
         /// <summary>自定义画笔颜色：槽位索引 -> 颜色。由插件通过 IPluginHost 设置。</summary>
@@ -26,19 +16,16 @@ namespace Ink_Canvas
         internal static readonly int[] PenColorNormalSlots = { 0, 1, 2, 3, 4, 5, 6, 7, 8 };
         internal static readonly int[] PenColorHighlighterSlots = { 101, 102, 103, 104, 105, 106 };
 
-        /// <summary>是否为荧光笔槽位</summary>
         internal static bool IsHighlighterPenSlot(int index)
         {
             return index >= 101 && index <= 106;
         }
 
-        /// <summary>是否为合法调色板槽位</summary>
         internal static bool IsValidPenColorSlot(int index)
         {
             return (index >= 0 && index <= 8) || IsHighlighterPenSlot(index);
         }
 
-        /// <summary>槽位展示名</summary>
         internal static string GetPenColorSlotName(int index)
         {
             switch (index)
@@ -121,7 +108,6 @@ namespace Ink_Canvas
             return ResolvePenColor(index);
         }
 
-        /// <summary>槽位是否已被自定义</summary>
         internal bool IsPenColorCustomized(int index)
         {
             return _customPenColors.ContainsKey(index);
@@ -156,7 +142,6 @@ namespace Ink_Canvas
             RefreshPenPaletteAfterCustomChange(index);
         }
 
-        /// <summary>恢复某槽位为内置主题色</summary>
         internal void ResetCustomPenColor(int index)
         {
             if (!IsValidPenColorSlot(index)) return;
@@ -195,11 +180,6 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>
-        /// 把调色板应用到两个面板的色块背景：
-        /// 浮动栏 / 白板栏各 9 个普通色块 + 6 个荧光笔色块，共 30 个。
-        /// 颜色统一走 ResolvePenColor，未自定义时即内置主题色（与旧版 CheckColorTheme 行为一致）。
-        /// </summary>
         private void ApplyPenPaletteColors()
         {
             // 调色板每次刷新都顺带补挂右键/长按手势（幂等：全部挂载后只做一次布尔判断）。
@@ -285,13 +265,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 批注按钮显示画笔颜色（笔图标本体填充方案）：
-        /// 1）把笔图标字形直接染成当前笔色 —— 颜色体现在笔"内部"，不再用右下角色点；
-        /// 2）极浅色（白/黄）在浅色栏上、极深色（黑）在深色栏上会看不清，
-        ///    因此按笔色明度切换一层等比例放大的对比描边（浅色用深描边、深色用浅描边），
-        ///    中间明度不需要描边、保持纯净。浮动栏与白板栏同步处理。
-        /// </summary>
         private void UpdatePenIconColorIndicator()
         {
             try
@@ -402,20 +375,10 @@ namespace Ink_Canvas
         private Point _penSlotLongPressOrigin;
         /// <summary>长按进度环（长按期间存在，抬手/位移超限/围满一圈后移除）</summary>
         private PenSlotLongPressRingAdorner _penSlotRingAdorner;
-        /// <summary>本次长按的开始时刻，用于计算环形进度</summary>
         private DateTime _penSlotLongPressStartUtc;
         private const double PenSlotLongPressMoveTolerance = 20;
         private const int PenSlotLongPressMs = 500;
 
-        /// <summary>
-        /// 给「墨迹选项」全部色块（浮动栏 + 白板栏各 9 普通色 + 6 荧光笔色）挂上
-        /// 修改颜色交互：鼠标右键直接触发；触摸长按 500ms（位移超 20px 或提前抬起则取消）。
-        /// 触发后抛 PenSlotEditRequested 事件，由「自定义画笔颜色」插件弹取色器；
-        /// 未安装插件（无人处理）时弹安装引导提示。
-        /// 用 Preview（隧道）事件而非普通事件：浮动栏/面板祖先链路上一旦有人把
-        /// 鼠标/触摸事件标记 Handled，普通事件就收不到，隧道事件先于冒泡执行不受影响。
-        /// 构造时控件可能尚未就绪（挂载数为 0），主窗口 Loaded 后会再补一次。
-        /// </summary>
         internal void InitializePenPaletteEditGestures()
         {
             if (_penSlotEditGesturesAttached) return;
@@ -630,18 +593,12 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>移除长按进度环（幂等）。</summary>
         private void HidePenSlotLongPressRing()
         {
             try { PenSlotLongPressRing.Detach(_penSlotRingAdorner); } catch { }
             _penSlotRingAdorner = null;
         }
 
-        /// <summary>
-        /// 长按进度环的颜色：暗底 → 白圈；亮底 → 软件主题蓝。
-        /// 白板/黑板模式下按墨迹选项对应的画布底色判断；
-        /// 桌面批注（画布透明、看到的是桌面）则按当前应用主题判断。
-        /// </summary>
         private Brush ResolvePenSlotLongPressRingBrush()
         {
             bool darkBackground;

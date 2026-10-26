@@ -134,7 +134,6 @@ namespace Ink_Canvas
             bool floatingBarScaleWasNormalized = Math.Abs(Settings.Appearance.FloatingBarScale - normalizedFloatingBarScale) > double.Epsilon;
             Settings.Appearance.FloatingBarScale = normalizedFloatingBarScale;
 
-            // Startup
             if (isStartup)
             {
                 CursorIcon_Click(null, null);
@@ -142,7 +141,6 @@ namespace Ink_Canvas
             // 始终运行：更新浮动栏/黑板宿主中的外观元素（无论设置窗口是否打开）
             if (Settings.Appearance != null)
             {
-                // 浮动栏文字显示
                 if (Settings.Appearance.IsEnableDisPlayFloatBarText)
                 {
                     FloatBarSelectIconTextBlock.Visibility = Visibility.Visible;
@@ -187,7 +185,6 @@ namespace Ink_Canvas
                     BoardNibModeSimpleStackPanel.Visibility = Visibility.Collapsed;
                 }
                 SystemEvents_UserPreferenceChanged(null, null);
-                // 浮动栏彩色背景
                 if (Settings.Appearance.IsColorfulViewboxFloatingBar)
                 {
                     var gradientBrush = new LinearGradientBrush
@@ -208,11 +205,6 @@ namespace Ink_Canvas
                 ApplyScaling();
                 ApplyVideoPresenterSidebarPosition();
             }
-            // 「墨迹选项」面板控件（浮动栏 + 白板栏）的状态同步必须每次载入设置都执行：
-            // 这些控件在浮动栏/白板栏 XAML 里，与设置窗口是否打开无关。
-            // 早期同步代码被放在下面「仅设置窗口打开时执行」的守卫块里，启动时整段被跳过，
-            // 面板停留在 XAML 默认值（笔尖模式恒开、粗细恒为 5 号、墨迹识别恒关），
-            // 表现为"每次进入都固定、重新调了也不固定""设置里开了识别但面板显示没开"。
             SyncPenPaletteControlsFromSettings();
 
             // 以下设置 UI 控件填充仅在设置窗口打开时执行
@@ -294,7 +286,6 @@ namespace Ink_Canvas
                 ToggleSwitchEnableRectangleRecognition.IsOn = Settings.InkToShape.IsInkToShapeRectangle;
                 ToggleSwitchEnableCircleRecognition.IsOn = Settings.InkToShape.IsInkToShapeCircle;
 
-
                 LineStraightenSensitivitySlider.Value = Settings.InkToShape.LineStraightenSensitivity;
             }
             // 根据主开关初始化子开关的可见性与状态
@@ -309,7 +300,6 @@ namespace Ink_Canvas
                 StopTimingThresholdMsSlider.Value = Settings.Canvas.StopTimingThresholdMs;
                 StopTimingErrorSlider.Value = Settings.Canvas.StopTimingError;
             }
-            // Appearance
             if (Settings.Appearance != null)
             {
                 ComboBoxTheme.SelectedIndex = Settings.Appearance.Theme;
@@ -468,7 +458,6 @@ namespace Ink_Canvas
                     ToggleSwitchEnableFingerGestureSlideShowControl.IsOn = false;
                 }
 
-
                 if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
                 {
                     ToggleSwitchAutoSaveStrokesInPowerPoint.IsOn = true;
@@ -524,7 +513,6 @@ namespace Ink_Canvas
             {
                 Settings.PowerPointSettings = new PowerPointSettings();
             }
-            // Gesture
             if (Settings.Gesture != null)
             {
                 ComboBoxMatrixTransformCenterPoint.SelectedIndex = (int)Settings.Gesture.MatrixTransformCenterPoint;
@@ -633,7 +621,6 @@ namespace Ink_Canvas
             {
                 Settings.Gesture = new Gesture();
             }
-            // Canvas
             if (Settings.Canvas != null)
             {
 
@@ -662,7 +649,6 @@ namespace Ink_Canvas
                 // 同步"上传照片时压缩画质"开关，避免重启后 UI 始终为关
                 ToggleSwitchCompressPicturesUploaded.IsOn = Settings.Canvas.IsCompressPicturesUploaded;
 
-
                 ComboBoxEraserSize.SelectedIndex = Settings.Canvas.EraserSize;
 
                 if (Settings.Canvas.HideStrokeWhenSelecting)
@@ -678,7 +664,6 @@ namespace Ink_Canvas
             {
                 Settings.Canvas = new Canvas();
             }
-            // Advanced
             if (Settings.Advanced != null)
             {
                 TouchMultiplierSlider.Value = Settings.Advanced.TouchMultiplier;
@@ -726,7 +711,6 @@ namespace Ink_Canvas
             {
                 Settings.Advanced = new Advanced();
             }
-            // InkToShape
             if (Settings.InkToShape != null)
             {
                 if (Settings.InkToShape.IsInkToShapeEnabled)
@@ -742,7 +726,6 @@ namespace Ink_Canvas
             {
                 Settings.InkToShape = new InkToShape();
             }
-            // RandSettings
             if (Settings.RandSettings != null)
             {
             }
@@ -750,7 +733,6 @@ namespace Ink_Canvas
             {
                 Settings.RandSettings = new RandSettings();
             }
-            // Automation
             if (Settings.Automation != null)
             {
                 // 注：StartOrStoptimerCheckAutoFold() 已移到 ApplySettingsSideEffects()
@@ -917,11 +899,6 @@ namespace Ink_Canvas
             }
             } // end if (SettingsWindow != null) - 设置 UI 填充结束
 
-            // 功能性副作用（定时器启停 / 自动更新 / 边缘手势）与"设置窗口是否打开"无关，
-            // 必须无条件应用。此前它们被写在上面的 if (SettingsWindow != null) 块内，
-            // 而启动加载时设置窗口根本不存在，导致这些功能在启动时全部不生效，
-            // 只有用户手动打开一次设置窗口后才被补上（表现："每次都要点一下设置才进 PPT 模式"、
-            // "希沃小工具查不掉"、"重启系统后又复现"）。
             ApplySettingsSideEffects(isStartup);
 
             ViewboxFloatingBarMarginAnimation();
@@ -934,11 +911,6 @@ namespace Ink_Canvas
             finally
             {
                 _isLoadingSettings = false;
-                // 设置已完成本轮载入/应用：此后才允许把内存中的设置落盘。
-                // 这个守卫用于阻止「启动早期（LoadSettings 之前）的保存」——
-                // 插件在 MainWindow 构造期初始化时若触发保存，会把尚未从磁盘载入的
-                // 默认 Settings 覆盖掉用户的设置文件（典型症状：每次启动都弹初始化向导、
-                // 上次会话/外观等设置全部丢失）。
                 _settingsReadyForSave = true;
             }
         }
@@ -952,14 +924,6 @@ namespace Ink_Canvas
             LoadSettings();
         }
 
-        /// <summary>
-        /// 尝试从指定文件解析出有效设置。
-        ///
-        /// 旧写法是 `Settings = JsonConvert.DeserializeObject&lt;Settings&gt;(text)` 配一个空 catch：
-        /// 一旦文件是空的或半截 JSON（写入过程被崩溃/断电打断），异常被静默吞掉，
-        /// Settings 变成 null，随后被 `new Settings()` 顶替，用户的所有设置无声无息地丢失。
-        /// 这里显式校验"文件非空 + 解析出非空对象"，并把失败原因写入日志。
-        /// </summary>
         private static bool TryLoadSettingsFile(string path, out Settings result)
         {
             result = null;
@@ -1004,22 +968,6 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>
-        /// 应用与"设置窗口是否打开"无关的功能性副作用：定时器启停、启动自动更新、边缘手势禁用。
-        ///
-        /// 【为什么必须独立出来】
-        /// 这些调用原先散落在 LoadSettings 的 `if (SettingsWindow != null)` 块内，
-        /// 而该块的本意只是"设置窗口打开时才填充它的控件"。启动加载时设置窗口并不存在，
-        /// 于是这些功能在启动时被整体跳过，必须等用户手动打开一次设置窗口才补上，
-        /// 于是出现一连串"重启后就失效、点一下设置又好"的现象：
-        ///   · timerCheckPPT 未启动  → 不自动检测 PPT，进不了 PPT 模式；
-        ///   · timerKillProcess 未启动 → 希沃 PPT 小工具(PPTService/SeewoIwbAssistant)查不掉，与悬浮栏并存；
-        ///   · StartOrStoptimerCheckAutoFold 未调用 → 自动收纳/隐藏失效；
-        ///   · AutoUpdate 未调用 → 启动后不自动检查更新。
-        /// 这里让它们无条件执行，从根上消除"打开设置才生效"的依赖。
-        ///
-        /// 所有 Timer.Start()/Stop() 均幂等，重复调用不会叠加定时器。
-        /// </summary>
         private void ApplySettingsSideEffects(bool isStartup)
         {
             try
@@ -1055,7 +1003,6 @@ namespace Ink_Canvas
 
             try
             {
-                // 希沃等第三方进程查杀
                 if (Settings.Automation != null)
                 {
                     if (Settings.Automation.IsAutoKillEasiNote || Settings.Automation.IsAutoKillPptService)

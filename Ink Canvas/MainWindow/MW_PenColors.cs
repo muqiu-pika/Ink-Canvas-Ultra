@@ -97,10 +97,6 @@ namespace Ink_Canvas
             {
                 inkCanvas.IsManipulationEnabled = true;
                 drawingShapeMode = 0;
-                // 激光笔开启期间不改编辑模式：激光态要求 EditingMode 保持 None，
-                // 若在此改回 Ink，触摸输入的「触笔」事件（激光笔只拦截 Touch 事件）会被
-                // InkCanvas 收集成真笔迹，出现"激光轨迹淡出后残留普通笔迹线条"。
-                // 选色本身已生效（画笔与激光笔共用同一份选色）。
                 if (!isLaserPointerEnabled)
                 {
                     inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
@@ -213,7 +209,6 @@ namespace Ink_Canvas
                 }
             }
 
-            // 改变选中提示
             ViewboxBtnColorBlackContent.Visibility = Visibility.Collapsed;
             ViewboxBtnColorBlueContent.Visibility = Visibility.Collapsed;
             ViewboxBtnColorGreenContent.Visibility = Visibility.Collapsed;
@@ -316,11 +311,6 @@ namespace Ink_Canvas
             try { UpdateLaserPointerVisual(); } catch { }
         }
 
-        /// <summary>
-        /// 按调色板索引取实际颜色：0-8 为普通颜色（随明暗主题映射），101-106 为荧光笔颜色。
-        /// 索引非法时退化为 1（红）。激光笔颜色也复用这套索引，保证与用户点选的色块所见即所得。
-        /// 自定义色优先（见 MW_PenColorPalette.ResolvePenColor）。
-        /// </summary>
         private Color GetInkColorByIndex(int index)
         {
             return ResolvePenColor(index);

@@ -39,7 +39,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 提取公共的截图和保存逻辑
         private void CaptureAndSaveScreenshot(string savePath, bool isHideNotification)
         {
             var rc = SystemInformation.VirtualScreen;
@@ -47,7 +46,6 @@ namespace Ink_Canvas
             using (var bitmap = new Bitmap(rc.Width, rc.Height, PixelFormat.Format32bppArgb))
             using (var memoryGraphics = Graphics.FromImage(bitmap))
             {
-                // 设置高质量渲染
                 memoryGraphics.CompositingQuality = CompositingQuality.HighQuality;
                 memoryGraphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
                 memoryGraphics.SmoothingMode = SmoothingMode.HighQuality;
@@ -55,7 +53,6 @@ namespace Ink_Canvas
 
                 memoryGraphics.CopyFromScreen(rc.X, rc.Y, 0, 0, rc.Size, CopyPixelOperation.SourceCopy);
 
-                // 确保目录存在
                 var directory = Path.GetDirectoryName(savePath);
                 if (!Directory.Exists(directory))
                 {
@@ -83,7 +80,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 获取日期文件夹路径
         private string GetDateFolderPath(string fileName)
         {
             if (string.IsNullOrWhiteSpace(fileName))
@@ -101,7 +97,6 @@ namespace Ink_Canvas
                 $"{fileName}.png");
         }
 
-        // 获取默认文件夹路径
         private string GetDefaultFolderPath()
         {
             var basePath = Settings.Automation.AutoSavedStrokesLocation;
@@ -117,7 +112,6 @@ namespace Ink_Canvas
                 $"{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.png");
         }
 
-        // 保存PPT截图
         private void SavePPTScreenshot(string fileName)
         {
             // 与 SaveScreenshot 同理：截图落盘失败不能中断翻页/清空等主流程
@@ -158,7 +152,6 @@ namespace Ink_Canvas
             }
         }
 
-        // 获取全屏截图位图
         private Bitmap GetScreenshotBitmap()
         {
             Rectangle rc = SystemInformation.VirtualScreen;
@@ -170,11 +163,6 @@ namespace Ink_Canvas
             return bitmap;
         }
 
-        /// <summary>
-        /// 将截图保存为 PNG 文件（用于“复制到剪贴板”后仍需要一个真实文件可粘贴到其他位置的场景）。
-        /// </summary>
-        /// <param name="source">截图位图</param>
-        /// <returns>保存成功返回文件完整路径，失败返回 null</returns>
         private string SaveScreenshotPngToDisk(BitmapSource source)
         {
             try
@@ -212,16 +200,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 将截图复制到剪贴板。
-        /// 同时写入两类数据：
-        ///   1) 图片数据（BitmapSource）：可直接粘贴到 Word、聊天窗口、画图等；
-        ///   2) 文件拖放列表（PNG 文件）：可在资源管理器/桌面或其它位置粘贴为图片文件，
-        ///      从而实现“把截图文件复制到其它地方”。
-        /// </summary>
-        /// <param name="source">截图位图</param>
-        /// <param name="existingFilePath">已存在的截图文件路径；为空时会自动另存一份 PNG</param>
-        /// <param name="isHideNotification">是否隐藏通知</param>
         private void CopyScreenshotToClipboard(BitmapSource source, string existingFilePath = null, bool isHideNotification = false)
         {
             if (source == null)
@@ -241,7 +219,6 @@ namespace Ink_Canvas
                 // DataObject / Clipboard 需要显式限定为 WPF 版本：
                 // 本文件同时 using 了 System.Windows.Forms，两者都有同名类型。
                 var dataObject = new System.Windows.DataObject();
-                // 图片数据：用于直接粘贴为图像
                 dataObject.SetImage(source);
 
                 // 文件拖放列表：用于在资源管理器中粘贴为文件，方便复制到其它位置

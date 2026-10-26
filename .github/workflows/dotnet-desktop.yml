@@ -23,7 +23,6 @@ jobs:
       with:
         dotnet-version: '10.0.x'
         
-    # 安装 NuGet
     - name: Setup NuGet
       uses: NuGet/setup-nuget@v3.0.0
       with:
@@ -69,7 +68,6 @@ jobs:
 
         Write-Output "版本已同步：AssemblyInfo/iss = $version"
 
-    # 还原 NuGet 包
     - name: NuGet restore
       run: nuget restore
       
@@ -77,13 +75,11 @@ jobs:
     - name: Add msbuild to PATH
       uses: microsoft/setup-msbuild@v3.0.0
 
-    # 编译整个项目
     - name: Build the solution
       run: |
         msbuild -t:restore /p:GitFlow="Github Action"
         msbuild -target:"Ink Canvas" /p:Configuration=Release /p:Platform="Any CPU" /p:GitFlow="Github Action"
 
-    # 上传编译成品
     - name: Upload to artifact
       uses: actions/upload-artifact@v7
       with:

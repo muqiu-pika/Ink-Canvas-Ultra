@@ -9,27 +9,6 @@ using System.Windows.Media.Imaging;
 
 namespace Ink_Canvas.Helpers
 {
-    /// <summary>
-    /// 摄像头帧的可复用像素缓冲，用于替代原先「每帧 PNG 编码再解码」的取帧方式。
-    ///
-    /// 旧实现每帧要做：frame.Save(MemoryStream, ImageFormat.Png)（整帧 PNG 编码）
-    ///              → new BitmapImage + StreamSource（再解码一次）→ Freeze → 赋值给 Image.Source。
-    /// 30fps 下每秒 30 次全图编解码，是摄像头功能最大的 CPU 与 GC 热点。
-    ///
-    /// 新的取帧链路：
-    ///   1) 后台线程：Bitmap.LockBits → Marshal.Copy 进复用的 byte[]（无任何 WPF 对象参与，可跨线程）；
-    ///   2) UI 线程：WritePixels 写入复用的 WriteableBitmap（WriteableBitmap 必须在 UI 线程创建与写入）。
-    ///
-    /// 线程模型要点：byte[] 是普通托管数组，没有线程亲和性，因此填充可以放后台；
-    /// 而 WriteableBitmap 是 DispatcherObject，创建与 WritePixels 都必须在 UI 线程，
-    /// 所以本类把「填缓冲」与「提交到位图」拆成两个方法，由调用方按线程分别调用。
-    ///
-    /// 另外两点必须处理的兼容性细节：
-    ///   - BitmapData.Stride 可能为负，负值表示 bottom-up 位图（首行在内存末尾），需翻转行序，
-    ///     否则画面会上下颠倒（旧的 PNG 路径由编码器自动归一化，所以这条坑只在直拷时才暴露）；
-    ///   - System.Drawing 的 32bppRgb 不带 alpha 通道，直接按 BGRA32 解释会得到全透明图像，
-    ///     需要在拷贝后把 alpha 统一置为 255。
-    /// </summary>
     public sealed class CameraFrameBuffer
     {
         /// <summary>缓冲体积上限，防止异常分辨率导致超大分配（约可容纳 4K BGRA 一帧）。</summary>

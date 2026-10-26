@@ -12,14 +12,6 @@ using System.Windows.Threading;
 
 namespace Ink_Canvas
 {
-    /// <summary>
-    /// 激光笔（Laser Pointer）：参考 OneNote 的行为。
-    /// 开启后鼠标 / 触控笔 / 手指在画板上按住拖动即画出一条发光轨迹，
-    /// 松手后轨迹停留约 1.2 秒再淡出清除。
-    /// 关键约束：轨迹只绘制在独立的 LaserPointerCanvas 上（不是 inkCanvas 的子元素），
-    /// 不产生 Stroke、不进入笔迹数据、不参与撤销历史与保存/导出，纯视觉引导。
-    /// 注意：本项目存在同名的 Ink_Canvas.Canvas 类型，此类中的 Canvas 一律使用完全限定名。
-    /// </summary>
     public partial class MainWindow : Window
     {
         #region 激光笔状态
@@ -33,14 +25,12 @@ namespace Ink_Canvas
         private double LaserHighlightWidth => Math.Max(2, Math.Min(40, Settings.Canvas.LaserPointerHighlightWidth));
         /// <summary>中心白色亮芯宽度（像素），取自设置项「激光笔中心高亮大小」，夹在 [1,20] 之间；独立于整体粗细</summary>
         private double LaserCoreWidth => Math.Max(1, Math.Min(20, Settings.Canvas.LaserPointerCoreWidth));
-        /// <summary>停留结束后的淡出时长（秒）</summary>
         private const double LaserFadeSeconds = 0.6;
         /// <summary>轨迹点采样阈值（平方距离），小于该值不新增点，避免点数膨胀</summary>
         private const double LaserSampleThreshold = 6.25;
 
         private static readonly object LaserMouseKey = new object();
 
-        /// <summary>进行中的一条激光轨迹</summary>
         private sealed class LaserTrail
         {
             public System.Windows.Controls.Canvas Host;
@@ -137,7 +127,6 @@ namespace Ink_Canvas
                 var activeBrush = new SolidColorBrush(GetLaserColor());
                 var idleBrush = new SolidColorBrush(Color.FromRgb(0x5A, 0x5A, 0x5A));
 
-                // 浮动栏「墨迹选项」
                 if (TextBlockLaserPointerState != null)
                 {
                     TextBlockLaserPointerState.Text = on ? "激光笔：开" : "激光笔：关";
@@ -194,13 +183,6 @@ namespace Ink_Canvas
             return false;
         }
 
-        /// <summary>
-        /// 当前生效的激光笔颜色（与画笔共用同一份选色，所见即所得）。
-        /// 按模式取「该模式最后一次选中的颜色」：
-        /// 浮动栏（桌面/批注）记 lastDesktopInkColor、白板记 lastBoardInkColor，两种模式分开记忆、互不干扰。
-        /// 直接返回所选颜色（含黑色/白色），不再强制回退为红色；
-        /// 轨迹自带白色亮芯，黑色等深色在深色背景上仍有辨识度。
-        /// </summary>
         private Color GetLaserColor()
         {
             try
@@ -222,12 +204,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 激光笔书写时同样自动收起二级菜单（含「墨迹选项」），与普通书写时的行为一致。
-                // 激光笔在 Preview 阶段把输入标记 Handled，墨迹事件不会产生，
-                // 因此不会走到 StrokesOnStrokesChanged / Main_Grid_TouchDown 里的自动收起逻辑，需要在这里补上。
-                // 注意不要在这里额外强制收起「墨迹选项」：HideSubPanels 已按「固定显示」（图钉置顶）
-                // 跳过置顶的面板，这与普通书写的行为一致；激光轨迹绘制层位于浮动栏之下，
-                // 置顶面板悬浮在轨迹上方不会拦截输入，强制收起会让「画笔颜色置顶」失效。
                 if (!isHidingSubPanelsWhenInking)
                 {
                     isHidingSubPanelsWhenInking = true;
@@ -380,15 +356,6 @@ namespace Ink_Canvas
             e.Handled = true;
         }
 
-        /// <summary>
-        /// 结束鼠标轨迹。
-        /// 注意：这里**绝不能** e.Handled = true —— Up 属于「抬起」语义，标记 Handled 会吞掉冒泡的
-        /// MouseUp，而 ButtonBase 的 Click 正是靠 MouseUp 触发的。只要有一条轨迹残留（见
-        /// PruneStaleLaserTrails），此后所有鼠标点击都会变成「按下有效、抬起被吞」：按钮永远不响应，
-        /// 只有再到画布上完整走一次按下+抬起（StartLaserTrail 会先结束旧轨迹）才能解开 ——
-        /// 这正是「激光笔开启时副屏手写后工具栏点不动，先用鼠标点一下主屏才恢复」的成因。
-        /// 拦截墨迹只需处理 Down/Move 即可（EditingMode 已置 None，抬起无需再拦）。
-        /// </summary>
         private void LaserPointer_PreviewMouseUp(object sender, MouseButtonEventArgs e)
         {
             if (!_laserTrails.ContainsKey(LaserMouseKey)) return;
@@ -399,13 +366,6 @@ namespace Ink_Canvas
         /// <summary>轨迹失活回收阈值：超过该时长没有任何事件（且无鼠标键按下）即视为残留</summary>
         private static readonly TimeSpan LaserStaleThreshold = TimeSpan.FromSeconds(10);
 
-        /// <summary>
-        /// 清理「设备已松开但轨迹仍在」的残留：
-        /// ① 鼠标轨迹存在，却没有任何鼠标键处于按下状态（副屏手写时部分驱动把「按下」报成鼠标、
-        ///    而「抬起」报成手写笔/触摸，鼠标轨迹永远等不到自己的 Up）；
-        /// ② 任意轨迹超过 LaserStaleThreshold 没有任何事件（触摸/触笔的 Up 丢失或被上报成其他设备类型）。
-        /// 不清理的后果见 LaserPointer_PreviewMouseUp：残留会让后续 Up 的处理逻辑持续空转，且轨迹永远不淡出。
-        /// </summary>
         private void PruneStaleLaserTrails()
         {
             try

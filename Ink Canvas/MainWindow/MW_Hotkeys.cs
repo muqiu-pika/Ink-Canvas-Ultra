@@ -120,7 +120,6 @@ namespace Ink_Canvas
 
         private async void HotKey_Paste()
         {
-            // 放映 PPT 时不处理粘贴
             if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) return;
             // 主窗口被隐藏(Alt+V)时不响应，避免在没有可见主窗口的情况下弹出对话框
             if (this.Visibility != Visibility.Visible) return;
@@ -130,7 +129,6 @@ namespace Ink_Canvas
                 || currentMode == 1 
                 || ViewboxFloatingBar.Visibility == Visibility.Visible)
             {
-                // 记录粘贴时的当前模式
                 int pasteMode = currentMode;
                 int pasteWhiteboardIndex = CurrentWhiteboardIndex;
                 await PasteFromClipboard(imageSource: null, pasteMode, pasteWhiteboardIndex);
@@ -141,7 +139,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 检查剪贴板是否包含图像
                 if (imageSource != null || Clipboard.ContainsImage())
                 {
                     var src = imageSource ?? Clipboard.GetImage();
@@ -203,12 +200,10 @@ namespace Ink_Canvas
         {
             try
             {
-                // 切换到粘贴时的模式
                 await Dispatcher.BeginInvoke(new Action(() =>
                 {
                     if (pasteMode == 1)
                     {
-                        // 粘贴时是画板模式
                         if (currentMode != 1)
                         {
                             ImageBlackboard_Click(null, null);
@@ -241,7 +236,6 @@ namespace Ink_Canvas
                 string timestamp = "paste_" + DateTime.Now.ToString("yyyyMMdd_HH_mm_ss_fff");
                 image.Name = timestamp;
 
-                // 初始化TransformGroup
                 var transformGroup = new TransformGroup();
                 transformGroup.Children.Add(new ScaleTransform(1, 1));
                 transformGroup.Children.Add(new TranslateTransform(0, 0));
@@ -250,11 +244,9 @@ namespace Ink_Canvas
                 image.IsHitTestVisible = true;
                 image.Focusable = false;
 
-                // 初始化InkCanvas选择设置
                 inkCanvas.Select(new StrokeCollection());
                 inkCanvas.EditingMode = InkCanvasEditingMode.None;
 
-                // 等待图片加载完成后再进行居中处理
                 image.Loaded += (sender, e) =>
                 {
                     Dispatcher.BeginInvoke(new Action(() =>
@@ -372,7 +364,6 @@ namespace Ink_Canvas
 
             if (isCtrl)
             {
-                // 缩放：与双指放大/缩小效果一致
                 double scale = e.Delta > 0 ? 1.1 : 0.9;
                 Point mousePoint = e.GetPosition(inkCanvas);
                 Point center = GetMatrixTransformCenterPoint(mousePoint, inkCanvas);
@@ -540,14 +531,6 @@ namespace Ink_Canvas
             BtnPPTSlideShowEnd_Click(null, null);
         }
 
-        /// <summary>
-        /// PPT 放映翻页（Preview 隧道阶段）：支持 ↑/↓（与 PowerPoint 原生放映行为一致），
-        /// 以及 ←/→、PageUp/PageDown、N/P、Space 等常见翻页键。
-        /// 必须走 Preview 阶段并标记 Handled：浮动栏/白板栏按钮获得键盘焦点后，
-        /// ↑/↓ 会被 WPF 焦点导航拦截（按钮间出现焦点框），冒泡阶段的 KeyBinding 无法触发，
-        /// 导致幻灯片不翻页。在此阶段提前拦截即可先翻页、再阻止焦点框移动。
-        /// 是否响应受“自定义快捷键”插件中 ppt-next/ppt-prev 动作的启用状态约束。
-        /// </summary>
         private void Main_Grid_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (BtnPPTSlideShowEnd.Visibility != Visibility.Visible) return;

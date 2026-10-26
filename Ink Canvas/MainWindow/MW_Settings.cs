@@ -109,7 +109,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 记录本次检测时间并刷新按钮旁提示
                 Settings.Startup.LastUpdateCheckTime = DateTime.Now.ToString("yyyy/M/d");
                 SaveSettingsToFile();
                 UpdateManualCheckInfoText();
@@ -439,16 +438,9 @@ namespace Ink_Canvas
             // 「墨迹选项」「图形」面板独立缩放（与整体缩放互不影响）
             ApplyIndependentPanelScales(floatingBarScaleFactor, blackboardScaleFactor);
 
-            // auto align
             ViewboxFloatingBarMarginAnimation();
         }
 
-        /// <summary>
-        /// 应用「墨迹选项」「图形」面板的独立缩放。
-        /// 面板缩放宿主使用 RenderTransform 缩放（不参与测量/布局，因此不会影响浮动栏主条的 Viewbox 适配缩放）；
-        /// 宿主位于整体缩放（Viewbox LayoutTransform）内部，故此处除以整体缩放系数将其抵消，
-        /// 使面板最终视觉大小只由各自的独立设置决定，不再随「浮动工具栏 UI 缩放 / 黑板缩放」变化。
-        /// </summary>
         private void ApplyIndependentPanelScales(double floatingBarScaleFactor, double blackboardScaleFactor)
         {
             try
@@ -1244,7 +1236,6 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    // 关闭主开关：备份当前子开关状态，然后全部置为关闭并隐藏
                     if (!_inkSubOptionsBackedUp)
                     {
                         _backupTriangle = ToggleSwitchEnableTriangleRecognition?.IsOn ?? false;
@@ -1298,7 +1289,6 @@ namespace Ink_Canvas
             double value;
             if (!Settings.Advanced.IsQuadIR) value = args.Width;
             else value = Math.Sqrt(args.Width * args.Height); //四边红外
-            // 计算推荐触摸倍数
             double recommended = 5 / (value * 1.1);
             TextBlockShowCalculatedMultiplier.Text = recommended.ToString();
 
@@ -1320,14 +1310,12 @@ namespace Ink_Canvas
             }
             double recommendedClamped = Math.Max(touchMultiplierMin, Math.Min(touchMultiplierMax, recommended));
 
-            // 新增：提示并自动调整相关参数
             try
             {
                 var promptText = $"检测到推荐触摸倍数为 {recommended:F2}。\n\n是否启用特殊屏幕并自动调整相关参数？\n将执行：\n- TouchMultiplier = 推荐值\n- IsSpecialScreen = 启用\n- ThresholdValue = 2.5\n- EraserSize 因子 = 0.8\n- BoundsWidth 保持当前模式值";
                 var result = MessageBoxHelper.Show(promptText, "应用推荐设置", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (result == MessageBoxResult.Yes)
                 {
-                    // 应用推荐设置
                     Settings.Advanced.IsSpecialScreen = true;
                     Settings.Advanced.TouchMultiplier = recommendedClamped;
                     Settings.Advanced.NibModeBoundsWidthThresholdValue = 2.5;
@@ -1338,7 +1326,6 @@ namespace Ink_Canvas
                     // 更新界面控件（若存在，避免异常）
                     try
                     {
-                        // 设置滑块值前同样进行范围检查
                         if (TouchMultiplierSlider != null)
                         {
                             var v = Settings.Advanced.TouchMultiplier;
@@ -1525,9 +1512,6 @@ namespace Ink_Canvas
 
         public static void SaveSettingsToFile()
         {
-            // 守卫：设置尚未从磁盘载入（启动早期）且磁盘上已有设置文件时，绝不落盘——
-            // 此时静态字段 Settings 还是一份全新默认值，写下去会覆盖用户配置
-            // （典型症状：每次启动都弹初始化向导、外观/会话等设置丢失）。
             if (!_settingsReadyForSave)
             {
                 try
@@ -1580,17 +1564,6 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 原子写入文本文件：先写同目录临时文件并强制刷盘，再整体替换目标文件。
-        ///
-        /// 为什么不能直接用 File.WriteAllText：
-        /// WriteAllText 会先把目标文件截断成 0 字节再逐段写入。若在"截断之后、写完之前"
-        /// 进程被终止（崩溃自动重启、系统关机/重启、任务管理器结束进程），
-        /// Settings.json 就会留下一个空文件或半截 JSON。下次启动反序列化失败，
-        /// 旧代码用空的 catch { } 静默吞掉异常，直接回落到全新默认设置 ——
-        /// 表现为"设置莫名其妙变回默认，且首次启动向导重新弹出"。
-        /// 原子替换保证任意时刻目标文件要么是完整的旧内容、要么是完整的新内容，不存在中间态。
-        /// </summary>
         private static void AtomicWriteAllText(string targetPath, string content)
         {
             string dir = Path.GetDirectoryName(targetPath);

@@ -12,21 +12,6 @@ using Point = System.Windows.Point;
 
 namespace Ink_Canvas
 {
-    /// <summary>
-    /// 顿笔拉直（停顿强制拉直）：参考 Ink-Canvas-Artistry 的 MW_InkStraighten 实时实现。
-    /// 书写过程中检测"低速停顿"：笔速低于阈值且位移不超过容差、持续达到设定时长后触发，
-    /// 触发瞬间抑制墨迹收集（EditingMode 置 None）并在 Main_Grid 上绘制实时预览直线，
-    /// 抬笔时以「起点 → 最新点」提交一条直线（继承压感与画笔属性）。
-    ///
-    /// 相比旧版"整笔画完后再替换"的事后方案，本实现有三个关键优势：
-    /// 1. 笔/鼠标/触摸与多指书写模式全部覆盖（按指针 id 管理会话，不依赖鼠标提升事件）；
-    /// 2. 触发后原始轨迹立即停止收集并以预览直线代替，不会出现"先画歪线、抬笔跳直线"；
-    /// 3. 多指书写的手动提交路径（MainWindow_StylusUp）有专属的延迟提交钩子，与预览层交接不打架。
-    ///
-    /// 设置项沿用 ICU 现有「停顿强制拉直」：
-    /// Settings.Canvas.StopTimingStraighten（开关）/ StopTimingThresholdMs（停顿时长）/
-    /// StopTimingError（位移容差）；速度阈值沿用 Artistry 默认 0.03px/ms，不单独暴露设置。
-    /// </summary>
     public partial class MainWindow : Window
     {
         private const int InkStraightenMousePointerId = -1;
@@ -173,7 +158,6 @@ namespace Ink_Canvas
             };
         }
 
-        /// <summary>更新会话：低速停顿检测与触发。</summary>
         private void UpdateInkStraightenSession(int pointerId, Point currentPoint)
         {
             if (!_inkStraightenSessions.TryGetValue(pointerId, out var session)) return;

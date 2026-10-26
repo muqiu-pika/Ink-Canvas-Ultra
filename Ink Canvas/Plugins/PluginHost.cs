@@ -13,14 +13,8 @@ using Newtonsoft.Json;
 
 namespace Ink_Canvas.Plugins
 {
-    /// <summary>
-    /// plugin 宿主管理器：负责扫描、加载、初始化、卸载所有 plugin，
-    /// 并实现 IPluginHost 接口向 plugin 提供主程序能力。
-    /// 支持运行时加载/卸载（软卸载，已加载程序集不释放）。
-    /// </summary>
     public class PluginHost : IPluginHost
     {
-        // ===== 单例 =====
         public static PluginHost Instance { get; private set; }
 
         // ===== 主程序版本与插件最低版本校验 =====
@@ -44,7 +38,6 @@ namespace Ink_Canvas.Plugins
             return HostVersion.CompareTo(min) >= 0;
         }
 
-        /// <summary>重载：直接传入 manifest。</summary>
         public static bool IsHostVersionCompatible(PluginManifest manifest)
             => IsHostVersionCompatible(manifest?.MinHostVersion);
 
@@ -52,7 +45,6 @@ namespace Ink_Canvas.Plugins
         public static string GetRequiredHostVersionIfIncompatible(string minHostVersion)
             => IsHostVersionCompatible(minHostVersion) ? null : minHostVersion;
 
-        // ===== 状态 =====
         private readonly Window _mainWindow;
         private readonly string _pluginsRoot;           // Plugins 根目录
         private readonly List<LoadedPlugin> _loaded = new List<LoadedPlugin>();
@@ -74,7 +66,6 @@ namespace Ink_Canvas.Plugins
         // pluginId -> 插件在插件工坊里显示的设置面板工厂
         private readonly Dictionary<string, Func<UIElement>> _pluginSettingsPanels = new Dictionary<string, Func<UIElement>>(StringComparer.OrdinalIgnoreCase);
 
-        // ===== 事件 =====
         public event EventHandler ApplicationExiting;
         public event EventHandler<BoardModeChangedEventArgs> BoardModeChanged;
         public event EventHandler<PluginElementSelectionChangedEventArgs> ElementSelectionChanged;
@@ -208,8 +199,6 @@ namespace Ink_Canvas.Plugins
             return Instance;
         }
 
-        // ===== IPluginHost 实现 =====
-
         public string PluginDirectory => _pluginsRoot;
         public string HostRootPath => App.RootPath;
         public Window MainWindow => _mainWindow;
@@ -244,7 +233,6 @@ namespace Ink_Canvas.Plugins
         {
             if (string.IsNullOrEmpty(route)) return false;
 
-            // 优先 plugin 注册的处理器
             if (_pluginRouteHandlers.TryGetValue(route, out var pluginHandler))
             {
                 try { return pluginHandler(parameter); } catch (Exception ex)
@@ -253,7 +241,6 @@ namespace Ink_Canvas.Plugins
                 }
             }
 
-            // 其次主程序内建处理器
             if (_routeTable.TryGetValue(route, out var ep))
             {
                 if (_builtinRouteHandlers.TryGetValue(route, out var handler))
@@ -281,8 +268,6 @@ namespace Ink_Canvas.Plugins
             _pluginRouteHandlers.Remove(route);
             _routeOwners.Remove(route);
         }
-
-        // ===== 画布与元素 API =====
 
         public InkCanvas GetInkCanvas()
         {
@@ -353,8 +338,6 @@ namespace Ink_Canvas.Plugins
             return false;
         }
 
-        // ===== 选择控制条插槽 =====
-
         public void RegisterSelectionControlBar(UIElement controlBar)
         {
             try
@@ -388,8 +371,6 @@ namespace Ink_Canvas.Plugins
             catch { }
         }
 
-        // ===== 工具栏按钮排序 =====
-
         public IReadOnlyList<ToolbarReorderGroup> GetReorderableToolbarGroups()
         {
             try { return _opts.GetReorderableToolbarGroups?.Invoke() ?? new List<ToolbarReorderGroup>(); } catch { }
@@ -411,8 +392,6 @@ namespace Ink_Canvas.Plugins
         {
             try { _opts.SetToolbarHidden?.Invoke(placement, hiddenItemIds); } catch { }
         }
-
-        // ===== 快捷键重绑定 =====
 
         public IReadOnlyList<HotkeyActionInfo> GetHotkeyActions()
         {
@@ -453,8 +432,6 @@ namespace Ink_Canvas.Plugins
             try { _opts.ResumeHotkeys?.Invoke(); } catch { }
         }
 
-        // ===== 插件工坊设置面板 =====
-
         public void RegisterSettingsPanel(Func<UIElement> panelFactory)
         {
             try
@@ -482,8 +459,6 @@ namespace Ink_Canvas.Plugins
             return _pluginSettingsPanels.TryGetValue(pluginId, out var factory) ? factory : null;
         }
 
-        // ===== 事件触发（主程序调用） =====
-
         public void RaiseBoardModeChanged(int newMode)
         {
             BoardModeChanged?.Invoke(this, new BoardModeChangedEventArgs { NewMode = newMode });
@@ -509,11 +484,6 @@ namespace Ink_Canvas.Plugins
             try { PenColorsChanged?.Invoke(this, EventArgs.Empty); } catch { }
         }
 
-        /// <summary>
-        /// 触发「墨迹选项」色块修改请求（鼠标右键 / 触摸长按）。
-        /// 返回是否有插件处理了该请求；无插件订阅时返回 false
-        /// ——不安装「自定义画笔颜色」插件时主程序据此弹安装引导（见 TryRaisePenSlotEditRequested）。
-        /// </summary>
         public bool RaisePenSlotEditRequested(int slotIndex)
         {
             var handler = PenSlotEditRequested;
@@ -533,8 +503,6 @@ namespace Ink_Canvas.Plugins
             }
             return args.Handled;
         }
-
-        // ===== 画笔颜色调色板 =====
 
         public IReadOnlyList<PenColorSlotInfo> GetPenColorSlots()
         {
@@ -611,8 +579,6 @@ namespace Ink_Canvas.Plugins
             try { PluginListChanged?.Invoke(this, EventArgs.Empty); } catch { }
         }
 
-        // ===== 启动时加载 =====
-
         /// <summary>扫描 Plugins 根目录下所有子目录，加载其中已启用的 plugin</summary>
         public void LoadAll()
         {
@@ -680,8 +646,6 @@ namespace Ink_Canvas.Plugins
             }
         }
 
-        // ===== 运行时加载 / 卸载（供插件工坊调用） =====
-
         /// <summary>运行时加载指定 id 的 plugin（若已加载则视为成功返回 true，避免调用方误判为失败而把启用状态写反）</summary>
         public bool LoadPlugin(string pluginId)
         {
@@ -718,7 +682,6 @@ namespace Ink_Canvas.Plugins
                 LogHelper.WriteLogToFile($"plugin Shutdown 异常 [{p.Manifest.Id}]: {ex.Message}", LogHelper.LogType.Error);
             }
 
-            // 移除该 plugin 声明式入口点对应的路由
             if (p.Manifest.EntryPoints != null)
             {
                 foreach (var ep in p.Manifest.EntryPoints)
@@ -971,8 +934,6 @@ namespace Ink_Canvas.Plugins
             _builtinRouteHandlers[route] = handler;
         }
 
-        // ===== 查询接口 =====
-
         /// <summary>查询某个路由是否可用（含声明式入口点或插件运行时注册的处理器）</summary>
         public bool IsRouteAvailable(string route)
         {
@@ -1051,8 +1012,6 @@ namespace Ink_Canvas.Plugins
             return result;
         }
 
-        // ===== 内部辅助 =====
-
         private PluginManifest TryReadManifest(string pluginDir)
         {
             try
@@ -1103,14 +1062,12 @@ namespace Ink_Canvas.Plugins
                     return;
                 }
 
-                // 重复加载检查
                 if (_loaded.Any(p => string.Equals(p.Manifest.Id, manifest.Id, StringComparison.OrdinalIgnoreCase)))
                 {
                     LogHelper.WriteLogToFile($"plugin 已加载，跳过: {manifest.Id}", LogHelper.LogType.Trace);
                     return;
                 }
 
-                // 注册声明式入口点
                 if (manifest.EntryPoints != null)
                 {
                     foreach (var ep in manifest.EntryPoints)
@@ -1120,7 +1077,6 @@ namespace Ink_Canvas.Plugins
                     }
                 }
 
-                // 加载程序集入口（若有）
                 IPlugin pluginInstance = null;
                 if (!string.IsNullOrWhiteSpace(manifest.EntryAssembly) && !string.IsNullOrWhiteSpace(manifest.EntryClass))
                 {
@@ -1133,11 +1089,6 @@ namespace Ink_Canvas.Plugins
                     {
                         try
                         {
-                            // 使用 Assembly.Load(byte[]) 代替 Assembly.LoadFrom(string)
-                            // 原因：.NET Framework 下 Assembly.LoadFrom 会锁定 DLL 文件，
-                            // 导致覆盖安装时 Directory.Delete 失败（需要重启才能释放文件锁）。
-                            // Assembly.Load(byte[]) 从字节数组加载，不锁定文件，
-                            // 覆盖安装时可以自由删除/替换 DLL，实现真正的热加载。
                             byte[] asmBytes = File.ReadAllBytes(asmPath);
                             var asm = Assembly.Load(asmBytes);
                             var type = asm.GetType(manifest.EntryClass, throwOnError: false);
@@ -1225,8 +1176,6 @@ namespace Ink_Canvas.Plugins
             }
         }
 
-        // ===== 启用状态持久化 =====
-
         private void LoadEnabledState()
         {
             try
@@ -1259,8 +1208,6 @@ namespace Ink_Canvas.Plugins
                 LogHelper.WriteLogToFile($"写入 plugins.json 失败: {ex.Message}", LogHelper.LogType.Warning);
             }
         }
-
-        // ===== 内部类型 =====
 
         private class LoadedPlugin
         {

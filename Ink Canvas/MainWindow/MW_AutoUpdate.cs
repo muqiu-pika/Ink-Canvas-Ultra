@@ -106,28 +106,13 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>更新询问的三种结果</summary>
         private enum UpdatePromptChoice
         {
-            /// <summary>稍后再说（本次不更新，下次仍会提示）</summary>
             Later,
-            /// <summary>立即更新</summary>
             Update,
-            /// <summary>忽略此版本（在该版本上不再自动提示）</summary>
             Ignore
         }
 
-        /// <summary>
-        /// 询问是否更新：立即更新 / 稍后再说 / 忽略此版本。
-        ///
-        /// 用应用统一风格的自绘弹窗（YesOrNoNotificationWindow 的第三按钮），
-        /// 而不是系统 MessageBox —— 系统弹窗只有"是/否"，用户"不想更新但也不想每次被问"
-        /// 时没有出口，只能去设置里把整个自动更新关掉，从此再也收不到更新提醒。
-        ///
-        /// 注意：必须带 Owner（自绘弹窗构造时已绑定主窗口）。主窗口会被定时器周期性置顶，
-        /// 无主弹窗会被压到主窗口/设置面板之下，用户根本看不到。
-        /// 弹窗异常时退回到系统 MessageBox（仅两个选项），保证更新流程不会因此中断。
-        /// </summary>
         private UpdatePromptChoice PromptUpdateChoice(string latestVersion)
         {
             var choice = UpdatePromptChoice.Later;
@@ -244,25 +229,11 @@ namespace Ink_Canvas
             catch { }
         }
 
-        /// <summary>
-        /// 版本发生变化时（即软件刚更新完成）展示一次「版本更新」窗口。
-        ///
-        /// 背景：ChangeLogWindow 从项目建立之初就存在，但**全仓没有任何地方创建过它**
-        /// （只有窗口自身与 frametoggle 插件的窗口清单引用过），所以"更新完成后有时看不到
-        /// 更新日志窗口"的根因是这条链路根本没接上。
-        /// 这里用"上次运行版本 vs 当前版本"来判断是否刚更新过：
-        ///   - 没有记录（全新安装）→ 只登记，不弹；
-        ///   - 记录与当前一致 → 不弹；
-        ///   - 不一致（更新/降级）→ 延迟到界面空闲、且启动弹窗都处理完之后显示一次。
-        /// 注意：只有在窗口**真正显示出来之后**才写回版本号，这样启动异常、用户提前退出等
-        /// 情况下下次启动仍会重试，不会"这次没弹出来就永远看不到"。
-        /// </summary>
         private void TryShowChangeLogOnVersionChange()
         {
             try
             {
                 if (Settings?.Startup == null) return;
-                // 视频展台等无界面启动模式不弹窗
                 if (App.CurrentStartupMode == App.StartupMode.Camera) return;
 
                 string current = AutoUpdateHelper.GetDisplayVersion();
@@ -304,7 +275,6 @@ namespace Ink_Canvas
                     window.Show();
                     try { Helpers.PopupWindowLayerHelper.BringToFront(window); } catch { }
 
-                    // 真正显示成功后才登记版本
                     Settings.Startup.LastRunVersion = toVersion;
                     SaveSettingsToFile();
                     LogHelper.WriteLogToFile($"ChangeLog window shown ({fromVersion} -> {toVersion})", LogHelper.LogType.Event);

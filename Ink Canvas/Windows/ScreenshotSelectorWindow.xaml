@@ -15,7 +15,6 @@
         MouseLeftButtonUp="Window_MouseLeftButtonUp">
     
     <Grid Name="MainGrid">
-        <!-- 半透明遮罩 -->
         <Rectangle Name="OverlayRectangle"
                    Fill="Black"
                    Opacity="0.3" />
@@ -35,9 +34,7 @@
             </Rectangle.Clip>
         </Rectangle>
 
-        <!-- 选择区域容器 -->
         <Canvas Name="SelectionCanvas" Panel.ZIndex="1000">
-            <!-- 矩形选择模式 -->
             <Rectangle Name="SelectionRectangle"
                        Stroke="White"
                        StrokeThickness="1"
@@ -49,29 +46,24 @@
                        MouseMove="SelectionRectangle_MouseMove"
                        Cursor="SizeAll" />
 
-            <!-- 任意形状选择模式 -->
             <Path Name="SelectionPath"
                   Stroke="White"
                   StrokeThickness="1"
                   Fill="Transparent"
                   Visibility="Collapsed" />
 
-            <!-- 控制点容器 -->
             <Canvas Name="ControlPointsCanvas" Visibility="Collapsed" Panel.ZIndex="1002">
-                <!-- 四个角控制点 -->
                 <Ellipse Name="TopLeftControl" Width="8" Height="8" Fill="White" Stroke="White" StrokeThickness="1" Cursor="SizeNWSE" />
                 <Ellipse Name="TopRightControl" Width="8" Height="8" Fill="White" Stroke="White" StrokeThickness="1" Cursor="SizeNESW" />
                 <Ellipse Name="BottomLeftControl" Width="8" Height="8" Fill="White" Stroke="White" StrokeThickness="1" Cursor="SizeNESW" />
                 <Ellipse Name="BottomRightControl" Width="8" Height="8" Fill="White" Stroke="White" StrokeThickness="1" Cursor="SizeNWSE" />
                 
-                <!-- 四个边控制点 -->
                 <Ellipse Name="TopControl" Width="8" Height="8" Fill="White" Stroke="White" StrokeThickness="1" Cursor="SizeNS" />
                 <Ellipse Name="BottomControl" Width="8" Height="8" Fill="White" Stroke="White" StrokeThickness="1" Cursor="SizeNS" />
                 <Ellipse Name="LeftControl" Width="8" Height="8" Fill="White" Stroke="White" StrokeThickness="1" Cursor="SizeWE" />
                 <Ellipse Name="RightControl" Width="8" Height="8" Fill="White" Stroke="White" StrokeThickness="1" Cursor="SizeWE" />
             </Canvas>
 
-            <!-- 尺寸信息显示 -->
             <Border Name="SizeInfoBorder"
                     Background="#1a1a1a"
                     Opacity="0.9"
@@ -86,7 +78,6 @@
             </Border>
         </Canvas>
 
-        <!-- 底部工具栏 -->
         <Border Background="#1a1a1a" 
                 Opacity="0.95"
                 CornerRadius="8"
@@ -96,7 +87,6 @@
                 Margin="0,0,0,80"
                 Panel.ZIndex="1000">
             <StackPanel Orientation="Horizontal">
-                <!-- 模式切换按钮 -->
                 <Button Name="RectangleModeButton" 
                         Content="矩形模式" 
                         Margin="4,0"
@@ -134,12 +124,10 @@
                         FontWeight="Medium"
                         Click="CameraModeButton_Click" />
                 
-                <!-- 分隔线 -->
                 <Separator Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}" 
                           Margin="8,0" 
                           Background="#404040" />
                 
-                <!-- 操作按钮 -->
                 <Button Name="ConfirmButton"
                         Content="确认截图"
                         Margin="4,0"
@@ -161,7 +149,6 @@
             </StackPanel>
         </Border>
 
-        <!-- 摄像头预览区域 -->
         <Border Name="CameraPreviewBorder"
                 Background="#1a1a1a"
                 Opacity="0.95"
@@ -174,20 +161,16 @@
                 Visibility="Collapsed"
                 Panel.ZIndex="1000">
             <Grid>
-                <!-- 摄像头预览画面 -->
                 <Image Name="CameraPreviewImage"
                        Stretch="Uniform"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center" />
                 
-                <!-- 摄像头控制面板 -->
                 <StackPanel Orientation="Vertical"
                            HorizontalAlignment="Center"
                            VerticalAlignment="Bottom"
                            Margin="0,0,0,8">
-                    <!-- 第一行：摄像头选择和切换 -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                        <!-- 摄像头选择下拉框 -->
                         <ComboBox Name="CameraSelectionComboBox"
                                  Width="200"
                                  Margin="4,0"
@@ -196,7 +179,6 @@
                                  BorderBrush="#404040"
                                  SelectionChanged="CameraSelectionComboBox_SelectionChanged" />
                         
-                        <!-- 切换摄像头按钮 -->
                         <Button Name="SwitchCameraButton"
                                Content="切换摄像头"
                                Margin="4,0"
@@ -208,9 +190,7 @@
                                Click="SwitchCameraButton_Click" />
                     </StackPanel>
                     
-                    <!-- 第二行：旋转和分辨率控制 -->
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,4,0,0">
-                        <!-- 旋转控制 -->
                         <StackPanel Orientation="Horizontal" Margin="4,0">
                             <TextBlock Text="旋转:" Foreground="White" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
                             <Button Name="RotateLeftButton" Content="⟲" Width="30" Height="30" Margin="2,0" 
@@ -223,10 +203,8 @@
                                    Click="RotateRightButton_Click" FontSize="10"/>
                         </StackPanel>
                         
-                        <!-- 分隔线 -->
                         <Rectangle Width="1" Height="20" Fill="#404040" Margin="8,0"/>
                         
-                        <!-- 分辨率控制 -->
                         <StackPanel Orientation="Horizontal" Margin="4,0">
                             <TextBlock Text="分辨率:" Foreground="White" VerticalAlignment="Center" Margin="0,0,4,0" FontSize="12"/>
                             <ComboBox Name="ResolutionComboBox" Width="120" Margin="2,0"
@@ -242,7 +220,6 @@
                     </StackPanel>
                 </StackPanel>
                 
-                <!-- 摄像头状态指示 -->
                 <Border Background="#1a1a1a"
                        Opacity="0.9"
                        CornerRadius="4"
@@ -259,7 +236,6 @@
             </Grid>
         </Border>
 
-        <!-- 统一提示文字区域 -->
         <Border Name="HintTextBorder"
                 Background="#1a1a1a"
                 Opacity="0.9"

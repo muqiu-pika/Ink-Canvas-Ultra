@@ -11,16 +11,6 @@ namespace Ink_Canvas
         private readonly Action _noAction;
         private readonly Action _ignoreAction;
 
-        /// <summary>
-        /// 通用确认弹窗。
-        /// </summary>
-        /// <param name="text">提示正文</param>
-        /// <param name="yesAction">"是"的回调</param>
-        /// <param name="noAction">"否"的回调</param>
-        /// <param name="ignoreAction">可选的第三选项回调；传入时才显示「忽略」按钮（默认不显示，既有调用行为不变）</param>
-        /// <param name="yesText">自定义"是"的按钮文案</param>
-        /// <param name="noText">自定义"否"的按钮文案</param>
-        /// <param name="ignoreText">自定义"忽略"的按钮文案</param>
         public YesOrNoNotificationWindow(string text, Action yesAction = null, Action noAction = null,
             Action ignoreAction = null, string yesText = null, string noText = null, string ignoreText = null)
         {
@@ -50,7 +40,6 @@ namespace Ink_Canvas
                     ThemeManager.SetRequestedTheme(this, ElementTheme.Dark);
                 }
 
-                // 设置所有者窗口，确保对话框始终显示在主窗口之上
                 this.Owner = mainWindow;
             }
 

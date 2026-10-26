@@ -12,7 +12,6 @@ namespace Ink_Canvas
         bool isFloatingBarFolded = false, isFloatingBarChangingHideMode = false;
         int _floatingBarHideModeChangeTick = 0; // 记录置位时刻，供定时器超时自愈
 
-        /// <summary>置位"正在收起/展开"锁并记录时刻。</summary>
         private void SetFloatingBarHideModeBusy()
         {
             isFloatingBarChangingHideMode = true;

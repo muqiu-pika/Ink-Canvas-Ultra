@@ -175,10 +175,8 @@ namespace Ink_Canvas {
                     replaces = File.ReadAllLines(App.RootPath + "Replace.txt");
                 }
 
-                //Fix emtpy lines
                 foreach (string str in fileNames) {
                     string s = str;
-                    //Make replacement
                     foreach (string replace in replaces) {
                         if (s == Strings.Left(replace, replace.IndexOf("-->"))) {
                             s = Strings.Mid(replace, replace.IndexOf("-->") + 4);

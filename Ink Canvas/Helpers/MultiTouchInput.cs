@@ -27,14 +27,8 @@ namespace Ink_Canvas.Helpers
         public DrawingVisual Visual { get; }
     }
 
-    /// <summary>
-    ///     用于显示笔迹的类
-    /// </summary>
     public class StrokeVisual : DrawingVisual
     {
-        /// <summary>
-        ///     创建显示笔迹的类
-        /// </summary>
         public StrokeVisual() : this(new DrawingAttributes()
         {
             Color = Colors.Red,
@@ -45,18 +39,11 @@ namespace Ink_Canvas.Helpers
         {
         }
 
-        /// <summary>
-        ///     创建显示笔迹的类
-        /// </summary>
-        /// <param name="drawingAttributes"></param>
         public StrokeVisual(DrawingAttributes drawingAttributes)
         {
             _drawingAttributes = drawingAttributes;
         }
 
-        /// <summary>
-        ///     设置或获取显示的笔迹
-        /// </summary>
         public Stroke Stroke { set; get; }
 
         private Stroke _currentStroke;
@@ -65,9 +52,6 @@ namespace Ink_Canvas.Helpers
         private int _lastTick = -1;
         private const double MaxGapDistance = 100.0;
         private const int ShortTimeMs = 30;
-        // 相邻点最小间距（像素）：触摸屏的原始采样往往极密（0.1px 级），
-        // 过滤过近的冗余点可大幅减少累积点数，从而降低每帧全量重绘（Redraw）的
-        // Draw 成本与内存/GC 占用；0.6px 对笔迹视觉影响可忽略。
         private const double MinPointDistance = 0.6;
         private bool _redrawScheduled = false;
 
@@ -129,9 +113,6 @@ namespace Ink_Canvas.Helpers
             return true;
         }
 
-        /// <summary>
-        ///     重新画出笔迹
-        /// </summary>
         public void Redraw()
         {
             try

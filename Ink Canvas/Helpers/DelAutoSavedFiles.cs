@@ -12,19 +12,15 @@ namespace Ink_Canvas.Helpers
             string[] extensionsToDel = { ".icstk", ".icart", ".png" };
             if (Directory.Exists(directoryPath))
             {
-                // 获取目录中的所有子目录
                 string[] subDirectories = Directory.GetDirectories(directoryPath, "*", SearchOption.AllDirectories);
                 foreach (string subDirectory in subDirectories)
                 {
                     try
                     {
-                        // 获取子目录下的所有文件
                         string[] files = Directory.GetFiles(subDirectory);
                         foreach (string filePath in files)
                         {
-                            // 获取文件的创建日期
                             DateTime creationDate = File.GetCreationTime(filePath);
-                            // 获取文件的扩展名
                             string fileExtension = Path.GetExtension(filePath);
                             // 如果文件的创建日期早于指定天数且是要删除的扩展名，则删除文件
                             if (creationDate < DateTime.Now.AddDays(-daysThreshold))

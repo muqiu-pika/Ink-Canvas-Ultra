@@ -28,56 +28,6 @@ namespace Ink_Canvas
         private int _isCheckingPptCom = 0;
         private DateTime _suspendPptComCheckUntilUtc = DateTime.MinValue;
 
-        /*
-        private void BtnCheckPPT_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                pptApplication = (Microsoft.Office.Interop.PowerPoint.Application)Marshal.GetActiveObject("PowerPoint.Application");
-                //pptApplication.SlideShowWindows[1].View.Next();
-                if (pptApplication != null)
-                {
-                    //获得演示文稿对象
-                    presentation = pptApplication.ActivePresentation;
-                    pptApplication.SlideShowBegin += PptApplication_SlideShowBegin;
-                    pptApplication.SlideShowNextSlide += PptApplication_SlideShowNextSlide;
-                    pptApplication.SlideShowEnd += PptApplication_SlideShowEnd;
-                    // 获得幻灯片对象集合
-                    slides = presentation.Slides;
-                    // 获得幻灯片的数量
-                    slidescount = slides.Count;
-                    memoryStreams = new MemoryStream[slidescount + 2];
-                    // 获得当前选中的幻灯片
-                    try
-                    {
-                        // 在普通视图下这种方式可以获得当前选中的幻灯片对象
-                        // 然而在阅读模式下，这种方式会出现异常
-                        slide = slides[pptApplication.ActiveWindow.Selection.SlideRange.SlideNumber];
-                    }
-                    catch
-                    {
-                        // 在阅读模式下出现异常时，通过下面的方式来获得当前选中的幻灯片对象
-                        slide = pptApplication.SlideShowWindows[1].View.Slide;
-                    }
-                }
-
-                if (pptApplication == null) throw new Exception();
-                //BtnCheckPPT.Visibility = Visibility.Collapsed;
-                BtnPPTSlideShowEnd.Visibility = Visibility.Visible;
-            }
-            catch
-            {
-                //BtnCheckPPT.Visibility = Visibility.Visible;
-                BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
-                PPTNavigationBottomLeft.Visibility = Visibility.Collapsed;
-                PPTNavigationBottomRight.Visibility = Visibility.Collapsed;
-                PPTNavigationSidesLeft.Visibility = Visibility.Collapsed;
-                PPTNavigationSidesRight.Visibility = Visibility.Collapsed;
-                MessageBoxHelper.Show("未找到幻灯片");
-            }
-        }
-        */
-
         private void ToggleSwitchSupportWPS_Toggled(object sender, RoutedEventArgs e)
         {
             if (!isLoaded) return;
@@ -96,11 +46,6 @@ namespace Ink_Canvas
             if (DateTime.UtcNow < _suspendPptComCheckUntilUtc) return;
             try
             {
-                // 进程枚举（GetProcessesByName 会扫描全系统进程表）留在后台线程完成：
-                // 此前这一检查发生在 UI 线程投递的 BeginInvoke 内部，即使 PowerPoint/WPS
-                // 根本没有运行，也会每秒占用 UI 线程数十毫秒，与书写输入处理竞争，
-                // 是「写字偶尔卡一下」的一个可疑来源。无 PPT 进程时在此直接返回，
-                // 完全不打扰 UI 线程；有进程时才进 UI 线程走原有 COM 连接逻辑。
                 if (!IsPresentationProcessRunning()) return;
                 if (!IsWPSSupportOn && Process.GetProcessesByName("wpp").Length > 0) return;
 
@@ -221,7 +166,6 @@ namespace Ink_Canvas
 
                 if (pptApplication != null)
                 {
-                    // 先注册事件，再停止定时器
                     try { pptApplication.PresentationClose -= PptApplication_PresentationClose; } catch { }
                     try { pptApplication.SlideShowBegin -= PptApplication_SlideShowBegin; } catch { }
                     try { pptApplication.SlideShowNextSlide -= PptApplication_SlideShowNextSlide; } catch { }
@@ -231,21 +175,17 @@ namespace Ink_Canvas
                     pptApplication.SlideShowNextSlide += PptApplication_SlideShowNextSlide;
                     pptApplication.SlideShowEnd += PptApplication_SlideShowEnd;
                     
-                    //获得演示文稿对象
                     bool gotPresentation = await RetryComAsync(() => { presentation = pptApplication.ActivePresentation; }, 4, 150);
                     if (presentation != null)
                     {
-                        // 获得幻灯片对象集合
                         bool gotSlides = await RetryComAsync(() => { slides = presentation.Slides; }, 4, 150);
                         if (!gotPresentation || !gotSlides) return;
 
-                        // 获得幻灯片的数量
                         bool gotCount = await RetryComAsync(() =>
                         {
                             slidescount = slides.Count;
                         }, 4, 150);
                         if (!gotCount) return;
-                        // 获得当前选中的幻灯片
                         try
                         {
                             // 在普通视图下这种方式可以获得当前选中的幻灯片对象
@@ -267,7 +207,6 @@ namespace Ink_Canvas
 
                 if (pptApplication == null || presentation == null || slides == null) return;
 
-                // 跳转到上次播放页
                         if (Settings.PowerPointSettings.IsNotifyPreviousPage)
                         {
                             _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
@@ -286,9 +225,6 @@ namespace Ink_Canvas
                                             if (page <= 0) return;
                                             var jumpNotification = new YesOrNoNotificationWindow($"上次播放到了第 {page} 页, 是否立即跳转", () =>
                                             {
-                                                // 回调在用户点击"是"时才执行，此期间演示文稿可能已切换或页数已变化。
-                                                // Position 文件里的页码来自上次播放的文稿，若当前文稿页数变少（例如
-                                                // 同名文件被精简），GotoSlide 会抛 0x80048240 "Integer out of range"。
                                                 try
                                                 {
                                                     // 实时读取当前文稿页数，读取失败回落到连接时缓存的 slidescount
@@ -304,7 +240,6 @@ namespace Ink_Canvas
 
                                                     if (pptApplication.SlideShowWindows.Count >= 1)
                                                     {
-                                                        // 如果已经播放了的话, 跳转
                                                         presentation.SlideShowWindow.View.GotoSlide(page);
                                                     }
                                                     else
@@ -331,7 +266,6 @@ namespace Ink_Canvas
                             }));
                         }
 
-                //检查是否有隐藏幻灯片
                 if (Settings.PowerPointSettings.IsNotifyHiddenPage)
                 {
                     bool isHaveHiddenSlide = false;
@@ -368,7 +302,6 @@ namespace Ink_Canvas
                     }));
                 }
 
-                //检测是否有自动播放
                 if (Settings.PowerPointSettings.IsNotifyAutoPlayPresentation
                     // && presentation.SlideShowSettings.AdvanceMode == PpSlideShowAdvanceMode.ppSlideShowUseSlideTimings
                     && BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
@@ -414,12 +347,6 @@ namespace Ink_Canvas
             catch (Exception ex)
             {
                 LogHelper.WriteLogToFile(string.Format("TimerCheckPPT error: {0}", ex.ToString()), LogHelper.LogType.Error);
-                /*
-                Application.Current.Dispatcher.Invoke(() =>
-                {
-                    BtnPPTSlideShow.Visibility = Visibility.Collapsed;
-                });
-                */
                 timerCheckPPT.Start();
             }
             finally
@@ -532,14 +459,12 @@ namespace Ink_Canvas
                 {
                     try
                     {
-                        // 创建独立的笔迹集合备份
                         _desktopStrokesBackupStrokes = new StrokeCollection();
                         foreach (Stroke stroke in inkCanvas.Strokes)
                         {
                             _desktopStrokesBackupStrokes.Add(stroke.Clone());
                         }
                         
-                        // 同时创建流备份，确保双重保险
                         _desktopStrokesBackup = new MemoryStream();
                         inkCanvas.Strokes.Save(_desktopStrokesBackup);
                         _desktopStrokesBackup.Position = 0; // 确保流位置正确
@@ -561,21 +486,6 @@ namespace Ink_Canvas
                 {
                     ImageBlackboard_Click(null, null);
                 }
-                /*
-                //调整颜色
-                double screenRatio = SystemParameters.PrimaryScreenWidth / SystemParameters.PrimaryScreenHeight;
-                if (Math.Abs(screenRatio - 16.0 / 9) <= -0.01)
-                {
-                    if (Wn.Presentation.PageSetup.SlideWidth / Wn.Presentation.PageSetup.SlideHeight < 1.65)
-                    {
-                        isPresentationHaveBlackSpace = true;
-                    }
-                }
-                else if (screenRatio == -256 / 135)
-                {
-
-                }
-                */
                 lastDesktopInkColor = 1;
 
                 slidescount = totalSlides;
@@ -586,7 +496,6 @@ namespace Ink_Canvas
                 LogHelper.NewLog("Name: " + presentationName);
                 LogHelper.NewLog("Slides Count: " + slidescount.ToString());
 
-                //检查是否有已有墨迹，并加载
                 if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
                 {
                     string safePresentationName = SanitizePathSegment(presentationName);
@@ -648,7 +557,6 @@ namespace Ink_Canvas
                         AnimationsHelper.HideWithSlideAndFade(BlackboardCenterSide);
                         AnimationsHelper.HideWithSlideAndFade(BlackboardRightSide);
 
-                        //SaveStrokes();
                         ClearStrokes(true);
                     }
                     BtnHideInkCanvas_Click(null, null);
@@ -716,11 +624,6 @@ namespace Ink_Canvas
             }
             isEnteredSlideShowEndEvent = true;
 
-            // 阶段一（UI）：先复位放映 UI 并退出画板模式。
-            // 若在画板模式下结束放映，画布此刻是白板墨迹（批注墨迹已由进入画板时的
-            // SaveStrokes(true) 暂存到 TimeMachineHistories[0]）；必须先退出画板模式把
-            // 批注墨迹恢复到画布，随后的自动保存捕获的才是批注笔迹——
-            // 否则白板墨迹会覆盖演示文稿的页笔迹缓存（"画板状态下结束放映，保存的是画板墨迹"）。
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _isPptSlideShowActive = false;
@@ -855,9 +758,6 @@ namespace Ink_Canvas
                         ViewboxFloatingBar.Opacity = 1;
                     }
 
-                    // 若开启了"退出画板模式后隐藏墨迹"（Settings.Canvas.HideStrokeWhenSelecting），
-                    // 退出放映后恢复的桌面批注应隐藏而非直接显示。
-                    // 隐藏方式与"批注→鼠标"一致：收起墨迹画布（保留笔迹，便于后续恢复），参考 CursorIcon_Click。
                     if (Settings.Canvas.HideStrokeWhenSelecting && inkCanvas.Strokes.Count > 0)
                     {
                         try
@@ -933,7 +833,6 @@ namespace Ink_Canvas
             return slideId != 0 ? slideId : -position;
         }
 
-        /// <summary>按键取缓存笔迹。</summary>
         private MemoryStream GetCachedStrokes(int slideId, int position)
         {
             MemoryStream ms;
@@ -1255,7 +1154,6 @@ namespace Ink_Canvas
             catch { }
         }
 
-
         private async void PPTNavigationBtn_Click(object sender, MouseButtonEventArgs e)
         {
             if (lastBorderMouseDownObject != sender) return;
@@ -1266,27 +1164,12 @@ namespace Ink_Canvas
                 pptApplication.SlideShowWindows[1].SlideNavigation.Visible = true;
             }
             catch { }
-            // 控制居中
             if (!isFloatingBarFolded)
             {
                 await Task.Delay(100);
                 ViewboxFloatingBarMarginAnimation();
             }
         }
-
-        /*
-        private void BtnPPTSlideShow_Click(object sender, RoutedEventArgs e)
-        {
-            new Thread(new ThreadStart(() =>
-            {
-                try
-                {
-                    presentation.SlideShowSettings.Run();
-                }
-                catch { }
-            })).Start();
-        }
-        */
 
         private async void BtnPPTSlideShowEnd_Click(object sender, RoutedEventArgs e)
         {
@@ -1339,7 +1222,6 @@ namespace Ink_Canvas
                 }
                 catch { }
 
-                // 确保当前页的墨迹也被写入缓存
                 try
                 {
                     Application.Current.Dispatcher.Invoke(() =>

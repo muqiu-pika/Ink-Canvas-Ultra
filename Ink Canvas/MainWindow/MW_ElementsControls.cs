@@ -192,14 +192,12 @@ namespace Ink_Canvas
             return image;
         }
 
-        // 初始化InkCanvas选择设置
         private void InitializeInkCanvasSelectionSettings()
         {
             if (inkCanvas != null)
             {
                 // 清除当前选择，避免显示控制点
                 inkCanvas.Select(new StrokeCollection());
-                // 设置编辑模式为非选择模式
                 inkCanvas.EditingMode = InkCanvasEditingMode.None;
             }
         }

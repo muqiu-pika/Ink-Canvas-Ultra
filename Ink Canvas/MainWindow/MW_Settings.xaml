@@ -32,7 +32,6 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
-            <!-- 头部标题栏 -->
             <Grid Grid.Row="0" Margin="0,0,0,20">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock
@@ -54,7 +53,6 @@
                 </StackPanel>
             </Grid>
 
-            <!-- 主内容区 -->
             <ui:NavigationView
                 Grid.Row="1"
                 x:Name="SettingsNavigationView"
@@ -181,8 +179,6 @@
                         </ui:NavigationViewItem.Icon>
                     </ui:NavigationViewItem>
                 </ui:NavigationView.FooterMenuItems>
-
-                <!-- 右侧内容区域 -->
 
                 <Grid>
 
@@ -846,7 +842,6 @@
 
                                 </Border>
 
-                                <!-- 立即检查更新（手动触发版本检测，忽略静默设置） -->
                                 <ikw:SimpleStackPanel Orientation="Horizontal" Spacing="12">
 
                                     <TextBlock
@@ -981,7 +976,6 @@
 
                         </GroupBox>
 
-                        <!-- 插件工坊入口 -->
                         <GroupBox x:Name="SettingsSection_PluginWorkshop">
 
                             <GroupBox.Header>
@@ -1828,7 +1822,6 @@
 
                                 </ikw:SimpleStackPanel>
 
-
                             </ikw:SimpleStackPanel>
 
                         </GroupBox>
@@ -1951,8 +1944,6 @@
 
                                 <ikw:SimpleStackPanel Spacing="10">
 
-                                    <!--  Floating Bar Scale Slider  -->
-
                                     <StackPanel Orientation="Horizontal">
 
                                         <Slider
@@ -1986,8 +1977,6 @@
                                             Text="{Binding Value, ElementName=SliderFloatingBarScale, StringFormat={}{0:F0}%}" />
 
                                     </StackPanel>
-
-                                    <!--  Floating Bar Quick Buttons  -->
 
                                     <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
 
@@ -2053,11 +2042,7 @@
 
                                 </ikw:SimpleStackPanel>
 
-
-
                                 <ikw:SimpleStackPanel Margin="0,15,0,0" Spacing="10">
-
-                                    <!--  Pen Palette (墨迹选项) Scale Slider  -->
 
                                     <StackPanel Orientation="Horizontal">
 
@@ -2093,8 +2078,6 @@
 
                                     </StackPanel>
 
-                                    <!--  Pen Palette Quick Buttons  -->
-
                                     <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
 
                                         <Button
@@ -2159,11 +2142,7 @@
 
                                 </ikw:SimpleStackPanel>
 
-
-
                                 <ikw:SimpleStackPanel Margin="0,15,0,0" Spacing="10">
-
-                                    <!--  Draw Shape (图形) Scale Slider  -->
 
                                     <StackPanel Orientation="Horizontal">
 
@@ -2199,8 +2178,6 @@
 
                                     </StackPanel>
 
-                                    <!--  Draw Shape Quick Buttons  -->
-
                                     <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
 
                                         <Button
@@ -2264,8 +2241,6 @@
                                     </StackPanel>
 
                                 </ikw:SimpleStackPanel>
-
-
 
                                 <ikw:SimpleStackPanel Margin="0,15,0,0" Spacing="10">
 
@@ -2311,11 +2286,7 @@
 
                                 </ikw:SimpleStackPanel>
 
-
-
                                 <ikw:SimpleStackPanel Margin="0,15,0,0" Spacing="10">
-
-                                    <!--  Blackboard Quick Buttons  -->
 
                                     <StackPanel HorizontalAlignment="Left" Orientation="Horizontal">
 
@@ -2379,8 +2350,6 @@
 
                                     </StackPanel>
 
-                                    <!--  Blackboard Scale Slider  -->
-
                                     <StackPanel Orientation="Horizontal">
 
                                         <Slider
@@ -2414,8 +2383,6 @@
                                             Text="{Binding Value, ElementName=SliderBlackboardScale, StringFormat={}{0:F0}%}" />
 
                                     </StackPanel>
-
-                                    <!--  Video Presenter Sidebar Position  -->
 
                                     <ikw:SimpleStackPanel Orientation="Horizontal">
 
@@ -2988,8 +2955,6 @@
                                 </ikw:SimpleStackPanel>
 
                             </ikw:SimpleStackPanel>
-
-
 
                         </GroupBox>
 
@@ -4292,12 +4257,6 @@
                                     Margin="0,4,0,4"
                                     Background="{DynamicResource PopupWindowBorderBrush}" />
 
-                                <!--
-
-                                <ui:ToggleSwitch Name="ToggleSwitchClearExitingWritingMode" Header="切换到鼠标模式后自动清屏" IsOn="False" OnContent="开" OffContent="关" Toggled="ToggleSwitchExitingWritingMode_Toggled"/>
-
-                                -->
-
                                 <StackPanel Orientation="Horizontal">
 
                                     <Slider
@@ -4708,14 +4667,10 @@
 
                                 </WrapPanel>
 
-
-
                                 <Border
                                     Height="1"
                                     Margin="0,4,0,0"
                                     Background="{DynamicResource PopupWindowBorderBrush}" />
-
-
 
                                 <TextBlock FontSize="15" Foreground="{DynamicResource PopupWindowForeground}">
 

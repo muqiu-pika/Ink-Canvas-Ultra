@@ -16,7 +16,6 @@
         mc:Ignorable="d">
 
     <Window.Resources>
-        <!-- 选项按钮：白底圆角卡片 + 1px 浅描边，悬停/按下用中性淡色，去掉原各自阴影，更简约 -->
         <Style x:Key="OptionButtonStyle" TargetType="Button">
             <Setter Property="Height" Value="64"/>
             <Setter Property="Margin" Value="0,6"/>
@@ -53,7 +52,6 @@
             </Setter>
         </Style>
 
-        <!-- 取消按钮：次级按钮样式（灰底） -->
         <Style x:Key="CancelButtonStyle" TargetType="Button">
             <Setter Property="Height" Value="42"/>
             <Setter Property="Margin" Value="0,14,0,0"/>
@@ -106,7 +104,6 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <!-- 头部：FontIcon + 标题 + 徽标（与其它通知窗口一致） -->
             <StackPanel Grid.Row="0" Margin="0,0,0,18">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <ui:FontIcon Width="32" Height="32"
@@ -138,7 +135,6 @@
                            Text="请选择截图插入位置"/>
             </StackPanel>
 
-            <!-- 选项区 -->
             <StackPanel Grid.Row="1">
                 <Button x:Name="BtnInsertToCanvas"
                         Style="{StaticResource OptionButtonStyle}"
@@ -225,7 +221,6 @@
                 </Button>
             </StackPanel>
 
-            <!-- 取消 -->
             <Button Grid.Row="2"
                     x:Name="BtnCancel"
                     Content="取消"

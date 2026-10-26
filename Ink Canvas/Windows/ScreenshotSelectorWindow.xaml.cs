@@ -36,7 +36,6 @@ namespace Ink_Canvas
         private CameraService _cameraService;
         private Bitmap _capturedCameraImage = null;
 
-        // 控制点类型枚举
         private enum ControlPointType
         {
             None,
@@ -54,19 +53,14 @@ namespace Ink_Canvas
         {
             InitializeComponent();
 
-            // 设置窗口覆盖所有屏幕
             SetupFullScreenOverlay();
 
-            // 初始化自由绘制模式
             InitializeFreehandMode();
 
-            // 绑定控制点事件
             BindControlPointEvents();
 
-            // 初始化按钮状态 
             InitializeButtonStates();
 
-            // 初始化摄像头服务
             InitializeCameraService();
 
             // 隐藏提示文字的定时器（保存为字段，窗口关闭时停止，避免定时器在关闭后继续引用本窗口）
@@ -115,7 +109,6 @@ namespace Ink_Canvas
         {
             try
             {
-                // 从设置中加载摄像头配置
                 var cameraSettings = MainWindow.Settings.Camera;
                 _cameraService = new CameraService(
                     cameraSettings.RotationAngle,
@@ -124,10 +117,8 @@ namespace Ink_Canvas
                 _cameraService.FrameReceived += CameraService_FrameReceived;
                 _cameraService.ErrorOccurred += CameraService_ErrorOccurred;
 
-                // 初始化摄像头选择下拉框
                 RefreshCameraComboBox();
 
-                // 初始化旋转和分辨率显示
                 InitializeCameraControls();
             }
             catch (Exception ex)
@@ -140,10 +131,8 @@ namespace Ink_Canvas
         {
             if (_cameraService != null)
             {
-                // 更新旋转角度显示
                 UpdateRotationDisplay();
 
-                // 设置分辨率下拉框
                 var currentResolution = $"{_cameraService.ResolutionWidth}x{_cameraService.ResolutionHeight}";
                 foreach (ComboBoxItem item in ResolutionComboBox.Items)
                 {
@@ -164,7 +153,6 @@ namespace Ink_Canvas
 
                 if (_cameraService != null)
                 {
-                    // 刷新摄像头列表
                     _cameraService.RefreshCameraList();
 
                     if (_cameraService.HasAvailableCameras())
@@ -211,7 +199,6 @@ namespace Ink_Canvas
                     {
                         if (_isCameraMode && CameraPreviewImage != null && frame != null)
                         {
-                            // 验证帧的有效性
                             if (frame.Width <= 0 || frame.Height <= 0)
                                 return;
 
@@ -255,12 +242,10 @@ namespace Ink_Canvas
             {
                 Dispatcher.BeginInvoke(new Action(() =>
                 {
-                    // 根据错误类型显示不同的提示
                     string displayMessage = GetUserFriendlyCameraError(error);
                     CameraStatusText.Text = displayMessage;
                     CameraStatusText.Foreground = System.Windows.Media.Brushes.Red;
 
-                    // 显示错误提示弹窗
                     ShowCameraErrorNotification(displayMessage);
                 }));
             }
@@ -270,15 +255,11 @@ namespace Ink_Canvas
             }
         }
 
-        /// <summary>
-        /// 获取用户友好的摄像头错误信息
-        /// </summary>
         private string GetUserFriendlyCameraError(string error)
         {
             if (string.IsNullOrEmpty(error))
                 return "摄像头发生未知错误";
 
-            // 检查各种错误情况
             if (error.Contains("占用") || error.Contains("in use") || error.Contains("busy") ||
                 error.Contains("无法启动") || error.Contains("已被其他程序"))
             {
@@ -309,14 +290,10 @@ namespace Ink_Canvas
             return $"⚠️ 摄像头错误\n{error}";
         }
 
-        /// <summary>
-        /// 显示摄像头错误通知
-        /// </summary>
         private void ShowCameraErrorNotification(string message)
         {
             try
             {
-                // 创建错误提示弹窗
                 var errorWindow = new Window
                 {
                     Title = "摄像头错误",
@@ -334,7 +311,6 @@ namespace Ink_Canvas
                 grid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
                 grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-                // 标题
                 var titleBlock = new TextBlock
                 {
                     Text = "摄像头错误",
@@ -347,7 +323,6 @@ namespace Ink_Canvas
                 Grid.SetRow(titleBlock, 0);
                 grid.Children.Add(titleBlock);
 
-                // 错误信息
                 var messageBlock = new TextBlock
                 {
                     Text = message,
@@ -361,7 +336,6 @@ namespace Ink_Canvas
                 Grid.SetRow(messageBlock, 1);
                 grid.Children.Add(messageBlock);
 
-                // 确定按钮
                 var buttonPanel = new StackPanel
                 {
                     Orientation = System.Windows.Controls.Orientation.Horizontal,
@@ -399,11 +373,9 @@ namespace Ink_Canvas
         {
             try
             {
-                // 验证位图有效性
                 if (bitmap == null || bitmap.Width <= 0 || bitmap.Height <= 0)
                     return null;
 
-                // 使用更安全的方法转换位图
                 var bitmapData = bitmap.LockBits(
                     new System.Drawing.Rectangle(0, 0, bitmap.Width, bitmap.Height),
                     System.Drawing.Imaging.ImageLockMode.ReadOnly,
@@ -457,7 +429,6 @@ namespace Ink_Canvas
 
         private void BindControlPointEvents()
         {
-            // 绑定所有控制点的鼠标事件
             var controlPoints = new[]
             {
                 TopLeftControl, TopRightControl, BottomLeftControl, BottomRightControl,
@@ -470,18 +441,15 @@ namespace Ink_Canvas
                 control.MouseLeftButtonUp += ControlPoint_MouseLeftButtonUp;
                 control.MouseMove += ControlPoint_MouseMove;
 
-                // 确保控制点能够接收鼠标事件
                 control.IsHitTestVisible = true;
                 control.Focusable = false;
 
-                // 设置控制点的Z-index，确保它们在最上层
                 WpfCanvas.SetZIndex(control, 1003);
             }
         }
 
         private void SetupFullScreenOverlay()
         {
-            // 获取所有屏幕的虚拟屏幕边界
             var virtualScreen = SystemInformation.VirtualScreen;
 
             // 转换为WPF坐标系统
@@ -517,7 +485,6 @@ namespace Ink_Canvas
 
         private void RectangleModeButton_Click(object sender, RoutedEventArgs e)
         {
-            // 重置所有选择状态
             ResetSelectionState();
 
             _isFreehandMode = false;
@@ -530,7 +497,6 @@ namespace Ink_Canvas
 
         private void FreehandModeButton_Click(object sender, RoutedEventArgs e)
         {
-            // 重置所有选择状态
             ResetSelectionState();
 
             _isFreehandMode = true;
@@ -543,10 +509,8 @@ namespace Ink_Canvas
 
         private void FullScreenButton_Click(object sender, RoutedEventArgs e)
         {
-            // 重置所有选择状态
             ResetSelectionState();
 
-            // 设置全屏截图模式
             _isFreehandMode = false;
             _isCameraMode = false;
             FullScreenButton.Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // 蓝色
@@ -554,10 +518,8 @@ namespace Ink_Canvas
             FreehandModeButton.Background = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // 灰色
             CameraModeButton.Background = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // 灰色
 
-            // 隐藏摄像头预览
             CameraPreviewBorder.Visibility = Visibility.Collapsed;
 
-            // 直接执行全屏截图
             PerformFullScreenCapture();
         }
 
@@ -565,10 +527,8 @@ namespace Ink_Canvas
         {
             try
             {
-                // 重置所有选择状态
                 ResetSelectionState();
 
-                // 设置摄像头模式
                 _isFreehandMode = false;
                 _isCameraMode = true;
                 CameraModeButton.Background = new SolidColorBrush(Color.FromRgb(37, 99, 235)); // 蓝色
@@ -576,18 +536,14 @@ namespace Ink_Canvas
                 FreehandModeButton.Background = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // 灰色
                 FullScreenButton.Background = new SolidColorBrush(Color.FromRgb(107, 114, 128)); // 灰色
 
-                // 显示摄像头预览
                 CameraPreviewBorder.Visibility = Visibility.Visible;
                 HintText.Text = "摄像头预览模式，点击确认截图按钮进行截图";
                 HintTextBorder.Visibility = Visibility.Visible;
 
-                // 重置状态文本颜色
                 CameraStatusText.Foreground = System.Windows.Media.Brushes.White;
 
-                // 启动摄像头预览
                 if (_cameraService != null)
                 {
-                    // 刷新摄像头列表
                     _cameraService.RefreshCameraList();
 
                     if (_cameraService.HasAvailableCameras())
@@ -599,7 +555,6 @@ namespace Ink_Canvas
                         {
                             CameraStatusText.Text = "正在启动摄像头...";
 
-                            // 尝试启动摄像头
                             bool success = _cameraService.StartPreview(selectedIndex);
                             if (!success)
                             {
@@ -718,7 +673,6 @@ namespace Ink_Canvas
                 return;
             }
 
-            // 在摄像头模式下，执行摄像头截图
             if (_isCameraMode)
             {
                 ConfirmCameraCapture();
@@ -741,10 +695,8 @@ namespace Ink_Canvas
                         // 保存BitmapSource而不是Bitmap
                         CameraBitmapSource = bitmapSource;
 
-                        // 停止摄像头预览
                         _cameraService.StopPreview();
 
-                        // 设置结果并关闭窗口
                         DialogResult = true;
                         Close();
                     }
@@ -772,7 +724,6 @@ namespace Ink_Canvas
 
         private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // 检查是否点击了UI元素，如果是则不处理选择
             var hitElement = e.Source as FrameworkElement;
             if (hitElement != null && (
                 hitElement is Ellipse ||
@@ -789,43 +740,35 @@ namespace Ink_Canvas
                 return;
             }
 
-            // 如果正在调整，忽略新的选择
             if (_isAdjusting) return;
 
-            // 如果正在选择，先重置状态
             if (_isSelecting)
             {
                 _isSelecting = false;
                 ReleaseMouseCapture();
             }
 
-            // 开始新的选择
             _isSelecting = true;
             _startPoint = e.GetPosition(this);
             _currentPoint = _startPoint;
 
-            // 隐藏提示文字
             HintTextBorder.Visibility = Visibility.Collapsed;
 
             if (_isFreehandMode)
             {
-                // 自由绘制模式：开始绘制
                 _freehandPoints.Clear();
                 _freehandPolyline.Points.Clear();
                 _freehandPoints.Add(_startPoint);
                 _freehandPolyline.Points.Add(_startPoint);
 
-                // 确保自由绘制路径可见
                 _freehandPolyline.Visibility = Visibility.Visible;
             }
             else
             {
-                // 矩形模式
                 SelectionRectangle.Visibility = Visibility.Visible;
                 SizeInfoBorder.Visibility = Visibility.Visible;
             }
 
-            // 捕获鼠标
             CaptureMouse();
 
             if (!_isFreehandMode)
@@ -848,16 +791,13 @@ namespace Ink_Canvas
 
                 if (_isFreehandMode)
                 {
-                    // 自由绘制模式：添加点到路径
                     _freehandPoints.Add(_currentPoint);
                     _freehandPolyline.Points.Add(_currentPoint);
 
-                    // 确保自由绘制路径可见
                     _freehandPolyline.Visibility = Visibility.Visible;
                 }
                 else
                 {
-                    // 矩形模式
                     UpdateSelection();
                 }
             }
@@ -878,7 +818,6 @@ namespace Ink_Canvas
 
                 if (_isFreehandMode)
                 {
-                    // 自由绘制模式：一笔完成，直接截图
                     if (_freehandPoints.Count > 1) // 只要有点就可以截图
                     {
                         // 创建路径的副本，避免修改原始列表
@@ -894,13 +833,10 @@ namespace Ink_Canvas
                         // 优化路径：移除重复点和过于接近的点，提高路径质量
                         var optimizedPath = OptimizePath(pathPoints);
 
-                        // 保存选择的路径
                         SelectedPath = optimizedPath;
 
-                        // 计算边界矩形用于截图
                         var bounds = CalculatePathBounds(optimizedPath);
 
-                        // 确保边界矩形有效
                         if (bounds.Width >= 0 && bounds.Height >= 0)
                         {
                             var dpiScale = GetDpiScale();
@@ -919,7 +855,6 @@ namespace Ink_Canvas
                         }
                     }
 
-                    // 如果自由绘制失败，清除路径并继续
                     _freehandPoints.Clear();
                     _freehandPolyline.Points.Clear();
                     _freehandPolyline.Visibility = Visibility.Collapsed;
@@ -927,7 +862,6 @@ namespace Ink_Canvas
                 }
                 else
                 {
-                    // 矩形模式：进入调整模式
                     var rect = GetSelectionRectangle();
                     if (rect.Width > 5 && rect.Height > 5) // 最小尺寸检查
                     {
@@ -958,7 +892,6 @@ namespace Ink_Canvas
             _isMoving = true;
             _lastMousePosition = e.GetPosition(this);
 
-            // 确定当前控制点类型
             var ellipse = sender as Ellipse;
             if (ellipse == TopLeftControl) _activeControlPoint = ControlPointType.TopLeft;
             else if (ellipse == TopRightControl) _activeControlPoint = ControlPointType.TopRight;
@@ -983,7 +916,6 @@ namespace Ink_Canvas
                 var currentPosition = e.GetPosition(this);
                 var delta = currentPosition - _lastMousePosition;
 
-                // 根据控制点类型调整选择区域
                 AdjustSelection(delta);
 
                 _lastMousePosition = currentPosition;
@@ -991,7 +923,6 @@ namespace Ink_Canvas
             }
             catch (Exception)
             {
-                // 如果出现异常，停止移动
                 _isMoving = false;
                 _activeControlPoint = ControlPointType.None;
                 var ellipse = sender as Ellipse;
@@ -1053,7 +984,6 @@ namespace Ink_Canvas
                     break;
             }
 
-            // 确保最小尺寸
             if (newRect.Width >= 10 && newRect.Height >= 10)
             {
                 _currentSelection = newRect;
@@ -1063,11 +993,8 @@ namespace Ink_Canvas
 
         private void ShowControlPoints()
         {
-            // 确保选择矩形在调整模式下可见
             SelectionRectangle.Visibility = Visibility.Visible;
-            // 设置选择矩形的Z-index，确保它能够接收鼠标事件
             WpfCanvas.SetZIndex(SelectionRectangle, 1001);
-            // 确保选择矩形能够接收鼠标事件
             SelectionRectangle.IsHitTestVisible = true;
             ControlPointsCanvas.Visibility = Visibility.Visible;
             UpdateControlPointsPosition();
@@ -1077,7 +1004,6 @@ namespace Ink_Canvas
         {
             var rect = _currentSelection;
 
-            // 更新角控制点位置
             WpfCanvas.SetLeft(TopLeftControl, rect.Left - 4);
             WpfCanvas.SetTop(TopLeftControl, rect.Top - 4);
 
@@ -1090,7 +1016,6 @@ namespace Ink_Canvas
             WpfCanvas.SetLeft(BottomRightControl, rect.Right - 4);
             WpfCanvas.SetTop(BottomRightControl, rect.Bottom - 4);
 
-            // 更新边控制点位置
             WpfCanvas.SetLeft(TopControl, rect.Left + rect.Width / 2 - 4);
             WpfCanvas.SetTop(TopControl, rect.Top - 4);
 
@@ -1108,7 +1033,6 @@ namespace Ink_Canvas
         {
             var rect = GetSelectionRectangle();
 
-            // 更新选择矩形
             WpfCanvas.SetLeft(SelectionRectangle, rect.X);
             WpfCanvas.SetTop(SelectionRectangle, rect.Y);
             SelectionRectangle.Width = rect.Width;
@@ -1120,15 +1044,12 @@ namespace Ink_Canvas
                 SelectionRectangle.IsHitTestVisible = false;
             }
 
-            // 更新透明选择区域遮罩
             UpdateTransparentSelectionMask(rect);
 
-            // 更新尺寸信息
             SizeInfoText.Text = $"{(int)rect.Width} x {(int)rect.Height}";
             WpfCanvas.SetLeft(SizeInfoBorder, rect.X);
             WpfCanvas.SetTop(SizeInfoBorder, rect.Y - 30);
 
-            // 确保尺寸信息不超出屏幕
             if (WpfCanvas.GetTop(SizeInfoBorder) < 0)
             {
                 WpfCanvas.SetTop(SizeInfoBorder, rect.Y + rect.Height + 5);
@@ -1139,10 +1060,8 @@ namespace Ink_Canvas
         {
             try
             {
-                // 更新选择区域的几何体
                 SelectionClipGeometry.Rect = selectionRect;
 
-                // 显示透明遮罩，隐藏原始遮罩
                 TransparentSelectionMask.Visibility = Visibility.Visible;
                 OverlayRectangle.Visibility = Visibility.Collapsed;
             }
@@ -1158,7 +1077,6 @@ namespace Ink_Canvas
         {
             var rect = _currentSelection;
 
-            // 更新选择矩形
             WpfCanvas.SetLeft(SelectionRectangle, rect.X);
             WpfCanvas.SetTop(SelectionRectangle, rect.Y);
             SelectionRectangle.Width = rect.Width;
@@ -1171,18 +1089,14 @@ namespace Ink_Canvas
                 WpfCanvas.SetZIndex(SelectionRectangle, 1001);
             }
 
-            // 更新透明选择区域遮罩
             UpdateTransparentSelectionMask(rect);
 
-            // 更新控制点位置
             UpdateControlPointsPosition();
 
-            // 更新尺寸信息
             SizeInfoText.Text = $"{(int)rect.Width} x {(int)rect.Height}";
             WpfCanvas.SetLeft(SizeInfoBorder, rect.X);
             WpfCanvas.SetTop(SizeInfoBorder, rect.Y - 30);
 
-            // 确保尺寸信息不超出屏幕
             if (WpfCanvas.GetTop(SizeInfoBorder) < 0)
             {
                 WpfCanvas.SetTop(SizeInfoBorder, rect.Y + rect.Height + 5);
@@ -1201,7 +1115,6 @@ namespace Ink_Canvas
 
         private void ConfirmSelection()
         {
-            // 在自由绘制模式下，不执行确认操作
             if (_isFreehandMode)
             {
                 return;
@@ -1227,7 +1140,6 @@ namespace Ink_Canvas
 
         private void CancelSelection()
         {
-            // 停止摄像头预览
             if (_cameraService != null)
             {
                 _cameraService.StopPreview();
@@ -1275,7 +1187,6 @@ namespace Ink_Canvas
                 var current = points[i];
                 var next = points[i + 1];
 
-                // 计算当前点到前后两点连线的距离
                 var distance = DistanceToLine(current, prev, next);
 
                 // 进一步降低阈值，保留更多点，确保路径质量
@@ -1335,7 +1246,6 @@ namespace Ink_Canvas
             _activeControlPoint = ControlPointType.Move;
             _lastMousePosition = e.GetPosition(this);
 
-            // 捕获鼠标到选择矩形
             SelectionRectangle.CaptureMouse();
             e.Handled = true;
         }
@@ -1349,12 +1259,10 @@ namespace Ink_Canvas
                 var currentPosition = e.GetPosition(this);
                 var delta = currentPosition - _lastMousePosition;
 
-                // 移动整个选择区域
                 var newRect = _currentSelection;
                 newRect.X += delta.X;
                 newRect.Y += delta.Y;
 
-                // 确保选择区域不会移出屏幕边界
                 var screenBounds = new Rect(0, 0, ActualWidth, ActualHeight);
                 if (newRect.Left < 0) newRect.X = 0;
                 if (newRect.Top < 0) newRect.Y = 0;
@@ -1369,7 +1277,6 @@ namespace Ink_Canvas
             }
             catch (Exception)
             {
-                // 如果出现异常，停止移动
                 _isMoving = false;
                 _activeControlPoint = ControlPointType.None;
                 SelectionRectangle.ReleaseMouseCapture();
@@ -1391,14 +1298,11 @@ namespace Ink_Canvas
         {
             try
             {
-                // 获取虚拟屏幕边界
                 var virtualScreen = SystemInformation.VirtualScreen;
 
-                // 设置全屏截图区域
                 SelectedArea = new DrawingRectangle(virtualScreen.X, virtualScreen.Y, virtualScreen.Width, virtualScreen.Height);
                 SelectedPath = null; // 全屏截图不需要路径
 
-                // 直接关闭窗口并返回结果
                 DialogResult = true;
                 Close();
             }
@@ -1413,25 +1317,21 @@ namespace Ink_Canvas
 
         private void ResetSelectionState()
         {
-            // 重置所有选择相关的状态
             _isSelecting = false;
             _isAdjusting = false;
             _isMoving = false;
             _isCameraMode = false;
             _activeControlPoint = ControlPointType.None;
 
-            // 停止摄像头预览
             if (_cameraService != null)
             {
                 _cameraService.StopPreview();
             }
 
-            // 清除自由绘制的内容
             _freehandPoints.Clear();
             _freehandPolyline.Points.Clear();
             _freehandPolyline.Visibility = Visibility.Collapsed;
 
-            // 清除矩形选择的内容
             SelectionRectangle.Visibility = Visibility.Collapsed;
             SelectionRectangle.IsHitTestVisible = false;
             ControlPointsCanvas.Visibility = Visibility.Collapsed;
@@ -1439,26 +1339,21 @@ namespace Ink_Canvas
             SelectionPath.Visibility = Visibility.Collapsed;
             HintTextBorder.Visibility = Visibility.Collapsed;
 
-            // 隐藏摄像头预览
             CameraPreviewBorder.Visibility = Visibility.Collapsed;
 
-            // 重置遮罩
             TransparentSelectionMask.Visibility = Visibility.Collapsed;
             OverlayRectangle.Visibility = Visibility.Visible;
 
-            // 释放鼠标捕获
             if (IsMouseCaptured)
             {
                 ReleaseMouseCapture();
             }
 
-            // 释放选择矩形的鼠标捕获
             if (SelectionRectangle.IsMouseCaptured)
             {
                 SelectionRectangle.ReleaseMouseCapture();
             }
 
-            // 重置选择区域
             _currentSelection = new Rect();
             SelectedArea = null;
             SelectedPath = null;
@@ -1538,10 +1433,8 @@ namespace Ink_Canvas
         {
             try
             {
-                // 停止提示文字定时器
                 StopHintTimer();
 
-                // 清理摄像头资源
                 if (_cameraService != null)
                 {
                     // 先反注册事件，避免服务在关闭过程中回调到已释放的窗口
@@ -1552,7 +1445,6 @@ namespace Ink_Canvas
                     _cameraService = null;
                 }
 
-                // 清理摄像头图像
                 _capturedCameraImage?.Dispose();
                 CameraImage?.Dispose();
             }

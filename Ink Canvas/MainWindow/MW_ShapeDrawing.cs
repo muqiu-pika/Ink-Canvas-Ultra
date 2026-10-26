@@ -710,11 +710,6 @@ namespace Ink_Canvas
                 if (isSingleFingerDragMode) return;
                 if (drawingShapeMode != 0)
                 {
-                    // 注意：此处不能再因 isLastTouchEraser 提前返回。该标记只在"普通工具 + 宽触点
-                    // 手指擦除"场景有意义；图形工具激活时画布触点是画图输入（Main_Grid_TouchDown 已
-                    // 按图形输入放行并复位该标记）。若保留此提前返回，一旦该标记残留（如先手指擦除、
-                    // 再切图形工具，或多指书写路径不重置该标记），图形就会画不出来且画布停在橡皮擦状态。
-                    // 真正想中止本次图形预览的语义由 isWaitUntilNextTouchDown / dec.Count > 1 表达。
                     if (isWaitUntilNextTouchDown) return;
                     if (dec.Count > 1)
                     {
@@ -1036,7 +1031,6 @@ namespace Ink_Canvas
                     var pointList4 = new List<Point>();
                     if (drawMultiStepShapeCurrentStep == 0)
                     {
-                        //第一笔：画渐近线
                         double k = Math.Abs((endP.Y - iniP.Y) / (endP.X - iniP.X));
                         strokes.Add(GenerateDashedLineStrokeCollection(new Point(2 * iniP.X - endP.X, 2 * iniP.Y - endP.Y), endP));
                         strokes.Add(GenerateDashedLineStrokeCollection(new Point(2 * iniP.X - endP.X, endP.Y), new Point(endP.X, 2 * iniP.Y - endP.Y)));
@@ -1045,7 +1039,6 @@ namespace Ink_Canvas
                     }
                     else
                     {
-                        //第二笔：画双曲线
                         double k = drawMultiStepShapeSpecialParameter3;
                         bool isHyperbolaFocalPointOnXAxis = Math.Abs((endP.Y - iniP.Y) / (endP.X - iniP.X)) < k;
                         if (isHyperbolaFocalPointOnXAxis)
@@ -1092,7 +1085,6 @@ namespace Ink_Canvas
                             strokes.Add(stroke.Clone());
                             if (drawingShapeMode == 25)
                             {
-                                //画焦点
                                 c = Math.Sqrt(a * a + b * b);
                                 stylusPoint = isHyperbolaFocalPointOnXAxis ? new StylusPoint(iniP.X + c, iniP.Y, (float)1.0) : new StylusPoint(iniP.X, iniP.Y + c, (float)1.0);
                                 point = new StylusPointCollection();
@@ -1130,7 +1122,6 @@ namespace Ink_Canvas
                     break;
                 case 20:
                     _currentCommitType = CommitReason.ShapeDrawing;
-                    //抛物线 y=ax^2
                     if (Math.Abs(iniP.X - endP.X) < 0.01 || Math.Abs(iniP.Y - endP.Y) < 0.01) return;
                     a = (iniP.Y - endP.Y) / ((iniP.X - endP.X) * (iniP.X - endP.X));
                     pointList = new List<Point>();
@@ -1157,7 +1148,6 @@ namespace Ink_Canvas
                     break;
                 case 21:
                     _currentCommitType = CommitReason.ShapeDrawing;
-                    //抛物线 y^2=ax
                     if (Math.Abs(iniP.X - endP.X) < 0.01 || Math.Abs(iniP.Y - endP.Y) < 0.01) return;
                     a = (iniP.X - endP.X) / ((iniP.Y - endP.Y) * (iniP.Y - endP.Y));
                     pointList = new List<Point>();
@@ -1184,7 +1174,6 @@ namespace Ink_Canvas
                     break;
                 case 22:
                     _currentCommitType = CommitReason.ShapeDrawing;
-                    //抛物线 y^2=ax, 含焦点
                     if (Math.Abs(iniP.X - endP.X) < 0.01 || Math.Abs(iniP.Y - endP.Y) < 0.01) return;
                     double p = (iniP.Y - endP.Y) * (iniP.Y - endP.Y) / (2 * (iniP.X - endP.X));
                     a = 0.5 / p;
@@ -1228,7 +1217,6 @@ namespace Ink_Canvas
                     }
                     double topA = Math.Abs(newIniP.X - endP.X);
                     double topB = topA / 2.646;
-                    //顶部椭圆
                     pointList = GenerateEllipseGeometry(new Point(newIniP.X, newIniP.Y - topB / 2), new Point(endP.X, newIniP.Y + topB / 2));
                     point = new StylusPointCollection(pointList);
                     stroke = new Stroke(point)
@@ -1236,7 +1224,6 @@ namespace Ink_Canvas
                         DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone()
                     };
                     strokes.Add(stroke.Clone());
-                    //底部椭圆
                     pointList = GenerateEllipseGeometry(new Point(newIniP.X, endP.Y - topB / 2), new Point(endP.X, endP.Y + topB / 2), false, true);
                     point = new StylusPointCollection(pointList);
                     stroke = new Stroke(point)
@@ -1245,7 +1232,6 @@ namespace Ink_Canvas
                     };
                     strokes.Add(stroke.Clone());
                     strokes.Add(GenerateDashedLineEllipseStrokeCollection(new Point(newIniP.X, endP.Y - topB / 2), new Point(endP.X, endP.Y + topB / 2), true, false));
-                    //左侧
                     pointList = new List<System.Windows.Point>{
                         new System.Windows.Point(newIniP.X, newIniP.Y),
                         new System.Windows.Point(newIniP.X, endP.Y)
@@ -1256,7 +1242,6 @@ namespace Ink_Canvas
                         DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone()
                     };
                     strokes.Add(stroke.Clone());
-                    //右侧
                     pointList = new List<System.Windows.Point>{
                         new System.Windows.Point(endP.X, newIniP.Y),
                         new System.Windows.Point(endP.X, endP.Y)
@@ -1279,7 +1264,6 @@ namespace Ink_Canvas
                     }
                     double bottomA = Math.Abs(newIniP.X - endP.X);
                     double bottomB = bottomA / 2.646;
-                    //底部椭圆
                     pointList = GenerateEllipseGeometry(new Point(newIniP.X, endP.Y - bottomB / 2), new Point(endP.X, endP.Y + bottomB / 2), false, true);
                     point = new StylusPointCollection(pointList);
                     stroke = new Stroke(point)
@@ -1288,7 +1272,6 @@ namespace Ink_Canvas
                     };
                     strokes.Add(stroke.Clone());
                     strokes.Add(GenerateDashedLineEllipseStrokeCollection(new Point(newIniP.X, endP.Y - bottomB / 2), new Point(endP.X, endP.Y + bottomB / 2), true, false));
-                    //左侧
                     pointList = new List<System.Windows.Point>{
                         new System.Windows.Point((newIniP.X + endP.X) / 2, newIniP.Y),
                         new System.Windows.Point(newIniP.X, endP.Y)
@@ -1299,7 +1282,6 @@ namespace Ink_Canvas
                         DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone()
                     };
                     strokes.Add(stroke.Clone());
-                    //右侧
                     pointList = new List<System.Windows.Point>{
                         new System.Windows.Point((newIniP.X + endP.X) / 2, newIniP.Y),
                         new System.Windows.Point(endP.X, endP.Y)
@@ -1333,47 +1315,39 @@ namespace Ink_Canvas
                         a = CuboidFrontRectEndP.X - CuboidFrontRectIniP.X; //正面矩形长
                         b = CuboidFrontRectEndP.Y - CuboidFrontRectIniP.Y; //正面矩形宽
 
-                        //横上
                         Point newLineIniP = new Point(CuboidFrontRectIniP.X + d, CuboidFrontRectIniP.Y - d);
                         Point newLineEndP = new Point(CuboidFrontRectEndP.X + d, CuboidFrontRectIniP.Y - d);
                         pointList = new List<System.Windows.Point> { newLineIniP, newLineEndP };
                         point = new StylusPointCollection(pointList);
                         stroke = new Stroke(point) { DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone() };
                         strokes.Add(stroke.Clone());
-                        //横下 (虚线)
                         newLineIniP = new Point(CuboidFrontRectIniP.X + d, CuboidFrontRectEndP.Y - d);
                         newLineEndP = new Point(CuboidFrontRectEndP.X + d, CuboidFrontRectEndP.Y - d);
                         strokes.Add(GenerateDashedLineStrokeCollection(newLineIniP, newLineEndP));
-                        //斜左上
                         newLineIniP = new Point(CuboidFrontRectIniP.X, CuboidFrontRectIniP.Y);
                         newLineEndP = new Point(CuboidFrontRectIniP.X + d, CuboidFrontRectIniP.Y - d);
                         pointList = new List<System.Windows.Point> { newLineIniP, newLineEndP };
                         point = new StylusPointCollection(pointList);
                         stroke = new Stroke(point) { DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone() };
                         strokes.Add(stroke.Clone());
-                        //斜右上
                         newLineIniP = new Point(CuboidFrontRectEndP.X, CuboidFrontRectIniP.Y);
                         newLineEndP = new Point(CuboidFrontRectEndP.X + d, CuboidFrontRectIniP.Y - d);
                         pointList = new List<System.Windows.Point> { newLineIniP, newLineEndP };
                         point = new StylusPointCollection(pointList);
                         stroke = new Stroke(point) { DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone() };
                         strokes.Add(stroke.Clone());
-                        //斜左下 (虚线)
                         newLineIniP = new Point(CuboidFrontRectIniP.X, CuboidFrontRectEndP.Y);
                         newLineEndP = new Point(CuboidFrontRectIniP.X + d, CuboidFrontRectEndP.Y - d);
                         strokes.Add(GenerateDashedLineStrokeCollection(newLineIniP, newLineEndP));
-                        //斜右下
                         newLineIniP = new Point(CuboidFrontRectEndP.X, CuboidFrontRectEndP.Y);
                         newLineEndP = new Point(CuboidFrontRectEndP.X + d, CuboidFrontRectEndP.Y - d);
                         pointList = new List<System.Windows.Point> { newLineIniP, newLineEndP };
                         point = new StylusPointCollection(pointList);
                         stroke = new Stroke(point) { DrawingAttributes = inkCanvas.DefaultDrawingAttributes.Clone() };
                         strokes.Add(stroke.Clone());
-                        //竖左 (虚线)
                         newLineIniP = new Point(CuboidFrontRectIniP.X + d, CuboidFrontRectIniP.Y - d);
                         newLineEndP = new Point(CuboidFrontRectIniP.X + d, CuboidFrontRectEndP.Y - d);
                         strokes.Add(GenerateDashedLineStrokeCollection(newLineIniP, newLineEndP));
-                        //竖右
                         newLineIniP = new Point(CuboidFrontRectEndP.X + d, CuboidFrontRectIniP.Y - d);
                         newLineEndP = new Point(CuboidFrontRectEndP.X + d, CuboidFrontRectEndP.Y - d);
                         pointList = new List<System.Windows.Point> { newLineIniP, newLineEndP };
@@ -1410,7 +1384,6 @@ namespace Ink_Canvas
                         Point baseTop = TetrahedronFrontTriangleTopP;
                         Point apex = endP;
 
-                        // 三条从顶点到底面的棱（实线）
                         StrokeCollection edgeStrokes = new StrokeCollection();
                         edgeStrokes.Add(GenerateLineStroke(baseBottomLeft, apex));
                         edgeStrokes.Add(GenerateLineStroke(baseBottomRight, apex));
@@ -1730,7 +1703,6 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
-                // 顿笔拉直：鼠标路径会话结束
                 HandleMouseStraightenUp(e);
                 if (drawingShapeMode == 5)
             {
@@ -1872,7 +1844,6 @@ namespace Ink_Canvas
                             TetrahedronStrokeCollection.Add(lastTempStrokeCollection);
                         }
 
-                        // 添加三条棱
                         if (TetrahedronEdgeStrokeCollection != null)
                         {
                             TetrahedronStrokeCollection.Add(TetrahedronEdgeStrokeCollection);
