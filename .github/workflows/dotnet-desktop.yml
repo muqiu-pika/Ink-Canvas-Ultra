@@ -55,16 +55,17 @@ jobs:
         $assemblyInfo = "Ink Canvas\Properties\AssemblyInfo.cs"
         $text = Get-Content $assemblyInfo -Raw
         $pattern = '(?m)^\[assembly: AssemblyVersion\("\d+(\.\d+){3}"\)\]'
+        if (-not [regex]::IsMatch($text, $pattern)) { Write-Error "AssemblyVersion 未找到（文件格式可能已变）"; exit 1 }
         $updated = [regex]::Replace($text, $pattern, "[assembly: AssemblyVersion(""$version.0"")]")
-        if ($updated -eq $text) { Write-Error "AssemblyVersion 未替换成功（文件格式可能已变）"; exit 1 }
-        Set-Content -Path $assemblyInfo -Value $updated -Encoding UTF8
+        if ($updated -ne $text) { Set-Content -Path $assemblyInfo -Value $updated -Encoding UTF8 }
 
         # 2) 安装包脚本 -> #define MyAppVersion "X.Y.Z"
         $iss = "Ink Canvas Ultra-AnyCPU.iss"
         $issText = Get-Content $iss -Raw
-        $issUpdated = [regex]::Replace($issText, '#define\s+MyAppVersion\s+"[^"]*"', "#define MyAppVersion ""$version""")
-        if ($issUpdated -eq $issText) { Write-Error "iss 的 MyAppVersion 未替换成功"; exit 1 }
-        Set-Content -Path $iss -Value $issUpdated -Encoding UTF8
+        $issPattern = '#define\s+MyAppVersion\s+"[^"]*"'
+        if (-not [regex]::IsMatch($issText, $issPattern)) { Write-Error "iss 的 MyAppVersion 未找到"; exit 1 }
+        $issUpdated = [regex]::Replace($issText, $issPattern, "#define MyAppVersion ""$version""")
+        if ($issUpdated -ne $issText) { Set-Content -Path $iss -Value $issUpdated -Encoding UTF8 }
 
         Write-Output "版本已同步：AssemblyInfo/iss = $version"
 
