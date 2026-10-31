@@ -208,6 +208,15 @@ namespace Ink_Canvas
             SyncPenPaletteControlsFromSettings();
 
             if (Settings.Startup != null)
+            {
+                if (isStartup)
+                {
+                    if (Settings.Startup.IsFoldAtStartup)
+                    {
+                        FoldFloatingBar_Click(Fold_Icon, null);
+                    }
+                }
+            }
             // 以下设置 UI 控件填充仅在设置窗口打开时执行
             if (SettingsWindow != null)
             {
