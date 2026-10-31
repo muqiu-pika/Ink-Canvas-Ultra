@@ -245,10 +245,6 @@ namespace Ink_Canvas
                     {
                         DelAutoSavedFiles.DeleteFilesOlder(Settings.Automation.AutoSavedStrokesLocation, Settings.Automation.AutoDelSavedFilesDaysThreshold);
                     }
-                    if (Settings.Startup.IsFoldAtStartup)
-                    {
-                        FoldFloatingBar_Click(Fold_Icon, null);
-                    }
                 }
                 if (Settings.Startup.IsAutoUpdate)
                 {
