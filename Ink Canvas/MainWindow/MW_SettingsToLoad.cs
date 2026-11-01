@@ -207,6 +207,16 @@ namespace Ink_Canvas
             }
             SyncPenPaletteControlsFromSettings();
 
+            if (Settings.Startup != null)
+            {
+                if (isStartup)
+                {
+                    if (Settings.Startup.IsFoldAtStartup)
+                    {
+                        FoldFloatingBar_Click(Fold_Icon, null);
+                    }
+                }
+            }
             // 以下设置 UI 控件填充仅在设置窗口打开时执行
             if (SettingsWindow != null)
             {
@@ -234,10 +244,6 @@ namespace Ink_Canvas
                     if (Settings.Automation.AutoDelSavedFiles)
                     {
                         DelAutoSavedFiles.DeleteFilesOlder(Settings.Automation.AutoSavedStrokesLocation, Settings.Automation.AutoDelSavedFilesDaysThreshold);
-                    }
-                    if (Settings.Startup.IsFoldAtStartup)
-                    {
-                        FoldFloatingBar_Click(Fold_Icon, null);
                     }
                 }
                 if (Settings.Startup.IsAutoUpdate)
