@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Ink;
 using System.Windows.Input;
@@ -9,22 +10,30 @@ namespace Ink_Canvas.Helpers
 {
     public class VisualCanvas : FrameworkElement
     {
+        // 预览层可承载多个视觉对象：活动笔段（构造传入）+ 已封存的分段笔迹。
+        // 每段只渲染一次，长笔画书写时不再每帧全量重绘。
+        private readonly List<Visual> _visuals = new List<Visual>();
+
         protected override Visual GetVisualChild(int index)
         {
-            return Visual;
+            return _visuals[index];
         }
 
-        protected override int VisualChildrenCount => 1;
+        protected override int VisualChildrenCount => _visuals.Count;
 
         public VisualCanvas(DrawingVisual visual)
         {
-            Visual = visual;
-            AddVisualChild(visual);
+            AddVisual(visual);
             IsHitTestVisible = false;
             Focusable = false;
         }
 
-        public DrawingVisual Visual { get; }
+        public void AddVisual(Visual visual)
+        {
+            if (visual == null) return;
+            _visuals.Add(visual);
+            AddVisualChild(visual);
+        }
     }
 
     public class StrokeVisual : DrawingVisual
@@ -54,6 +63,14 @@ namespace Ink_Canvas.Helpers
         private const int ShortTimeMs = 30;
         private const double MinPointDistance = 0.6;
         private bool _redrawScheduled = false;
+
+        // 增量渲染：活动笔段的点数达到阈值即"封存"为独立 DrawingVisual（只渲染一次），
+        // 之后每帧节流重绘只处理活动笔段，避免长笔画时 O(n²) 的全量重绘造成墨迹延迟。
+        private const int ChunkPointThreshold = 64;
+        private readonly List<DrawingVisual> _sealedChunks = new List<DrawingVisual>();
+
+        /// <summary>承载本视觉的预览容器；封存的分段笔迹会追加到这里（可为 null，仅测试场景）。</summary>
+        public VisualCanvas HostCanvas { get; set; }
 
         public StrokeCollection StrokeCollection => _strokes;
 
@@ -90,6 +107,9 @@ namespace Ink_Canvas.Helpers
             // 若在极短时间内跨越了较远距离，则视为断线，开启新笔段
             if (dt >= 0 && dt <= ShortTimeMs && dist >= MaxGapDistance)
             {
+                // 旧笔段不会再增长：立即封存，仅活动笔段参与后续重绘
+                SealCurrentStroke(false);
+
                 var collection = new StylusPointCollection { point };
                 _currentStroke = new Stroke(collection) { DrawingAttributes = _drawingAttributes };
                 _strokes.Add(_currentStroke);
@@ -106,11 +126,48 @@ namespace Ink_Canvas.Helpers
             else
             {
                 _currentStroke.StylusPoints.Add(point);
+
+                // 达到分段阈值：封存当前笔段，并以最后一点为起点延续新笔段（视觉上无缝衔接）
+                if (_currentStroke.StylusPoints.Count >= ChunkPointThreshold)
+                {
+                    SealCurrentStroke(true);
+                }
             }
 
             _lastPoint = point;
             _lastTick = now;
             return true;
+        }
+
+        /// <summary>
+        ///     把当前活动笔段渲染为独立 DrawingVisual 并封存；seedWithLastPoint 时以最后一点延续新笔段。
+        /// </summary>
+        private void SealCurrentStroke(bool seedWithLastPoint)
+        {
+            if (_currentStroke == null) return;
+
+            try
+            {
+                var chunk = new DrawingVisual();
+                using (var dc = chunk.RenderOpen())
+                {
+                    _currentStroke.Draw(dc);
+                }
+                _sealedChunks.Add(chunk);
+                HostCanvas?.AddVisual(chunk);
+            }
+            catch { }
+
+            if (seedWithLastPoint && _lastPoint.HasValue)
+            {
+                var collection = new StylusPointCollection { _lastPoint.Value };
+                _currentStroke = new Stroke(collection) { DrawingAttributes = _drawingAttributes };
+                _strokes.Add(_currentStroke);
+            }
+            else
+            {
+                _currentStroke = null;
+            }
         }
 
         public void Redraw()
@@ -119,9 +176,11 @@ namespace Ink_Canvas.Helpers
             {
                 using (var dc = RenderOpen())
                 {
-                    foreach (var s in _strokes)
+                    // 已封存的笔段由各自的 DrawingVisual 呈现（只渲染一次），
+                    // 这里只需重绘尚未封存的活动笔段
+                    if (_currentStroke != null)
                     {
-                        s.Draw(dc);
+                        _currentStroke.Draw(dc);
                     }
                 }
             }

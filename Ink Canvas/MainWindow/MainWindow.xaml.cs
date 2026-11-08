@@ -1349,6 +1349,9 @@ namespace Ink_Canvas
             // 诊断用：审计"刚写完就被移出画布"的笔迹（正常情况下不产生日志）
             HookStrokeLossAudit();
 
+            // 面积擦轨迹采样：手势结束时补擦快速滑动漏检的笔迹
+            InitializeAreaEraseSweepTracking();
+
             // 触控优化：主界面（含浮动栏、白板等内嵌控件）中所有滑块支持点击轨道即定位，
             // 触屏上便于直接拖动，免去精确抓取极小缩略块。仅设属性，不改外观。
             SetTouchFriendlySliders(this);
@@ -1518,6 +1521,25 @@ namespace Ink_Canvas
                 // 即使 icart 快照因保存失败而缺失，也应让用户看到恢复流程（恢复失败时由分支给出提示），
                 // 而不应在此处静默返回导致“崩溃重启后毫无提示”。
                 if (!File.Exists(metaPath)) return;
+
+                // 空快照（没有任何笔迹/元素，content=0）不弹恢复询问：
+                // 恢复也不会有任何可见变化，只会让用户困惑（"弹了但点了没反应"）。
+                // 旧版元信息没有 content 字段时视为有内容，保持原行为。
+                try
+                {
+                    bool hasSnapshotContent = true;
+                    foreach (var metaLine in File.ReadAllLines(metaPath))
+                    {
+                        var metaKv = metaLine.Split('=');
+                        if (metaKv.Length == 2 && metaKv[0].Trim().Equals("content", StringComparison.OrdinalIgnoreCase))
+                        {
+                            hasSnapshotContent = metaKv[1].Trim() != "0";
+                            break;
+                        }
+                    }
+                    if (!hasSnapshotContent) return;
+                }
+                catch { }
 
                 var notificationWindow = new YesOrNoNotificationWindow("检测到上次会话快照，是否恢复？",
                     yesAction: () =>

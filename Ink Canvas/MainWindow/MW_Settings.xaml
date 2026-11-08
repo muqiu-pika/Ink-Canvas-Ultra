@@ -1942,6 +1942,38 @@
 
                                 </ikw:SimpleStackPanel>
 
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+
+                                    <ikw:SimpleStackPanel Width="50">
+
+                                        <ui:ToggleSwitch
+
+                                            Name="ToggleSwitchToolbarAlwaysExpanded"
+
+                                            IsOn="False"
+
+                                            OffContent="关"
+
+                                            OnContent="开"
+
+                                            Toggled="ToggleSwitchToolbarAlwaysExpanded_Toggled" />
+
+                                    </ikw:SimpleStackPanel>
+
+                                    <TextBlock
+
+                                        Margin="0,0,14,0"
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="14"
+
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+
+                                        Text="工具栏始终展开（不随批注按钮变换形态）" />
+
+                                </ikw:SimpleStackPanel>
+
                                 <ikw:SimpleStackPanel Spacing="10">
 
                                     <StackPanel Orientation="Horizontal">

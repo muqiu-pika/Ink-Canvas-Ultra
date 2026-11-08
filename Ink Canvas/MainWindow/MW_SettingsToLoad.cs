@@ -382,6 +382,16 @@ namespace Ink_Canvas
                     ToggleSwitchColorfulViewboxFloatingBar.IsOn = false;
                 }
 
+                // 工具栏"始终展开"状态回填（找不到控件说明旧版设置窗口缓存，跳过即可）
+                if (Settings.Appearance.IsToolbarAlwaysExpanded)
+                {
+                    ToggleSwitchToolbarAlwaysExpanded.IsOn = true;
+                }
+                else
+                {
+                    ToggleSwitchToolbarAlwaysExpanded.IsOn = false;
+                }
+
                 SliderFloatingBarScale.Value = Settings.Appearance.FloatingBarScale;
                 SliderBlackboardScale.Value = Settings.Appearance.BlackboardScale;
                 SliderPenPaletteScale.Value = NormalizeFloatingBarScale(

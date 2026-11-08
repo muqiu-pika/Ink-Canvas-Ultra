@@ -165,6 +165,11 @@ namespace Ink_Canvas
         [JsonProperty("isColorfulViewboxFloatingBar")]
         public bool IsColorfulViewboxFloatingBar { get; set; } = false;
 
+        // 工具栏"始终展开"：开启后浮动栏的批注按钮区（StackPanelCanvasControls）保持常驻显示，
+        // 不再随着批注/鼠标模式切换而收起、展开变换形态
+        [JsonProperty("isToolbarAlwaysExpanded")]
+        public bool IsToolbarAlwaysExpanded { get; set; } = false;
+
         [JsonProperty("enableViewboxFloatingBarScaleTransform")]
         public double FloatingBarScale { get; set; } = 80.0;
 

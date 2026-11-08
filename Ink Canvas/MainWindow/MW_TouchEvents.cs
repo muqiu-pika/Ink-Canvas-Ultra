@@ -97,17 +97,32 @@ namespace Ink_Canvas
 
         private void MainWindow_StylusDown(object sender, StylusDownEventArgs e)
         {
+            int stylusDeviceId = e.StylusDevice.Id;
             try
             {
                 UpdateInputActivityTimestamp();
                 MarkPenContact();
-                if (isLaserPointerEnabled) return;
-                if (inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint
-                    || inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke
-                    || inkCanvas.EditingMode == InkCanvasEditingMode.Select) return;
 
-                int stylusDeviceId = e.StylusDevice.Id;
                 bool isPreviewInput = ShouldHandleStylusInputAsPreview(e);
+                // 无论走哪个分支都必须登记本设备的预览状态：
+                // 否则上一笔（或被打断的一笔）残留在字典里的"墨迹预览"状态，
+                // 会让下一次落在橡皮擦/选择/图形等非笔工具上的触摸继续走预览层，
+                // 在抬笔时被提交成画笔墨迹（快速操作切换工具时尤其容易复现）。
+                bool isInkPreview = !isLaserPointerEnabled
+                    && !forceEraser
+                    && drawingShapeMode == 0
+                    && inkCanvas.EditingMode != InkCanvasEditingMode.EraseByPoint
+                    && inkCanvas.EditingMode != InkCanvasEditingMode.EraseByStroke
+                    && inkCanvas.EditingMode != InkCanvasEditingMode.Select;
+
+                if (!isInkPreview)
+                {
+                    // 非墨迹工具：登记为"非预览"，触摸不再进入墨迹预览层
+                    TouchDownPointsList[stylusDeviceId] = inkCanvas.EditingMode;
+                    StylusPreviewModeByDeviceId[stylusDeviceId] = false;
+                    return;
+                }
+
                 // 真手写笔（非触摸）走 InkCanvas 原生落笔，落笔前必须先确认画布处于可落笔状态：
                 // 触摸/双指手势流程会把 EditingMode 临时置为 None，若因此残留，
                 // 笔会完全写不上（表现为"写了一笔没反应"）。登记的 id 要在恢复模式之后再加，
@@ -183,6 +198,14 @@ namespace Ink_Canvas
                 // 激光笔已开启（例如接触过程中才打开激光笔）：丢弃本笔预览，不写入画布，
                 // 否则激光轨迹消失后画布上会残留这条笔迹
                 if (isLaserPointerEnabled)
+                {
+                    return;
+                }
+
+                // 本笔开始后工具被切换（手势中被切到橡皮擦/选择等，TouchDown 会改写登记）：
+                // 预览片段不能作为画笔墨迹提交，否则手掌擦除/快速切换工具时
+                // 会在画布上留下一段多余的笔迹
+                if (GetTouchDownPointsList(stylusDeviceId) != InkCanvasEditingMode.None)
                 {
                     return;
                 }
@@ -389,8 +412,8 @@ namespace Ink_Canvas
 
             var strokeVisual = new StrokeVisual(inkCanvas.DefaultDrawingAttributes.Clone());
             StrokeVisualList[id] = strokeVisual;
-            StrokeVisualList[id] = strokeVisual;
             var visualCanvas = new VisualCanvas(strokeVisual);
+            strokeVisual.HostCanvas = visualCanvas; // 增量渲染：封存的分段笔迹追加到预览容器
             VisualCanvasList[id] = visualCanvas;
             inkCanvas.Children.Add(visualCanvas);
 
@@ -473,10 +496,11 @@ namespace Ink_Canvas
         private bool forcePointEraser = true;
 
         /// <summary>
-        /// 宽触点手指擦除是一次性手势：记录切换成橡皮擦之前的工具模式，手指抬起后原样恢复。
+        /// 宽触点手指擦除是一次性手势：记录切换成橡皮擦之前的工具模式与橡皮形状，手指抬起后原样恢复。
         /// 否则画布会一直停留在橡皮擦模式，随后用笔书写也会被执行成擦除（“一直处于橡皮擦状态”）。
         /// </summary>
         private InkCanvasEditingMode fingerEraserPreviousMode = InkCanvasEditingMode.Ink;
+        private StylusShape fingerEraserPreviousShape = null;
         private bool isFingerEraserModeActive = false;
 
         #region 手掌误触保护（用笔书写时的手指/手掌触点不切橡皮擦）
@@ -569,16 +593,20 @@ namespace Ink_Canvas
                 return;
             }
             fingerEraserPreviousMode = inkCanvas.EditingMode;
+            fingerEraserPreviousShape = inkCanvas.EraserShape;
             isFingerEraserModeActive = true;
         }
 
         /// <summary>
-        /// 手指抬起后结束一次性手指擦除手势：把工具恢复成擦除前的模式
+        /// 手指抬起后结束一次性手指擦除手势：把工具恢复成擦除前的模式与橡皮形状。
+        /// 只恢复模式不恢复形状会让橡皮尺寸残留为手势期间的触点大小（面积擦/墨迹擦被"污染"）。
         /// </summary>
         private void EndFingerEraserModeIfNeeded()
         {
             if (!isFingerEraserModeActive) return;
             isFingerEraserModeActive = false;
+            var previousShape = fingerEraserPreviousShape;
+            fingerEraserPreviousShape = null;
 
             // 用户主动选择了橡皮擦工具（forceEraser）时不恢复，保持连续擦除
             if (forceEraser) return;
@@ -587,6 +615,10 @@ namespace Ink_Canvas
                 inkCanvas.EditingMode == InkCanvasEditingMode.EraseByStroke)
             {
                 inkCanvas.EditingMode = fingerEraserPreviousMode;
+                if (previousShape != null)
+                {
+                    inkCanvas.EraserShape = previousShape;
+                }
             }
         }
 

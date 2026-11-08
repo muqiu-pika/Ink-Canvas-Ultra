@@ -70,39 +70,53 @@ namespace Ink_Canvas
                 }
             }
 
-            return await Dispatcher.InvokeAsync(() =>
+            // 解码与压缩全部放到后台线程执行：
+            // 之前 BitmapImage(OnLoad) 与 TransformedBitmap 都在 UI 线程（Dispatcher.InvokeAsync）执行，
+            // 大图（手机照片 12MP+）完整解码需要几百毫秒，表现为“插入媒体时整个界面卡一下”。
+            // 后台线程用 DecodePixelWidth/Height 在解码阶段直接降采样（无需整图解码再缩放），
+            // 完成后 Freeze 即可安全跨线程交给 UI 使用。
+            bool compressEnabled = isLoaded && Settings.Canvas.IsCompressPicturesUploaded;
+            var decoded = await Task.Run(() =>
             {
-                BitmapImage bitmapImage = new BitmapImage();
+                var uri = new Uri(sourcePath, UriKind.Absolute);
+
+                // 先只读图片头拿原始尺寸（DelayCreation 不做完整解码，开销极小），用于判断是否需要降采样
+                int pixelWidth = 0;
+                int pixelHeight = 0;
+                try
+                {
+                    var frame = BitmapFrame.Create(uri, BitmapCreateOptions.DelayCreation, BitmapCacheOption.OnDemand);
+                    pixelWidth = frame.PixelWidth;
+                    pixelHeight = frame.PixelHeight;
+                }
+                catch { }
+
+                var bitmapImage = new BitmapImage();
                 bitmapImage.BeginInit();
-                bitmapImage.UriSource = new Uri(sourcePath, UriKind.Absolute);
+                bitmapImage.UriSource = uri;
                 bitmapImage.CacheOption = BitmapCacheOption.OnLoad;
-                bitmapImage.EndInit();
-
-                int width = bitmapImage.PixelWidth;
-                int height = bitmapImage.PixelHeight;
-
-                Image image = new Image();
-                if (isLoaded && Settings.Canvas.IsCompressPicturesUploaded && (width > 1920 || height > 1080))
+                if (compressEnabled && pixelWidth > 0 && (pixelWidth > 1920 || pixelHeight > 1080))
                 {
-                    double scaleX = 1920.0 / width;
-                    double scaleY = 1080.0 / height;
+                    double scaleX = 1920.0 / pixelWidth;
+                    double scaleY = 1080.0 / pixelHeight;
                     double scale = Math.Min(scaleX, scaleY);
-
-                    TransformedBitmap transformedBitmap = new TransformedBitmap(bitmapImage, new ScaleTransform(scale, scale));
-
-                    image.Source = transformedBitmap;
-                    image.Width = transformedBitmap.PixelWidth;
-                    image.Height = transformedBitmap.PixelHeight;
+                    // 宽高按同一比例推出，保持纵横比，行为与旧的 TransformedBitmap 一致
+                    bitmapImage.DecodePixelWidth = Math.Max(1, (int)Math.Round(pixelWidth * scale));
+                    bitmapImage.DecodePixelHeight = Math.Max(1, (int)Math.Round(pixelHeight * scale));
                 }
-                else
-                {
-                    image.Source = bitmapImage;
-                    image.Width = width;
-                    image.Height = height;
-                }
+                bitmapImage.EndInit();
+                bitmapImage.Freeze();
 
-                return image;
+                return new Tuple<BitmapSource, int, int>(bitmapImage, bitmapImage.PixelWidth, bitmapImage.PixelHeight);
             });
+
+            Image image = new Image
+            {
+                Source = decoded.Item1
+            };
+            image.Width = decoded.Item2;
+            image.Height = decoded.Item3;
+            return image;
         }
         #endregion
 

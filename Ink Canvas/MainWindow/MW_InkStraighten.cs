@@ -71,12 +71,24 @@ namespace Ink_Canvas
             return Math.Sqrt(dx * dx + dy * dy);
         }
 
+        // DPI 缩放缓存：GetInputScaleFactor 在每个 StylusMove 中会被调用多次，
+        // GetDpi 每次都要走 VisualTree→HwndSource→Win32 链路；按 1 秒 TTL 缓存即可
+        //（跨屏拖动/DPI 变化最多延迟 1 秒生效，对速度判定无感知影响）。
+        private double _cachedDpiScale = 0;
+        private DateTime _cachedDpiScaleUtc = DateTime.MinValue;
+
         private double GetInputScaleFactor()
         {
             try
             {
-                var dpi = VisualTreeHelper.GetDpi(this);
-                return Math.Max(1.0, dpi.DpiScaleX);
+                var now = DateTime.UtcNow;
+                if (_cachedDpiScale < 1.0 || (now - _cachedDpiScaleUtc).TotalMilliseconds > 1000)
+                {
+                    var dpi = VisualTreeHelper.GetDpi(this);
+                    _cachedDpiScale = Math.Max(1.0, dpi.DpiScaleX);
+                    _cachedDpiScaleUtc = now;
+                }
+                return _cachedDpiScale;
             }
             catch
             {

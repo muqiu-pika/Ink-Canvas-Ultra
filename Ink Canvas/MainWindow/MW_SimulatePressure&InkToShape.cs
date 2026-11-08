@@ -414,7 +414,11 @@ namespace Ink_Canvas
                         }
                         catch { }
                     }
-                    InkToShapeProcess();
+                    // 墨迹识别（InkAnalyzer.Analyze 是同步 COM 调用，且会对最近几笔反复分析）
+                    // 在 UI 线程上开销可观：高负载/大幅面书写时会直接造成“偶见墨迹延迟”。
+                    // 推迟到渲染空闲（Background 优先级）再执行：笔画本身已实时上屏，
+                    // 形状转换只在系统空闲时进行，不影响书写手感；多次触发按入队顺序依次执行，行为与原先一致。
+                    _ = Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Background, (Action)InkToShapeProcess);
                 }
 
                 foreach (StylusPoint stylusPoint in e.Stroke.StylusPoints)

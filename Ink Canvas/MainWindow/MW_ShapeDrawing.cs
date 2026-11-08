@@ -1791,18 +1791,18 @@ namespace Ink_Canvas
                                 break;
                         }
 
+                        // 渐近线已在第一次抬笔时作为独立历史记录提交（下方通用提交块）。
+                        // 此处不能再把渐近线并入主曲线集合重复提交：同一 StrokeCollection 出现在
+                        // 两条记录里，撤销/重做重放时会把渐近线重复加回画布（"渐近线凭空残留/复活"的撤回 BUG）。
                         if (!opFlag)
                         {
+                            // 移除渐近线：除了移出画布，还必须把这次移除记入历史——
+                            // 否则第一步那条"渐近线"记录在撤销/重做重放时会把渐近线重新画回画布。
                             inkCanvas.Strokes.Remove(drawMultiStepShapeSpecialStrokeCollection);
+                            timeMachine.CommitStrokeEraseHistory(drawMultiStepShapeSpecialStrokeCollection);
                         }
-                        else
-                        {
-                            // 保留渐近线时，将其加入 lastTempStrokeCollection 以便一起提交到时间机器，避免撤回 BUG
-                            if (lastTempStrokeCollection != null)
-                            {
-                                lastTempStrokeCollection.Add(drawMultiStepShapeSpecialStrokeCollection);
-                            }
-                        }
+                        // 保留渐近线：无需额外处理，渐近线记录与主曲线记录各自独立、可分别撤销
+                        drawMultiStepShapeSpecialStrokeCollection = null;
                     }
                     BtnPen_Click(null, null); //画完还原到笔模式
 
@@ -1856,6 +1856,10 @@ namespace Ink_Canvas
                     }
                 }
             }
+            // 面积擦补擦：手势结束时按擦除轨迹补一轮命中检测，移除快速滑动漏检的笔迹。
+            // 此刻仍处于 EraseByPoint 模式，补擦的移除会并入同一份擦除缓冲与撤销记录。
+            try { SweepRemainingStrokesAlongAreaErasePath(); } catch { }
+
             if (ReplacedStroke != null || AddedStroke != null)
             {
                 timeMachine.CommitStrokeEraseHistory(ReplacedStroke, AddedStroke);

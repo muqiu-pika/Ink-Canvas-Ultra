@@ -1742,7 +1742,10 @@ namespace Ink_Canvas
 
             CheckEnableTwoFingerGestureBtnVisibility(false);
 
-            StackPanelCanvasControls.Visibility = Visibility.Collapsed;
+            // 工具栏"始终展开"开启时，批注按钮区保持常驻显示，不随批注/鼠标模式切换而变换形态
+            StackPanelCanvasControls.Visibility = Settings.Appearance.IsToolbarAlwaysExpanded
+                ? Visibility.Visible
+                : Visibility.Collapsed;
 
             if (!isFloatingBarFolded)
             {
@@ -1774,7 +1777,7 @@ namespace Ink_Canvas
                     try { inkCanvas.IsHitTestVisible = false; } catch { }
                     try { Main_Grid.Background = Brushes.Transparent; } catch { }
                     try { GridInkCanvasSelectionCover.Visibility = Visibility.Collapsed; } catch { }
-                    try { StackPanelCanvasControls.Visibility = Visibility.Collapsed; } catch { }
+                    try { StackPanelCanvasControls.Visibility = Settings.Appearance.IsToolbarAlwaysExpanded ? Visibility.Visible : Visibility.Collapsed; } catch { }
                     try { CheckEnableTwoFingerGestureBtnVisibility(false); } catch { }
                     try { HideSubPanels("cursor", false); } catch { }
                 }
@@ -2152,7 +2155,9 @@ namespace Ink_Canvas
                 var basePath = Settings.Automation.AutoSavedStrokesLocation + @"\Auto Saved - Session";
                 try { if (!System.IO.Directory.Exists(basePath)) System.IO.Directory.CreateDirectory(basePath); } catch { }
                 var reasonPath = basePath + @"\RestartReason.txt";
-                try { System.IO.File.WriteAllText(reasonPath, "settings"); } catch { }
+                // 写入 "restart"（而非 settings/silent/crash）：手动重启是用户主动行为，
+                // 下一次启动不应弹出"是否恢复上次会话"询问；快照本身仍照常保存以防万一
+                try { System.IO.File.WriteAllText(reasonPath, "restart"); } catch { }
             }
             catch { }
 
@@ -2636,7 +2641,10 @@ namespace Ink_Canvas
             {
                 if (Main_Grid.Background == Brushes.Transparent)
                 {
-                    StackPanelCanvasControls.Visibility = Visibility.Collapsed;
+                    // 工具栏"始终展开"开启时，批注按钮区保持常驻显示，不随批注/鼠标模式切换而变换形态
+                    StackPanelCanvasControls.Visibility = Settings.Appearance.IsToolbarAlwaysExpanded
+                        ? Visibility.Visible
+                        : Visibility.Collapsed;
                     CheckEnableTwoFingerGestureBtnVisibility(false);
                     HideSubPanels("cursor");
                 }

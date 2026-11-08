@@ -27,6 +27,121 @@ namespace Ink_Canvas
         private bool IsEraseByPoint => inkCanvas.EditingMode == InkCanvasEditingMode.EraseByPoint;
         private StrokeCollection ReplacedStroke;
         private StrokeCollection AddedStroke;
+
+        // 面积擦（EraseByPoint）手势的擦除轨迹采样：手势结束时按"圆刷沿路径扫过的区域"
+        // 再补一轮命中检测并移除漏检笔迹。InkCanvas 的逐点命中检测在快速划过时会在
+        // 采样间隙"隧穿"，留下应擦未擦的笔迹残留（面积擦擦不干净的经典表现）。
+        private List<Point> _areaEraseSweepPoints;
+        private double _areaEraseSweepRadius;
+
+        /// <summary>挂接擦除轨迹采样：Preview 阶段统一捕获笔/触摸/鼠标提升的移动，仅在面积擦模式下记录。</summary>
+        private void InitializeAreaEraseSweepTracking()
+        {
+            try
+            {
+                inkCanvas.PreviewStylusMove += InkCanvas_PreviewStylusMoveForAreaErase;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("InitializeAreaEraseSweepTracking failed | " + ex.Message, LogHelper.LogType.Warning);
+            }
+        }
+
+        private void InkCanvas_PreviewStylusMoveForAreaErase(object sender, StylusEventArgs e)
+        {
+            try
+            {
+                if (inkCanvas.EditingMode != InkCanvasEditingMode.EraseByPoint) return;
+
+                if (_areaEraseSweepPoints == null)
+                {
+                    _areaEraseSweepPoints = new List<Point>();
+                    _areaEraseSweepRadius = 0;
+                }
+
+                var shape = inkCanvas.EraserShape;
+                if (shape != null && shape.Width > 0)
+                {
+                    _areaEraseSweepRadius = Math.Max(_areaEraseSweepRadius, shape.Width);
+                }
+
+                _areaEraseSweepPoints.Add(e.GetPosition(inkCanvas));
+
+                // 采样点过多时按半数抽稀（保留偶数位），路径覆盖密度仍远高于 InkCanvas 自身逐点检测
+                if (_areaEraseSweepPoints.Count >= 512)
+                {
+                    var decimated = new List<Point>(_areaEraseSweepPoints.Count / 2 + 1);
+                    for (int i = 0; i < _areaEraseSweepPoints.Count; i += 2)
+                    {
+                        decimated.Add(_areaEraseSweepPoints[i]);
+                    }
+                    _areaEraseSweepPoints = decimated;
+                }
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// 面积擦手势结束时的补擦：按采样轨迹做椭圆命中检测，移除 InkCanvas 逐点检测漏掉的笔迹。
+        /// 必须在手势结束、仍处于 EraseByPoint 模式时调用——移除会进入同一份擦除缓冲，
+        /// 与本手势已擦除的笔迹合成同一条撤销记录。
+        /// </summary>
+        private void SweepRemainingStrokesAlongAreaErasePath()
+        {
+            var sweepPoints = _areaEraseSweepPoints;
+            _areaEraseSweepPoints = null;
+            if (sweepPoints == null || sweepPoints.Count == 0) return;
+            if (_currentCommitType != CommitReason.UserInput) return;
+            if (_isRestoringDesktopStrokesAfterPpt) return;
+
+            try
+            {
+                double radius = _areaEraseSweepRadius > 0 ? _areaEraseSweepRadius / 2.0 : 45;
+
+                // 轨迹包围盒预筛 + 限制参与判定的采样数（≤128），手势结束时的一次性开销控制在毫秒级
+                double minX = double.MaxValue, minY = double.MaxValue, maxX = double.MinValue, maxY = double.MinValue;
+                foreach (var p in sweepPoints)
+                {
+                    if (p.X < minX) minX = p.X;
+                    if (p.Y < minY) minY = p.Y;
+                    if (p.X > maxX) maxX = p.X;
+                    if (p.Y > maxY) maxY = p.Y;
+                }
+                minX -= radius; minY -= radius; maxX += radius; maxY += radius;
+
+                int step = Math.Max(1, (int)Math.Ceiling(sweepPoints.Count / 128.0));
+                var sampledPoints = new List<Point>((sweepPoints.Count / step) + 1);
+                for (int i = 0; i < sweepPoints.Count; i += step)
+                {
+                    sampledPoints.Add(sweepPoints[i]);
+                }
+
+                var snapshot = new StrokeCollection(inkCanvas.Strokes);
+                foreach (Stroke stroke in snapshot)
+                {
+                    try
+                    {
+                        var bounds = stroke.GetBounds();
+                        if (bounds.Bottom < minY || bounds.Top > maxY || bounds.Right < minX || bounds.Left > maxX) continue;
+
+                        var geometry = stroke.GetGeometry();
+                        if (geometry == null || geometry.IsEmpty()) continue;
+
+                        foreach (var p in sampledPoints)
+                        {
+                            var brush = new EllipseGeometry(p, radius, radius);
+                            if (geometry.FillContainsWithDetail(brush) != IntersectionDetail.Empty)
+                            {
+                                inkCanvas.Strokes.Remove(stroke);
+                                break;
+                            }
+                        }
+                    }
+                    catch { }
+                }
+            }
+            catch { }
+        }
         private StrokeCollection CuboidStrokeCollection;
         private Dictionary<Stroke, Tuple<StylusPointCollection, StylusPointCollection>> StrokeManipulationHistory;
         private Dictionary<Stroke, StylusPointCollection> StrokeInitialHistory = new Dictionary<Stroke, StylusPointCollection>();

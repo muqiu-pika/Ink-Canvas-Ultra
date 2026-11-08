@@ -603,12 +603,15 @@ namespace Ink_Canvas
                 }
 
                 // 先独立写入元信息，与 icart 快照解耦：即使附带依赖文件的 icart 保存失败，
-                // 元信息（模式/白板页/PPT/总页数）也已落盘，重启后 PromptRestoreLastSessionOnStartup
+                // 元信息（模式/白板页/PPT/总页数/是否有内容）也已落盘，重启后 PromptRestoreLastSessionOnStartup
                 // 仍能识别到本次会话并弹窗提示恢复，避免“崩溃重启后无任何提示”。
+                // content=0 表示快照没有任何可恢复的笔迹/元素：重启后不应弹恢复询问。
+                bool hasSnapshotContent = (inkCanvas.Strokes != null && inkCanvas.Strokes.Count > 0)
+                    || (inkCanvas.Children != null && inkCanvas.Children.Count > 0);
                 try
                 {
                     string metaPath = basePath + @"\SessionMeta.txt";
-                    File.WriteAllText(metaPath, $"mode={currentMode}\nwhiteboard={CurrentWhiteboardIndex}\nppt={(BtnPPTSlideShowEnd?.Visibility == Visibility.Visible ? 1 : 0)}\nwhiteboard_total={WhiteboardTotalCount}");
+                    File.WriteAllText(metaPath, $"mode={currentMode}\nwhiteboard={CurrentWhiteboardIndex}\nppt={(BtnPPTSlideShowEnd?.Visibility == Visibility.Visible ? 1 : 0)}\nwhiteboard_total={WhiteboardTotalCount}\ncontent={(hasSnapshotContent ? 1 : 0)}");
                 }
                 catch { }
 
@@ -635,6 +638,16 @@ namespace Ink_Canvas
                     for (int i = 1; i <= WhiteboardTotalCount; i++)
                     {
                         var pageCanvas = CreateSerializableCanvasForPage(i);
+                        if (!hasSnapshotContent && pageCanvas != null && pageCanvas.Strokes != null && pageCanvas.Strokes.Count > 0)
+                        {
+                            hasSnapshotContent = true;
+                            try
+                            {
+                                string metaPath = basePath + @"\SessionMeta.txt";
+                                File.WriteAllText(metaPath, $"mode={currentMode}\nwhiteboard={CurrentWhiteboardIndex}\nppt={(BtnPPTSlideShowEnd?.Visibility == Visibility.Visible ? 1 : 0)}\nwhiteboard_total={WhiteboardTotalCount}\ncontent=1");
+                            }
+                            catch { }
+                        }
                         var pageFolder = $"pages/{i}";
                         var pageStrokesEntry = archive.CreateEntry(pageFolder + "/strokes.icstk");
                         using (var ps = pageStrokesEntry.Open())

@@ -326,6 +326,9 @@ namespace Ink_Canvas
             else
             {
                 timerCheckPPT.Stop();
+                // 关闭 PPT 支持时同步断开 COM 连接并解除事件订阅：
+                // 否则残留的旧连接（尤其是重装 WPS/Office 后失效的 RCW）会干扰重新开启后的重连
+                try { ReleasePptComReferences(); } catch { }
             }
         }
 
@@ -418,6 +421,37 @@ namespace Ink_Canvas
             Settings.Appearance.IsColorfulViewboxFloatingBar = ToggleSwitchColorfulViewboxFloatingBar.IsOn;
             SaveSettingsToFile();
             LoadSettings();
+        }
+
+        private void ToggleSwitchToolbarAlwaysExpanded_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.Appearance.IsToolbarAlwaysExpanded = ToggleSwitchToolbarAlwaysExpanded.IsOn;
+            SaveSettingsToFile();
+
+            // 立即生效：开启时把批注按钮区常驻展开；关闭时若当前处于鼠标/非批注状态则按原逻辑收起
+            try
+            {
+                if (Settings.Appearance.IsToolbarAlwaysExpanded)
+                {
+                    if (StackPanelCanvasControls != null)
+                    {
+                        StackPanelCanvasControls.Visibility = Visibility.Visible;
+                    }
+                }
+                else if (Main_Grid != null && Main_Grid.Background == System.Windows.Media.Brushes.Transparent)
+                {
+                    if (StackPanelCanvasControls != null)
+                    {
+                        StackPanelCanvasControls.Visibility = Visibility.Collapsed;
+                    }
+                }
+                ViewboxFloatingBarMarginAnimation();
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("应用工具栏始终展开设置失败: " + ex.Message, LogHelper.LogType.Warning);
+            }
         }
 
         private void ApplyScaling()

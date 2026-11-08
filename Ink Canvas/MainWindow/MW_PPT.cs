@@ -34,6 +34,12 @@ namespace Ink_Canvas
 
             Settings.PowerPointSettings.IsSupportWPS = ToggleSwitchSupportWPS.IsOn;
             SaveSettingsToFile();
+
+            if (ToggleSwitchSupportWPS.IsOn && Settings.PowerPointSettings.PowerPointSupport)
+            {
+                // 开启 WPS 支持后立即恢复检测（timerCheckPPT 可能已因之前连接成功而停止）
+                try { timerCheckPPT.Start(); } catch { }
+            }
         }
 
         public static bool IsWPSSupportOn => Settings.PowerPointSettings.IsSupportWPS;
@@ -82,9 +88,77 @@ namespace Ink_Canvas
             // 仅当 PowerPoint / WPS 演示进程确实存在时才尝试 GetActiveObject，
             // 避免"未打开 PPT"时每秒抛一次 COMException（RPC_E_SERVER_UNAVAILABLE）刷屏调试输出。
             if (Process.GetProcessesByName("POWERPNT").Length > 0) return true;
-            if (IsWPSSupportOn && Process.GetProcessesByName("wpp").Length > 0) return true;
-            if (IsWPSSupportOn && Process.GetProcessesByName("et").Length > 0) return true;
+            if (IsWPSSupportOn)
+            {
+                if (Process.GetProcessesByName("wpp").Length > 0) return true;
+                if (Process.GetProcessesByName("et").Length > 0) return true;
+                // 部分 WPS 版本以统一主进程 wpsoffice 运行演示组件，重装/升级后进程名可能变化
+                if (Process.GetProcessesByName("wpsoffice").Length > 0) return true;
+            }
             return false;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+        /// <summary>
+        /// 判断已持有的 RCW 指向的演示程序服务进程是否已失效（重装 WPS/Office、旧进程被新进程取代等）。
+        /// 失效后必须解除事件订阅并整体重连，否则会一直停在旧连接上——表现为"识别不出 WPS"，
+        /// 且重新开关 PPT 支持也无效（旧引用未被清理）。
+        /// </summary>
+        private static bool IsPptComServerStale(Microsoft.Office.Interop.PowerPoint.Application app)
+        {
+            try
+            {
+                IntPtr hwnd = new IntPtr(app.HWND);
+                if (hwnd == IntPtr.Zero) return false;
+                uint pid;
+                GetWindowThreadProcessId(hwnd, out pid);
+                if (pid == 0) return false;
+                if (ProcessContainsId(Process.GetProcessesByName("POWERPNT"), pid)) return false;
+                if (IsWPSSupportOn)
+                {
+                    if (ProcessContainsId(Process.GetProcessesByName("wpp"), pid)) return false;
+                    if (ProcessContainsId(Process.GetProcessesByName("et"), pid)) return false;
+                    if (ProcessContainsId(Process.GetProcessesByName("wpsoffice"), pid)) return false;
+                }
+                // 句柄所属进程不在当前演示进程列表中：RCW 指向的是残留的旧进程
+                return true;
+            }
+            catch
+            {
+                // 访问已退出的服务进程会抛 COMException 等：RCW 已失效
+                return true;
+            }
+        }
+
+        private static bool ProcessContainsId(Process[] processes, uint id)
+        {
+            foreach (var process in processes)
+            {
+                try { if (process.Id == id) return true; } catch { }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// 解除事件订阅并清空全部 PPT COM 静态引用。用于服务进程失效、关闭 PPT 支持时的整体断开。
+        /// </summary>
+        private void ReleasePptComReferences()
+        {
+            var app = pptApplication;
+            if (app != null)
+            {
+                try { app.PresentationClose -= PptApplication_PresentationClose; } catch { }
+                try { app.SlideShowBegin -= PptApplication_SlideShowBegin; } catch { }
+                try { app.SlideShowNextSlide -= PptApplication_SlideShowNextSlide; } catch { }
+                try { app.SlideShowEnd -= PptApplication_SlideShowEnd; } catch { }
+            }
+            pptApplication = null;
+            presentation = null;
+            slides = null;
+            slide = null;
+            slidescount = 0;
         }
 
         private static bool TryPingPptApplication(Microsoft.Office.Interop.PowerPoint.Application app)
@@ -98,7 +172,8 @@ namespace Ink_Canvas
             catch { return false; }
         }
 
-        private async Task<bool> RetryComAsync(Action action, int maxAttempts, int delayMs)
+        /// <summary>后台线程使用的同步 COM 重试：可重试异常则等待后重试，其余异常立即失败。</summary>
+        private static bool RetryComSync(Action action, int maxAttempts, int delayMs)
         {
             for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
@@ -109,7 +184,7 @@ namespace Ink_Canvas
                 }
                 catch (Exception ex) when (IsRetryableComException(ex))
                 {
-                    await Task.Delay(delayMs);
+                    Thread.Sleep(delayMs);
                 }
                 catch
                 {
@@ -136,212 +211,132 @@ namespace Ink_Canvas
                     return;
                 }
 
-                if (pptApplication != null && TryPingPptApplication(pptApplication)) return;
+                // 该状态只能由 UI 线程读取（"结束放映"按钮是否可见），先取快照再交给后台线程
+                bool slideShowEndBtnVisible = BtnPPTSlideShowEnd != null
+                    && BtnPPTSlideShowEnd.Visibility == Visibility.Visible;
 
-                // 进程都未运行，直接跳过，避免每秒 GetActiveObject 抛 COMException 刷屏
-                if (!IsPresentationProcessRunning()) return;
+                // 关键改动：COM 连接与文稿枚举全部移到后台线程执行。
+                // 过去这段在 UI 线程同步执行 GetActiveObject、文稿属性轮询与事件订阅，
+                // WPS/Office 一旦无响应（重装后首次启动、许可/升级对话框阻塞等），
+                // 整个画板 UI 就会被卡死——表现为提示框弹出后按钮全部失灵、无法退出、书写偶发延迟。
+                // 后台线程完成后只把纯托管结果带回 UI 线程创建提示框。
+                PptComConnectResult result = await Task.Run(() => ConnectPptComFromWorker(slideShowEndBtnVisible));
 
-                Microsoft.Office.Interop.PowerPoint.Application acquired = null;
-                for (int attempt = 0; attempt < 6; attempt++)
-                {
-                    try
-                    {
-                        acquired = (Microsoft.Office.Interop.PowerPoint.Application)Marshal.GetActiveObject("PowerPoint.Application");
-                        if (!TryPingPptApplication(acquired)) acquired = null;
-                        if (acquired != null) break;
-                    }
-                    catch (Exception ex) when (IsRetryableComException(ex))
-                    {
-                        await Task.Delay(150);
-                    }
-                    catch
-                    {
-                        acquired = null;
-                        break;
-                    }
-                }
-
-                if (acquired == null) return;
-                pptApplication = acquired;
-
-                if (pptApplication != null)
-                {
-                    try { pptApplication.PresentationClose -= PptApplication_PresentationClose; } catch { }
-                    try { pptApplication.SlideShowBegin -= PptApplication_SlideShowBegin; } catch { }
-                    try { pptApplication.SlideShowNextSlide -= PptApplication_SlideShowNextSlide; } catch { }
-                    try { pptApplication.SlideShowEnd -= PptApplication_SlideShowEnd; } catch { }
-                    pptApplication.PresentationClose += PptApplication_PresentationClose;
-                    pptApplication.SlideShowBegin += PptApplication_SlideShowBegin;
-                    pptApplication.SlideShowNextSlide += PptApplication_SlideShowNextSlide;
-                    pptApplication.SlideShowEnd += PptApplication_SlideShowEnd;
-                    
-                    bool gotPresentation = await RetryComAsync(() => { presentation = pptApplication.ActivePresentation; }, 4, 150);
-                    if (presentation != null)
-                    {
-                        bool gotSlides = await RetryComAsync(() => { slides = presentation.Slides; }, 4, 150);
-                        if (!gotPresentation || !gotSlides) return;
-
-                        bool gotCount = await RetryComAsync(() =>
-                        {
-                            slidescount = slides.Count;
-                        }, 4, 150);
-                        if (!gotCount) return;
-                        try
-                        {
-                            // 在普通视图下这种方式可以获得当前选中的幻灯片对象
-                            // 然而在阅读模式下，这种方式会出现异常
-                            slide = slides[pptApplication.ActiveWindow.Selection.SlideRange.SlideNumber];
-                        }
-                        catch
-                        {
-                            // 在阅读模式下出现异常时，通过下面的方式来获得当前选中的幻灯片对象
-                            if (pptApplication.SlideShowWindows.Count >= 1)
-                            {
-                                slide = pptApplication.SlideShowWindows[1].View.Slide;
-                            }
-                        }
-                        
-                        timerCheckPPT.Stop();
-                    }
-                }
-
+                if (result == null || !result.Connected) return;
                 if (pptApplication == null || presentation == null || slides == null) return;
 
-                        if (Settings.PowerPointSettings.IsNotifyPreviousPage)
+                // 连接成功：停止周期性检测（PresentationClose / 设置开关会重新启动）
+                timerCheckPPT.Stop();
+
+                if (Settings.PowerPointSettings.IsNotifyPreviousPage && result.LastViewedPage > 0)
+                {
+                    // 同一文稿同一页码的跳转提示在短时间内只弹一次，避免反复重连时连环弹窗
+                    string jumpKey = (result.PresentationName ?? "") + "#" + result.LastViewedPage;
+                    if (jumpKey == _lastJumpPromptKey && (DateTime.UtcNow - _lastJumpPromptUtc).TotalMinutes < 5)
+                    {
+                        return;
+                    }
+                    _lastJumpPromptKey = jumpKey;
+                    _lastJumpPromptUtc = DateTime.UtcNow;
+
+                    int page = result.LastViewedPage;
+                    var jumpNotification = new YesOrNoNotificationWindow($"上次播放到了第 {page} 页, 是否立即跳转", () =>
+                    {
+                        // 跳页是跨进程 COM 调用，WPS/Office 无响应时可能长时间阻塞：
+                        // 必须放到后台线程执行，UI 线程绝不等它（否则提示框按钮会全部失灵、无法退出）
+                        var appRef = pptApplication;
+                        var presRef = presentation;
+                        int cachedCount = slidescount;
+                        System.Threading.Tasks.Task.Run(() =>
                         {
-                            _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
+                            try
                             {
-                                string safePresentationName = SanitizePathSegment(presentation.Name);
-                                string folderPath = System.IO.Path.Combine(
-                                    Settings.Automation.AutoSavedStrokesLocation,
-                                    "Auto Saved - Presentations",
-                                    safePresentationName);
+                                // 实时读取当前文稿页数，读取失败回落到连接时缓存的 slidescount
+                                int totalSlides;
+                                try { totalSlides = presRef.Slides.Count; }
+                                catch { totalSlides = cachedCount; }
+
+                                if (page > totalSlides)
+                                {
+                                    _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
+                                        ShowNotificationAsync($"记录的页码（第 {page} 页）超出演示文稿当前页数（{totalSlides} 页），已跳过跳转")));
+                                    return;
+                                }
+
+                                if (appRef.SlideShowWindows.Count >= 1)
+                                {
+                                    presRef.SlideShowWindow.View.GotoSlide(page);
+                                }
+                                else
+                                {
+                                    presRef.Windows[1].View.GotoSlide(page);
+                                }
+                            }
+                            catch (Exception jumpEx)
+                            {
+                                // COM 调用随时可能因文稿/窗口状态变化失败，记录日志而非让 UI 崩溃
+                                LogHelper.WriteLogToFile($"跳转到上次播放页失败: {jumpEx}", LogHelper.LogType.Error);
+                                _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
+                                    ShowNotificationAsync("跳转到上次播放页失败，演示文稿可能已发生变化")));
+                            }
+                        });
+                    });
+                    Helpers.WindowMemoryHelper.ReleaseOnClose(jumpNotification);
+                    EnqueuePPTNotification(jumpNotification);
+                }
+
+                if (Settings.PowerPointSettings.IsNotifyHiddenPage && result.HasHiddenSlides && !IsShowingRestoreHiddenSlidesWindow)
+                {
+                    IsShowingRestoreHiddenSlidesWindow = true;
+                    var hiddenSlidesNotification = new YesOrNoNotificationWindow("检测到此演示文档中包含隐藏的幻灯片，是否取消隐藏？",
+                        () =>
+                        {
+                            // 遍历幻灯片并修改属性是跨进程 COM 调用，放到后台线程，UI 不等待
+                            var slidesRef = slides;
+                            System.Threading.Tasks.Task.Run(() =>
+                            {
                                 try
                                 {
-                                    if (File.Exists(folderPath + "/Position"))
+                                    foreach (Slide hiddenSlide in slidesRef)
                                     {
-                                        if (int.TryParse(File.ReadAllText(folderPath + "/Position"), out var page))
+                                        if (hiddenSlide.SlideShowTransition.Hidden == Microsoft.Office.Core.MsoTriState.msoTrue)
                                         {
-                                            if (page <= 0) return;
-                                            var jumpNotification = new YesOrNoNotificationWindow($"上次播放到了第 {page} 页, 是否立即跳转", () =>
-                                            {
-                                                try
-                                                {
-                                                    // 实时读取当前文稿页数，读取失败回落到连接时缓存的 slidescount
-                                                    int totalSlides;
-                                                    try { totalSlides = presentation.Slides.Count; }
-                                                    catch { totalSlides = slidescount; }
-
-                                                    if (page > totalSlides)
-                                                    {
-                                                        ShowNotificationAsync($"记录的页码（第 {page} 页）超出演示文稿当前页数（{totalSlides} 页），已跳过跳转");
-                                                        return;
-                                                    }
-
-                                                    if (pptApplication.SlideShowWindows.Count >= 1)
-                                                    {
-                                                        presentation.SlideShowWindow.View.GotoSlide(page);
-                                                    }
-                                                    else
-                                                    {
-                                                        presentation.Windows[1].View.GotoSlide(page);
-                                                    }
-                                                }
-                                                catch (Exception jumpEx)
-                                                {
-                                                    // COM 调用随时可能因文稿/窗口状态变化失败，记录日志而非让 UI 崩溃
-                                                    LogHelper.WriteLogToFile($"跳转到上次播放页失败: {jumpEx}", LogHelper.LogType.Error);
-                                                    ShowNotificationAsync("跳转到上次播放页失败，演示文稿可能已发生变化");
-                                                }
-                                            });
-                                            Helpers.WindowMemoryHelper.ReleaseOnClose(jumpNotification);
-                                            EnqueuePPTNotification(jumpNotification);
+                                            hiddenSlide.SlideShowTransition.Hidden = Microsoft.Office.Core.MsoTriState.msoFalse;
                                         }
                                     }
                                 }
-                                catch (Exception ex)
+                                catch (Exception unhideEx)
                                 {
-                                    LogHelper.WriteLogToFile(ex.ToString(), LogHelper.LogType.Error);
+                                    LogHelper.WriteLogToFile("取消隐藏幻灯片失败: " + unhideEx.Message, LogHelper.LogType.Error);
                                 }
-                            }));
-                        }
-
-                if (Settings.PowerPointSettings.IsNotifyHiddenPage)
-                {
-                    bool isHaveHiddenSlide = false;
-                    foreach (Slide slide in slides)
-                    {
-                        if (slide.SlideShowTransition.Hidden == Microsoft.Office.Core.MsoTriState.msoTrue)
-                        {
-                            isHaveHiddenSlide = true;
-                            break;
-                        }
-                    }
-
-                    _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
-                    {
-                        if (isHaveHiddenSlide && !IsShowingRestoreHiddenSlidesWindow)
-                        {
-                            IsShowingRestoreHiddenSlidesWindow = true;
-                            var hiddenSlidesNotification = new YesOrNoNotificationWindow("检测到此演示文档中包含隐藏的幻灯片，是否取消隐藏？",
-                                () =>
-                                {
-                                    foreach (Slide slide in slides)
-                                    {
-                                        if (slide.SlideShowTransition.Hidden == Microsoft.Office.Core.MsoTriState.msoTrue)
-                                        {
-                                            slide.SlideShowTransition.Hidden = Microsoft.Office.Core.MsoTriState.msoFalse;
-                                        }
-                                    }
-                                });
-                            Helpers.WindowMemoryHelper.ReleaseOnClose(hiddenSlidesNotification);
-                            EnqueuePPTNotification(hiddenSlidesNotification);
-                        }
-
-                        // BtnPPTSlideShow.Visibility = Visibility.Visible;
-                    }));
+                            });
+                        });
+                    Helpers.WindowMemoryHelper.ReleaseOnClose(hiddenSlidesNotification);
+                    EnqueuePPTNotification(hiddenSlidesNotification);
                 }
 
                 if (Settings.PowerPointSettings.IsNotifyAutoPlayPresentation
-                    // && presentation.SlideShowSettings.AdvanceMode == PpSlideShowAdvanceMode.ppSlideShowUseSlideTimings
-                    && BtnPPTSlideShowEnd.Visibility != Visibility.Visible)
+                    && !slideShowEndBtnVisible
+                    && result.HasSlideTimings)
                 {
-                    bool hasSlideTimings = false;
-                    foreach (Slide slide in presentation.Slides)
-                    {
-                        if (slide.SlideShowTransition.AdvanceOnTime == MsoTriState.msoTrue && slide.SlideShowTransition.AdvanceTime > 0)
+                    var autoPlayNotification = new YesOrNoNotificationWindow("检测到此演示文档中自动播放或排练计时已经启用，可能导致幻灯片自动翻页，是否取消？",
+                        () =>
                         {
-                            hasSlideTimings = true;
-                            break;
-                        }
-                    }
-                    if (hasSlideTimings)
-                    {
-                        _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
-                        {
-                            var autoPlayNotification = new YesOrNoNotificationWindow("检测到此演示文档中自动播放或排练计时已经启用，可能导致幻灯片自动翻页，是否取消？",
-                                () =>
+                            var presRef = presentation;
+                            System.Threading.Tasks.Task.Run(() =>
+                            {
+                                try
                                 {
-                                    presentation.SlideShowSettings.AdvanceMode = PpSlideShowAdvanceMode.ppSlideShowManualAdvance;
-                                });
-                            Helpers.WindowMemoryHelper.ReleaseOnClose(autoPlayNotification);
-                            EnqueuePPTNotification(autoPlayNotification);
-                        }));
-                        presentation.SlideShowSettings.AdvanceMode = PpSlideShowAdvanceMode.ppSlideShowManualAdvance;
-                    }
-                }
-
-                //如果检测到已经开始放映，则立即进入画板模式
-                if (pptApplication.SlideShowWindows.Count >= 1)
-                {
-                    try
-                    {
-                        PptApplication_SlideShowBegin(pptApplication.SlideShowWindows[1]);
-                    }
-                    catch (Exception ex)
-                    {
-                        LogHelper.WriteLogToFile(string.Format("Failed to enter PPT mode: {0}", ex.ToString()), LogHelper.LogType.Error);
-                    }
+                                    presRef.SlideShowSettings.AdvanceMode = PpSlideShowAdvanceMode.ppSlideShowManualAdvance;
+                                }
+                                catch (Exception autoPlayEx)
+                                {
+                                    LogHelper.WriteLogToFile("取消自动播放设置失败: " + autoPlayEx.Message, LogHelper.LogType.Error);
+                                }
+                            });
+                        });
+                    Helpers.WindowMemoryHelper.ReleaseOnClose(autoPlayNotification);
+                    EnqueuePPTNotification(autoPlayNotification);
                 }
             }
             catch (Exception ex)
@@ -352,6 +347,197 @@ namespace Ink_Canvas
             finally
             {
                 Interlocked.Exchange(ref _isCheckingPptCom, 0);
+            }
+        }
+
+        /// <summary>EnsurePptComConnectedFromTimer 后台阶段产出的纯托管结果（不携带任何 COM 对象）。</summary>
+        private sealed class PptComConnectResult
+        {
+            public bool Connected;
+            public string PresentationName;
+            public int LastViewedPage;
+            public bool HasHiddenSlides;
+            public bool HasSlideTimings;
+        }
+
+        // 上次"上次播放到第 N 页"提示的键与时间，用于短期去重，避免反复重连时连环弹窗
+        private string _lastJumpPromptKey = null;
+        private DateTime _lastJumpPromptUtc = DateTime.MinValue;
+
+        /// <summary>
+        /// 在后台线程完成 PPT/WPS 的 COM 连接与文稿信息枚举。任何 COM 调用的阻塞都只影响本线程，不影响 UI。
+        /// </summary>
+        private PptComConnectResult ConnectPptComFromWorker(bool slideShowEndBtnVisible)
+        {
+            var result = new PptComConnectResult();
+            try
+            {
+                // 1) 已有连接且服务进程仍存活：无事可做（保持与旧版一致的早退语义）
+                if (pptApplication != null && TryPingPptApplication(pptApplication) && !IsPptComServerStale(pptApplication))
+                {
+                    return result;
+                }
+
+                // 2) 连接已失效（重装 WPS/Office、旧进程退出等）：解除事件订阅并整体重连，
+                //    否则会一直停在旧连接上，重新开关 PPT 支持也无效
+                ReleasePptComReferences();
+
+                // 进程都未运行，直接跳过，避免每秒 GetActiveObject 抛 COMException 刷屏
+                if (!IsPresentationProcessRunning()) return result;
+
+                // 3) 获取运行中的演示程序 COM 对象。WPS 重装/新版可能不再以 PowerPoint.Application
+                //    注册 ROT，这里在 wpp/wpsoffice 进程存在时附加 WPS 专用 ProgID 依次尝试。
+                var candidateProgIds = new List<string> { "PowerPoint.Application" };
+                if (Process.GetProcessesByName("wpp").Length > 0 || Process.GetProcessesByName("wpsoffice").Length > 0)
+                {
+                    candidateProgIds.Add("KWPP.Application");
+                    candidateProgIds.Add("wpp.Application");
+                }
+
+                Microsoft.Office.Interop.PowerPoint.Application acquired = null;
+                for (int attempt = 0; attempt < 6 && acquired == null; attempt++)
+                {
+                    foreach (string progId in candidateProgIds)
+                    {
+                        try
+                        {
+                            object raw = Marshal.GetActiveObject(progId);
+                            if (raw is Microsoft.Office.Interop.PowerPoint.Application asPpt && TryPingPptApplication(asPpt))
+                            {
+                                acquired = asPpt;
+                                break;
+                            }
+                        }
+                        catch (Exception ex) when (IsRetryableComException(ex))
+                        {
+                            // ROT 尚未就绪等可重试情形：稍后整体重试
+                        }
+                        catch
+                        {
+                            // 该 ProgID 当前不可用（未注册/未运行）：尝试下一个候选
+                        }
+                    }
+                    if (acquired == null && attempt < 5) Thread.Sleep(150);
+                }
+
+                if (acquired == null) return result;
+                pptApplication = acquired;
+
+                try { pptApplication.PresentationClose -= PptApplication_PresentationClose; } catch { }
+                try { pptApplication.SlideShowBegin -= PptApplication_SlideShowBegin; } catch { }
+                try { pptApplication.SlideShowNextSlide -= PptApplication_SlideShowNextSlide; } catch { }
+                try { pptApplication.SlideShowEnd -= PptApplication_SlideShowEnd; } catch { }
+                pptApplication.PresentationClose += PptApplication_PresentationClose;
+                pptApplication.SlideShowBegin += PptApplication_SlideShowBegin;
+                pptApplication.SlideShowNextSlide += PptApplication_SlideShowNextSlide;
+                pptApplication.SlideShowEnd += PptApplication_SlideShowEnd;
+
+                if (!RetryComSync(() => { presentation = pptApplication.ActivePresentation; }, 4, 150)) return result;
+                if (presentation == null) return result;
+                if (!RetryComSync(() => { slides = presentation.Slides; }, 4, 150)) return result;
+                if (!RetryComSync(() => { slidescount = slides.Count; }, 4, 150)) return result;
+
+                try
+                {
+                    // 在普通视图下这种方式可以获得当前选中的幻灯片对象
+                    // 然而在阅读模式下，这种方式会出现异常
+                    slide = slides[pptApplication.ActiveWindow.Selection.SlideRange.SlideNumber];
+                }
+                catch
+                {
+                    // 在阅读模式下出现异常时，通过下面的方式来获得当前选中的幻灯片对象
+                    try
+                    {
+                        if (pptApplication.SlideShowWindows.Count >= 1)
+                        {
+                            slide = pptApplication.SlideShowWindows[1].View.Slide;
+                        }
+                    }
+                    catch { }
+                }
+
+                result.Connected = true;
+                try { result.PresentationName = presentation.Name; } catch { }
+
+                // 4) 上次播放页（读盘，无 COM）：以文稿名对应目录下的 Position 文件为准
+                try
+                {
+                    string safePresentationName = SanitizePathSegment(result.PresentationName);
+                    string positionPath = System.IO.Path.Combine(
+                        Settings.Automation.AutoSavedStrokesLocation,
+                        "Auto Saved - Presentations",
+                        safePresentationName,
+                        "Position");
+                    if (File.Exists(positionPath) && int.TryParse(File.ReadAllText(positionPath), out var page))
+                    {
+                        result.LastViewedPage = page;
+                    }
+                }
+                catch { }
+
+                // 5) 隐藏幻灯片检测
+                if (Settings.PowerPointSettings.IsNotifyHiddenPage)
+                {
+                    try
+                    {
+                        foreach (Slide workerSlide in slides)
+                        {
+                            if (workerSlide.SlideShowTransition.Hidden == Microsoft.Office.Core.MsoTriState.msoTrue)
+                            {
+                                result.HasHiddenSlides = true;
+                                break;
+                            }
+                        }
+                    }
+                    catch (Exception hiddenEx)
+                    {
+                        LogHelper.WriteLogToFile("检测隐藏幻灯片失败: " + hiddenEx.Message, LogHelper.LogType.Error);
+                    }
+                }
+
+                // 6) 自动播放/排练计时检测（命中时直接改为手动翻页，与旧行为一致）
+                if (Settings.PowerPointSettings.IsNotifyAutoPlayPresentation && !slideShowEndBtnVisible)
+                {
+                    try
+                    {
+                        foreach (Slide workerSlide in presentation.Slides)
+                        {
+                            if (workerSlide.SlideShowTransition.AdvanceOnTime == MsoTriState.msoTrue && workerSlide.SlideShowTransition.AdvanceTime > 0)
+                            {
+                                result.HasSlideTimings = true;
+                                break;
+                            }
+                        }
+                        if (result.HasSlideTimings)
+                        {
+                            presentation.SlideShowSettings.AdvanceMode = PpSlideShowAdvanceMode.ppSlideShowManualAdvance;
+                        }
+                    }
+                    catch (Exception timingEx)
+                    {
+                        LogHelper.WriteLogToFile("检测排练计时失败: " + timingEx.Message, LogHelper.LogType.Error);
+                    }
+                }
+
+                // 7) 如果检测到已经开始放映，则立即进入画板模式
+                try
+                {
+                    if (pptApplication.SlideShowWindows.Count >= 1)
+                    {
+                        PptApplication_SlideShowBegin(pptApplication.SlideShowWindows[1]);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogHelper.WriteLogToFile(string.Format("Failed to enter PPT mode: {0}", ex.ToString()), LogHelper.LogType.Error);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile(string.Format("TimerCheckPPT (worker) error: {0}", ex.ToString()), LogHelper.LogType.Error);
+                return result;
             }
         }
 
@@ -377,14 +563,16 @@ namespace Ink_Canvas
 
             timerCheckPPT?.Start();
 
-            Application.Current.Dispatcher.Invoke(() =>
+            // BeginInvoke：本事件可能在非 UI 线程派发，同步 Invoke 会与正被 COM 调用阻塞的
+            // UI 线程互相等待（死锁）。只投递 UI 操作，不等它完成。
+            _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
             {
                 //BtnPPTSlideShow.Visibility = Visibility.Collapsed;
                 if (BtnPPTSlideShowEnd != null)
                 {
                     BtnPPTSlideShowEnd.Visibility = Visibility.Collapsed;
                 }
-            });
+            }));
 
         }
 
@@ -440,7 +628,9 @@ namespace Ink_Canvas
             }
 
             LogHelper.WriteLogToFile("PowerPoint Application Slide Show Begin", LogHelper.LogType.Event);
-            Application.Current.Dispatcher.Invoke(() =>
+            // 本方法可能由放映事件线程或后台 COM 线程调用：必须用 BeginInvoke 异步投递，
+            // 同步 Invoke 在 UI 线程正被 COM 调用阻塞时会互相等待形成恶性卡死
+            _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
             {
                 if (Settings.Automation.IsAutoFoldInPPTSlideShow && !isFloatingBarFolded)
                 {
@@ -598,23 +788,23 @@ namespace Ink_Canvas
                 new Thread(new ThreadStart(() =>
                 {
                     Thread.Sleep(100);
-                    Application.Current.Dispatcher.Invoke(() =>
+                    _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
                     {
                         ViewboxFloatingBarMarginAnimation();
-                    });
+                    }));
                 })).Start();
-            });
+            }));
         }
 
         bool isEnteredSlideShowEndEvent = false; //防止重复调用本函数导致墨迹保存失效
         private async void PptApplication_SlideShowEnd(Presentation Pres)
         {
             // 与 SlideShowNextSlide/Begin 同理：事件线程可能与 UI 线程不同，
-            // 因此 UI 操作统一走 Dispatcher，COM 对象（Pres）只在事件线程上读取。
-            Application.Current.Dispatcher.Invoke(() =>
+            // 因此 UI 操作统一走 Dispatcher（异步投递，绝不同步等待 UI 线程），COM 对象（Pres）只在事件线程上读取。
+            _ = Application.Current.Dispatcher.BeginInvoke((Action)(() =>
             {
                 if (isFloatingBarFolded) UnFoldFloatingBar_MouseUp(null, null);
-            });
+            }));
 
             LogHelper.WriteLogToFile(string.Format("PowerPoint Slide Show End"), LogHelper.LogType.Event);
             if (isEnteredSlideShowEndEvent)
@@ -624,7 +814,9 @@ namespace Ink_Canvas
             }
             isEnteredSlideShowEndEvent = true;
 
-            Application.Current.Dispatcher.Invoke(() =>
+            // await BeginInvoke：保证与后续保存/恢复阶段的顺序（旧版用同步 Invoke 的顺序语义），
+            // 同时事件线程只是异步挂起，不会卡住 WPS/Office 的事件派发
+            await Application.Current.Dispatcher.BeginInvoke((Action)(() =>
             {
                 _isPptSlideShowActive = false;
                 _isRestoringDesktopStrokesAfterPpt = true;
@@ -651,7 +843,7 @@ namespace Ink_Canvas
                 {
                     _isRestoringDesktopStrokesAfterPpt = false;
                 }
-            });
+            }));
 
             if (Settings.PowerPointSettings.IsAutoSaveStrokesInPowerPoint)
             {
@@ -677,7 +869,8 @@ namespace Ink_Canvas
                     File.WriteAllText(folderPath + "/Position", previousSlideID.ToString());
                 }
                 catch { }
-                Application.Current.Dispatcher.Invoke(() =>
+                // 必须等这一步完成再落盘：SaveStrokeCacheToFolder 依赖刚写入的当前页缓存
+                await Application.Current.Dispatcher.BeginInvoke((Action)(() =>
                 {
                     try
                     {
@@ -687,14 +880,14 @@ namespace Ink_Canvas
                         _strokeCacheBySlideId[GetStrokeCacheKey(currentSlideID, currentShowPosition)] = ms;
                     }
                     catch { }
-                });
+                }));
                 // 保存前按当前演示文稿重建 SlideID 映射，再按 SlideID 写盘。
                 try { RebuildSlideIdMapping(Pres.Slides); } catch { }
                 SaveStrokeCacheToFolder(folderPath);
             }
 
-            // 阶段二（UI）：清空画布并恢复放映开始前备份的桌面墨迹
-            Application.Current.Dispatcher.Invoke(() =>
+            // 阶段二（UI）：清空画布并恢复放映开始前备份的桌面墨迹（异步投递并等待完成）
+            await Application.Current.Dispatcher.BeginInvoke((Action)(() =>
             {
                 _isRestoringDesktopStrokesAfterPpt = true;
                 try
@@ -773,7 +966,7 @@ namespace Ink_Canvas
                 {
                     _isRestoringDesktopStrokesAfterPpt = false;
                 }
-            });
+            }));
 
             await Task.Delay(150);
             // Task.Delay 后可能回到线程池线程（事件线程无同步上下文），必须回到 UI 线程再动 UI
@@ -954,7 +1147,7 @@ namespace Ink_Canvas
             catch { }
         }
 
-        private void PptApplication_SlideShowNextSlide(SlideShowWindow Wn)
+        private async void PptApplication_SlideShowNextSlide(SlideShowWindow Wn)
         {
             // PowerPoint/WPS 的 SlideShowNextSlide 事件可能由放映线程（非 UI 线程）派发，
             // Wn 的 RCW 绑定在事件线程上：跨 Dispatcher 到 UI 线程再访问 Wn 会抛
@@ -987,7 +1180,9 @@ namespace Ink_Canvas
             int leavingSlideID = currentSlideID;
             int oldPosition = previousSlideID;
 
-            Application.Current.Dispatcher.Invoke(() =>
+            // await BeginInvoke：异步投递且保证本事件处理完才返回，
+            // 既不会与被 COM 阻塞的 UI 线程互相等待（死锁），又保住"缓存旧页→恢复新页"的顺序语义
+            await Application.Current.Dispatcher.BeginInvoke((Action)(() =>
             {
                 // 放映已经结束（结束放映的清理可能排在本事件之前执行）：迟到的切页事件
                 // 绝不能再"缓存当前画布 → 清空 → 恢复该页笔迹"，否则上一页/当前页的
@@ -1032,7 +1227,7 @@ namespace Ink_Canvas
                 catch { }
 
                 PptNavigationTextBlockBottom.Text = $"{newPosition}/{totalSlides}";
-            });
+            }));
             previousSlideID = newPosition;
 
         }
@@ -1079,10 +1274,31 @@ namespace Ink_Canvas
             }
             var window = _pptNotificationQueue[0];
             _pptNotificationQueue.RemoveAt(0);
+            bool advancedByClosedHandler = false;
             // 关闭后通过 BeginInvoke 回到 dispatcher 队列再弹下一个，避免递归嵌套
             window.Closed += (s, e) =>
+            {
+                advancedByClosedHandler = true;
                 Application.Current.Dispatcher.BeginInvoke((Action)(() => ShowNextPPTNotification()));
-            window.ShowDialog();
+            };
+            try
+            {
+                window.ShowDialog();
+            }
+            catch (Exception showEx)
+            {
+                // ShowDialog 抛异常（窗口已被关闭/Owner 失效等）时绝不能让队列卡死：
+                // 尝试关闭本窗口，由 finally 兜底推进队列，后续提示框仍能正常弹出
+                LogHelper.WriteLogToFile($"PPT 提示框显示失败: {showEx}", LogHelper.LogType.Error);
+                try { window.Close(); } catch { }
+            }
+            finally
+            {
+                if (!advancedByClosedHandler && _pptNotificationShowing)
+                {
+                    Application.Current.Dispatcher.BeginInvoke((Action)(() => ShowNextPPTNotification()));
+                }
+            }
         }
 
         private void BtnPPTSlidesUp_Click(object sender, RoutedEventArgs e)

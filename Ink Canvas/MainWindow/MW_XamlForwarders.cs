@@ -188,6 +188,7 @@ namespace Ink_Canvas
         private dynamic ComboBoxTheme => FindXamlPart(SettingsWindow, nameof(ComboBoxTheme));
         private dynamic ToggleSwitchEnableDisPlayFloatBarText => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableDisPlayFloatBarText));
         private dynamic ToggleSwitchColorfulViewboxFloatingBar => FindXamlPart(SettingsWindow, nameof(ToggleSwitchColorfulViewboxFloatingBar));
+        private dynamic ToggleSwitchToolbarAlwaysExpanded => FindXamlPart(SettingsWindow, nameof(ToggleSwitchToolbarAlwaysExpanded));
         private dynamic SliderFloatingBarScale => FindXamlPart(SettingsWindow, nameof(SliderFloatingBarScale));
         private dynamic SliderPenPaletteScale => FindXamlPart(SettingsWindow, nameof(SliderPenPaletteScale));
         private dynamic SliderDrawShapeScale => FindXamlPart(SettingsWindow, nameof(SliderDrawShapeScale));

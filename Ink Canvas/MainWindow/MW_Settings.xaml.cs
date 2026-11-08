@@ -298,6 +298,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(ComboBoxAutoDelSavedFilesDaysThreshold_SelectionChanged), sender, e);
         }
 
+        private void ToggleSwitchToolbarAlwaysExpanded_Toggled(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ToggleSwitchToolbarAlwaysExpanded_Toggled), sender, e);
+        }
+
         private void ComboBoxEraserSize_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             InvokeMainWindowHandler(nameof(ComboBoxEraserSize_SelectionChanged), sender, e);
