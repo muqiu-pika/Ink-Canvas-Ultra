@@ -19,6 +19,14 @@ namespace Ink_Canvas
         /// <summary>低速判定阈值（px/ms）：低于该速度视为停顿，沿用 Artistry 默认值</summary>
         private const double InkStraightenSpeedThresholdPxPerMs = 0.03;
 
+        /// <summary>屏幕边缘护栏距离（px，经输入缩放）：坐标样本贴近画布边缘时不参与停顿累计，
+        /// 避免笔尖抵住屏幕边框导致坐标"钳制"不动被误判成顿笔而提交直线</summary>
+        private const double InkStraightenEdgeGuardPx = 4;
+
+        /// <summary>样本跳变重置阈值（px，经输入缩放）：相邻样本位移超过该值视为出界跳变
+        /// （指针划出窗口又回来、输入流中断后恢复），取消当前停顿候选</summary>
+        private const double InkStraightenJumpResetDistancePx = 200;
+
         private sealed class InkStraightenSession
         {
             public Point StartPoint;
@@ -69,6 +77,25 @@ namespace Ink_Canvas
             double dx = a.X - b.X;
             double dy = a.Y - b.Y;
             return Math.Sqrt(dx * dx + dy * dy);
+        }
+
+        /// <summary>坐标是否越出画布范围（指针已离开窗口，点位缺失/越界）。</summary>
+        private bool IsPointBeyondInkCanvasEdge(Point p)
+        {
+            double w = inkCanvas.ActualWidth;
+            double h = inkCanvas.ActualHeight;
+            if (w <= 0 || h <= 0) return false;
+            return p.X < 0 || p.Y < 0 || p.X > w || p.Y > h;
+        }
+
+        /// <summary>坐标是否贴近画布边缘（护栏距离内）：贴边书写时指针坐标常被屏幕边界"钳住"不再变化。</summary>
+        private bool IsPointNearInkCanvasEdge(Point p)
+        {
+            double w = inkCanvas.ActualWidth;
+            double h = inkCanvas.ActualHeight;
+            if (w <= 0 || h <= 0) return false;
+            double margin = InkStraightenEdgeGuardPx * GetInputScaleFactor();
+            return p.X < margin || p.Y < margin || p.X > w - margin || p.Y > h - margin;
         }
 
         // DPI 缩放缓存：GetInputScaleFactor 在每个 StylusMove 中会被调用多次，
@@ -180,11 +207,21 @@ namespace Ink_Canvas
             double deltaDistance = InkStraightenDistance(currentPoint, session.LastPoint) * GetInputScaleFactor();
             double speed = deltaDistance / deltaMs;
 
-            session.LatestPoint = currentPoint;
+            // 直线端点只跟随画布内样本：越界点不推进端点，出界后再回来的轨迹从最后合法位置继续
+            if (!IsPointBeyondInkCanvasEdge(currentPoint))
+            {
+                session.LatestPoint = currentPoint;
+            }
 
             if (!session.IsTriggered)
             {
-                if (speed < InkStraightenSpeedThresholdPxPerMs)
+                // 屏幕边缘护栏：越界样本（指针出窗）与贴边样本（坐标被屏幕边界钳住）不参与
+                // 停顿累计；跳变样本（相邻点位移异常大，划出窗口又回来）同样取消当前候选，
+                // 避免边缘慢速书写被误判成顿笔而提交直线
+                bool edgeLikeSample = IsPointBeyondInkCanvasEdge(currentPoint) || IsPointNearInkCanvasEdge(currentPoint);
+                bool jumpSample = deltaDistance > InkStraightenJumpResetDistancePx;
+
+                if (speed < InkStraightenSpeedThresholdPxPerMs && !edgeLikeSample && !jumpSample)
                 {
                     if (!session.IsLowSpeedCandidate)
                     {
@@ -229,7 +266,11 @@ namespace Ink_Canvas
             }
             else
             {
-                UpdateInkStraightenPreview(session, currentPoint);
+                // 已触发：预览直线端点不越过画布边界
+                if (!IsPointBeyondInkCanvasEdge(currentPoint))
+                {
+                    UpdateInkStraightenPreview(session, currentPoint);
+                }
             }
 
             session.LastPoint = currentPoint;
@@ -306,7 +347,9 @@ namespace Ink_Canvas
                                                       && isInMultiTouchMode
                                                       && !session.IsInputSuppressed;
 
-            if (session.IsTriggered && !shouldDeferCommitToStrokeCollected)
+            // 边缘护栏：直线端点越界（抬笔发生在窗口外）时不提交直线，避免首尾直连到屏幕边界
+            if (session.IsTriggered && !shouldDeferCommitToStrokeCollected
+                && !IsPointBeyondInkCanvasEdge(session.LatestPoint))
             {
                 CommitInkStraightenStroke(
                     session.StartPoint, session.LatestPoint,
@@ -376,6 +419,19 @@ namespace Ink_Canvas
 
             if (matchedSession == null || minDistance > 48) return false;
 
+            // 边缘护栏：端点越界时不替换为直线（原始笔画照常提交），并作废该会话
+            if (IsPointBeyondInkCanvasEdge(matchedSession.LatestPoint))
+            {
+                RemoveInkStraightenPreview(matchedSession);
+                matchedSession.IsCommitted = true;
+                var stalePair = _inkStraightenSessions.FirstOrDefault(item => ReferenceEquals(item.Value, matchedSession));
+                if (stalePair.Value != null)
+                {
+                    _inkStraightenSessions.Remove(stalePair.Key);
+                }
+                return false;
+            }
+
             RemoveInkStraightenPreview(matchedSession);
 
             var straightStroke = new Stroke(new StylusPointCollection
@@ -421,6 +477,21 @@ namespace Ink_Canvas
                 || !session.IsTriggered
                 || session.IsCommitted)
             {
+                return false;
+            }
+
+            // 边缘护栏：端点越界时不提交直线，让原始笔画照常入库；本次会话作废，
+            // 避免残留会话在后续笔画上误触发替换
+            if (IsPointBeyondInkCanvasEdge(session.LatestPoint))
+            {
+                RemoveInkStraightenPreview(session);
+                session.IsCommitted = true;
+                if (session.IsInputSuppressed && !isLaserPointerEnabled &&
+                    inkCanvas.EditingMode == InkCanvasEditingMode.None)
+                {
+                    inkCanvas.EditingMode = InkCanvasEditingMode.Ink;
+                }
+                _inkStraightenSessions.Remove(pointerId);
                 return false;
             }
 
