@@ -2611,6 +2611,135 @@
 
                                 <ikw:SimpleStackPanel Orientation="Horizontal">
 
+                                    <TextBlock
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="14"
+
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+
+                                        Text="下方翻页控件（左）位置：  " />
+
+                                    <ComboBox
+
+                                        Name="ComboBoxPptNavBottomLeftPosition"
+
+                                        SelectedIndex="0"
+
+                                        SelectionChanged="ComboBoxPptNavBottomLeftPosition_SelectionChanged">
+
+                                        <ComboBoxItem Content="靠左" />
+
+                                        <ComboBoxItem Content="居中" />
+
+                                        <ComboBoxItem Content="靠右" />
+
+                                    </ComboBox>
+
+                                    <TextBlock
+
+                                        Margin="18,0,0,0"
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="14"
+
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+
+                                        Text="下方翻页控件（右）位置：  " />
+
+                                    <ComboBox
+
+                                        Name="ComboBoxPptNavBottomRightPosition"
+
+                                        SelectedIndex="0"
+
+                                        SelectionChanged="ComboBoxPptNavBottomRightPosition_SelectionChanged">
+
+                                        <ComboBoxItem Content="靠左" />
+
+                                        <ComboBoxItem Content="居中" />
+
+                                        <ComboBoxItem Content="靠右" />
+
+                                    </ComboBox>
+
+                                </ikw:SimpleStackPanel>
+
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+
+                                    <TextBlock
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="14"
+
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+
+                                        Text="侧面翻页控件（左）位置：  " />
+
+                                    <ComboBox
+
+                                        Name="ComboBoxPptNavSideLeftPosition"
+
+                                        SelectedIndex="0"
+
+                                        SelectionChanged="ComboBoxPptNavSideLeftPosition_SelectionChanged">
+
+                                        <ComboBoxItem Content="靠上" />
+
+                                        <ComboBoxItem Content="居中" />
+
+                                        <ComboBoxItem Content="靠下" />
+
+                                    </ComboBox>
+
+                                    <TextBlock
+
+                                        Margin="18,0,0,0"
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="14"
+
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+
+                                        Text="侧面翻页控件（右）位置：  " />
+
+                                    <ComboBox
+
+                                        Name="ComboBoxPptNavSideRightPosition"
+
+                                        SelectedIndex="0"
+
+                                        SelectionChanged="ComboBoxPptNavSideRightPosition_SelectionChanged">
+
+                                        <ComboBoxItem Content="靠上" />
+
+                                        <ComboBoxItem Content="居中" />
+
+                                        <ComboBoxItem Content="靠下" />
+
+                                    </ComboBox>
+
+                                </ikw:SimpleStackPanel>
+
+                                <TextBlock
+
+                                    Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+
+                                    Text="# 调整四个翻页控件在屏幕边缘上的摆放位置，放映下一轮 PPT 或重新进入放映后生效。"
+
+                                    TextWrapping="Wrap" />
+
+                                <Border
+                                    Height="1"
+                                    Margin="0,4,0,4"
+                                    Background="{DynamicResource PopupWindowBorderBrush}" />
+
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+
                                     <ikw:SimpleStackPanel Width="50">
 
                                         <ui:ToggleSwitch

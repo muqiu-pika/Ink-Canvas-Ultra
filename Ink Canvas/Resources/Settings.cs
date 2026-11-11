@@ -254,6 +254,14 @@ namespace Ink_Canvas
         public bool IsSupportWPS { get; set; } = true;
         [JsonProperty("enableRotFirst")]
         public bool EnableRotFirst { get; set; } = true;
+        [JsonProperty("pptNavBottomLeftPosition")]
+        public int PptNavBottomLeftPosition { get; set; } = 0;
+        [JsonProperty("pptNavBottomRightPosition")]
+        public int PptNavBottomRightPosition { get; set; } = 0;
+        [JsonProperty("pptNavSideLeftPosition")]
+        public int PptNavSideLeftPosition { get; set; } = 0;
+        [JsonProperty("pptNavSideRightPosition")]
+        public int PptNavSideRightPosition { get; set; } = 0;
     }
 
     public class Automation

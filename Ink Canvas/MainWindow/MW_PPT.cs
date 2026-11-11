@@ -66,6 +66,41 @@ namespace Ink_Canvas
             // 关闭时不重启/重建任何连接，仅下一轮 timer 生效
         }
 
+        /// <summary>
+        /// 按设置应用四个翻页控件的位置：底部两块可靠左/居中/靠右，
+        /// 侧面两块可靠上/居中/靠下。0/1/2 之外的值按默认（0）处理。
+        /// </summary>
+        private void ApplyPPTNavigationPositions()
+        {
+            try
+            {
+                var s = Settings.PowerPointSettings;
+                int bottomLeft = Math.Max(0, Math.Min(2, s.PptNavBottomLeftPosition));
+                int bottomRight = Math.Max(0, Math.Min(2, s.PptNavBottomRightPosition));
+                int sideLeft = Math.Max(0, Math.Min(2, s.PptNavSideLeftPosition));
+                int sideRight = Math.Max(0, Math.Min(2, s.PptNavSideRightPosition));
+
+                // 底部面板：水平位置可调，垂直保持贴底
+                PPTNavigationBottomLeft.HorizontalAlignment = bottomLeft == 1 ? HorizontalAlignment.Center
+                                                           : bottomLeft == 2 ? HorizontalAlignment.Right
+                                                           : HorizontalAlignment.Left;
+                PPTNavigationBottomLeft.Margin = bottomLeft == 1 ? new Thickness(0, 0, 0, 2) : new Thickness(2, 0, 0, 2);
+
+                PPTNavigationBottomRight.HorizontalAlignment = bottomRight == 1 ? HorizontalAlignment.Center
+                                                             : bottomRight == 2 ? HorizontalAlignment.Right
+                                                             : HorizontalAlignment.Left;
+                PPTNavigationBottomRight.Margin = bottomRight == 1 ? new Thickness(0, 0, 0, 2) : new Thickness(2, 0, 0, 2);
+
+                // 侧面面板：垂直位置可调，水平保持贴边
+                PPTNavigationSidesLeft.VerticalAlignment = (VerticalAlignment)sideLeft;
+                PPTNavigationSidesRight.VerticalAlignment = (VerticalAlignment)sideRight;
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("应用 PPT 翻页控件位置失败 " + ex.Message, LogHelper.LogType.Warning);
+            }
+        }
+
         public static bool IsWPSSupportOn => Settings.PowerPointSettings.IsSupportWPS;
 
         public static bool IsShowingRestoreHiddenSlidesWindow = false;
@@ -745,6 +780,8 @@ namespace Ink_Canvas
                 }
 
                 BtnPPTSlideShowEnd.Visibility = Visibility.Visible;
+
+                ApplyPPTNavigationPositions();
 
                 if (Settings.PowerPointSettings.IsShowBottomPPTNavigationPanel)
                 {

@@ -681,6 +681,38 @@ namespace Ink_Canvas
             SaveSettingsToFile();
         }
 
+        private void ComboBoxPptNavBottomLeftPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.PowerPointSettings.PptNavBottomLeftPosition = ComboBoxPptNavBottomLeftPosition.SelectedIndex;
+            SaveSettingsToFile();
+            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) ApplyPPTNavigationPositions();
+        }
+
+        private void ComboBoxPptNavBottomRightPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.PowerPointSettings.PptNavBottomRightPosition = ComboBoxPptNavBottomRightPosition.SelectedIndex;
+            SaveSettingsToFile();
+            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) ApplyPPTNavigationPositions();
+        }
+
+        private void ComboBoxPptNavSideLeftPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.PowerPointSettings.PptNavSideLeftPosition = ComboBoxPptNavSideLeftPosition.SelectedIndex;
+            SaveSettingsToFile();
+            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) ApplyPPTNavigationPositions();
+        }
+
+        private void ComboBoxPptNavSideRightPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            Settings.PowerPointSettings.PptNavSideRightPosition = ComboBoxPptNavSideRightPosition.SelectedIndex;
+            SaveSettingsToFile();
+            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) ApplyPPTNavigationPositions();
+        }
+
         private void ToggleSwitchCompressPicturesUploaded_Toggled(object sender, RoutedEventArgs e)
         {
             if (!isLoaded || _isLoadingSettings) return;

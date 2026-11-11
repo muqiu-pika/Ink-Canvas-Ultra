@@ -524,6 +524,14 @@ namespace Ink_Canvas
                 {
                     ToggleSwitchEnableRotFirst.IsOn = false;
                 }
+                if (ComboBoxPptNavBottomLeftPosition != null)
+                    ComboBoxPptNavBottomLeftPosition.SelectedIndex = Math.Max(0, Math.Min(2, Settings.PowerPointSettings.PptNavBottomLeftPosition));
+                if (ComboBoxPptNavBottomRightPosition != null)
+                    ComboBoxPptNavBottomRightPosition.SelectedIndex = Math.Max(0, Math.Min(2, Settings.PowerPointSettings.PptNavBottomRightPosition));
+                if (ComboBoxPptNavSideLeftPosition != null)
+                    ComboBoxPptNavSideLeftPosition.SelectedIndex = Math.Max(0, Math.Min(2, Settings.PowerPointSettings.PptNavSideLeftPosition));
+                if (ComboBoxPptNavSideRightPosition != null)
+                    ComboBoxPptNavSideRightPosition.SelectedIndex = Math.Max(0, Math.Min(2, Settings.PowerPointSettings.PptNavSideRightPosition));
                 if (Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint)
                 {
                     ToggleSwitchAutoSaveScreenShotInPowerPoint.IsOn = true;
