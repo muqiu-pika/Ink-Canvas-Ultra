@@ -758,6 +758,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(ToggleSwitchSupportWPS_Toggled), sender, e);
         }
 
+        private void ToggleSwitchEnableRotFirst_Toggled(object sender, RoutedEventArgs e)
+        {
+            InvokeMainWindowHandler(nameof(ToggleSwitchEnableRotFirst_Toggled), sender, e);
+        }
+
         private void TouchMultiplierSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             InvokeMainWindowHandler(nameof(TouchMultiplierSlider_ValueChanged), sender, e);

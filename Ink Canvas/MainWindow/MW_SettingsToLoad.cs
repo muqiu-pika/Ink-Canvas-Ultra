@@ -516,6 +516,14 @@ namespace Ink_Canvas
                 {
                     ToggleSwitchSupportWPS.IsOn = false;
                 }
+                if (Settings.PowerPointSettings.EnableRotFirst)
+                {
+                    ToggleSwitchEnableRotFirst.IsOn = true;
+                }
+                else
+                {
+                    ToggleSwitchEnableRotFirst.IsOn = false;
+                }
                 if (Settings.PowerPointSettings.IsAutoSaveScreenShotInPowerPoint)
                 {
                     ToggleSwitchAutoSaveScreenShotInPowerPoint.IsOn = true;

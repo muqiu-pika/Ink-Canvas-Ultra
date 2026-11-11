@@ -42,6 +42,30 @@ namespace Ink_Canvas
             }
         }
 
+        /// <summary>上一次 ROT 优选结果（-1=未知，0=未命中，1=命中），用于仅在状态变化时写日志，避免每轮 timer 刷屏。</summary>
+        private static int _lastRotOutcome = -1;
+
+        /// <summary>ROT 命中/未命中状态变化时记一条日志；其余轮次静默。</summary>
+        private static void LogRotOutcomeIfChanged(bool hit, int priority)
+        {
+            int state = hit ? 1 : 0;
+            if (state == _lastRotOutcome) return;
+            _lastRotOutcome = state;
+            LogHelper.WriteLogToFile(hit
+                ? $"PPT ROT 优选命中（优先级 {priority}），跳过 COM 轮询"
+                : "PPT ROT 未命中，转 COM 轮询兜底");
+        }
+
+        private void ToggleSwitchEnableRotFirst_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (!isLoaded) return;
+
+            Settings.PowerPointSettings.EnableRotFirst = ToggleSwitchEnableRotFirst.IsOn;
+            SaveSettingsToFile();
+
+            // 关闭时不重启/重建任何连接，仅下一轮 timer 生效
+        }
+
         public static bool IsWPSSupportOn => Settings.PowerPointSettings.IsSupportWPS;
 
         public static bool IsShowingRestoreHiddenSlidesWindow = false;
@@ -385,8 +409,27 @@ namespace Ink_Canvas
                 // 进程都未运行，直接跳过，避免每秒 GetActiveObject 抛 COMException 刷屏
                 if (!IsPresentationProcessRunning()) return result;
 
-                // 3) 获取运行中的演示程序 COM 对象。WPS 重装/新版可能不再以 PowerPoint.Application
-                //    注册 ROT，这里在 wpp/wpsoffice 进程存在时附加 WPS 专用 ProgID 依次尝试。
+                Microsoft.Office.Interop.PowerPoint.Application acquired = null;
+
+                // 3) ROT 优选（第一优先连接源）：枚举运行对象表，按放映优先级挑选最佳实例
+                //    （多开演示文稿时连到正在放映的那个）。未命中/异常/健康检查不通过时，
+                //    acquired 保持 null，原样走下方 COM 轮询兜底，兜底路径语义不变。
+                //    开关关闭（EnableRotFirst=false）时整块跳过，行为与未移植前完全一致。
+                if (Settings.PowerPointSettings.EnableRotFirst)
+                {
+                    int rotPriority;
+                    var rotApp = Helpers.PPTROTConnectionHelper.TryGetBestSlideShowApplication(
+                        Settings.PowerPointSettings.IsSupportWPS, out rotPriority);
+                    if (rotApp != null && rotPriority > 0 && TryPingPptApplication(rotApp))
+                    {
+                        acquired = rotApp;
+                    }
+                    LogRotOutcomeIfChanged(acquired != null, rotPriority);
+                }
+
+                // 4) 获取运行中的演示程序 COM 对象（COM 兜底）。WPS 重装/新版可能不再以
+                //    PowerPoint.Application 注册 ROT，这里在 wpp/wpsoffice 进程存在时
+                //    附加 WPS 专用 ProgID 依次尝试。ROT 已命中时 for 条件直接短路。
                 var candidateProgIds = new List<string> { "PowerPoint.Application" };
                 if (Process.GetProcessesByName("wpp").Length > 0 || Process.GetProcessesByName("wpsoffice").Length > 0)
                 {
@@ -394,7 +437,6 @@ namespace Ink_Canvas
                     candidateProgIds.Add("wpp.Application");
                 }
 
-                Microsoft.Office.Interop.PowerPoint.Application acquired = null;
                 for (int attempt = 0; attempt < 6 && acquired == null; attempt++)
                 {
                     foreach (string progId in candidateProgIds)

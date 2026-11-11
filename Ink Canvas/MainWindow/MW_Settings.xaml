@@ -2685,6 +2685,48 @@
 
                                     TextWrapping="Wrap" />
 
+                                <ikw:SimpleStackPanel Orientation="Horizontal">
+
+                                    <ikw:SimpleStackPanel Width="50">
+
+                                        <ui:ToggleSwitch
+
+                                            Name="ToggleSwitchEnableRotFirst"
+
+                                            FontWeight="Bold"
+
+                                            IsOn="True"
+
+                                            OffContent="关"
+
+                                            OnContent="开"
+
+                                            Toggled="ToggleSwitchEnableRotFirst_Toggled" />
+
+                                    </ikw:SimpleStackPanel>
+
+                                    <TextBlock
+
+                                        Margin="0,0,14,0"
+
+                                        VerticalAlignment="Center"
+
+                                        FontSize="14"
+
+                                        Foreground="{DynamicResource PopupWindowForeground}"
+
+                                        Text="ROT 优先连接" />
+
+                                </ikw:SimpleStackPanel>
+
+                                <TextBlock
+
+                                    Foreground="{DynamicResource SettingsPageAnnotationForeground}"
+
+                                    Text="# 优先通过运行对象表（ROT）连接正在放映的 PowerPoint/WPS，未命中时自动回退原有连接方式；关闭后行为与旧版一致。"
+
+                                    TextWrapping="Wrap" />
+
                                 <Border
                                     Height="1"
                                     Margin="0,4,0,4"
