@@ -599,6 +599,8 @@ namespace Ink_Canvas
             forceEraser = true;
             drawingShapeMode = 24;
             drawMultiStepShapeCurrentStep = 0;
+            // 复位上一次残留的渐近线状态，避免两步流程从中间开始导致询问窗口不出现
+            drawMultiStepShapeSpecialStrokeCollection = null;
             inkCanvas.EditingMode = InkCanvasEditingMode.None;
             inkCanvas.IsManipulationEnabled = true;
             CancelSingleFingerDragMode();
@@ -611,6 +613,7 @@ namespace Ink_Canvas
             forceEraser = true;
             drawingShapeMode = 25;
             drawMultiStepShapeCurrentStep = 0;
+            drawMultiStepShapeSpecialStrokeCollection = null;
             inkCanvas.EditingMode = InkCanvasEditingMode.None;
             inkCanvas.IsManipulationEnabled = true;
             CancelSingleFingerDragMode();
@@ -1703,7 +1706,10 @@ namespace Ink_Canvas
             try
             {
                 UpdateInputActivityTimestamp();
-                HandleMouseStraightenUp(e);
+                // 顿笔拉直收尾独立兜底：若此处抛异常被外层 catch 吞掉，
+                // 后面的双曲线渐近线询问（Ask）会被静默跳过，表现为"询问窗口有时不出现"
+                try { HandleMouseStraightenUp(e); }
+                catch { }
                 if (drawingShapeMode == 5)
             {
                 Circle circle = new Circle(new Point(), 0, lastTempStroke);
@@ -1774,21 +1780,33 @@ namespace Ink_Canvas
                 else
                 {
                     drawMultiStepShapeCurrentStep = 0;
-                    if (drawMultiStepShapeSpecialStrokeCollection != null)
+                    // 仅在确实画过渐近线（非空集合）时才询问/移除，避免残留的空集合触发假询问
+                    if (drawMultiStepShapeSpecialStrokeCollection != null
+                        && drawMultiStepShapeSpecialStrokeCollection.Count > 0)
                     {
                         var opFlag = false;
-                        switch (Settings.Canvas.HyperbolaAsymptoteOption)
+                        // 询问窗口必须每次都出现：这里独立兜底，不受前面环节异常影响；
+                        // 询问失败时按「保留」处理，不误删渐近线
+                        try
                         {
-                            case OptionalOperation.Yes:
-                                opFlag = true;
-                                break;
-                            case OptionalOperation.No:
-                                opFlag = false;
-                                break;
-                            case OptionalOperation.Ask:
-                                opFlag = MessageBoxHelper.Show("是否移除渐近线？", "Ink Canvas", MessageBoxButton.YesNo) !=
-                                         MessageBoxResult.Yes;
-                                break;
+                            switch (Settings.Canvas.HyperbolaAsymptoteOption)
+                            {
+                                case OptionalOperation.Yes:
+                                    opFlag = true;
+                                    break;
+                                case OptionalOperation.No:
+                                    opFlag = false;
+                                    break;
+                                case OptionalOperation.Ask:
+                                    opFlag = MessageBoxHelper.Show("是否移除渐近线？", "Ink Canvas", MessageBoxButton.YesNo) !=
+                                             MessageBoxResult.Yes;
+                                    break;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            opFlag = true;
+                            LogHelper.WriteLogToFile($"渐近线询问窗口异常，按保留处理：{ex.Message}", LogHelper.LogType.Warning);
                         }
 
                         // 渐近线已在第一次抬笔时作为独立历史记录提交（下方通用提交块）。
@@ -1798,10 +1816,22 @@ namespace Ink_Canvas
                         {
                             // 移除渐近线：除了移出画布，还必须把这次移除记入历史——
                             // 否则第一步那条"渐近线"记录在撤销/重做重放时会把渐近线重新画回画布。
-                            inkCanvas.Strokes.Remove(drawMultiStepShapeSpecialStrokeCollection);
-                            timeMachine.CommitStrokeEraseHistory(drawMultiStepShapeSpecialStrokeCollection);
+                            try
+                            {
+                                inkCanvas.Strokes.Remove(drawMultiStepShapeSpecialStrokeCollection);
+                                timeMachine.CommitStrokeEraseHistory(drawMultiStepShapeSpecialStrokeCollection);
+                            }
+                            catch (Exception ex)
+                            {
+                                LogHelper.WriteLogToFile($"移除渐近线失败：{ex.Message}", LogHelper.LogType.Warning);
+                            }
                         }
                         // 保留渐近线：无需额外处理，渐近线记录与主曲线记录各自独立、可分别撤销
+                        drawMultiStepShapeSpecialStrokeCollection = null;
+                    }
+                    else
+                    {
+                        // 复位残留状态，避免影响下一轮绘制
                         drawMultiStepShapeSpecialStrokeCollection = null;
                     }
                     BtnPen_Click(null, null); //画完还原到笔模式
