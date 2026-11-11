@@ -1121,6 +1121,8 @@ namespace Ink_Canvas
                     if (BoardInkWidthSlider != null) BoardInkWidthSlider.Value = width * 2;
                     if (InkAlphaSlider != null) InkAlphaSlider.Value = Settings.Canvas.InkAlpha;
                     if (BoardInkAlphaSlider != null) BoardInkAlphaSlider.Value = Settings.Canvas.InkAlpha;
+                    if (InkAnnotationAlphaSlider != null) InkAnnotationAlphaSlider.Value = Settings.Canvas.AnnotationInkAlpha;
+                    if (BoardInkAnnotationAlphaSlider != null) BoardInkAnnotationAlphaSlider.Value = Settings.Canvas.AnnotationInkAlpha;
                     if (ComboBoxHyperbolaAsymptoteOption != null)
                         ComboBoxHyperbolaAsymptoteOption.SelectedIndex = (int)Settings.Canvas.HyperbolaAsymptoteOption;
                     if (ComboBoxPenStyle != null) ComboBoxPenStyle.SelectedIndex = Settings.Canvas.InkStyle;

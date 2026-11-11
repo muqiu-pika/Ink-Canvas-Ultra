@@ -1551,7 +1551,7 @@
 
                                                     <Viewbox
 
-                                                        Height="80"
+                                                        Height="110"
 
                                                         HorizontalAlignment="Center"
 
@@ -1740,6 +1740,58 @@
                                                                     Foreground="{DynamicResource BoardBarForeground}"
 
                                                                     Text="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=FloatBarHostBridge.InkWidthSliderBridge.Value, Mode=OneWay}" />
+
+                                                            </StackPanel>
+
+                                                            <StackPanel Height="30" Orientation="Horizontal">
+
+                                                                <Label
+
+                                                                    Margin="0,0,10,0"
+
+                                                                    VerticalAlignment="Center"
+
+                                                                    Content="不透明度"
+
+                                                                    FontSize="15"
+
+                                                                    Foreground="{DynamicResource BoardBarForeground}" />
+
+                                                                <Slider
+
+                                                                    x:Name="BoardInkAnnotationAlphaSlider"
+
+                                                                    Width="230"
+
+                                                                    ui:ThemeManager.RequestedTheme="{DynamicResource BoardTheme}"
+
+                                                                    FontSize="20"
+
+                                                                    IsSnapToTickEnabled="True"
+
+                                                                    Maximum="255"
+
+                                                                    Minimum="20"
+
+                                                                    TickFrequency="5"
+
+                                                                    TickPlacement="None"
+
+                                                                    ValueChanged="InkAnnotationAlphaSlider_ValueChanged"
+
+                                                                    Value="255" />
+
+                                                                <TextBlock
+
+                                                                    Margin="10,0,0,8"
+
+                                                                    VerticalAlignment="Bottom"
+
+                                                                    FontSize="14"
+
+                                                                    Foreground="{DynamicResource BoardBarForeground}"
+
+                                                                    Text="{Binding Value, ElementName=BoardInkAnnotationAlphaSlider, Mode=OneWay}" />
 
                                                             </StackPanel>
 

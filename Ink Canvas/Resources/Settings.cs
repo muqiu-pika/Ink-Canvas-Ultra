@@ -35,6 +35,8 @@ namespace Ink_Canvas
         public double InkWidth { get; set; } = 2.5;
         [JsonProperty("inkAlpha")]
         public int InkAlpha { get; set; } = 140;
+        [JsonProperty("annotationInkAlpha")]
+        public int AnnotationInkAlpha { get; set; } = 255;
         [JsonProperty("isCompressPicturesUploaded")]
         public bool IsCompressPicturesUploaded { get; set; } = false;
         [JsonProperty("isShowCursor")]

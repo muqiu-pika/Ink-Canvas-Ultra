@@ -405,6 +405,11 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(InkAlphaSlider_ValueChanged), sender, e);
         }
 
+        private void InkAnnotationAlphaSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            InvokeMainWindowHandler(nameof(InkAnnotationAlphaSlider_ValueChanged), sender, e);
+        }
+
         private void InkWidthSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             InvokeMainWindowHandler(nameof(InkWidthSlider_ValueChanged), sender, e);

@@ -15,6 +15,20 @@ namespace Ink_Canvas
             CheckColorTheme();
         }
 
+        /// <summary>
+        /// 「批注」（普通笔）不透明度：与荧光笔的 InkAlphaSlider 同一套状态同步链路，
+        /// 仅作用于普通笔迹颜色 alpha，不影响荧光笔与笔迹尺寸。
+        /// </summary>
+        private void InkAnnotationAlphaSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!isLoaded || _isLoadingSettings) return;
+            if (sender == BoardInkAnnotationAlphaSlider) InkAnnotationAlphaSlider.Value = ((Slider)sender).Value;
+            if (sender == InkAnnotationAlphaSlider) BoardInkAnnotationAlphaSlider.Value = ((Slider)sender).Value;
+            Settings.Canvas.AnnotationInkAlpha = (int)((Slider)sender).Value;
+            SaveSettingsToFile();
+            CheckColorTheme();
+        }
+
         private void BtnHighlighterColorRed_Click(object sender, RoutedEventArgs e)
         {
             CheckLastColor(101);

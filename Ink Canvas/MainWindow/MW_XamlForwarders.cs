@@ -104,6 +104,7 @@ namespace Ink_Canvas
         private dynamic BoardBorderPenColorBlue => FindXamlPart(MWBoardHost, nameof(BoardBorderPenColorBlue));
         private dynamic BoardViewboxBtnColorBlueContent => FindXamlPart(MWBoardHost, nameof(BoardViewboxBtnColorBlueContent));
         private dynamic BoardInkAlphaSlider => FindXamlPart(MWBoardHost, nameof(BoardInkAlphaSlider));
+        private dynamic BoardInkAnnotationAlphaSlider => FindXamlPart(MWBoardHost, nameof(BoardInkAnnotationAlphaSlider));
         private dynamic BoardBorderHighlighterColorRed => FindXamlPart(MWBoardHost, nameof(BoardBorderHighlighterColorRed));
         private dynamic BoardViewboxBtnHighlighterColorRedContent => FindXamlPart(MWBoardHost, nameof(BoardViewboxBtnHighlighterColorRedContent));
         private dynamic BoardBorderHighlighterColorOrange => FindXamlPart(MWBoardHost, nameof(BoardBorderHighlighterColorOrange));
@@ -313,6 +314,7 @@ namespace Ink_Canvas
         private dynamic BorderPenColorBlue => FindXamlPart(MWFloatBarHost, nameof(BorderPenColorBlue));
         private dynamic ViewboxBtnColorBlueContent => FindXamlPart(MWFloatBarHost, nameof(ViewboxBtnColorBlueContent));
         private dynamic InkAlphaSlider => FindXamlPart(MWFloatBarHost, nameof(InkAlphaSlider));
+        private dynamic InkAnnotationAlphaSlider => FindXamlPart(MWFloatBarHost, nameof(InkAnnotationAlphaSlider));
         private dynamic BorderHighlighterColorRed => FindXamlPart(MWFloatBarHost, nameof(BorderHighlighterColorRed));
         private dynamic ViewboxBtnHighlighterColorRedContent => FindXamlPart(MWFloatBarHost, nameof(ViewboxBtnHighlighterColorRedContent));
         private dynamic BorderHighlighterColorOrange => FindXamlPart(MWFloatBarHost, nameof(BorderHighlighterColorOrange));

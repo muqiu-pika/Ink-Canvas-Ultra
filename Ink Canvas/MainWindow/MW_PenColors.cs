@@ -205,6 +205,10 @@ namespace Ink_Canvas
                 {
                     drawingAttributes.Height = Settings.Canvas.InkWidth;
                     drawingAttributes.Width = Settings.Canvas.InkWidth;
+                    byte NowR = drawingAttributes.Color.R;
+                    byte NowG = drawingAttributes.Color.G;
+                    byte NowB = drawingAttributes.Color.B;
+                    drawingAttributes.Color = Color.FromArgb((byte)Settings.Canvas.AnnotationInkAlpha, NowR, NowG, NowB);
                     drawingAttributes.IsHighlighter = false;
                 }
             }
