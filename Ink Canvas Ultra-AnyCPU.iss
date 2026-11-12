@@ -82,7 +82,8 @@ Source: "Ink Canvas\bin\Release\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignor
 ;
 ; 再排除 Interop.stdole.dll：它是 GAC 里的 stdole PIA，本程序代码并未直接使用其中的类型，
 ; 只有用 dotnet CLI 编译时才会被拷到 bin\Release（VS/CI 构建不会），打进去纯属多余。
-Source: "Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Plugins,*.vbs,Log.txt,Log*.txt,*.log,Settings.json,Names.txt,Replace.txt,*.icart,*.icstk,Auto Saved - Session,Snapshots,UpdateBackup,Interop.stdole.dll"
+; 同时排除 *.pdb：调试符号只在调试时有用，运行时不需要，打进去只会白白增加安装包体积。
+Source: "Ink Canvas\bin\Release\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Excludes: "Plugins,*.vbs,Log.txt,Log*.txt,*.log,Settings.json,Names.txt,Replace.txt,*.icart,*.icstk,Auto Saved - Session,Snapshots,UpdateBackup,Interop.stdole.dll,*.pdb"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Registry]

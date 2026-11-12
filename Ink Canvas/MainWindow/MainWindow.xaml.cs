@@ -4724,8 +4724,9 @@ namespace Ink_Canvas
             int tileDone = 0;
             const int batchSize = 4;
             // 预解码内存护栏：累计已解码像素超过该值后，剩余瓦片退回 OnDemand（渲染时解码），
-            // 防止极端大文档（数百页）一次性驻留全部解码位图导致内存失控
-            const long maxPrewarmBytes = 1_500_000_000;
+            // 防止极端大文档（数百页）一次性驻留全部解码位图导致内存失控。
+            // 由 1.5GB 降为 512MB：常用文档预解码足够，超大文档超出部分按需解码，峰值内存显著下降
+            const long maxPrewarmBytes = 512 * 1024 * 1024;
             long prewarmedBytes = 0;
 
             System.Windows.Controls.Image firstImg = null;
