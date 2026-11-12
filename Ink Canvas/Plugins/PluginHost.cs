@@ -65,6 +65,15 @@ namespace Ink_Canvas.Plugins
         private readonly Dictionary<string, List<UIElement>> _pluginControlBars = new Dictionary<string, List<UIElement>>(StringComparer.OrdinalIgnoreCase);
         // pluginId -> 插件在插件工坊里显示的设置面板工厂
         private readonly Dictionary<string, Func<UIElement>> _pluginSettingsPanels = new Dictionary<string, Func<UIElement>>(StringComparer.OrdinalIgnoreCase);
+        // pluginId -> 插件注册的「图形」面板工具（RegisterShapeTool，供 UnloadPlugin 自动清理）
+        private readonly Dictionary<string, List<RegisteredShapeTool>> _pluginShapeTools = new Dictionary<string, List<RegisteredShapeTool>>(StringComparer.OrdinalIgnoreCase);
+
+        private sealed class RegisteredShapeTool
+        {
+            public string Id;
+            public int Order;
+            public Func<UIElement> Factory;
+        }
 
         public event EventHandler ApplicationExiting;
         public event EventHandler<BoardModeChangedEventArgs> BoardModeChanged;
@@ -452,6 +461,39 @@ namespace Ink_Canvas.Plugins
             catch { }
         }
 
+        public void RegisterShapeTool(string id, int order, Func<UIElement> toolFactory)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(id) || toolFactory == null) return;
+                if (string.IsNullOrEmpty(_currentLoadingPluginId)) return;
+
+                var reg = new RegisteredShapeTool { Id = id, Order = order, Factory = toolFactory };
+                if (!_pluginShapeTools.TryGetValue(_currentLoadingPluginId, out var list))
+                {
+                    list = new List<RegisteredShapeTool>();
+                    _pluginShapeTools[_currentLoadingPluginId] = list;
+                }
+                list.Add(reg);
+
+                _opts.RegisterShapeTool?.Invoke(id, order, toolFactory);
+            }
+            catch { }
+        }
+
+        public void UnregisterShapeTool(string id)
+        {
+            try
+            {
+                _opts.UnregisterShapeTool?.Invoke(id);
+                foreach (var kv in _pluginShapeTools)
+                {
+                    kv.Value.RemoveAll(t => string.Equals(t.Id, id, StringComparison.Ordinal));
+                }
+            }
+            catch { }
+        }
+
         /// <summary>获取指定 plugin 在插件工坊里使用的设置面板工厂（未注册返回 null）。</summary>
         public Func<UIElement> GetSettingsPanelFactory(string pluginId)
         {
@@ -717,6 +759,17 @@ namespace Ink_Canvas.Plugins
             }
 
             _pluginSettingsPanels.Remove(pluginId);
+
+            // 自动清理：插件通过 RegisterShapeTool 注册但未在 Shutdown 中反注册的图形面板工具
+            if (_pluginShapeTools.TryGetValue(pluginId, out var shapeTools))
+            {
+                foreach (var tool in shapeTools.ToList())
+                {
+                    try { _opts.UnregisterShapeTool?.Invoke(tool.Id); }
+                    catch (Exception ex) { LogHelper.WriteLogToFile($"自动移除图形面板工具失败 [{pluginId}/{tool.Id}]: {ex.Message}", LogHelper.LogType.Warning); }
+                }
+                _pluginShapeTools.Remove(pluginId);
+            }
 
             _loaded.RemoveAt(idx);
             LogHelper.WriteLogToFile($"plugin 已软卸载: {p.Manifest.Id}", LogHelper.LogType.Event);
@@ -1233,6 +1286,10 @@ namespace Ink_Canvas.Plugins
         public Func<string, bool> HasCapturedPhotoForFile { get; set; }
         public Action<UIElement> RegisterSelectionControlBar { get; set; }
         public Action<UIElement> UnregisterSelectionControlBar { get; set; }
+
+        // 「图形」面板通用扩展点（浮动栏 + 白板栏）
+        public Action<string, int, Func<UIElement>> RegisterShapeTool { get; set; }
+        public Action<string> UnregisterShapeTool { get; set; }
         public Func<IReadOnlyList<ToolbarReorderGroup>> GetReorderableToolbarGroups { get; set; }
         public Func<string, IReadOnlyList<string>, bool> ApplyToolbarOrder { get; set; }
         public Action<string> ResetToolbarPlacement { get; set; }

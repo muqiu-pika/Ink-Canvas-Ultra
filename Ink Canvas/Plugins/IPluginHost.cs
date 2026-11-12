@@ -123,6 +123,17 @@ namespace Ink_Canvas.Plugins
         void UnregisterSettingsPanel();
 
         /// <summary>
+        /// 向「图形」面板注册一个通用自定义工具项：浮动栏与白板栏的图形面板末尾各出现一个条目。
+        /// toolFactory 会被调用两次（两个面板各生成一个元素实例，UIElement 不能跨视觉树共享），
+        /// 返回的元素应自带视觉与交互（如 MouseUp/TouchUp 事件），宿主只负责摆放、排序与卸载；
+        /// 卸载/禁用插件后条目完全消失。toolFactory 可能延迟到宿主界面加载完成后才被首次调用。
+        /// </summary>
+        void RegisterShapeTool(string id, int order, Func<UIElement> toolFactory);
+
+        /// <summary>移除此前通过 RegisterShapeTool 注册的图形面板工具项（按 id 匹配）。</summary>
+        void UnregisterShapeTool(string id);
+
+        /// <summary>
         /// 获取当前可重排的工具栏分组（浮动工具栏 / 白板工具栏）。
         /// 每个分组列出可在一个条带内调整顺序的功能按钮。
         /// </summary>

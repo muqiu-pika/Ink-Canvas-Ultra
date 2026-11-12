@@ -220,6 +220,11 @@ namespace Ink_Canvas
                             catch { }
                         });
                     },
+                    // 「图形」面板通用扩展点：浮动栏 + 白板栏
+                    RegisterShapeTool = (id, order, factory) =>
+                        Dispatcher.Invoke(() => RegisterPluginShapeTool(id, order, factory)),
+                    UnregisterShapeTool = (id) =>
+                        Dispatcher.Invoke(() => UnregisterPluginShapeTool(id)),
                     UnregisterSelectionControlBar = bar =>
                     {
                         Dispatcher.Invoke(() =>
