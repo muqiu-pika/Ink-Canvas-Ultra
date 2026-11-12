@@ -572,14 +572,14 @@
 
                                     x:Name="PenPaletteScaleHost"
 
-                                    Margin="-131,-190,-239,35">
+                                    Margin="-131,-222,-239,35">
 
                                     <Border.RenderTransform>
 
                                         <TransformGroup>
-                                            <TranslateTransform X="-131" Y="-190" />
+                                            <TranslateTransform X="-131" Y="-222" />
                                             <ScaleTransform x:Name="PenPaletteScaleTransform" ScaleX="1" ScaleY="1" />
-                                            <TranslateTransform X="131" Y="190" />
+                                            <TranslateTransform X="131" Y="222" />
                                         </TransformGroup>
 
                                     </Border.RenderTransform>
@@ -587,6 +587,8 @@
                                 <Border
 
                                     x:Name="PenPalette"
+
+                                    MinHeight="222"
 
                                     Background="{DynamicResource FloatBarBackground}"
 
@@ -753,6 +755,8 @@
                                                 <ikw:SimpleStackPanel Margin="20,10">
 
                                                 <Viewbox
+
+                                                    Width="296"
 
                                                     Height="110"
 
@@ -948,7 +952,7 @@
 
                                                                     Content="不透明度"
 
-                                                                    FontSize="15"
+                                                                    FontSize="14"
 
                                                                     Foreground="{DynamicResource FloatBarForeground}" />
 
@@ -956,7 +960,7 @@
 
                                                                     x:Name="InkAnnotationAlphaSlider"
 
-                                                                    Width="230"
+                                                                    Width="150"
 
                                                                     FontSize="20"
 

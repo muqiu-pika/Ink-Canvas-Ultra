@@ -11,8 +11,14 @@ namespace Ink_Canvas
     /// <summary>
     /// 「图形」面板通用插件扩展点：插件通过 IPluginHost.RegisterShapeTool 注册的工具项
     /// 会同时出现在浮动栏（ShapePageShapes）与白板栏（BoardBorderDrawShape 内同名
-    /// ShapePageShapes）图形面板的末尾；未注册任何工具时面板 XAML 与旧版完全一致。
-    /// 工厂会为两个面板分别调用一次（UIElement 不能跨视觉树共享）。
+    /// ShapePageShapes）图形面板中；未注册任何工具时面板 XAML 与旧版完全一致。
+    ///
+    /// 摆放策略：面板内容是"若干 50 高的水平行"，各面板外层 Viewbox 带 MaxHeight 限制，
+    /// 追加新行会触发整体等比缩小并在右侧留出空列。因此优先把工具元素
+    /// <see cref="RegisterShapeTool"/> 追加进最后一行的空位（最后一行的子项数少于
+    /// 最宽行时视为有空位）；只有在没有空位时才新建一行，并按宽度缩放比相应抬高
+    /// Viewbox 的 MaxHeight，保证不触发整体缩小。工厂会为两个面板分别调用一次
+    /// （UIElement 不能跨视觉树共享）。
     /// </summary>
     public partial class MainWindow
     {
@@ -22,7 +28,9 @@ namespace Ink_Canvas
             public int Order;
             public Func<UIElement> Factory;
             public FrameworkElement FloatRow;
+            public UIElement FloatTool;
             public FrameworkElement BoardRow;
+            public UIElement BoardTool;
             public bool Attached;
         }
 
@@ -52,8 +60,7 @@ namespace Ink_Canvas
                     return;
                 }
 
-                AttachShapeToolRows(entry, floatPanel, boardPanel);
-                SortPluginShapeToolRows(floatPanel, boardPanel);
+                AttachShapeTool(entry, floatPanel, boardPanel);
             }
             catch (Exception ex)
             {
@@ -69,7 +76,7 @@ namespace Ink_Canvas
                 if (string.IsNullOrEmpty(id)) return;
                 if (_pluginShapeToolEntries.TryGetValue(id, out var entry))
                 {
-                    DetachShapeToolRows(entry);
+                    DetachShapeTool(entry);
                     _pluginShapeToolEntries.Remove(id);
                 }
             }
@@ -95,10 +102,9 @@ namespace Ink_Canvas
                     {
                         if (!entry.Attached)
                         {
-                            AttachShapeToolRows(entry, floatPanel, boardPanel);
+                            AttachShapeTool(entry, floatPanel, boardPanel);
                         }
                     }
-                    SortPluginShapeToolRows(floatPanel, boardPanel);
                 }
                 catch (Exception ex)
                 {
@@ -122,43 +128,90 @@ namespace Ink_Canvas
             }
         }
 
-        private void AttachShapeToolRows(PluginShapeToolEntry entry, Panel floatPanel, Panel boardPanel)
+        private void AttachShapeTool(PluginShapeToolEntry entry, Panel floatPanel, Panel boardPanel)
         {
             if (entry.Attached) return;
 
-            entry.FloatRow = BuildShapeToolRow(entry, floatPanel, isBoard: false);
-            if (entry.FloatRow != null)
-            {
-                floatPanel.Children.Add(entry.FloatRow);
-            }
+            AttachToolInPanel(entry, floatPanel, isBoard: false, isFloat: true);
+            AttachToolInPanel(entry, boardPanel, isBoard: true, isFloat: false);
 
-            entry.BoardRow = BuildShapeToolRow(entry, boardPanel, isBoard: true);
-            if (entry.BoardRow != null)
-            {
-                boardPanel.Children.Add(entry.BoardRow);
-            }
-
-            entry.Attached = entry.FloatRow != null || entry.BoardRow != null;
+            entry.Attached = entry.FloatTool != null || entry.BoardTool != null;
         }
 
-        /// <summary>为单个面板构建工具行：50 高的水平行，元素由插件工厂生成（每面板独立实例）。</summary>
-        private FrameworkElement BuildShapeToolRow(PluginShapeToolEntry entry, Panel panel, bool isBoard)
+        private void AttachToolInPanel(PluginShapeToolEntry entry, Panel panel, bool isBoard, bool isFloat)
         {
-            if (panel == null) return null;
+            if (panel == null) return;
             try
             {
-                var row = new StackPanel
+                var tool = BuildShapeToolElement(entry, isBoard);
+                if (tool == null) return;
+
+                // 1) 最后一行有空位（子项数少于最宽行）：直接追加进该行，不新增行高
+                var lastRow = panel.Children.Count > 0 ? panel.Children[panel.Children.Count - 1] as Panel : null;
+                if (lastRow != null)
                 {
-                    Height = 50,
-                    Orientation = Orientation.Horizontal
-                };
-                // 通过 TextElement.Foreground 继承，让插件工具内的文本自动跟随当前面板主题
-                row.SetResourceReference(TextElement.ForegroundProperty,
+                    int widest = 0;
+                    foreach (var child in panel.Children)
+                    {
+                        if (child is Panel row && row.Children.Count > widest) widest = row.Children.Count;
+                    }
+                    if (lastRow.Children.Count < widest)
+                    {
+                        lastRow.Children.Add(tool);
+                        if (isFloat) { entry.FloatRow = lastRow; entry.FloatTool = tool; }
+                        else { entry.BoardRow = lastRow; entry.BoardTool = tool; }
+                        return;
+                    }
+                }
+
+                // 2) 无空位：新建一行，并按宽度缩放比抬高 Viewbox 的 MaxHeight，避免触发整体缩小
+                var newRow = new StackPanel { Height = 50, Orientation = Orientation.Horizontal };
+                newRow.SetResourceReference(TextElement.ForegroundProperty,
                     isBoard ? "BoardBarForeground" : "FloatBarForeground");
+                newRow.Children.Add(tool);
+                panel.Children.Add(newRow);
+                GrowShapePageMaxHeight(panel, isBoard);
+                if (isFloat) { entry.FloatRow = newRow; entry.FloatTool = tool; }
+                else { entry.BoardRow = newRow; entry.BoardTool = tool; }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("挂载图形面板工具失败 [" + entry.Id + "]: " + ex.Message, LogHelper.LogType.Warning);
+            }
+        }
+
+        /// <summary>新建行后按内容宽度缩放比抬高外层 Viewbox 的 MaxHeight（行高 50 在缩放后占的高度）。</summary>
+        private void GrowShapePageMaxHeight(Panel panel, bool isBoard)
+        {
+            try
+            {
+                var viewbox = panel.Parent as Viewbox;
+                if (viewbox == null || double.IsNaN(viewbox.MaxHeight) || double.IsInfinity(viewbox.MaxHeight)) return;
+                double naturalWidth = panel.DesiredSize.Width;
+                if (naturalWidth <= 0 || double.IsNaN(viewbox.Width) || double.IsInfinity(viewbox.Width)) return;
+                double widthScale = viewbox.Width / naturalWidth;
+                if (widthScale <= 0 || widthScale > 1) widthScale = 1;
+                viewbox.MaxHeight += 50 * widthScale;
+            }
+            catch
+            {
+                // 抬高失败不影响功能
+            }
+        }
+
+        /// <summary>构建工具元素（每面板独立调用工厂，前景色随面板主题继承宿主行级资源）。</summary>
+        private UIElement BuildShapeToolElement(PluginShapeToolEntry entry, bool isBoard)
+        {
+            try
+            {
                 var tool = entry.Factory();
-                if (tool == null) return null;
-                row.Children.Add(tool);
-                return row;
+                if (tool is FrameworkElement fe)
+                {
+                    // 通过 TextElement.Foreground 继承，让插件工具内的文本自动跟随当前面板主题
+                    fe.SetResourceReference(TextElement.ForegroundProperty,
+                        isBoard ? "BoardBarForeground" : "FloatBarForeground");
+                }
+                return tool;
             }
             catch (Exception ex)
             {
@@ -167,44 +220,34 @@ namespace Ink_Canvas
             }
         }
 
-        private void DetachShapeToolRows(PluginShapeToolEntry entry)
+        private void DetachShapeTool(PluginShapeToolEntry entry)
         {
             try
             {
-                if (entry.FloatRow?.Parent is Panel fp) fp.Children.Remove(entry.FloatRow);
-                if (entry.BoardRow?.Parent is Panel bp) bp.Children.Remove(entry.BoardRow);
+                RemoveTool(entry.FloatRow, entry.FloatTool);
+                RemoveTool(entry.BoardRow, entry.BoardTool);
             }
             catch { }
             entry.FloatRow = null;
+            entry.FloatTool = null;
             entry.BoardRow = null;
+            entry.BoardTool = null;
             entry.Attached = false;
         }
 
-        /// <summary>按 Order 重排已注册的工具行（只影响插件行之间的相对顺序，始终位于面板末尾）。</summary>
-        private void SortPluginShapeToolRows(Panel floatPanel, Panel boardPanel)
+        private static void RemoveTool(FrameworkElement row, UIElement tool)
         {
-            try
+            if (row == null || tool == null) return;
+            if (row is Panel rowPanel && rowPanel.Children.Contains(tool))
             {
-                var ordered = _pluginShapeToolEntries.Values
-                    .Where(t => t.Attached)
-                    .OrderBy(t => t.Order)
-                    .ThenBy(t => t.Id, StringComparer.Ordinal)
-                    .ToList();
-
-                foreach (var entry in ordered)
-                {
-                    if (entry.FloatRow?.Parent == floatPanel) floatPanel.Children.Remove(entry.FloatRow);
-                    if (entry.BoardRow?.Parent == boardPanel) boardPanel.Children.Remove(entry.BoardRow);
-                }
-                foreach (var entry in ordered)
-                {
-                    if (entry.FloatRow != null) floatPanel.Children.Add(entry.FloatRow);
-                    if (entry.BoardRow != null) boardPanel.Children.Add(entry.BoardRow);
-                }
+                rowPanel.Children.Remove(tool);
             }
-            catch
+            // 行是自己动态创建且已空时一并移除（空行只可能是新建行；原始行由 XAML 定义，不动）
+            if (row is StackPanel sp && sp.Children.Count == 0 && sp.Parent is Panel parent &&
+                !(parent is System.Windows.Controls.Viewbox) && parent.Children.Contains(row))
             {
-                // 排序失败不影响功能
+                // 仅为本插件新建的行（末尾追加的空行）才移除，XAML 原始行保持不动
+                parent.Children.Remove(row);
             }
         }
     }

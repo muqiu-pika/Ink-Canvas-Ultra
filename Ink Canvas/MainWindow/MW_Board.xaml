@@ -1369,14 +1369,14 @@
 
                                     x:Name="BoardPenPaletteScaleHost"
 
-                                    Margin="-248,-218,-190,59">
+                                    Margin="-248,-246,-190,59">
 
                                     <Border.RenderTransform>
 
                                         <TransformGroup>
-                                            <TranslateTransform X="-248" Y="-218" />
+                                            <TranslateTransform X="-248" Y="-246" />
                                             <ScaleTransform x:Name="BoardPenPaletteScaleTransform" ScaleX="1" ScaleY="1" />
-                                            <TranslateTransform X="248" Y="218" />
+                                            <TranslateTransform X="248" Y="246" />
                                         </TransformGroup>
 
                                     </Border.RenderTransform>
@@ -1384,6 +1384,8 @@
                                 <Border
 
                                     x:Name="BoardPenPalette"
+
+                                    MinHeight="246"
 
                                     Background="{DynamicResource BoardBarBackground}"
 
@@ -1550,6 +1552,8 @@
                                                 <ikw:SimpleStackPanel Margin="20,10,10,10">
 
                                                     <Viewbox
+
+                                                        Width="296"
 
                                                         Height="110"
 
@@ -1753,7 +1757,7 @@
 
                                                                     Content="不透明度"
 
-                                                                    FontSize="15"
+                                                                    FontSize="14"
 
                                                                     Foreground="{DynamicResource BoardBarForeground}" />
 
@@ -1761,7 +1765,7 @@
 
                                                                     x:Name="BoardInkAnnotationAlphaSlider"
 
-                                                                    Width="230"
+                                                                    Width="150"
 
                                                                     ui:ThemeManager.RequestedTheme="{DynamicResource BoardTheme}"
 
