@@ -112,7 +112,7 @@ namespace Ink_Canvas
             try
             {
                 if (!IsPresentationProcessRunning()) return;
-                if (!IsWPSSupportOn && Process.GetProcessesByName("wpp").Length > 0) return;
+                if (!IsWPSSupportOn && _procIdsWpp.Count > 0) return;
 
                 if (Application.Current?.Dispatcher != null)
                 {
@@ -142,17 +142,80 @@ namespace Ink_Canvas
             return false;
         }
 
+        // ===== 演示进程快照（CPU/内存优化） =====
+        // PPT 检测每秒一次，原先每个检测周期会用 GetProcessesByName 反复全量枚举进程表
+        // （存在性判断、失效检查、WPS 候选判断合计最多十余次），每次枚举都遍历全部进程
+        // 并为每个进程分配托管 Process 对象，是常驻的 CPU 与 GC 开销。
+        // 改为一次全量枚举生成快照（含各演示进程的 PID 列表），同一周期内共享，
+        // 快照有效期略小于检测间隔，对判断结果无感知影响。
+        private static readonly object _presentationProcessScanLock = new object();
+        private static DateTime _presentationProcessScanUtc = DateTime.MinValue;
+        private static List<int> _procIdsPowerPnt = new List<int>();
+        private static List<int> _procIdsWpp = new List<int>();
+        private static List<int> _procIdsEt = new List<int>();
+        private static List<int> _procIdsWpsOffice = new List<int>();
+        private const int PresentationProcessSnapshotTtlMs = 900;
+
+        private static void RefreshPresentationProcessSnapshot()
+        {
+            lock (_presentationProcessScanLock)
+            {
+                var now = DateTime.UtcNow;
+                if ((now - _presentationProcessScanUtc).TotalMilliseconds < PresentationProcessSnapshotTtlMs) return;
+
+                var powerPnt = new List<int>();
+                var wpp = new List<int>();
+                var et = new List<int>();
+                var wpsOffice = new List<int>();
+                try
+                {
+                    foreach (var process in Process.GetProcesses())
+                    {
+                        try
+                        {
+                            switch ((process.ProcessName ?? string.Empty).ToLowerInvariant())
+                            {
+                                case "powerpnt": powerPnt.Add(process.Id); break;
+                                case "wpp": wpp.Add(process.Id); break;
+                                case "et": et.Add(process.Id); break;
+                                case "wpsoffice": wpsOffice.Add(process.Id); break;
+                            }
+                        }
+                        catch
+                        {
+                            // 进程恰好退出时读取属性会抛：跳过该进程
+                        }
+                        finally
+                        {
+                            try { process.Dispose(); } catch { }
+                        }
+                    }
+                }
+                catch
+                {
+                    // 枚举失败视为本轮无演示进程，下一 tick 重试
+                }
+
+                _procIdsPowerPnt = powerPnt;
+                _procIdsWpp = wpp;
+                _procIdsEt = et;
+                _procIdsWpsOffice = wpsOffice;
+                _presentationProcessScanUtc = now;
+            }
+        }
+
         private static bool IsPresentationProcessRunning()
         {
             // 仅当 PowerPoint / WPS 演示进程确实存在时才尝试 GetActiveObject，
             // 避免"未打开 PPT"时每秒抛一次 COMException（RPC_E_SERVER_UNAVAILABLE）刷屏调试输出。
-            if (Process.GetProcessesByName("POWERPNT").Length > 0) return true;
+            RefreshPresentationProcessSnapshot();
+            if (_procIdsPowerPnt.Count > 0) return true;
             if (IsWPSSupportOn)
             {
-                if (Process.GetProcessesByName("wpp").Length > 0) return true;
-                if (Process.GetProcessesByName("et").Length > 0) return true;
+                if (_procIdsWpp.Count > 0) return true;
+                if (_procIdsEt.Count > 0) return true;
                 // 部分 WPS 版本以统一主进程 wpsoffice 运行演示组件，重装/升级后进程名可能变化
-                if (Process.GetProcessesByName("wpsoffice").Length > 0) return true;
+                if (_procIdsWpsOffice.Count > 0) return true;
             }
             return false;
         }
@@ -174,12 +237,13 @@ namespace Ink_Canvas
                 uint pid;
                 GetWindowThreadProcessId(hwnd, out pid);
                 if (pid == 0) return false;
-                if (ProcessContainsId(Process.GetProcessesByName("POWERPNT"), pid)) return false;
+                RefreshPresentationProcessSnapshot();
+                if (_procIdsPowerPnt.Contains((int)pid)) return false;
                 if (IsWPSSupportOn)
                 {
-                    if (ProcessContainsId(Process.GetProcessesByName("wpp"), pid)) return false;
-                    if (ProcessContainsId(Process.GetProcessesByName("et"), pid)) return false;
-                    if (ProcessContainsId(Process.GetProcessesByName("wpsoffice"), pid)) return false;
+                    if (_procIdsWpp.Contains((int)pid)) return false;
+                    if (_procIdsEt.Contains((int)pid)) return false;
+                    if (_procIdsWpsOffice.Contains((int)pid)) return false;
                 }
                 // 句柄所属进程不在当前演示进程列表中：RCW 指向的是残留的旧进程
                 return true;
@@ -189,15 +253,6 @@ namespace Ink_Canvas
                 // 访问已退出的服务进程会抛 COMException 等：RCW 已失效
                 return true;
             }
-        }
-
-        private static bool ProcessContainsId(Process[] processes, uint id)
-        {
-            foreach (var process in processes)
-            {
-                try { if (process.Id == id) return true; } catch { }
-            }
-            return false;
         }
 
         /// <summary>
@@ -258,7 +313,8 @@ namespace Ink_Canvas
             if (Interlocked.Exchange(ref _isCheckingPptCom, 1) == 1) return;
             try
             {
-                if (!IsWPSSupportOn && Process.GetProcessesByName("wpp").Length > 0)
+                RefreshPresentationProcessSnapshot();
+                if (!IsWPSSupportOn && _procIdsWpp.Count > 0)
                 {
                     return;
                 }
@@ -466,7 +522,8 @@ namespace Ink_Canvas
                 //    PowerPoint.Application 注册 ROT，这里在 wpp/wpsoffice 进程存在时
                 //    附加 WPS 专用 ProgID 依次尝试。ROT 已命中时 for 条件直接短路。
                 var candidateProgIds = new List<string> { "PowerPoint.Application" };
-                if (Process.GetProcessesByName("wpp").Length > 0 || Process.GetProcessesByName("wpsoffice").Length > 0)
+                RefreshPresentationProcessSnapshot();
+                if (_procIdsWpp.Count > 0 || _procIdsWpsOffice.Count > 0)
                 {
                     candidateProgIds.Add("KWPP.Application");
                     candidateProgIds.Add("wpp.Application");

@@ -80,6 +80,13 @@ jobs:
         msbuild -t:restore /p:GitFlow="Github Action"
         msbuild -target:"Ink Canvas" /p:Configuration=Release /p:Platform="Any CPU" /p:GitFlow="Github Action"
 
+    # 清理产物中的调试符号：pdb 只在调试时有意义，运行不需要，
+    # 打进 artifact zip 只会白白增大产物体积（安装包 iss 早已排除 pdb/stdole）
+    - name: Remove debug symbols from output
+      run: |
+        Get-ChildItem "Ink Canvas/bin/Release" -Filter *.pdb -Recurse | Remove-Item -Force
+        Get-ChildItem "Ink Canvas/bin/Release" -Filter "Interop.stdole.dll" -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
+
     - name: Upload to artifact
       uses: actions/upload-artifact@v7
       with:

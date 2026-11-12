@@ -178,5 +178,11 @@
 		</ItemGroup>
 		<Delete Files="@(DuplicatePluginDlls)" ContinueOnError="true" />
 	</Target>
+	<!-- Interop.stdole.dll 是 GAC 里的 stdole PIA，本程序代码并未使用其中的类型，
+	     运行时也从不加载它（安装包 Excludes 早已排除、已发布版本不带它也一直正常运行）。
+	     构建后直接从输出目录删除，本地 bin、CI 构建产物 zip 均不再携带这份无用文件。 -->
+	<Target Name="RemoveUnusedStdoleInterop" AfterTargets="Build">
+		<Delete Files="$(TargetDir)Interop.stdole.dll" ContinueOnError="true" />
+	</Target>
 </Project>
 
