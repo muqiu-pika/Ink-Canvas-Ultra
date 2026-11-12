@@ -1369,14 +1369,14 @@
 
                                     x:Name="BoardPenPaletteScaleHost"
 
-                                    Margin="-248,-246,-190,59">
+                                    Margin="-248,-236,-190,59">
 
                                     <Border.RenderTransform>
 
                                         <TransformGroup>
-                                            <TranslateTransform X="-248" Y="-246" />
+                                            <TranslateTransform X="-248" Y="-236" />
                                             <ScaleTransform x:Name="BoardPenPaletteScaleTransform" ScaleX="1" ScaleY="1" />
-                                            <TranslateTransform X="248" Y="246" />
+                                            <TranslateTransform X="248" Y="236" />
                                         </TransformGroup>
 
                                     </Border.RenderTransform>
@@ -1385,7 +1385,7 @@
 
                                     x:Name="BoardPenPalette"
 
-                                    MinHeight="246"
+                                    MinHeight="236"
 
                                     Background="{DynamicResource BoardBarBackground}"
 
@@ -3066,7 +3066,7 @@
 
                                 Width="280"
 
-                                Height="280"
+                                Height="249"
 
                                 HorizontalAlignment="Left"
 
@@ -3600,7 +3600,7 @@
 
                                             Grid.Column="0"
 
-                                            Height="240"
+                                            Height="214"
 
                                             Margin="0,10,0,0"
 
