@@ -353,6 +353,22 @@ namespace Ink_Canvas
                     }
                 });
 
+                // 内置路由：打开插件工坊。供插件在自身损坏/未正确安装、需要用户重装时
+                // 通过 TriggerRoute 自动跳转（与设置页、浮动栏入口共用同一打开逻辑）
+                host.RegisterRouteHandler("settings:plugin-workshop", (entryPoint, parameter) =>
+                {
+                    try
+                    {
+                        OpenPluginWorkshopWindow();
+                        return true;
+                    }
+                    catch (Exception ex)
+                    {
+                        LogHelper.WriteLogToFile($"settings:plugin-workshop 路由处理失败: {ex.Message}", LogHelper.LogType.Error);
+                        return false;
+                    }
+                });
+
                 host.LoadAll();
 
                 // 启动时单向同步视频展台桌面快捷方式：

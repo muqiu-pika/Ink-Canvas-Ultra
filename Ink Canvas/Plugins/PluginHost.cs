@@ -140,8 +140,11 @@ namespace Ink_Canvas.Plugins
 
                     try
                     {
-                        byte[] bytes = File.ReadAllBytes(candidatePath);
-                        var asm = Assembly.Load(bytes);
+                        // LoadFrom 而非 Assembly.Load(byte[])：字节加载的程序集没有代码基址，
+                        // 程序集内 WPF 窗口的 InitializeComponent（pack URI 的 BAML 资源解析）会失败。
+                        // LoadFrom 保留代码基址；文件锁定由 .pending-delete 机制兜底
+                        // （卸载/更新时删不掉则记录、下次启动清理）。
+                        var asm = Assembly.LoadFrom(candidatePath);
                         lock (_resolvedAssemblies)
                         {
                             _resolvedAssemblies[simpleName] = asm;
@@ -1142,8 +1145,18 @@ namespace Ink_Canvas.Plugins
                     {
                         try
                         {
-                            byte[] asmBytes = File.ReadAllBytes(asmPath);
-                            var asm = Assembly.Load(asmBytes);
+                            // 用 LoadFrom 而非 Assembly.Load(byte[])：字节加载的程序集没有代码基址，
+                            // 插件内 WPF 窗口的 InitializeComponent（pack URI 的 BAML 资源解析）必然
+                            // 失败（表现为"不具有由 URI 识别的资源"）。LoadFrom 保留代码基址，
+                            // XAML/资源正常；由此产生的文件锁定由 .pending-delete 机制兜底。
+                            // 同时缓存到 _resolvedAssemblies：WPF 资源解析会按程序集全名再次
+                            // Assembly.Load，届时经 AssemblyResolve 命中这里返回的同一实例。
+                            var asm = Assembly.LoadFrom(asmPath);
+                            lock (_resolvedAssemblies)
+                            {
+                                _resolvedAssemblies[Path.GetFileNameWithoutExtension(asmPath)] = asm;
+                                _resolvedAssemblyPaths[Path.GetFileNameWithoutExtension(asmPath)] = asmPath;
+                            }
                             var type = asm.GetType(manifest.EntryClass, throwOnError: false);
                             if (type == null || !typeof(IPlugin).IsAssignableFrom(type))
                             {

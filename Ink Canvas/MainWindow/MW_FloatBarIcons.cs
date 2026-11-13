@@ -2382,6 +2382,12 @@ namespace Ink_Canvas
 
         private void BtnOpenPluginWorkshop_Click(object sender, RoutedEventArgs e)
         {
+            OpenPluginWorkshopWindow();
+        }
+
+        /// <summary>打开插件工坊（复用已有单例）；设置页、浮动栏与内置路由 settings:plugin-workshop 共用。</summary>
+        public void OpenPluginWorkshopWindow()
+        {
             try
             {
                 // 确保插件目录存在，便于用户立即使用「打开插件目录」
