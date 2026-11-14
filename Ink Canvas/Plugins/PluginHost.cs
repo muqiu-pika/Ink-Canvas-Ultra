@@ -130,7 +130,11 @@ namespace Ink_Canvas.Plugins
                 }
 
                 if (!Directory.Exists(_pluginsRoot))
+                {
+                    LogHelper.WriteLogToFile($"AssemblyResolve：插件目录不存在 {_pluginsRoot}", LogHelper.LogType.Trace);
                     return null;
+                }
+                LogHelper.WriteLogToFile($"AssemblyResolve 缓存未命中: {simpleName}，开始遍历插件目录", LogHelper.LogType.Trace);
 
                 foreach (var pluginDir in Directory.GetDirectories(_pluginsRoot, "*", SearchOption.TopDirectoryOnly))
                 {
@@ -1157,6 +1161,7 @@ namespace Ink_Canvas.Plugins
                                 _resolvedAssemblies[Path.GetFileNameWithoutExtension(asmPath)] = asm;
                                 _resolvedAssemblyPaths[Path.GetFileNameWithoutExtension(asmPath)] = asmPath;
                             }
+                            LogHelper.WriteLogToFile($"已加载入口程序集并缓存: {asmPath}", LogHelper.LogType.Trace);
                             var type = asm.GetType(manifest.EntryClass, throwOnError: false);
                             if (type == null || !typeof(IPlugin).IsAssignableFrom(type))
                             {
