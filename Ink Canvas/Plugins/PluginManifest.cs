@@ -50,6 +50,14 @@ namespace Ink_Canvas.Plugins
         [JsonProperty("icon")]
         public string Icon { get; set; }
 
+        /// <summary>
+        /// 可选：插件依赖的 Windows 系统组件名（如 "MathRecognizer"，对应数学输入控件/墨迹公式引擎）。
+        /// 插件工坊在安装前会检查该组件：存在则允许安装；缺失则打开引导安装页；
+        /// 缺失且引导安装失败时提示设备不支持并中止安装。未声明时不做检查。
+        /// </summary>
+        [JsonProperty("systemComponent")]
+        public string SystemComponent { get; set; }
+
         [JsonProperty("entryPoints")]
         public PluginEntryPoint[] EntryPoints { get; set; }
     }

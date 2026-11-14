@@ -313,6 +313,24 @@ namespace Ink_Canvas
                 return;
             }
 
+            // 安装前校验：插件声明的 Windows 系统组件是否存在
+            //（存在 → 直接安装；缺失 → 打开引导安装页，一键安装成功后继续；
+            //  缺失且无法安装 → 提示设备不支持并中止，不解压、不留残留）
+            if (!string.IsNullOrWhiteSpace(pkgManifest?.SystemComponent)
+                && !PluginSystemRequirements.Check(pkgManifest.SystemComponent).Available)
+            {
+                var guided = new PluginSystemRequirementWindow(
+                    PluginSystemRequirements.Check(pkgManifest.SystemComponent), pkgManifest.Name);
+                guided.Owner = this;
+                guided.ShowDialog();
+                if (!guided.Installed)
+                {
+                    ShowInlineMessage("设备不支持：插件所需的系统组件缺失且未能安装，已取消安装。");
+                    return;
+                }
+                ShowInlineMessage("系统组件已就绪，继续安装…");
+            }
+
             string fileNameWithoutExt = Path.GetFileNameWithoutExtension(sourceFile);
             string destDir = Path.Combine(PluginDirectory, fileNameWithoutExt);
             bool exists = Directory.Exists(destDir);
