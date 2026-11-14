@@ -59,6 +59,15 @@ namespace Ink_Canvas
         [JsonProperty("usingWhiteboard")]
         public bool UsingWhiteboard { get; set; } = true;
 
+        /// <summary>
+        /// 画布底色（#AARRGGBB）。null = 使用内置默认（暖纸白 #FFF7F6F2）。
+        /// 该值由画布弹窗的预设色块或取色器写入，属于主程序自身状态，
+        /// 不依赖「自定义颜色」插件（插件只提供取色窗口与调色板扩展）。
+        /// UsingWhiteboard 由该颜色的亮度派生，不再单独切换。
+        /// </summary>
+        [JsonProperty("canvasBackground")]
+        public string CanvasBackground { get; set; }
+
         [JsonProperty("hyperbolaAsymptoteOption")]
         public OptionalOperation HyperbolaAsymptoteOption { get; set; } = OptionalOperation.Ask;
 

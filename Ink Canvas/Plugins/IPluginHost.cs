@@ -178,6 +178,38 @@ namespace Ink_Canvas.Plugins
         /// <summary>调色板发生变化（自定义色、恢复默认、选色或主题切换）。</summary>
         event EventHandler PenColorsChanged;
 
+        // ===== 画布底色 =====
+
+        /// <summary>
+        /// 以模态方式弹出软件统一的取色窗口（Mica + Fluent 风格，支持鼠标与触摸）。
+        /// 返回 null 表示用户取消；宿主版本过低时该方法不存在，插件应回退到系统取色器。
+        /// </summary>
+        Color? PickColor(Color initial, string title = null, string subtitle = null);
+
+        /// <summary>
+        /// 当前生效的画布底色。底色是唯一事实来源：界面亮暗、笔色亮暗映射、
+        /// 方格纸网格线颜色、白板栏样式都由它的亮度自动推导。
+        /// </summary>
+        Color CanvasBackgroundColor { get; }
+
+        /// <summary>画布底色是否已由插件自定义（false = 使用内置默认白）。</summary>
+        bool IsCanvasBackgroundCustomized { get; }
+
+        /// <summary>
+        /// 应用画布底色。会立即刷新背景层、网格线、界面主题与默认笔色；
+        /// 持久化由插件自行负责（主程序只持有运行时值）。
+        /// </summary>
+        bool SetCanvasBackgroundColor(Color color);
+
+        /// <summary>恢复内置默认底色（白）。</summary>
+        void ResetCanvasBackgroundColor();
+
+        /// <summary>画布底色发生变化（插件应用/恢复，或主程序内部触发）。</summary>
+        event EventHandler CanvasBackgroundChanged;
+
+        /// <summary>供主程序内部触发画布底色变化事件（插件一般无需调用）。</summary>
+        void RaiseCanvasBackgroundChanged();
+
         event EventHandler<PenSlotEditRequestedEventArgs> PenSlotEditRequested;
 
         /// <summary>

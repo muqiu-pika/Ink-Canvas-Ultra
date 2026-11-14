@@ -330,6 +330,19 @@ namespace Ink_Canvas
                     SetDefaultPenColorIndex = (slotIndex) =>
                     {
                         Dispatcher.Invoke(() => ApplyDefaultPenColorSetting(slotIndex));
+                    },
+                    // 画布底色（供「自定义颜色」插件调用；主程序负责渲染与派生，插件负责持久化）
+                    PickColor = (initial, title, subtitle) => Dispatcher.Invoke(
+                        () => ColorPickerWindow.Pick(initial, title, subtitle, this)),
+                    GetCanvasBackgroundColor = () => Dispatcher.Invoke(() => CurrentCanvasBackground),
+                    IsCanvasBackgroundCustomized = () => Dispatcher.Invoke(() => HasCustomCanvasBackground),
+                    SetCanvasBackgroundColor = (color) =>
+                    {
+                        return Dispatcher.Invoke(() => SetCanvasBackgroundColorCore(color));
+                    },
+                    ResetCanvasBackgroundColor = () =>
+                    {
+                        Dispatcher.Invoke(() => ResetCanvasBackgroundColorCore());
                     }
                 };
 

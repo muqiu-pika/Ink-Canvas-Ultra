@@ -656,16 +656,15 @@ namespace Ink_Canvas
             if (Settings.Canvas != null)
             {
 
-                if (Settings.Canvas.UsingWhiteboard)
-                {
-                    GridBackgroundCover.Background = new SolidColorBrush(StringToColor("#FFF2F2F2"));
-                    lastBoardInkColor = 0;
-                }
-                else
-                {
-                    GridBackgroundCover.Background = new SolidColorBrush(StringToColor("#FF1F1F1F"));
-                    lastBoardInkColor = 5;
-                }
+                // 从设置恢复画布底色（主程序自己持有，不依赖插件），
+                // 再按底色亮度派生白板模式与默认笔色（亮底黑笔 / 暗底白笔）。
+                // 派生必须在这里做：UsingWhiteboard 决定界面亮暗与笔色映射，
+                // 若只读文件里的旧值，自定义深色底启动后界面主题会不匹配
+                LoadCanvasBackgroundFromSettings();
+                Color startupBackground = CurrentCanvasBackground;
+                Settings.Canvas.UsingWhiteboard = IsLightBackground(startupBackground);
+                GridBackgroundCover.Background = new SolidColorBrush(startupBackground);
+                lastBoardInkColor = IsLightBackground(startupBackground) ? 0 : 5;
 
                 if (Settings.Canvas.IsShowCursor)
                 {

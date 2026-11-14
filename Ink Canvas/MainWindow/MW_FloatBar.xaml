@@ -572,14 +572,14 @@
 
                                     x:Name="PenPaletteScaleHost"
 
-                                    Margin="-131,-246,-239,35">
+                                    Margin="-131,-215,-239,35">
 
                                     <Border.RenderTransform>
 
                                         <TransformGroup>
-                                            <TranslateTransform X="-131" Y="-246" />
+                                            <TranslateTransform X="-131" Y="-215" />
                                             <ScaleTransform x:Name="PenPaletteScaleTransform" ScaleX="1" ScaleY="1" />
-                                            <TranslateTransform X="131" Y="246" />
+                                            <TranslateTransform X="131" Y="215" />
                                         </TransformGroup>
 
                                     </Border.RenderTransform>
@@ -592,7 +592,7 @@
 
                                     IsVisibleChanged="PenPaletteIsVisibleChanged"
 
-                                    MinHeight="212"
+                                    Height="212"
 
                                     Background="{DynamicResource FloatBarBackground}"
 

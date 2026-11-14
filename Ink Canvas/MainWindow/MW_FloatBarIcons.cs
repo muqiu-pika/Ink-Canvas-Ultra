@@ -1840,6 +1840,20 @@ namespace Ink_Canvas
             if (x != 0 || y != 0) ApplyPenPaletteDragOffset(fe, x, y);
 
             AnimationsHelper.ShowWithSlideFromBottomAndFade(fe);
+
+            // 面板隐藏时 WPF 不布局（ActualHeight=0），SizeChanged 不会触发；
+            // 每次显示后补一次底边对齐，保证打开的瞬间就是正确位置
+            try
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    Helpers.LogHelper.WriteLogToFile("[面板对齐] 显示入口 name=" + fe.Name,
+                        Helpers.LogHelper.LogType.Info);
+                    if (fe.Name == "PenPalette") MWFloatBarHost?.AlignPaletteNow();
+                    else if (fe.Name == "BoardPenPalette") MWBoardHost?.AlignPaletteNow();
+                }), System.Windows.Threading.DispatcherPriority.Loaded);
+            }
+            catch { }
         }
 
         private void ColorThemeSwitch_MouseUp(object sender, RoutedEventArgs e)

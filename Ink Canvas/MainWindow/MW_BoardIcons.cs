@@ -20,36 +20,10 @@ namespace Ink_Canvas
             }
 
             if (!isLoaded || _isLoadingSettings) return;
-            Settings.Canvas.UsingWhiteboard = !Settings.Canvas.UsingWhiteboard;
-            SaveSettingsToFile();
-            if (Settings.Canvas.UsingWhiteboard)
-            {
-                if (inkColor == 5) lastBoardInkColor = 0;
-            }
-            else
-            {
-                if (inkColor == 0) lastBoardInkColor = 5;
-            }
-            // 直接触发主题刷新，避免依赖 ComboBoxTheme（设置窗口未打开时为 null 导致闪退）
-            SystemEvents_UserPreferenceChanged(null, null);
-            CheckColorTheme(true);
-            if (BoardPen.Opacity == 1)
-            {
-                BoardPen.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
-            }
-            if (BoardEraser.Opacity == 1)
-            {
-                BoardEraser.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
-            }
-            if (BoardSelect.Opacity == 1)
-            {
-                BoardSelect.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
-            }
-            if (BoardEraserByStrokes.Opacity == 1)
-            {
-                BoardEraserByStrokes.Background = (Brush)Application.Current.FindResource("BoardBarBackground");
-            }
-            RefreshGridPaper();
+
+            // 该按钮不再切换白板/黑板：白/黑已收敛为「画布」弹窗里的两个预设底色。
+            // 轻点、右键、长按三条路径统一呼出弹窗，由用户在弹窗里选预设或自定义取色。
+            ToggleCanvasSettingsPopup();
         }
 
         // 白板模式画笔按钮点击事件 - 独立处理，不影响浮动栏按钮

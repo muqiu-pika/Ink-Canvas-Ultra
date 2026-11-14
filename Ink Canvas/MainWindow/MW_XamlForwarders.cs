@@ -61,6 +61,9 @@ namespace Ink_Canvas
         private dynamic BlackboardCenterSide => FindXamlPart(MWBoardHost, nameof(BlackboardCenterSide));
         private dynamic BoardTwoFingerGestureBorder => FindXamlPart(MWBoardHost, nameof(BoardTwoFingerGestureBorder));
         private dynamic BoardGridPaperBorder => FindXamlPart(MWBoardHost, nameof(BoardGridPaperBorder));
+        private dynamic CanvasColorPresetPanel => FindXamlPart(MWBoardHost, nameof(CanvasColorPresetPanel));
+        private dynamic BtnCanvasColorCustom => FindXamlPart(MWBoardHost, nameof(BtnCanvasColorCustom));
+        private dynamic BtnCanvasColorReset => FindXamlPart(MWBoardHost, nameof(BtnCanvasColorReset));
         private dynamic BoardToggleSwitchGridPaper => FindXamlPart(MWBoardHost, nameof(BoardToggleSwitchGridPaper));
         private dynamic BoardGridSpacingSlider => FindXamlPart(MWBoardHost, nameof(BoardGridSpacingSlider));
         private dynamic BoardGridSpacingXSlider => FindXamlPart(MWBoardHost, nameof(BoardGridSpacingXSlider));

@@ -154,7 +154,7 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 | 文件 | 字段 | 示例值 |
 | --- | --- | --- |
-| `AutomaticUpdateVersionControl.txt` | 全文 | `26.11.1` |
+| `AutomaticUpdateVersionControl.txt` | 全文 | `26.11.1`（本次发布不推送更新，保持 `26.10.7`） |
 | `Ink Canvas/Properties/AssemblyInfo.cs` | `AssemblyVersion` / `AssemblyFileVersion` | `26.11.1.0`（末段固定为 0） |
 | `Ink Canvas.csproj`（根目录，AnyCPU） | `ApplicationVersion` | `26.11.1.%2a` |
 | `Ink Canvas/Ink Canvas.csproj`（x86） | `ApplicationVersion` | `26.11.1.%2a` |

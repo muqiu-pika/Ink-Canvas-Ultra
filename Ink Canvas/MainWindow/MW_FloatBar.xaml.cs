@@ -5,6 +5,7 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Ink;
+using System.Windows.Media;
 using iNKORE.UI.WPF.Modern;
 
 namespace Ink_Canvas
@@ -39,6 +40,89 @@ namespace Ink_Canvas
 
             method.Invoke(window, args);
         }
+
+        #region 墨迹选项底边对齐到图形面板
+
+        private void PenPaletteSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // 不能在 SizeChanged（布局过程中）直接改 Margin，会触发布局循环保护
+            Dispatcher.BeginInvoke(new Action(AlignPenPaletteBottomToDrawShape),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        private void PenPaletteIsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            // 面板隐藏时 WPF 不参与布局（ActualHeight=0），SizeChanged 不会触发；
+            // 每次变为可见时补一次对齐，保证首次打开就是正确位置
+            if (!(bool)e.NewValue) return;
+            Dispatcher.BeginInvoke(new Action(AlignPenPaletteBottomToDrawShape),
+                System.Windows.Threading.DispatcherPriority.Loaded);
+        }
+
+        /// <summary>
+        /// 把「墨迹选项」面板底边对齐到「图形」面板底边。
+        ///
+        /// 两个面板各自高度不同（墨迹由内容撑开、图形固定 249），历史上的 Margin.Top 是分别写死的，
+        /// 任何一侧内容变化都会让底边错位。这里直接读图形面板的实际底边反算墨迹面板的 Margin.Top，
+        /// 不再依赖任何估算像素值。
+        /// </summary>
+        private void AlignPenPaletteBottomToDrawShape()
+        {
+            try
+            {
+                Helpers.LogHelper.WriteLogToFile(
+                    "[面板对齐] 检查 浮动栏 palette=" + (PenPalette == null ? "null" : PenPalette.ActualHeight.ToString("F1"))
+                    + " shape=" + (BorderDrawShape == null ? "null" : BorderDrawShape.ActualHeight.ToString("F1"))
+                    + " host=" + (PenPaletteScaleHost == null ? "null" : "ok")
+                    + " shapeHost=" + (BorderDrawShapeScaleHost == null ? "null" : "ok"),
+                    Helpers.LogHelper.LogType.Info);
+
+                if (PenPalette == null || BorderDrawShape == null) return;
+                if (PenPaletteScaleHost == null || BorderDrawShapeScaleHost == null) return;
+
+                double paletteHeight = PenPalette.ActualHeight;
+                double shapeHeight = BorderDrawShape.ActualHeight;
+                if (paletteHeight < 80 || shapeHeight < 80) return;
+
+                double shapeBottom = BorderDrawShapeScaleHost.Margin.Top + shapeHeight;
+                double targetTop = shapeBottom - paletteHeight;
+
+                var hostMargin = PenPaletteScaleHost.Margin;
+                bool changed = Math.Abs(hostMargin.Top - targetTop) >= 0.5;
+
+                Helpers.LogHelper.WriteLogToFile(
+                    "[面板对齐] 浮动栏 墨迹h=" + paletteHeight.ToString("F1")
+                    + " 图形h=" + shapeHeight.ToString("F1")
+                    + " 图形底边=" + shapeBottom.ToString("F1")
+                    + " 目标Top=" + targetTop.ToString("F1")
+                    + " 当前Top=" + hostMargin.Top.ToString("F1")
+                    + (changed ? " -> 应用" : " -> 无需调整"),
+                    Helpers.LogHelper.LogType.Info);
+
+                if (!changed) return;
+
+                PenPaletteScaleHost.Margin = new Thickness(hostMargin.Left, targetTop, hostMargin.Right, hostMargin.Bottom);
+
+                // 缩放锚点保持在面板底边，缩放时不会相对浮动栏漂移
+                if (PenPaletteScaleHost.RenderTransform is TransformGroup group && group.Children.Count >= 3)
+                {
+                    if (group.Children[0] is TranslateTransform top) top.Y = -paletteHeight;
+                    if (group.Children[2] is TranslateTransform bottom) bottom.Y = paletteHeight;
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile("[面板对齐] 浮动栏 失败: " + ex.Message, Helpers.LogHelper.LogType.Warning);
+            }
+        }
+
+        /// <summary>供主程序在面板显示后调用（隐藏状态下 SizeChanged 不触发，需要在显示时补一次对齐）</summary>
+        public void AlignPaletteNow()
+        {
+            AlignPenPaletteBottomToDrawShape();
+        }
+
+        #endregion
 
         private void Border_MouseDown(object sender, MouseButtonEventArgs e)
         {

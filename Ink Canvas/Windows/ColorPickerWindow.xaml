@@ -1,0 +1,335 @@
+<Window x:Class="Ink_Canvas.ColorPickerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+        Title="选择颜色 - Ink Canvas Ultra"
+        Width="508"
+        SizeToContent="Height"
+        ui:ThemeManager.RequestedTheme="Light"
+        ui:WindowHelper.SystemBackdropType="Mica"
+        ui:WindowHelper.UseModernWindowStyle="False"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner"
+        mc:Ignorable="d">
+
+    <Window.Resources>
+        <Style x:Key="PickerTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="8,0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="#FFFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#E5E7EB"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="#1F2937"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6">
+                            <ScrollViewer x:Name="PART_ContentHost"
+                                          Margin="{TemplateBinding Padding}"
+                                          VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#4A6CF7"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="PickerCaptionStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{DynamicResource PopupWindowForeground}"/>
+        </Style>
+
+        <Style x:Key="GhostButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="80"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Background" Value="#F3F4F6"/>
+            <Setter Property="Foreground" Value="#374151"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#E5E7EB"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#D1D5DB"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="AccentButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="88"/>
+            <Setter Property="Height" Value="34"/>
+            <Setter Property="Margin" Value="10,0,0,0"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Background" Value="#4A6CF7"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3D5BE0"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#3350CC"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Border Margin="10"
+            Padding="20"
+            Background="{DynamicResource PopupWindowBackground}"
+            BorderBrush="{DynamicResource PopupWindowBorderBrush}"
+            BorderThickness="1"
+            CornerRadius="12">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- 标题区 -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,16">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <ui:FontIcon Width="28" Height="28"
+                                 Margin="0,0,10,0"
+                                 VerticalAlignment="Center"
+                                 FontFamily="{StaticResource FluentIconFontFamily}"
+                                 FontSize="22"
+                                 Foreground="{DynamicResource PopupWindowDarkBlueBorderBackground}"
+                                 Glyph="&#xE790;"/>
+                    <TextBlock x:Name="TitleText"
+                               VerticalAlignment="Center"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Foreground="{DynamicResource PopupWindowForeground}"
+                               Text="选择颜色"/>
+                </StackPanel>
+                <TextBlock x:Name="SubtitleText"
+                           Margin="38,6,0,0"
+                           FontSize="12"
+                           TextWrapping="Wrap"
+                           Foreground="#6B7280"
+                           Visibility="Collapsed"/>
+            </StackPanel>
+
+            <!-- 主体：左侧色板/数值，右侧 HSV 面板 -->
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="240"/>
+                    <ColumnDefinition Width="16"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0">
+                    <TextBlock Style="{StaticResource PickerCaptionStyle}" Text="预设颜色"/>
+                    <WrapPanel x:Name="PresetPanel" Margin="0,6,0,0"/>
+
+                    <TextBlock Style="{StaticResource PickerCaptionStyle}"
+                               Margin="0,12,0,0"
+                               Text="十六进制"/>
+                    <TextBox x:Name="HexBox"
+                             Style="{StaticResource PickerTextBoxStyle}"
+                             Margin="0,6,0,0"
+                             Width="120"
+                             HorizontalAlignment="Left"
+                             FontFamily="Consolas"
+                             MaxLength="7"
+                             TextChanged="HexBox_TextChanged"/>
+
+                    <TextBlock Style="{StaticResource PickerCaptionStyle}"
+                               Margin="0,10,0,0"
+                               Text="RGB"/>
+                    <Grid Margin="0,6,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="72"/>
+                            <ColumnDefinition Width="8"/>
+                            <ColumnDefinition Width="72"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="RBox"
+                                 Grid.Column="0"
+                                 Style="{StaticResource PickerTextBoxStyle}"
+                                 MaxLength="3"
+                                 TextChanged="RgbBox_TextChanged"/>
+                        <TextBox x:Name="GBox"
+                                 Grid.Column="2"
+                                 Style="{StaticResource PickerTextBoxStyle}"
+                                 MaxLength="3"
+                                 TextChanged="RgbBox_TextChanged"/>
+                        <TextBox x:Name="BBox"
+                                 Grid.Column="4"
+                                 Style="{StaticResource PickerTextBoxStyle}"
+                                 MaxLength="3"
+                                 TextChanged="RgbBox_TextChanged"/>
+                    </Grid>
+
+                    <TextBlock Style="{StaticResource PickerCaptionStyle}"
+                               Margin="0,12,0,0"
+                               Text="对比"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                        <Border x:Name="OriginalSwatch"
+                                Width="72" Height="30"
+                                CornerRadius="6"
+                                BorderThickness="1"
+                                BorderBrush="#26808080"
+                                Background="#FFFFFFFF"/>
+                        <TextBlock Margin="8,0"
+                                   VerticalAlignment="Center"
+                                   FontSize="13"
+                                   Foreground="#9CA3AF"
+                                   Text="→"/>
+                        <Border x:Name="PreviewSwatch"
+                                Width="72" Height="30"
+                                CornerRadius="6"
+                                BorderThickness="1"
+                                BorderBrush="#26808080"
+                                Background="#FFFFFFFF"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Style="{StaticResource PickerCaptionStyle}" Text="取色"/>
+
+                    <Canvas x:Name="SvCanvas"
+                            Width="184"
+                            Height="184"
+                            Margin="0,6,0,0"
+                            ClipToBounds="True"
+                            Cursor="Cross"
+                            PreviewMouseLeftButtonDown="SvCanvas_MouseDown"
+                            PreviewMouseMove="SvCanvas_MouseMove"
+                            PreviewMouseLeftButtonUp="SvCanvas_MouseUp"
+                            PreviewTouchDown="SvCanvas_TouchDown"
+                            PreviewTouchMove="SvCanvas_TouchMove"
+                            PreviewTouchUp="SvCanvas_TouchUp">
+                        <Rectangle x:Name="SvColorRect"
+                                   Canvas.Left="0" Canvas.Top="0"
+                                   Width="184" Height="184">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Offset="0" Color="#FFFFFFFF"/>
+                                    <GradientStop Offset="1" Color="#FFFF0000"/>
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Rectangle Canvas.Left="0" Canvas.Top="0"
+                                   Width="184" Height="184">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Offset="0" Color="#00000000"/>
+                                    <GradientStop Offset="1" Color="#FF000000"/>
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Ellipse x:Name="SvMarker"
+                                 Width="14" Height="14"
+                                 Stroke="White"
+                                 StrokeThickness="2"
+                                 IsHitTestVisible="False">
+                            <Ellipse.Effect>
+                                <DropShadowEffect BlurRadius="6"
+                                                  Opacity="0.55"
+                                                  ShadowDepth="0"
+                                                  Color="Black"/>
+                            </Ellipse.Effect>
+                        </Ellipse>
+                    </Canvas>
+
+                    <Canvas x:Name="HueCanvas"
+                            Width="184"
+                            Height="16"
+                            Margin="0,10,0,0"
+                            ClipToBounds="True"
+                            Cursor="Hand"
+                            PreviewMouseLeftButtonDown="HueCanvas_MouseDown"
+                            PreviewMouseMove="HueCanvas_MouseMove"
+                            PreviewMouseLeftButtonUp="HueCanvas_MouseUp"
+                            PreviewTouchDown="HueCanvas_TouchDown"
+                            PreviewTouchMove="HueCanvas_TouchMove"
+                            PreviewTouchUp="HueCanvas_TouchUp">
+                        <Rectangle Canvas.Left="0" Canvas.Top="0"
+                                   Width="184" Height="16"
+                                   RadiusX="8" RadiusY="8">
+                            <Rectangle.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                                    <GradientStop Offset="0" Color="#FFFF0000"/>
+                                    <GradientStop Offset="0.17" Color="#FFFFFF00"/>
+                                    <GradientStop Offset="0.33" Color="#FF00FF00"/>
+                                    <GradientStop Offset="0.5" Color="#FF00FFFF"/>
+                                    <GradientStop Offset="0.67" Color="#FF0000FF"/>
+                                    <GradientStop Offset="0.83" Color="#FFFF00FF"/>
+                                    <GradientStop Offset="1" Color="#FFFF0000"/>
+                                </LinearGradientBrush>
+                            </Rectangle.Fill>
+                        </Rectangle>
+                        <Border x:Name="HueMarker"
+                                Width="6" Height="20"
+                                CornerRadius="3"
+                                Background="White"
+                                BorderBrush="#55000000"
+                                BorderThickness="1"
+                                IsHitTestVisible="False"/>
+                    </Canvas>
+                </StackPanel>
+            </Grid>
+
+            <!-- 底部按钮 -->
+            <StackPanel Grid.Row="2"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right"
+                        Margin="0,18,0,0">
+                <Button x:Name="BtnCancel"
+                        Content="取消"
+                        Style="{StaticResource GhostButtonStyle}"
+                        IsCancel="True"
+                        Click="BtnCancel_Click"/>
+                <Button x:Name="BtnOk"
+                        Content="确定"
+                        Style="{StaticResource AccentButtonStyle}"
+                        IsDefault="True"
+                        Click="BtnOk_Click"/>
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

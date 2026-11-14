@@ -142,16 +142,14 @@ namespace Ink_Canvas
             {
                 if (currentMode != 0)
                 {
-                    if (Settings.Canvas.UsingWhiteboard)
-                    {
-                        GridBackgroundCover.Background = new SolidColorBrush(StringToColor("#FFF2F2F2"));
-                        isUselightThemeColor = false;
-                    }
-                    else
-                    {
-                        GridBackgroundCover.Background = new SolidColorBrush(StringToColor("#FF1F1F1F"));
-                        isUselightThemeColor = true;
-                    }
+                    // 底色是唯一事实来源：插件自定义色优先，否则按白/黑内置默认。
+                    // isUselightThemeColor 表示"使用亮色笔"，因此恰好等于"底色是暗色"；
+                    // 用亮度派生而不是再看 UsingWhiteboard，自定义中间色底也不会选错笔色
+                    Color background = CurrentCanvasBackground;
+                    var backgroundBrush = new SolidColorBrush(background);
+                    if (backgroundBrush.CanFreeze) backgroundBrush.Freeze();
+                    GridBackgroundCover.Background = backgroundBrush;
+                    isUselightThemeColor = !IsLightBackground(background);
                 }
             }
 

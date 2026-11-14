@@ -83,6 +83,9 @@ namespace Ink_Canvas.Plugins
         public event EventHandler PenColorsChanged;
         public event EventHandler<PenSlotEditRequestedEventArgs> PenSlotEditRequested;
 
+        /// <summary>画布底色变化（应用/恢复）</summary>
+        public event EventHandler CanvasBackgroundChanged;
+
         /// <summary>已安装 plugin 列表或启用状态发生变化时触发，供插件工坊 UI 刷新</summary>
         public event EventHandler PluginListChanged;
 
@@ -581,6 +584,64 @@ namespace Ink_Canvas.Plugins
         public void ResetPenColors()
         {
             try { _opts.ResetPenColors?.Invoke(); } catch { }
+        }
+
+        public Color? PickColor(Color initial, string title = null, string subtitle = null)
+        {
+            try
+            {
+                if (_opts.PickColor != null) return _opts.PickColor(initial, title, subtitle);
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("取色窗口调用失败 | " + ex.Message, LogHelper.LogType.Warning);
+            }
+            return null;
+        }
+
+        public Color CanvasBackgroundColor        {
+            get
+            {
+                try
+                {
+                    if (_opts.GetCanvasBackgroundColor != null) return _opts.GetCanvasBackgroundColor();
+                }
+                catch { }
+                return Color.FromRgb(0xF2, 0xF2, 0xF2);
+            }
+        }
+
+        public bool IsCanvasBackgroundCustomized
+        {
+            get
+            {
+                try
+                {
+                    if (_opts.IsCanvasBackgroundCustomized != null) return _opts.IsCanvasBackgroundCustomized();
+                }
+                catch { }
+                return false;
+            }
+        }
+
+        public bool SetCanvasBackgroundColor(Color color)
+        {
+            try
+            {
+                if (_opts.SetCanvasBackgroundColor != null) return _opts.SetCanvasBackgroundColor(color);
+            }
+            catch { }
+            return false;
+        }
+
+        public void ResetCanvasBackgroundColor()
+        {
+            try { _opts.ResetCanvasBackgroundColor?.Invoke(); } catch { }
+        }
+
+        public void RaiseCanvasBackgroundChanged()
+        {
+            try { CanvasBackgroundChanged?.Invoke(this, EventArgs.Empty); } catch { }
         }
 
         public int CurrentPenColorIndex
@@ -1329,6 +1390,13 @@ namespace Ink_Canvas.Plugins
         public Func<int, bool> SelectPenColor { get; set; }
         public Func<int> GetDefaultPenColorIndex { get; set; }
         public Action<int> SetDefaultPenColorIndex { get; set; }
+
+        // 画布底色（插件自定义，主程序负责渲染）
+        public Func<Color, string, string, Color?> PickColor { get; set; }
+        public Func<Color> GetCanvasBackgroundColor { get; set; }
+        public Func<bool> IsCanvasBackgroundCustomized { get; set; }
+        public Func<Color, bool> SetCanvasBackgroundColor { get; set; }
+        public Action ResetCanvasBackgroundColor { get; set; }
     }
 
     /// <summary>已安装 plugin 信息（含启用/加载状态），用于插件工坊展示</summary>

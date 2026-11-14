@@ -22,22 +22,40 @@ namespace Ink_Canvas
         private const int LongPressDurationMs = 500; // 长按阈值（毫秒）
 
         /// <summary>
-        /// 画布按钮右键按下事件 - 显示方格纸开关弹窗
+        /// 画布按钮右键 - 呼出「画布」弹窗。行为与轻点完全一致：
+        /// 该按钮不再负责切换白板/黑板，白/黑已收敛为弹窗里的两个预设底色。
         /// </summary>
         private void BoardCanvasBtn_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            if (BoardGridPaperBorder == null) return;
-
-            if (BoardGridPaperBorder.Visibility == Visibility.Visible)
-            {
-                AnimationsHelper.HideWithSlideAndFade(BoardGridPaperBorder);
-            }
-            else
-            {
-                AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardGridPaperBorder);
-            }
-
+            ToggleCanvasSettingsPopup();
             e.Handled = true; // 阻止事件继续传播，避免触发其他事件
+        }
+
+        /// <summary>
+        /// 「画布」弹窗的统一开关入口。轻点、右键、长按三条路径都收敛到这里，
+        /// 避免三处各写一遍显隐逻辑后行为分叉。
+        /// </summary>
+        private void ToggleCanvasSettingsPopup()
+        {
+            try
+            {
+                if (BoardGridPaperBorder == null) return;
+
+                if (BoardGridPaperBorder.Visibility == Visibility.Visible)
+                {
+                    AnimationsHelper.HideWithSlideAndFade(BoardGridPaperBorder);
+                }
+                else
+                {
+                    // 展开前刷新色板选中态：底色可能刚被插件改动过（如启动时应用了存盘色）
+                    UpdateCanvasBackgroundSwatches();
+                    AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardGridPaperBorder);
+                }
+            }
+            catch (Exception ex)
+            {
+                Helpers.LogHelper.WriteLogToFile("切换画布弹窗失败 | " + ex.Message, Helpers.LogHelper.LogType.Warning);
+            }
         }
 
         /// <summary>
@@ -84,15 +102,8 @@ namespace Ink_Canvas
             // 标记长按已触发，防止后续 Click 事件执行
             _canvasBtnLongPressFired = true;
 
-            // 切换弹窗显示状态（与右键效果一致）
-            if (BoardGridPaperBorder.Visibility == Visibility.Visible)
-            {
-                AnimationsHelper.HideWithSlideAndFade(BoardGridPaperBorder);
-            }
-            else
-            {
-                AnimationsHelper.ShowWithSlideFromBottomAndFade(BoardGridPaperBorder);
-            }
+            // 长按与轻点等价：同样呼出「画布」弹窗
+            ToggleCanvasSettingsPopup();
         }
 
         private void CancelCanvasBtnLongPress()
@@ -173,10 +184,13 @@ namespace Ink_Canvas
 
             GridPaperCanvas.Children.Clear();
 
-            // 根据当前背景色决定方格颜色（黑底白格，白底黑格）
-            bool isWhiteboard = Settings.Canvas.UsingWhiteboard;
-            Color gridColor = isWhiteboard ? Colors.Black : Colors.White;
-            byte gridOpacity = isWhiteboard ? (byte)40 : (byte)50; // 半透明效果
+            // 网格线颜色按「画布底色的亮度」决定，而不是白/黑模式：
+            // 自定义浅底（米黄、浅绿、浅蓝等）用深色线，自定义深底用浅色线，
+            // 否则自定义底色后网格与底色撞色，方格纸等于失效
+            Color canvasBackground = CurrentCanvasBackground;
+            bool isLightBackground = IsLightBackground(canvasBackground);
+            Color gridColor = isLightBackground ? Colors.Black : Colors.White;
+            byte gridOpacity = isLightBackground ? (byte)40 : (byte)50; // 半透明效果
 
             SolidColorBrush gridBrush = new SolidColorBrush(Color.FromArgb(gridOpacity, gridColor.R, gridColor.G, gridColor.B));
 

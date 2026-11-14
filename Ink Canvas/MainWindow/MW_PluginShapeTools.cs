@@ -243,8 +243,10 @@ namespace Ink_Canvas
                 rowPanel.Children.Remove(tool);
             }
             // 行是自己动态创建且已空时一并移除（空行只可能是新建行；原始行由 XAML 定义，不动）
+            // 注：这里只判断 Parent 是否为 Panel —— Viewbox 等非 Panel 容器本来就不满足该模式，
+            // 无需再额外排除（原写法 `!(parent is Viewbox)` 恒为真，会触发 CS0184）
             if (row is StackPanel sp && sp.Children.Count == 0 && sp.Parent is Panel parent &&
-                !(parent is System.Windows.Controls.Viewbox) && parent.Children.Contains(row))
+                parent.Children.Contains(row))
             {
                 // 仅为本插件新建的行（末尾追加的空行）才移除，XAML 原始行保持不动
                 parent.Children.Remove(row);

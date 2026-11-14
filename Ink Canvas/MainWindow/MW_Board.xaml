@@ -943,7 +943,7 @@
 
                                 VerticalAlignment="Top"
 
-                                Margin="-157,-254,0,0"
+                                Margin="-157,-254,-95,0"
 
                                 Background="{DynamicResource BoardBarBackground}"
 
@@ -1505,14 +1505,14 @@
 
                                     x:Name="BoardPenPaletteScaleHost"
 
-                                    Margin="-248,-286,-190,59">
+                                    Margin="-248,-240,-190,59">
 
                                     <Border.RenderTransform>
 
                                         <TransformGroup>
-                                            <TranslateTransform X="-248" Y="-286" />
+                                            <TranslateTransform X="-248" Y="-240" />
                                             <ScaleTransform x:Name="BoardPenPaletteScaleTransform" ScaleX="1" ScaleY="1" />
-                                            <TranslateTransform X="248" Y="286" />
+                                            <TranslateTransform X="248" Y="240" />
                                         </TransformGroup>
 
                                     </Border.RenderTransform>
@@ -1525,7 +1525,7 @@
 
                                     IsVisibleChanged="PenPaletteIsVisibleChanged"
 
-                                    MinHeight="236"
+                                    Height="236"
 
                                     Background="{DynamicResource BoardBarBackground}"
 
