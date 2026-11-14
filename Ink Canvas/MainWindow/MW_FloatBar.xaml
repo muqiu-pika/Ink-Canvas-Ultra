@@ -572,14 +572,14 @@
 
                                     x:Name="PenPaletteScaleHost"
 
-                                    Margin="-131,-212,-239,35">
+                                    Margin="-131,-246,-239,35">
 
                                     <Border.RenderTransform>
 
                                         <TransformGroup>
-                                            <TranslateTransform X="-131" Y="-212" />
+                                            <TranslateTransform X="-131" Y="-246" />
                                             <ScaleTransform x:Name="PenPaletteScaleTransform" ScaleX="1" ScaleY="1" />
-                                            <TranslateTransform X="131" Y="212" />
+                                            <TranslateTransform X="131" Y="246" />
                                         </TransformGroup>
 
                                     </Border.RenderTransform>
@@ -587,6 +587,10 @@
                                 <Border
 
                                     x:Name="PenPalette"
+
+                                    SizeChanged="PenPaletteSizeChanged"
+
+                                    IsVisibleChanged="PenPaletteIsVisibleChanged"
 
                                     MinHeight="212"
 
@@ -752,7 +756,7 @@
 
                                             <Viewbox Width="245">
 
-                                                <ikw:SimpleStackPanel Margin="20,10">
+                                                <ikw:SimpleStackPanel Margin="20,2">
 
                                                 <Viewbox
 
@@ -2213,14 +2217,14 @@
 
                                     x:Name="BorderDrawShapeScaleHost"
 
-                                    Margin="-200,-268,-80,28">
+                                    Margin="-200,-259,-80,28">
 
                                     <Border.RenderTransform>
 
                                         <TransformGroup>
-                                            <TranslateTransform X="-200" Y="-268" />
+                                            <TranslateTransform X="-200" Y="-259" />
                                             <ScaleTransform x:Name="BorderDrawShapeScaleTransform" ScaleX="1" ScaleY="1" />
-                                            <TranslateTransform X="200" Y="268" />
+                                            <TranslateTransform X="200" Y="259" />
                                         </TransformGroup>
 
                                     </Border.RenderTransform>
@@ -2456,6 +2460,8 @@
                                             Width="235"
 
                                             MaxHeight="230"
+
+                                            VerticalAlignment="Top"
 
                                             HorizontalAlignment="Left">
 

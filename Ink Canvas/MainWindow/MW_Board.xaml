@@ -931,31 +931,103 @@
 
                         <Grid Width="0" Margin="0,0,0,5">
 
-                            <Viewbox
+                            <Border
 
                                 Name="BoardGridPaperBorder"
 
-                                Height="200"
+                                Width="252"
 
-                                Margin="-119,-204,-71,0"
+                                Height="250"
+
+                                HorizontalAlignment="Left"
 
                                 VerticalAlignment="Top"
 
+                                Margin="-157,-254,0,0"
+
+                                Background="{DynamicResource BoardBarBackground}"
+
+                                BorderBrush="{DynamicResource BoardBarBorderBrush}"
+
+                                BorderThickness="1"
+
+                                CornerRadius="5"
+
                                 Visibility="Collapsed">
 
-                                <Border
+                                    <Border.Resources>
 
-                                    Width="149"
+                                        <Style x:Key="BoardPopupButtonStyle" TargetType="Button">
 
-                                    Height="165"
+                                            <Setter Property="Background" Value="{DynamicResource BoardBarBackground}" />
 
-                                    Background="{DynamicResource BoardBarBackground}"
+                                            <Setter Property="Foreground" Value="{DynamicResource BoardBarForeground}" />
 
-                                    BorderBrush="{DynamicResource BoardBarBorderBrush}"
+                                            <Setter Property="BorderBrush" Value="{DynamicResource BoardBarBorderBrush}" />
 
-                                    BorderThickness="1"
+                                            <Setter Property="BorderThickness" Value="1" />
 
-                                    CornerRadius="5">
+                                            <Setter Property="FontSize" Value="11" />
+
+                                            <Setter Property="Padding" Value="10,3" />
+
+                                            <Setter Property="Cursor" Value="Hand" />
+
+                                            <Setter Property="Template">
+
+                                                <Setter.Value>
+
+                                                    <ControlTemplate TargetType="Button">
+
+                                                        <Border
+
+                                                            x:Name="Bd"
+
+                                                            Background="{TemplateBinding Background}"
+
+                                                            BorderBrush="{TemplateBinding BorderBrush}"
+
+                                                            BorderThickness="{TemplateBinding BorderThickness}"
+
+                                                            CornerRadius="4">
+
+                                                            <ContentPresenter
+
+                                                                Margin="{TemplateBinding Padding}"
+
+                                                                HorizontalAlignment="Center"
+
+                                                                VerticalAlignment="Center"
+
+                                                                SnapsToDevicePixels="True" />
+
+                                                        </Border>
+
+                                                        <ControlTemplate.Triggers>
+
+                                                            <Trigger Property="IsMouseOver" Value="True">
+
+                                                                <Setter TargetName="Bd" Property="Background" Value="{DynamicResource BoardBarTitleBackground}" />
+
+                                                            </Trigger>
+
+                                                            <Trigger Property="IsPressed" Value="True">
+
+                                                                <Setter TargetName="Bd" Property="Opacity" Value="0.75" />
+
+                                                            </Trigger>
+
+                                                        </ControlTemplate.Triggers>
+
+                                                    </ControlTemplate>
+
+                                                </Setter.Value>
+
+                                            </Setter>
+
+                                        </Style>
+
+                                    </Border.Resources>
 
                                     <ikw:SimpleStackPanel>
 
@@ -981,11 +1053,77 @@
 
                                                 Foreground="{DynamicResource BoardBarForeground}"
 
-                                                Text="方格纸"
+                                                Text="画布"
 
                                                 TextAlignment="Left" />
 
                                         </Border>
+
+                                        <StackPanel Margin="10,8,10,0">
+
+                                            <TextBlock
+
+                                                FontSize="11"
+
+                                                FontWeight="Bold"
+
+                                                Foreground="{DynamicResource BoardBarForeground}"
+
+                                                Text="画布颜色"
+
+                                                Margin="0,0,0,6" />
+
+                                            <StackPanel
+
+                                                Name="CanvasColorPresetPanel"
+
+                                                Orientation="Horizontal"
+
+                                                HorizontalAlignment="Center" />
+
+                                            <StackPanel
+
+                                                Orientation="Horizontal"
+
+                                                HorizontalAlignment="Center"
+
+                                                Margin="0,7,0,0">
+
+                                                <Button
+
+                                                    Name="BtnCanvasColorCustom"
+
+                                                    Content="自定义…"
+
+                                                    Style="{StaticResource BoardPopupButtonStyle}"
+
+                                                    Click="BtnCanvasColorCustom_Click" />
+
+                                                <Button
+
+                                                    Name="BtnCanvasColorReset"
+
+                                                    Content="恢复默认"
+
+                                                    Style="{StaticResource BoardPopupButtonStyle}"
+
+                                                    Margin="6,0,0,0"
+
+                                                    Click="BtnCanvasColorReset_Click" />
+
+                                            </StackPanel>
+
+                                        </StackPanel>
+
+                                        <Border
+
+                                            Height="1"
+
+                                            Margin="12,9,12,0"
+
+                                            Background="{DynamicResource BoardBarBorderBrush}"
+
+                                            Opacity="0.45" />
 
                                         <ikw:SimpleStackPanel Margin="10,4,10,0" Spacing="-2.5">
 
@@ -1173,9 +1311,7 @@
 
                                     </ikw:SimpleStackPanel>
 
-                                </Border>
-
-                            </Viewbox>
+                            </Border>
 
                         </Grid>
 
@@ -1369,14 +1505,14 @@
 
                                     x:Name="BoardPenPaletteScaleHost"
 
-                                    Margin="-248,-236,-190,59">
+                                    Margin="-248,-286,-190,59">
 
                                     <Border.RenderTransform>
 
                                         <TransformGroup>
-                                            <TranslateTransform X="-248" Y="-236" />
+                                            <TranslateTransform X="-248" Y="-286" />
                                             <ScaleTransform x:Name="BoardPenPaletteScaleTransform" ScaleX="1" ScaleY="1" />
-                                            <TranslateTransform X="248" Y="236" />
+                                            <TranslateTransform X="248" Y="286" />
                                         </TransformGroup>
 
                                     </Border.RenderTransform>
@@ -1384,6 +1520,10 @@
                                 <Border
 
                                     x:Name="BoardPenPalette"
+
+                                    SizeChanged="PenPaletteSizeChanged"
+
+                                    IsVisibleChanged="PenPaletteIsVisibleChanged"
 
                                     MinHeight="236"
 
@@ -1549,7 +1689,7 @@
 
                                             <Viewbox Width="280">
 
-                                                <ikw:SimpleStackPanel Margin="20,10,10,10">
+                                                <ikw:SimpleStackPanel Margin="20,2,10,2">
 
                                                     <Viewbox
 
@@ -3048,14 +3188,14 @@
 
                                 x:Name="BoardBorderDrawShapeScaleHost"
 
-                                Margin="-200,-288,-80,58">
+                                Margin="-200,-260,-80,58">
 
                                 <Border.RenderTransform>
 
                                     <TransformGroup>
-                                        <TranslateTransform X="-200" Y="-288" />
+                                        <TranslateTransform X="-200" Y="-260" />
                                         <ScaleTransform x:Name="BoardBorderDrawShapeScaleTransform" ScaleX="1" ScaleY="1" />
-                                        <TranslateTransform X="200" Y="288" />
+                                        <TranslateTransform X="200" Y="260" />
                                     </TransformGroup>
 
                                 </Border.RenderTransform>
@@ -3248,9 +3388,9 @@
 
                                         MaxHeight="240"
 
-                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
 
-                                        Margin="0,10,0,0">
+                                        HorizontalAlignment="Left">
 
                                         <ikw:SimpleStackPanel Spacing="-8">
 
