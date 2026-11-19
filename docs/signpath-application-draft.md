@@ -61,9 +61,18 @@ curl -s "https://api.github.com/repos/muqiu-pika/Ink-Canvas-Ultra/releases?per_p
 
 ## 前置条件（提交申请前必须完成，对应差距清单 A1/B1）
 
-1. **Releases（下载页）提及 SignPath**：下一个 Release 的说明按 `docs/release-notes-template.md` 的"代码签名"一节撰写（模板已含必填署名原文 `Free code signing provided by SignPath.io, certificate by SignPath Foundation`）。
-2. **Code signing policy 页面**（README 内），包含：署名原文、团队角色（Authors/Reviewers/Approvers 及成员）、隐私政策链接（privacy.txt）、受影响第三方服务说明 —— 属于差距清单 B1，尚未完成。
-3. 签名流水线（差距清单 D 项）实际落地后，再提交申请——申请时 Download URL 与政策页描述的状态必须是真实状态。
+1. **Releases（下载页）提及 SignPath**：下一个 Release 的说明按 `docs/release-notes-template.md` 的"代码签名"一节撰写（模板已含必填署名原文 `Free code signing provided by SignPath.io, certificate by SignPath Foundation`）。【待首个签名 Release】
+2. **Code signing policy 页面**：✅ 已完成（2026-11-20）—— README 新增 "Code signing policy" 章节，含署名原文、角色定义（单人兼任 Authors/Reviewers/Approvers）、隐私政策链接、第三方组件与服务说明（docs/THIRD-PARTY-NOTICES.md）、上游渊源披露，并标注"申请中，获批后生效"。
+3. **版本一致性（C1）**：✅ 已完成（2026-11-20）—— AssemblyInfo.cs 为唯一版本来源（26.11.2.0），CI 自动派生 iss/manifest/csproj；当前五处均为 26.11.2。
+4. 签名流水线（差距清单 D 项）实际落地后，再提交申请——申请时 Download URL 与政策页描述的状态必须是真实状态。
+
+## 上游 fork 条款结论（2026-11-20 核实）
+
+SignPath Terms 中"构建修改版上游"需同时满足四个条件（含"上游发布签名构建"）——该特例**不适用于本项目**：
+本项目是 fork 自 WXRIW/Ink-Canvas 的独立项目，所有源文件与构建脚本由本团队全量维护、独立版本与发布流程，
+满足的是主条款 "Sign your own projects only / Sign your own binaries only"。上游（WXRIW/Ink-Canvas，
+2026-03 已核实）未使用 SignPath，不构成申请障碍。已通过 README 的 Code signing policy 章节、
+docs/THIRD-PARTY-NOTICES.md 第 8 节和 AssemblyInfo 版权行主动披露渊源并保留 GPL 原始版权声明。
 
 ## 申请后流程（备忘）
 

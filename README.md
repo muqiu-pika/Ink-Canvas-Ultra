@@ -42,7 +42,7 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
   - **Resources/**: 图标、样式等资源文件
   - **Properties/**: 项目属性
 - **Images/**: 应用程序图标和截图
-- **docs/**: 发版说明模板、SignPath 申请材料
+- **docs/**: 发版说明模板、SignPath 申请材料、第三方组件清单
 - **.github/**: GitHub 相关配置文件和工作流
 - **LICENSE**: GPLv3 开源许可证
 - **README.md**: 项目说明文档
@@ -136,13 +136,30 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 - 如需使用视频展台模式，请安装"视频展台"插件，安装后会在桌面生成快捷方式；也可使用命令行参数 `--video-presenter`
 - 隐私政策：见 [privacy.txt](./privacy.txt) —— 本软件不上传用户数据，联网行为仅限更新检查、安装包与插件的下载
 
-<!-- 代码签名（SignPath Foundation）上线后：在本节与 Releases 说明中加入
-     "Free code signing provided by SignPath.io, certificate by SignPath Foundation"
-     以及 Code signing policy 链接，并同步 docs/release-notes-template.md -->
+## 🔏 Code signing policy
+
+> **Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org)**
+>
+> 当前状态：正在申请 SignPath Foundation 免费代码签名（OSS 计划）。获批后，安装包与主程序将由
+> SignPath Foundation 签发的证书进行 Authenticode 签名，本节描述即成为生效政策。
+
+- **团队角色**：本项目为个人维护者项目，Authors / Reviewers / Approvers 三种角色均由
+  [@muqiu-pika](https://github.com/muqiu-pika) 承担（后续加入协作者时会在此更新并链接 GitHub
+  权限组）。变更流程：维护者直接提交代码；外部 PR 经维护者审查后合并；每次发布签名前由
+  Approver 在 SignPath 手动批准。
+- **构建与签名策略**：所有发布二进制由 GitHub Actions（GitHub 托管 runner）从本仓库源码自动
+  构建，构建产物经 SignPath 提交签名并通过 Origin verification 绑定仓库与分支；不接受本地
+  手工构建的发布物。
+- **隐私政策**：[privacy.txt](./privacy.txt) —— 本程序不上传用户数据，联网仅限下载（更新检查、
+  安装包、插件市场清单与插件文件）。
+- **第三方组件与服务**：来源与许可见 [docs/THIRD-PARTY-NOTICES.md](./docs/THIRD-PARTY-NOTICES.md)；
+  涉及用户访问的第三方服务及其隐私政策也在该清单第 7 节与 privacy.txt 中说明。
+- **上游渊源**：本项目 fork 自 [WXRIW/Ink-Canvas](https://github.com/WXRIW/Ink-Canvas)，
+  由 muqiu-pika 全量维护（所有源文件与构建脚本均在本仓库内），原始版权声明按 GPL-3.0 保留。
 
 ## 🔄 版本信息
 
-当前版本：**V26.11.1**
+当前版本：**V26.11.2**
 
 ### 版本号命名规则（2026/8/30 起）
 
@@ -159,20 +176,20 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 - `26.10.1` = 2026 年 10 月的第 1 个版本（月份不补零，跨月/跨年时按数值递增）
 - 2026/8/30 之前的旧版本号（`8.0.2` 及更早）不再沿用此规则
 
-**发版时需要同步修改的位置：**
+**发版时的版本号规则（单一来源）：**
 
-| 文件 | 字段 | 示例值 |
-| --- | --- | --- |
-| `AutomaticUpdateVersionControl.txt` | 全文 | `26.11.1`（本次发布不推送更新，保持 `26.10.7`） |
-| `Ink Canvas/Properties/AssemblyInfo.cs` | `AssemblyVersion` / `AssemblyFileVersion` | `26.11.1.0`（末段固定为 0） |
-| `Ink Canvas.csproj`（根目录，AnyCPU） | `ApplicationVersion` | `26.11.1.%2a` |
-| `Ink Canvas/Ink Canvas.csproj`（x86） | `ApplicationVersion` | `26.11.1.%2a` |
-| `Ink Canvas/app.manifest` | `assemblyIdentity version` | `26.11.1.0` |
-| `Ink Canvas Ultra-AnyCPU.iss` | `MyAppVersion` | `26.11.1` |
-| `README.md` | 当前版本 | `V26.11.1` |
+- **唯一手工修改点**：`Ink Canvas/Properties/AssemblyInfo.cs` 的
+  `AssemblyVersion` / `AssemblyFileVersion`（两行同值，`X.Y.Z.0`），以及本文件的"当前版本"行。
+- CI 构建时自动从 AssemblyInfo 派生并同步其余位置：`Ink Canvas Ultra-AnyCPU.iss` 的
+  `MyAppVersion`、`Ink Canvas/app.manifest` 的 `assemblyIdentity version`、两个 csproj 的
+  `ApplicationVersion` —— **无需手工修改**。
+- `AutomaticUpdateVersionControl.txt` 是**更新推送开关**（内容 = 允许提示更新的最新版本号），
+  仅在真正要向用户推送该版本时才修改，与构建版本号无关。
+- 本地手动打包（VS MSBuild + Inno Setup）时，需自行将 `.iss` 的 `MyAppVersion` 改成与
+  AssemblyInfo 一致，或以 CI 构建产物为准。
 
 > 安装包由 Inno Setup 脚本按 `Ink.Canvas.Ultra.V{版本}.Setup.exe` 命名产出
-> （例如 `Ink.Canvas.Ultra.V26.11.1.Setup.exe`）。发布 Release 时，
-> **tag 必须为 `v26.11.1`、安装包文件名必须完全一致**，否则自动更新下载会 404。
+> （例如 `Ink.Canvas.Ultra.V26.11.2.Setup.exe`）。发布 Release 时，
+> **tag 必须为 `v26.11.2`、安装包文件名必须完全一致**，否则自动更新下载会 404。
 
 完整更新日志请访问：https://doc.muqiu.eu.org/article/changelog/

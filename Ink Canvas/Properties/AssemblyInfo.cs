@@ -5,9 +5,9 @@ using System.Windows;
 [assembly: AssemblyTitle("Ink Canvas Ultra")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("")]
+[assembly: AssemblyCompany("muqiu-pika")]
 [assembly: AssemblyProduct("Ink Canvas Ultra")]
-[assembly: AssemblyCopyright("Copyright 漏 XY Wang 2023 & Chang Wu 2024")]
+[assembly: AssemblyCopyright("Copyright © XY Wang 2023 & Chang Wu 2024 & muqiu-pika 2025-2026")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

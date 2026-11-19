@@ -28,37 +28,34 @@ jobs:
       with:
         nuget-version: '5.x'
 
-    # 提取版本号（唯一来源：csproj 的 ApplicationVersion）
+    # 提取版本号（唯一来源：AssemblyInfo.cs 的 AssemblyVersion，发版只改这一处）
     - name: Extract version
       id: version
       run: |
-        $csproj = "Ink Canvas\Ink Canvas.csproj"
-        [xml]$project = Get-Content $csproj
-        # csproj 中存在多个 PropertyGroup，.ApplicationVersion 返回数组，
-        # 只有一个 PropertyGroup 包含 ApplicationVersion，其余为 $null，
-        # 取第一个非空值，避免数组转字符串时出现多余空格
-        $appVersion = ($project.Project.PropertyGroup.ApplicationVersion | Where-Object { $_ } | Select-Object -First 1)
-        $version = ($appVersion -replace '\.%\w+$', '').Trim()
-        Write-Output "Extracted version: $version"
+        $assemblyInfo = "Ink Canvas\Properties\AssemblyInfo.cs"
+        $text = Get-Content $assemblyInfo -Raw
+        $pattern = '(?m)^\[assembly: AssemblyVersion\("(\d+)\.(\d+)\.(\d+)\.(\d+)"\)\]'
+        $m = [regex]::Match($text, $pattern)
+        if (-not $m.Success) { Write-Error "AssemblyVersion 未找到（文件格式可能已变）"; exit 1 }
+        # version   = X.Y.Z（iss / csproj 用）
+        # versionFull = X.Y.Z.0（app.manifest 用）
+        $version = "$($m.Groups[1]).$($m.Groups[2]).$($m.Groups[3])"
+        $versionFull = "$version.$($m.Groups[4])"
+        Write-Output "Extracted version: $versionFull"
         "version=$version" >> $env:GITHUB_OUTPUT
+        "versionFull=$versionFull" >> $env:GITHUB_OUTPUT
 
-    # 版本号同步：exe 内嵌版本（AssemblyInfo）与安装包版本（iss）都取自上面的 ApplicationVersion。
-    # 以前这三处需要手工各改一次，漏改一处就会出现"装完新版本、程序里仍显示旧版本号"，
-    # 并导致自动更新反复提示同一版本（远端版本 > 本地内嵌版本，永远判定为未更新）。
+    # 版本号同步：除 AssemblyInfo（唯一来源，不再改写）外，
+    # iss / app.manifest / csproj 全部由本步骤从 AssemblyInfo 派生。
+    # 漏改一处就会出现"装完新版本、程序里仍显示旧版本号"，并导致自动更新
+    # 反复提示同一版本；也满足 SignPath 对"每次构建所有版本属性一致"的要求。
     - name: Sync version
       run: |
         $version = "${{ steps.version.outputs.version }}"
+        $versionFull = "${{ steps.version.outputs.versionFull }}"
         if ([string]::IsNullOrWhiteSpace($version)) { Write-Error "版本号为空，终止"; exit 1 }
 
-        # 1) AssemblyInfo.cs -> AssemblyVersion("X.Y.Z.0")（只改未被注释的那一行）
-        $assemblyInfo = "Ink Canvas\Properties\AssemblyInfo.cs"
-        $text = Get-Content $assemblyInfo -Raw
-        $pattern = '(?m)^\[assembly: AssemblyVersion\("\d+(\.\d+){3}"\)\]'
-        if (-not [regex]::IsMatch($text, $pattern)) { Write-Error "AssemblyVersion 未找到（文件格式可能已变）"; exit 1 }
-        $updated = [regex]::Replace($text, $pattern, "[assembly: AssemblyVersion(""$version.0"")]")
-        if ($updated -ne $text) { Set-Content -Path $assemblyInfo -Value $updated -Encoding UTF8 }
-
-        # 2) 安装包脚本 -> #define MyAppVersion "X.Y.Z"
+        # 1) 安装包脚本 -> #define MyAppVersion "X.Y.Z"
         $iss = "Ink Canvas Ultra-AnyCPU.iss"
         $issText = Get-Content $iss -Raw
         $issPattern = '#define\s+MyAppVersion\s+"[^"]*"'
@@ -66,7 +63,25 @@ jobs:
         $issUpdated = [regex]::Replace($issText, $issPattern, "#define MyAppVersion ""$version""")
         if ($issUpdated -ne $issText) { Set-Content -Path $iss -Value $issUpdated -Encoding UTF8 }
 
-        Write-Output "版本已同步：AssemblyInfo/iss = $version"
+        # 2) app.manifest -> assemblyIdentity version="X.Y.Z.0"
+        #    （只改 assemblyIdentity 的 version，避免误伤 comctl32 依赖的 6.0.0.0）
+        $manifest = "Ink Canvas\app.manifest"
+        $mText = Get-Content $manifest -Raw
+        $mPattern = '(<assemblyIdentity[^>]*?version=")\d+(\.\d+){3}(")'
+        if (-not [regex]::IsMatch($mText, $mPattern)) { Write-Error "app.manifest 的 assemblyIdentity version 未找到"; exit 1 }
+        $mUpdated = [regex]::Replace($mText, $mPattern, "`${1}$versionFull`${3}")
+        if ($mUpdated -ne $mText) { Set-Content -Path $manifest -Value $mUpdated -Encoding UTF8 }
+
+        # 3) csproj（根 + x86）-> ApplicationVersion "X.Y.Z.%2a"
+        foreach ($proj in @("Ink Canvas.csproj", "Ink Canvas\Ink Canvas.csproj")) {
+          $pText = Get-Content $proj -Raw
+          $pPattern = '<ApplicationVersion>[^<]*</ApplicationVersion>'
+          if (-not [regex]::IsMatch($pText, $pPattern)) { Write-Error "$proj 的 ApplicationVersion 未找到"; exit 1 }
+          $pUpdated = [regex]::Replace($pText, $pPattern, "<ApplicationVersion>$version.%2a</ApplicationVersion>")
+          if ($pUpdated -ne $pText) { Set-Content -Path $proj -Value $pUpdated -Encoding UTF8 }
+        }
+
+        Write-Output "版本已同步：iss=$version, manifest=$versionFull, csproj=$version.%2a（来源 AssemblyInfo）"
 
     - name: NuGet restore
       run: nuget restore
