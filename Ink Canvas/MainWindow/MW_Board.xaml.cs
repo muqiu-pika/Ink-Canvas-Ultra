@@ -76,8 +76,15 @@ namespace Ink_Canvas
                 double shapeHeight = BoardBorderDrawShape.ActualHeight;
                 if (paletteHeight < 80 || shapeHeight < 80) return;
 
+                // 窗口高度跟随图形面板（底边本就对齐，等高后顶边同时对齐），不低于 XAML 基线 236
+                double targetHeight = Math.Max(236, shapeHeight);
+                if (Math.Abs(BoardPenPalette.Height - targetHeight) > 0.5)
+                {
+                    BoardPenPalette.Height = targetHeight;
+                }
+
                 double shapeBottom = BoardBorderDrawShapeScaleHost.Margin.Top + shapeHeight;
-                double targetTop = shapeBottom - paletteHeight;
+                double targetTop = shapeBottom - targetHeight;
 
                 var hostMargin = BoardPenPaletteScaleHost.Margin;
                 if (double.IsNaN(_paletteBaseLeft)) _paletteBaseLeft = hostMargin.Left;
@@ -95,8 +102,11 @@ namespace Ink_Canvas
                 bool changed = Math.Abs(hostMargin.Top - targetTop) >= 0.5
                                || Math.Abs(hostMargin.Left - targetLeft) >= 0.5;
 
+                // 内容在窗口内垂直居中（顶栏不参与，窗口尺寸/位置由上面的高度与对齐决定）
+                CenterPaletteContent(BoardPenPalette, targetHeight);
+
                 Helpers.LogHelper.WriteLogToFile(
-                    "[面板对齐] 白板 墨迹h=" + paletteHeight.ToString("F1")
+                    "[面板对齐] 白板 墨迹h=" + targetHeight.ToString("F1")
                     + " 图形h=" + shapeHeight.ToString("F1")
                     + " 图形底边=" + shapeBottom.ToString("F1")
                     + " 目标Top=" + targetTop.ToString("F1")
@@ -116,18 +126,40 @@ namespace Ink_Canvas
                     if (group.Children[0] is TranslateTransform top)
                     {
                         top.X = -targetLeft;
-                        top.Y = -paletteHeight;
+                        top.Y = -targetHeight;
                     }
                     if (group.Children[2] is TranslateTransform bottom)
                     {
                         bottom.X = targetLeft;
-                        bottom.Y = paletteHeight;
+                        bottom.Y = targetHeight;
                     }
                 }
             }
             catch (Exception ex)
             {
                 Helpers.LogHelper.WriteLogToFile("[面板对齐] 白板 失败: " + ex.Message, Helpers.LogHelper.LogType.Warning);
+            }
+        }
+
+        /// <summary>
+        /// 把「墨迹选项」顶栏之外的内容在窗口内垂直居中：
+        /// 顶栏固定在顶部，内容容器的顶边距 =（标题以下的可用区 − 内容高）/ 2。
+        /// </summary>
+        private static void CenterPaletteContent(Border palette, double paletteHeight)
+        {
+            if (!(palette.Child is Panel stack) || stack.Children.Count < 2) return;
+            if (!(stack.Children[0] is FrameworkElement title)) return;
+            if (!(stack.Children[1] is FrameworkElement content)) return;
+
+            double innerHeight = paletteHeight - palette.BorderThickness.Top - palette.BorderThickness.Bottom;
+            double titleSlot = title.ActualHeight + title.Margin.Top + title.Margin.Bottom;
+            double areaHeight = innerHeight - titleSlot;
+            if (title.ActualHeight <= 0 || content.ActualHeight <= 0 || areaHeight <= 0) return;
+
+            double topMargin = Math.Max(0, (areaHeight - content.ActualHeight) / 2);
+            if (Math.Abs(content.Margin.Top - topMargin) > 0.5)
+            {
+                content.Margin = new Thickness(content.Margin.Left, topMargin, content.Margin.Right, content.Margin.Bottom);
             }
         }
 

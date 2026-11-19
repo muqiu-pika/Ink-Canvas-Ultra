@@ -276,6 +276,14 @@ namespace Ink_Canvas
         {
             UpdateShapePanelAutoHeight(isBoard: false);
             UpdateShapePanelAutoHeight(isBoard: true);
+
+            // 图形面板高度可能因页面内容变化，墨迹选项窗口高度跟随它，需同步重新对齐
+            try
+            {
+                (MWFloatBarHost as MW_FloatBar)?.AlignPaletteNow();
+                (MWBoardHost as MW_Board)?.AlignPaletteNow();
+            }
+            catch { }
         }
 
         private Border GetShapePanelBorder(bool isBoard)

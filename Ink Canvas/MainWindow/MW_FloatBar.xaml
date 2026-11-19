@@ -752,8 +752,7 @@
 
                                         </Border>
 
-                                        <!-- 内容区整体下移 6px（窗口尺寸/位置与顶栏保持不变） -->
-                                        <ikw:SimpleStackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                                        <ikw:SimpleStackPanel Orientation="Horizontal">
 
                                             <Viewbox Width="245">
 
