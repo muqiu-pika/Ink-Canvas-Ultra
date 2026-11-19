@@ -197,14 +197,17 @@ namespace Ink_Canvas
                 if (ReferenceEquals(sender, view.TabShapes))
                 {
                     ShowInkGalleryPage(view, false);
-                    return;
+                    break;
                 }
                 if (ReferenceEquals(sender, view.TabGallery))
                 {
                     ShowInkGalleryPage(view, true);
-                    return;
+                    break;
                 }
             }
+            // 「默认图形 / 我的图库」切换会改变面板内容高度，而面板高度变化不改变自身
+            // ActualHeight（SizeChanged 不触发），这里补一次自适应计算
+            RefreshShapePanelAutoHeight();
         }
 
         /// <summary>

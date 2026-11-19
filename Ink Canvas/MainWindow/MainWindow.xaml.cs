@@ -88,6 +88,9 @@ namespace Ink_Canvas
             BorderDrawShape.Visibility = Visibility.Collapsed;
             BoardBorderDrawShape.Visibility = Visibility.Collapsed;
 
+            // 图形面板高度自适应：按内容实际需求撑开高度并保持底边位置，避免面板底部内容被裁切
+            InitShapePanelAutoHeight();
+
             GridInkCanvasSelectionCover.Visibility = Visibility.Collapsed;
 
             // 选中覆盖层一旦被折叠，同步隐藏圈选设置框与折叠小按钮（避免残留）

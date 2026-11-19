@@ -46,9 +46,6 @@ namespace Ink_Canvas
             public double ViewboxWidth;
             public double ViewboxMaxHeight;
             public double BorderWidth;
-            public double BorderHeight;
-            public double HostMarginTop;
-            public double AnchorY = double.NaN;
         }
 
         private readonly Dictionary<string, PluginShapeToolEntry> _pluginShapeToolEntries =
@@ -57,6 +54,11 @@ namespace Ink_Canvas
         private readonly HashSet<Panel> _pluginShapeToolRows = new HashSet<Panel>();
         private ShapePanelSizeBaseline _floatSizeBaseline;
         private ShapePanelSizeBaseline _boardSizeBaseline;
+        // 图形面板高度自适应：XAML 基线高度与底边偏移（首次计算时从布局捕获）
+        private double _floatShapeBaselineHeight = double.NaN;
+        private double _boardShapeBaselineHeight = double.NaN;
+        private double _floatShapeBottomOffset = double.NaN;
+        private double _boardShapeBottomOffset = double.NaN;
         private bool _pluginShapeToolsLoadedHooked;
 
         /// <summary>注册（宿主经 PluginHostOptions 调用，已在 UI 线程）。</summary>
@@ -242,6 +244,108 @@ namespace Ink_Canvas
             entry.Attached = false;
         }
 
+        #region 面板高度自适应（内容不被底边裁切，底边位置保持不变）
+
+        /// <summary>
+        /// 图形面板高度自适应：面板在 XAML 里是固定高（249），而内容实际需求更高
+        /// （标题栏 + Viewbox 渲染高 + 边框，约 270）——Viewbox 会把内容等比放大后溢出面板底边，
+        /// 表现为最底下一行图形被裁切（未安装插件时同样存在）。
+        /// 这里按内容实际需求设置面板高度，并把缩放宿主的 Margin.Top 反算成
+        /// 「原底边偏移 - 新高度」，让面板只向上长、底边始终停在原位（不压住浮动栏/白板栏），
+        /// 同时缩放锚点跟随底边，设置项「图形面板缩放」与墨迹选项底边对齐均不受影响。
+        /// 与插件是否安装无关，主窗口构造时即挂接 SizeChanged。
+        /// </summary>
+        public void InitShapePanelAutoHeight()
+        {
+            HookShapePanelAutoHeight(isBoard: false);
+            HookShapePanelAutoHeight(isBoard: true);
+            UpdateShapePanelAutoHeight(isBoard: false);
+            UpdateShapePanelAutoHeight(isBoard: true);
+        }
+
+        private void HookShapePanelAutoHeight(bool isBoard)
+        {
+            var border = GetShapePanelBorder(isBoard);
+            if (border == null) return;
+            border.SizeChanged += (s, e) => UpdateShapePanelAutoHeight(isBoard);
+        }
+
+        /// <summary>「默认图形 / 我的图库」页切换后补刷（Visibility 切换不改面板高度，SizeChanged 不触发）。</summary>
+        public void RefreshShapePanelAutoHeight()
+        {
+            UpdateShapePanelAutoHeight(isBoard: false);
+            UpdateShapePanelAutoHeight(isBoard: true);
+        }
+
+        private Border GetShapePanelBorder(bool isBoard)
+        {
+            if (isBoard) return BoardBorderDrawShape as Border;
+            return BorderDrawShape as Border;
+        }
+
+        private void UpdateShapePanelAutoHeight(bool isBoard)
+        {
+            try
+            {
+                var border = GetShapePanelBorder(isBoard);
+                FrameworkElement scaleHost = isBoard
+                    ? BoardBorderDrawShapeScaleHost as FrameworkElement
+                    : BorderDrawShapeScaleHost as FrameworkElement;
+                if (border == null || scaleHost == null) return;
+                if (!(border.Child is Panel stack)) return;
+                double currentHeight = double.IsNaN(border.ActualHeight) || border.ActualHeight <= 0
+                    ? border.Height
+                    : border.ActualHeight;
+                if (double.IsNaN(currentHeight) || double.IsInfinity(currentHeight)) return;
+
+                // 首次计算时从布局捕获 XAML 基线高度与底边偏移（底边 = Margin.Top + 基线高度）
+                if (isBoard)
+                {
+                    if (double.IsNaN(_boardShapeBaselineHeight)) _boardShapeBaselineHeight = currentHeight;
+                    if (double.IsNaN(_boardShapeBottomOffset))
+                        _boardShapeBottomOffset = scaleHost.Margin.Top + _boardShapeBaselineHeight;
+                    currentHeight = _boardShapeBaselineHeight;
+                }
+                else
+                {
+                    if (double.IsNaN(_floatShapeBaselineHeight)) _floatShapeBaselineHeight = currentHeight;
+                    if (double.IsNaN(_floatShapeBottomOffset))
+                        _floatShapeBottomOffset = scaleHost.Margin.Top + _floatShapeBaselineHeight;
+                    currentHeight = _floatShapeBaselineHeight;
+                }
+                double baselineHeight = currentHeight;
+                double bottomOffset = isBoard ? _boardShapeBottomOffset : _floatShapeBottomOffset;
+
+                // 内容需求：直接 Measure 内部纵向容器（不受祖先固定高度约束），
+                // 加上 BorderThickness 才是面板需要的总高
+                stack.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                double needed = stack.DesiredSize.Height +
+                                border.BorderThickness.Top + border.BorderThickness.Bottom;
+                // 不低于 XAML 基线高度（内容更少时保持原尺寸）
+                double target = Math.Max(baselineHeight, Math.Ceiling(needed));
+
+                if (Math.Abs(border.Height - target) > 0.5)
+                {
+                    border.Height = target;
+                }
+
+                // 底边锚定：Margin.Top = 原底边偏移 - 当前高度；缩放锚点恒为 -Margin.Top
+                double newTop = bottomOffset - border.Height;
+                if (Math.Abs(scaleHost.Margin.Top - newTop) > 0.5)
+                {
+                    var margin = scaleHost.Margin;
+                    scaleHost.Margin = new Thickness(margin.Left, newTop, margin.Right, margin.Bottom);
+                    SetShapeScaleAnchorY(scaleHost, -newTop);
+                }
+            }
+            catch (Exception ex)
+            {
+                LogHelper.WriteLogToFile("图形面板高度自适应失败: " + ex.Message, LogHelper.LogType.Warning);
+            }
+        }
+
+        #endregion
+
         #region 面板尺寸自适应（插件工具增减后自动扩/还原）
 
         /// <summary>
@@ -271,18 +375,9 @@ namespace Ink_Canvas
             if (double.IsNaN(viewbox.Width) || double.IsInfinity(viewbox.Width)) return;
 
             FrameworkElement border;
-            FrameworkElement scaleHost;
-            if (isBoard)
-            {
-                border = BoardBorderDrawShape as FrameworkElement;
-                scaleHost = BoardBorderDrawShapeScaleHost as FrameworkElement;
-            }
-            else
-            {
-                border = BorderDrawShape as FrameworkElement;
-                scaleHost = BorderDrawShapeScaleHost as FrameworkElement;
-            }
-            if (border == null || scaleHost == null) return;
+            if (isBoard) border = BoardBorderDrawShape as FrameworkElement;
+            else border = BorderDrawShape as FrameworkElement;
+            if (border == null) return;
             if (double.IsNaN(border.Width) || double.IsInfinity(border.Width)) return;
 
             var baseline = isBoard ? _boardSizeBaseline : _floatSizeBaseline;
@@ -293,9 +388,6 @@ namespace Ink_Canvas
                     ViewboxWidth = viewbox.Width,
                     ViewboxMaxHeight = viewbox.MaxHeight,
                     BorderWidth = border.Width,
-                    BorderHeight = border.Height,
-                    HostMarginTop = scaleHost.Margin.Top,
-                    AnchorY = GetShapeScaleAnchorY(scaleHost),
                 };
                 if (isBoard) _boardSizeBaseline = baseline;
                 else _floatSizeBaseline = baseline;
@@ -306,18 +398,19 @@ namespace Ink_Canvas
                 out double currentWidth, out double currentHeight);
             if (baseWidth <= 0 || currentWidth <= 0) return;
 
-            bool fixedHeight = !double.IsNaN(baseline.ViewboxMaxHeight) && !double.IsInfinity(baseline.ViewboxMaxHeight) &&
-                               !double.IsNaN(baseline.BorderHeight) && !double.IsInfinity(baseline.BorderHeight);
+            bool fixedMaxHeight = !double.IsNaN(baseline.ViewboxMaxHeight) && !double.IsInfinity(baseline.ViewboxMaxHeight);
 
-            // 内容自然宽度与槽宽之比即基线缩放比；内容比槽宽时（本项目两个面板的现状）
-            // 新增内容会触发 Viewbox 整体等比缩小，把多出的自然宽按该比例补进槽宽即可保持图标原尺寸
-            double scale = baseWidth > baseline.ViewboxWidth
-                ? baseline.ViewboxWidth / baseWidth
-                : 1.0;
-            double deltaWidth = baseWidth > baseline.ViewboxWidth
-                ? Math.Max(0, (currentWidth - baseWidth) * scale)
-                : Math.Max(0, currentWidth - baseline.ViewboxWidth);
-            double deltaHeight = fixedHeight ? Math.Max(0, (currentHeight - baseHeight) * scale) : 0;
+            // 基线缩放比 = Viewbox 实际会采用的比例：内容被等比放大/缩小以塞进
+            // 「槽宽(235) × MaxHeight」，取二者中较小者。新增内容后只要把槽宽/上限
+            // 按同一比例补齐，图标缩放就与未装插件时完全一致（不会整体变小）
+            double scaleW = baseWidth > 0 ? baseline.ViewboxWidth / baseWidth : 1.0;
+            double scaleH = fixedMaxHeight && baseHeight > 0 ? baseline.ViewboxMaxHeight / baseHeight : 1.0;
+            double scale = Math.Max(0.01, Math.Min(scaleW, scaleH));
+
+            // 宽度：槽宽补到「内容宽 × 基线比例」
+            double deltaWidth = Math.Max(0, currentWidth * scale - baseline.ViewboxWidth);
+            // 高度上限：内容行数变多时抬到「内容高 × 基线比例」，否则上限会反过来压小图标
+            double deltaHeight = Math.Max(0, currentHeight * scale - baseline.ViewboxMaxHeight);
 
             double newViewboxWidth = baseline.ViewboxWidth + deltaWidth;
             double newBorderWidth = baseline.BorderWidth + deltaWidth;
@@ -327,29 +420,14 @@ namespace Ink_Canvas
 
             if (deltaHeight > 0)
             {
+                // 内容行数增加：抬高 Viewbox 上限，避免新行触发整体缩小。
+                // 面板 Border 的高度与底边锚定由 UpdateShapePanelAutoHeight 统一按内容需求接管
                 double newMaxHeight = baseline.ViewboxMaxHeight + deltaHeight;
-                double newBorderHeight = baseline.BorderHeight + deltaHeight;
                 if (Math.Abs(viewbox.MaxHeight - newMaxHeight) > 0.01) viewbox.MaxHeight = newMaxHeight;
-                if (Math.Abs(border.Height - newBorderHeight) > 0.01) border.Height = newBorderHeight;
+            }
 
-                // 高度向上扩展：Margin.Top 同步上移，面板底边（Margin.Top + Height）保持不动，
-                // 不会向下压住浮动栏/白板栏；墨迹选项底边对齐按同一式子计算，无需改写
-                double newTop = baseline.HostMarginTop - deltaHeight;
-                if (Math.Abs(scaleHost.Margin.Top - newTop) > 0.01)
-                {
-                    var margin = scaleHost.Margin;
-                    scaleHost.Margin = new Thickness(margin.Left, newTop, margin.Right, margin.Bottom);
-                }
-                // 缩放锚点跟随面板底边，设置项「图形面板缩放」仍以底边为基准，不产生漂移
-                if (!double.IsNaN(baseline.AnchorY)) SetShapeScaleAnchorY(scaleHost, baseline.AnchorY + deltaHeight);
-            }
-            else if (deltaHeight == 0 && Math.Abs(scaleHost.Margin.Top - baseline.HostMarginTop) > 0.01)
-            {
-                // 插件新建行已移除：还原底边锚点
-                var margin = scaleHost.Margin;
-                scaleHost.Margin = new Thickness(margin.Left, baseline.HostMarginTop, margin.Right, margin.Bottom);
-                if (!double.IsNaN(baseline.AnchorY)) SetShapeScaleAnchorY(scaleHost, baseline.AnchorY);
-            }
+            // 内容（含 MaxHeight 变化）重新核算面板高度与底边
+            UpdateShapePanelAutoHeight(isBoard);
         }
 
         private sealed class RemovedShapeToolItem
@@ -446,17 +524,7 @@ namespace Ink_Canvas
             if (rows > 0) height += rowGap * (rows - 1);
         }
 
-        /// <summary>取缩放宿主的底边锚点（RenderTransform 中第二个 Translate 的绝对值）。</summary>
-        private static double GetShapeScaleAnchorY(FrameworkElement scaleHost)
-        {
-            if (scaleHost.RenderTransform is TransformGroup group && group.Children.Count >= 3 &&
-                group.Children[2] is TranslateTransform bottom)
-            {
-                return Math.Abs(bottom.Y);
-            }
-            return double.NaN;
-        }
-
+        /// <summary>设置缩放宿主的底边锚点（RenderTransform 中两个 Translate 互为相反数，锚点 = -Margin.Top）。</summary>
         private static void SetShapeScaleAnchorY(FrameworkElement scaleHost, double anchorY)
         {
             if (scaleHost.RenderTransform is TransformGroup group && group.Children.Count >= 3 &&
