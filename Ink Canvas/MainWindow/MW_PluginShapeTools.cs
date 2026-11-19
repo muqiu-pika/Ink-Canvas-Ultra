@@ -46,6 +46,7 @@ namespace Ink_Canvas
             public double ViewboxWidth;
             public double ViewboxMaxHeight;
             public double BorderWidth;
+            public double HostMarginLeft;
         }
 
         private readonly Dictionary<string, PluginShapeToolEntry> _pluginShapeToolEntries =
@@ -359,6 +360,14 @@ namespace Ink_Canvas
             {
                 RefreshShapePanelSizing(MWFloatBarHost, isBoard: false);
                 RefreshShapePanelSizing(MWBoardHost, isBoard: true);
+
+                // 「墨迹选项」面板与「图形」面板并排，宽度补偿后同步刷新其水平位置
+                try
+                {
+                    if (MWFloatBarHost is MW_FloatBar floatBar) floatBar.AlignPaletteNow();
+                    if (MWBoardHost is MW_Board board) board.AlignPaletteNow();
+                }
+                catch { }
             }
             catch (Exception ex)
             {
@@ -375,9 +384,18 @@ namespace Ink_Canvas
             if (double.IsNaN(viewbox.Width) || double.IsInfinity(viewbox.Width)) return;
 
             FrameworkElement border;
-            if (isBoard) border = BoardBorderDrawShape as FrameworkElement;
-            else border = BorderDrawShape as FrameworkElement;
-            if (border == null) return;
+            FrameworkElement scaleHost;
+            if (isBoard)
+            {
+                border = BoardBorderDrawShape as FrameworkElement;
+                scaleHost = BoardBorderDrawShapeScaleHost as FrameworkElement;
+            }
+            else
+            {
+                border = BorderDrawShape as FrameworkElement;
+                scaleHost = BorderDrawShapeScaleHost as FrameworkElement;
+            }
+            if (border == null || scaleHost == null) return;
             if (double.IsNaN(border.Width) || double.IsInfinity(border.Width)) return;
 
             var baseline = isBoard ? _boardSizeBaseline : _floatSizeBaseline;
@@ -388,6 +406,7 @@ namespace Ink_Canvas
                     ViewboxWidth = viewbox.Width,
                     ViewboxMaxHeight = viewbox.MaxHeight,
                     BorderWidth = border.Width,
+                    HostMarginLeft = scaleHost.Margin.Left,
                 };
                 if (isBoard) _boardSizeBaseline = baseline;
                 else _floatSizeBaseline = baseline;
@@ -417,6 +436,17 @@ namespace Ink_Canvas
 
             if (Math.Abs(viewbox.Width - newViewboxWidth) > 0.01) viewbox.Width = newViewboxWidth;
             if (Math.Abs(border.Width - newBorderWidth) > 0.01) border.Width = newBorderWidth;
+
+            // 宽度补偿向左扩展：面板右缘保持原位、左缘左移 delta。
+            // 面板左缘原本就位于工具栏锚点左侧（-200），向左长更安全；
+            // 若向右扩，浮动栏/白板栏拖到屏幕右侧时面板会超出屏幕显示范围。
+            double newLeft = baseline.HostMarginLeft - deltaWidth;
+            if (Math.Abs(scaleHost.Margin.Left - newLeft) > 0.01)
+            {
+                var hostMargin = scaleHost.Margin;
+                scaleHost.Margin = new Thickness(newLeft, hostMargin.Top, hostMargin.Right, hostMargin.Bottom);
+                SetShapeScaleAnchorX(scaleHost, -newLeft);
+            }
 
             if (deltaHeight > 0)
             {
@@ -532,6 +562,17 @@ namespace Ink_Canvas
             {
                 top.Y = -anchorY;
                 bottom.Y = anchorY;
+            }
+        }
+
+        /// <summary>设置缩放宿主的水平锚点（锚点 = -Margin.Left，与 XAML 的 translate(-L)/translate(L) 结构一致）。</summary>
+        private static void SetShapeScaleAnchorX(FrameworkElement scaleHost, double anchorX)
+        {
+            if (scaleHost.RenderTransform is TransformGroup group && group.Children.Count >= 3 &&
+                group.Children[0] is TranslateTransform top && group.Children[2] is TranslateTransform bottom)
+            {
+                top.X = -anchorX;
+                bottom.X = anchorX;
             }
         }
 

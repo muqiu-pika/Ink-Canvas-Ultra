@@ -43,6 +43,9 @@ namespace Ink_Canvas
 
         #region 墨迹选项底边对齐到图形面板
 
+        /// <summary>墨迹面板 XAML 初始左偏移（首次对齐时捕获，之后按图形面板宽度补偿量同步左移）</summary>
+        private double _paletteBaseLeft = double.NaN;
+
         private void PenPaletteSizeChanged(object sender, SizeChangedEventArgs e)
         {
             // 不能在 SizeChanged（布局过程中）直接改 Margin，会触发布局循环保护
@@ -62,9 +65,11 @@ namespace Ink_Canvas
         /// <summary>
         /// 把「墨迹选项」面板底边对齐到「图形」面板底边。
         ///
-        /// 两个面板各自高度不同（墨迹由内容撑开、图形固定 249），历史上的 Margin.Top 是分别写死的，
+        /// 两个面板各自高度不同（墨迹由内容撑开、图形原为固定高），历史上的 Margin.Top 是分别写死的，
         /// 任何一侧内容变化都会让底边错位。这里直接读图形面板的实际底边反算墨迹面板的 Margin.Top，
         /// 不再依赖任何估算像素值。
+        /// 水平方向同理：图形面板宽度被插件补偿后是向左扩展的（右缘保持原位），墨迹面板紧贴其左侧，
+        /// 需要同步左移相同量，否则两块面板会重叠。
         /// </summary>
         private void AlignPenPaletteBottomToDrawShape()
         {
@@ -88,7 +93,20 @@ namespace Ink_Canvas
                 double targetTop = shapeBottom - paletteHeight;
 
                 var hostMargin = PenPaletteScaleHost.Margin;
-                bool changed = Math.Abs(hostMargin.Top - targetTop) >= 0.5;
+                if (double.IsNaN(_paletteBaseLeft)) _paletteBaseLeft = hostMargin.Left;
+                // 图形面板 XAML 基线宽 280（与 MW_FloatBar.xaml 中 Width 一致），超出部分即插件宽度补偿量。
+                // 图形与墨迹面板各自的缩放系数可能不同（图形面板缩放是独立设置项），
+                // 需要按各自的 ScaleX 换算，保证两块面板的渲染位移一致、间距与未补偿时相同
+                double shapeDeltaWidth = Math.Max(0, BorderDrawShape.Width - 280);
+                double shapeScaleX = GetScaleX(BorderDrawShapeScaleHost);
+                double paletteScaleX = GetScaleX(PenPaletteScaleHost);
+                double leftShift = paletteScaleX <= 0.01
+                    ? shapeDeltaWidth
+                    : shapeDeltaWidth * shapeScaleX / paletteScaleX;
+                double targetLeft = _paletteBaseLeft - leftShift;
+
+                bool changed = Math.Abs(hostMargin.Top - targetTop) >= 0.5
+                               || Math.Abs(hostMargin.Left - targetLeft) >= 0.5;
 
                 Helpers.LogHelper.WriteLogToFile(
                     "[面板对齐] 浮动栏 墨迹h=" + paletteHeight.ToString("F1")
@@ -96,18 +114,28 @@ namespace Ink_Canvas
                     + " 图形底边=" + shapeBottom.ToString("F1")
                     + " 目标Top=" + targetTop.ToString("F1")
                     + " 当前Top=" + hostMargin.Top.ToString("F1")
+                    + " 目标Left=" + targetLeft.ToString("F1")
+                    + " 当前Left=" + hostMargin.Left.ToString("F1")
                     + (changed ? " -> 应用" : " -> 无需调整"),
                     Helpers.LogHelper.LogType.Info);
 
                 if (!changed) return;
 
-                PenPaletteScaleHost.Margin = new Thickness(hostMargin.Left, targetTop, hostMargin.Right, hostMargin.Bottom);
+                PenPaletteScaleHost.Margin = new Thickness(targetLeft, targetTop, hostMargin.Right, hostMargin.Bottom);
 
-                // 缩放锚点保持在面板底边，缩放时不会相对浮动栏漂移
+                // 缩放锚点：水平跟随面板左缘（= -Margin.Left），垂直保持在面板底边，缩放时不会相对浮动栏漂移
                 if (PenPaletteScaleHost.RenderTransform is TransformGroup group && group.Children.Count >= 3)
                 {
-                    if (group.Children[0] is TranslateTransform top) top.Y = -paletteHeight;
-                    if (group.Children[2] is TranslateTransform bottom) bottom.Y = paletteHeight;
+                    if (group.Children[0] is TranslateTransform top)
+                    {
+                        top.X = -targetLeft;
+                        top.Y = -paletteHeight;
+                    }
+                    if (group.Children[2] is TranslateTransform bottom)
+                    {
+                        bottom.X = targetLeft;
+                        bottom.Y = paletteHeight;
+                    }
                 }
             }
             catch (Exception ex)
@@ -120,6 +148,17 @@ namespace Ink_Canvas
         public void AlignPaletteNow()
         {
             AlignPenPaletteBottomToDrawShape();
+        }
+
+        /// <summary>读取缩放宿主 RenderTransform 里的横向缩放系数（面板缩放设置项的运行值）</summary>
+        private static double GetScaleX(FrameworkElement host)
+        {
+            if (host?.RenderTransform is TransformGroup group && group.Children.Count >= 3 &&
+                group.Children[1] is ScaleTransform scale && Math.Abs(scale.ScaleX) > 0.01)
+            {
+                return scale.ScaleX;
+            }
+            return 1.0;
         }
 
         #endregion
