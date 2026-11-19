@@ -175,6 +175,21 @@ namespace Ink_Canvas.Plugins
         /// </summary>
         int DefaultPenColorIndex { get; set; }
 
+        /// <summary>
+        /// 浮动栏/批注默认笔色槽位。0-8 / 101-106；-1 = 跟随内置默认（红）。持久化到主设置。
+        /// </summary>
+        int DefaultDesktopPenColorIndex { get; set; }
+
+        /// <summary>
+        /// 白板亮底默认笔色槽位。0-8 / 101-106；-1 = 跟随内置默认（黑）。持久化到主设置。
+        /// </summary>
+        int DefaultBoardLightPenColorIndex { get; set; }
+
+        /// <summary>
+        /// 白板暗底默认笔色槽位。0-8 / 101-106；-1 = 跟随内置默认（白）。持久化到主设置。
+        /// </summary>
+        int DefaultBoardDarkPenColorIndex { get; set; }
+
         /// <summary>调色板发生变化（自定义色、恢复默认、选色或主题切换）。</summary>
         event EventHandler PenColorsChanged;
 

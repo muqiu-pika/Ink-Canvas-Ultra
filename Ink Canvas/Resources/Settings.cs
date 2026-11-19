@@ -92,6 +92,16 @@ namespace Ink_Canvas
 
         [JsonProperty("defaultPenColorIndex")]
         public int DefaultPenColorIndex { get; set; } = -1;
+
+        // 三种默认笔色（-1 = 跟随内置默认：浮动栏红 / 白板亮底黑 / 白板暗底白）
+        [JsonProperty("defaultDesktopPenColorIndex")]
+        public int DefaultDesktopPenColorIndex { get; set; } = -1;
+
+        [JsonProperty("defaultBoardLightPenColorIndex")]
+        public int DefaultBoardLightPenColorIndex { get; set; } = -1;
+
+        [JsonProperty("defaultBoardDarkPenColorIndex")]
+        public int DefaultBoardDarkPenColorIndex { get; set; } = -1;
     }
 
     public enum OptionalOperation

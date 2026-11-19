@@ -334,6 +334,22 @@ namespace Ink_Canvas
                     {
                         Dispatcher.Invoke(() => ApplyDefaultPenColorSetting(slotIndex));
                     },
+                    // 三种默认笔色（浮动栏/批注、白板亮底、白板暗底；-1 = 跟随内置默认）
+                    GetDefaultDesktopPenColorIndex = () => Settings.Canvas?.DefaultDesktopPenColorIndex ?? -1,
+                    SetDefaultDesktopPenColorIndex = (slotIndex) =>
+                    {
+                        Dispatcher.Invoke(() => ApplyDefaultDesktopPenColorSetting(slotIndex));
+                    },
+                    GetDefaultBoardLightPenColorIndex = () => Settings.Canvas?.DefaultBoardLightPenColorIndex ?? -1,
+                    SetDefaultBoardLightPenColorIndex = (slotIndex) =>
+                    {
+                        Dispatcher.Invoke(() => ApplyDefaultBoardLightPenColorSetting(slotIndex));
+                    },
+                    GetDefaultBoardDarkPenColorIndex = () => Settings.Canvas?.DefaultBoardDarkPenColorIndex ?? -1,
+                    SetDefaultBoardDarkPenColorIndex = (slotIndex) =>
+                    {
+                        Dispatcher.Invoke(() => ApplyDefaultBoardDarkPenColorSetting(slotIndex));
+                    },
                     // 画布底色（供「自定义颜色」插件调用；主程序负责渲染与派生，插件负责持久化）
                     PickColor = (initial, title, subtitle) => Dispatcher.Invoke(
                         () => ColorPickerWindow.Pick(initial, title, subtitle, this)),

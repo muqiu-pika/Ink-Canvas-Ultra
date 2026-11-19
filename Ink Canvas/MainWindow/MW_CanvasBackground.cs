@@ -139,16 +139,17 @@ namespace Ink_Canvas
             }
 
             // 3. 默认笔色对比度修正：亮底不保留白笔、暗底不保留黑笔
-            //    （与原「切白板/切黑板」逻辑一致，只是判据从 UsingWhiteboard 变成底色亮度）
+            //    （与原「切白板/切黑板」逻辑一致，只是判据从 UsingWhiteboard 变成底色亮度；
+            //    纠正目标为「自定义颜色」插件配置的对应亮/暗底默认色，未配置时仍是内置黑/白）
             if (currentMode != 0)
             {
                 if (isLight)
                 {
-                    if (inkColor == 5) lastBoardInkColor = 0;
+                    if (inkColor == 5) lastBoardInkColor = GetConfiguredBoardDefaultPenIndex(isLight: true);
                 }
                 else
                 {
-                    if (inkColor == 0) lastBoardInkColor = 5;
+                    if (inkColor == 0) lastBoardInkColor = GetConfiguredBoardDefaultPenIndex(isLight: false);
                 }
             }
 

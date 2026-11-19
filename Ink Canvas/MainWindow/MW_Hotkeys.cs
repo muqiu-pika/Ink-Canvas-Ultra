@@ -26,6 +26,7 @@ namespace Ink_Canvas
             HotkeyService = new HotkeyService(this);
             HotkeyService.RegisterAction("exit-ppt", "退出PPT放映", "放映 PPT 时按快捷键退出放映", HotkeyModifiers.MOD_SHIFT, Key.Escape, HotKey_ExitPPTSlideShow);
             HotkeyService.RegisterAction("clear", "清屏", "清除画布内容", HotkeyModifiers.MOD_CONTROL, Key.E, HotKey_Clear);
+            HotkeyService.RegisterAction("clear-and-switch-cursor", "清空并切换鼠标", "清空画布内容并切换到鼠标选择模式", HotkeyModifiers.MOD_ALT, Key.X, HotKey_ClearAndSwitchCursor);
             HotkeyService.RegisterAction("capture", "截图", "截图并插入画布", HotkeyModifiers.MOD_ALT, Key.C, HotKey_Capture);
             HotkeyService.RegisterAction("toggle-visibility", "隐藏/显示", "隐藏或显示主窗口", HotkeyModifiers.MOD_ALT, Key.V, HotKey_Hide);
             HotkeyService.RegisterAction("draw-tool", "画笔", "切换到画笔", HotkeyModifiers.MOD_ALT, Key.D, HotKey_DrawTool);
@@ -82,6 +83,12 @@ namespace Ink_Canvas
         private void HotKey_Clear()
         {
             SymbolIconDelete_MouseUp(null, null);
+        }
+
+        // 与浮动栏「清空并切换鼠标」按钮行为完全一致（清屏 + 切换鼠标，各自带异常兜底）
+        private void HotKey_ClearAndSwitchCursor()
+        {
+            CursorWithDelIcon_Click(null, null);
         }
 
         private async void HotKey_Capture()

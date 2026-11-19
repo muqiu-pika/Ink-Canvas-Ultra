@@ -313,8 +313,34 @@ namespace Ink_Canvas
         }
 
         /// <summary>
-        /// 设置默认画笔颜色槽位（插件 API）：-1 = 沿用内置默认；合法槽位 = 立即应用并持久化。
-        /// 持久化在 Settings.Canvas.DefaultPenColorIndex，下次启动时由 ApplyStartupDefaultPenColor 生效。
+        /// 解析一个默认色槽位：configured 合法用 configured，否则旧版单值 legacy 合法用 legacy，
+        /// 否则回落内置默认 builtIn（-1 表示"不干预"由调用方决定）。
+        /// </summary>
+        private static int ResolveConfiguredDefault(int configured, int legacy, int builtIn)
+        {
+            if (IsValidPenColorSlot(configured)) return configured;
+            if (IsValidPenColorSlot(legacy)) return legacy;
+            return builtIn;
+        }
+
+        /// <summary>当前配置下白板默认笔色槽位（按底色亮度取亮/暗默认，未配置回落内置 0/5）</summary>
+        internal int GetConfiguredBoardDefaultPenIndex(bool isLight)
+        {
+            try
+            {
+                int configured = isLight
+                    ? (Settings?.Canvas?.DefaultBoardLightPenColorIndex ?? -1)
+                    : (Settings?.Canvas?.DefaultBoardDarkPenColorIndex ?? -1);
+                int legacy = Settings?.Canvas?.DefaultPenColorIndex ?? -1;
+                return ResolveConfiguredDefault(configured, legacy, isLight ? 0 : 5);
+            }
+            catch { }
+            return isLight ? 0 : 5;
+        }
+
+        /// <summary>
+        /// 设置默认画笔颜色槽位（旧版单值插件 API）：-1 = 沿用内置默认；合法槽位 = 立即应用并持久化。
+        /// 语义改为"旧版兼容"：写入 legacy 字段，并同步刷新三种默认色（configured 未设置的槽位随之生效）。
         /// </summary>
         internal void ApplyDefaultPenColorSetting(int slotIndex)
         {
@@ -330,8 +356,14 @@ namespace Ink_Canvas
 
                 if (IsValidPenColorSlot(slotIndex))
                 {
-                    lastDesktopInkColor = slotIndex;
-                    lastBoardInkColor = slotIndex;
+                    int legacy = slotIndex;
+                    lastDesktopInkColor = ResolveConfiguredDefault(Settings.Canvas.DefaultDesktopPenColorIndex, legacy, 1);
+                    lastBoardInkColor = ResolveConfiguredDefault(
+                        IsLightBackground(CurrentCanvasBackground)
+                            ? Settings.Canvas.DefaultBoardLightPenColorIndex
+                            : Settings.Canvas.DefaultBoardDarkPenColorIndex,
+                        legacy,
+                        IsLightBackground(CurrentCanvasBackground) ? 0 : 5);
                     CheckColorTheme();
                 }
 
@@ -343,19 +375,79 @@ namespace Ink_Canvas
             catch { }
         }
 
+        /// <summary>浮动栏/批注默认笔色（-1 = 跟随内置默认红）：写入并立即生效</summary>
+        internal void ApplyDefaultDesktopPenColorSetting(int slotIndex)
+        {
+            try
+            {
+                if (slotIndex != -1 && !IsValidPenColorSlot(slotIndex)) return;
+                if (Settings?.Canvas == null) return;
+
+                bool changed = Settings.Canvas.DefaultDesktopPenColorIndex != slotIndex;
+                Settings.Canvas.DefaultDesktopPenColorIndex = slotIndex;
+                lastDesktopInkColor = IsValidPenColorSlot(slotIndex)
+                    ? slotIndex
+                    : ResolveConfiguredDefault(-1, Settings.Canvas.DefaultPenColorIndex, 1);
+
+                if (changed) SaveSettingsToFile();
+                CheckColorTheme();
+                try { PluginHost.Instance?.RaisePenColorsChanged(); } catch { }
+            }
+            catch { }
+        }
+
+        /// <summary>白板亮底默认笔色（-1 = 跟随内置默认黑）：写入并立即生效</summary>
+        internal void ApplyDefaultBoardLightPenColorSetting(int slotIndex)
+        {
+            ApplyDefaultBoardPenColorSetting(slotIndex, isLight: true);
+        }
+
+        /// <summary>白板暗底默认笔色（-1 = 跟随内置默认白）：写入并立即生效</summary>
+        internal void ApplyDefaultBoardDarkPenColorSetting(int slotIndex)
+        {
+            ApplyDefaultBoardPenColorSetting(slotIndex, isLight: false);
+        }
+
+        private void ApplyDefaultBoardPenColorSetting(int slotIndex, bool isLight)
+        {
+            try
+            {
+                if (slotIndex != -1 && !IsValidPenColorSlot(slotIndex)) return;
+                if (Settings?.Canvas == null) return;
+
+                bool changed = isLight
+                    ? Settings.Canvas.DefaultBoardLightPenColorIndex != slotIndex
+                    : Settings.Canvas.DefaultBoardDarkPenColorIndex != slotIndex;
+                if (isLight) Settings.Canvas.DefaultBoardLightPenColorIndex = slotIndex;
+                else Settings.Canvas.DefaultBoardDarkPenColorIndex = slotIndex;
+
+                // 仅当当前底色亮度与该槽位匹配时立即刷新当前白板笔色
+                if (IsLightBackground(CurrentCanvasBackground) == isLight)
+                {
+                    lastBoardInkColor = GetConfiguredBoardDefaultPenIndex(isLight);
+                }
+
+                if (changed) SaveSettingsToFile();
+                CheckColorTheme();
+                try { PluginHost.Instance?.RaisePenColorsChanged(); } catch { }
+            }
+            catch { }
+        }
+
         /// <summary>
-        /// 启动时应用「默认画笔颜色」设置。
+        /// 启动时应用「默认画笔颜色」设置（三种默认色分别解析）。
         /// 未设置（-1）时不干预，保持内置默认：浮动栏红、白板随背景黑/白。
         /// </summary>
         internal void ApplyStartupDefaultPenColor()
         {
             try
             {
-                int index = Settings?.Canvas?.DefaultPenColorIndex ?? -1;
-                if (!IsValidPenColorSlot(index)) return;
+                if (Settings?.Canvas == null) return;
+                int legacy = Settings.Canvas.DefaultPenColorIndex;
 
-                lastDesktopInkColor = index;
-                lastBoardInkColor = index;
+                lastDesktopInkColor = ResolveConfiguredDefault(
+                    Settings.Canvas.DefaultDesktopPenColorIndex, legacy, 1);
+                lastBoardInkColor = GetConfiguredBoardDefaultPenIndex(IsLightBackground(CurrentCanvasBackground));
                 CheckColorTheme();
             }
             catch { }

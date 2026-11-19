@@ -684,6 +684,57 @@ namespace Ink_Canvas.Plugins
             }
         }
 
+        public int DefaultDesktopPenColorIndex
+        {
+            get
+            {
+                try
+                {
+                    if (_opts.GetDefaultDesktopPenColorIndex != null) return _opts.GetDefaultDesktopPenColorIndex();
+                }
+                catch { }
+                return -1;
+            }
+            set
+            {
+                try { _opts.SetDefaultDesktopPenColorIndex?.Invoke(value); } catch { }
+            }
+        }
+
+        public int DefaultBoardLightPenColorIndex
+        {
+            get
+            {
+                try
+                {
+                    if (_opts.GetDefaultBoardLightPenColorIndex != null) return _opts.GetDefaultBoardLightPenColorIndex();
+                }
+                catch { }
+                return -1;
+            }
+            set
+            {
+                try { _opts.SetDefaultBoardLightPenColorIndex?.Invoke(value); } catch { }
+            }
+        }
+
+        public int DefaultBoardDarkPenColorIndex
+        {
+            get
+            {
+                try
+                {
+                    if (_opts.GetDefaultBoardDarkPenColorIndex != null) return _opts.GetDefaultBoardDarkPenColorIndex();
+                }
+                catch { }
+                return -1;
+            }
+            set
+            {
+                try { _opts.SetDefaultBoardDarkPenColorIndex?.Invoke(value); } catch { }
+            }
+        }
+
         private void RaisePluginListChanged()
         {
             try { PluginListChanged?.Invoke(this, EventArgs.Empty); } catch { }
@@ -1390,6 +1441,12 @@ namespace Ink_Canvas.Plugins
         public Func<int, bool> SelectPenColor { get; set; }
         public Func<int> GetDefaultPenColorIndex { get; set; }
         public Action<int> SetDefaultPenColorIndex { get; set; }
+        public Func<int> GetDefaultDesktopPenColorIndex { get; set; }
+        public Action<int> SetDefaultDesktopPenColorIndex { get; set; }
+        public Func<int> GetDefaultBoardLightPenColorIndex { get; set; }
+        public Action<int> SetDefaultBoardLightPenColorIndex { get; set; }
+        public Func<int> GetDefaultBoardDarkPenColorIndex { get; set; }
+        public Action<int> SetDefaultBoardDarkPenColorIndex { get; set; }
 
         // 画布底色（插件自定义，主程序负责渲染）
         public Func<Color, string, string, Color?> PickColor { get; set; }

@@ -664,7 +664,7 @@ namespace Ink_Canvas
                 Color startupBackground = CurrentCanvasBackground;
                 Settings.Canvas.UsingWhiteboard = IsLightBackground(startupBackground);
                 GridBackgroundCover.Background = new SolidColorBrush(startupBackground);
-                lastBoardInkColor = IsLightBackground(startupBackground) ? 0 : 5;
+                lastBoardInkColor = GetConfiguredBoardDefaultPenIndex(IsLightBackground(startupBackground));
 
                 if (Settings.Canvas.IsShowCursor)
                 {
