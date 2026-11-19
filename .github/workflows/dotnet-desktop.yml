@@ -77,7 +77,8 @@ jobs:
         $issPattern = '#define\s+MyAppVersion\s+"[^"]*"'
         if (-not [regex]::IsMatch($issText, $issPattern)) { Write-Error "iss 的 MyAppVersion 未找到"; exit 1 }
         $issUpdated = [regex]::Replace($issText, $issPattern, "#define MyAppVersion ""$version""")
-        if ($issUpdated -ne $issText) { Set-Content -Path $iss -Value $issUpdated -Encoding UTF8 }
+        # utf8BOM：保证各版本 Inno Setup 都按 UTF-8 解析脚本里的中文注释与字符串
+        if ($issUpdated -ne $issText) { Set-Content -Path $iss -Value $issUpdated -Encoding utf8BOM }
 
         # 2) app.manifest -> assemblyIdentity version="X.Y.Z.0"
         #    （只改 assemblyIdentity 的 version，避免误伤 comctl32 依赖的 6.0.0.0）
@@ -129,6 +130,26 @@ jobs:
         if (-not (Test-Path $iscc)) { Write-Error "ISCC.exe 未找到：$($dir.FullName)"; exit 1 }
         Write-Output "ISCC: $iscc"
         "ISCC_PATH=$iscc" >> $env:GITHUB_ENV
+
+        # choco 静默安装不含可选的翻译文件（官方安装器中翻译是可选组件），
+        # 而 .iss 引用了简体中文翻译，缺失会让 ISCC 直接编译中止 —— 从官方源码仓库补齐
+        $langDir = Join-Path $dir.FullName "Languages"
+        $islPath = Join-Path $langDir "ChineseSimplified.isl"
+        if (-not (Test-Path $islPath)) {
+          New-Item -ItemType Directory -Force -Path $langDir | Out-Null
+          $urls = @(
+            "https://raw.githubusercontent.com/jrsoftware/issrc/is-6_7_1/Files/Languages/Unofficial/ChineseSimplified.isl",
+            "https://raw.githubusercontent.com/jrsoftware/issrc/main/Files/Languages/Unofficial/ChineseSimplified.isl"
+          )
+          $ok = $false
+          foreach ($u in $urls) {
+            try {
+              Invoke-WebRequest -Uri $u -OutFile $islPath -UseBasicParsing -TimeoutSec 60
+              if ((Get-Item $islPath).Length -gt 10KB) { $ok = $true; Write-Output "已补齐翻译文件：$u"; break }
+            } catch { Write-Output "下载失败：$u" }
+          }
+          if (-not $ok) { Write-Error "ChineseSimplified.isl 补齐失败"; exit 1 }
+        }
 
     - name: Build installer (Inno Setup)
       run: |
