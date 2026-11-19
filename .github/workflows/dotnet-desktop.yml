@@ -3,6 +3,7 @@ name: .NET Build
 on:
   push:
     branches: [ master ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ master ]
 
@@ -10,6 +11,8 @@ jobs:
 
   build:
     runs-on: windows-2025
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     steps:
     - name: Checkout
@@ -44,6 +47,19 @@ jobs:
         Write-Output "Extracted version: $versionFull"
         "version=$version" >> $env:GITHUB_OUTPUT
         "versionFull=$versionFull" >> $env:GITHUB_OUTPUT
+
+    # tag 构建防呆：tag 必须与 AssemblyInfo 版本一致（vX.Y.Z），否则安装包文件名
+    # 与 tag 对不上，自动更新会 404（发布约定见 README"版本信息"）。
+    - name: Verify tag matches version
+      if: github.ref_type == 'tag'
+      run: |
+        $expected = "v${{ steps.version.outputs.version }}"
+        $actual = "${{ github.ref_name }}"
+        if ($actual -ne $expected) {
+          Write-Error "tag '$actual' 与 AssemblyInfo 版本 '$expected' 不一致，终止（tag 必须为 vX.Y.Z 且与 AssemblyVersion 前三段相同）"
+          exit 1
+        }
+        Write-Output "tag 校验通过：$actual"
 
     # 版本号同步：除 AssemblyInfo（唯一来源，不再改写）外，
     # iss / app.manifest / csproj 全部由本步骤从 AssemblyInfo 派生。
@@ -102,8 +118,63 @@ jobs:
         Get-ChildItem "Ink Canvas/bin/Release" -Filter *.pdb -Recurse | Remove-Item -Force
         Get-ChildItem "Ink Canvas/bin/Release" -Filter "Interop.stdole.dll" -Recurse | Remove-Item -Force -ErrorAction SilentlyContinue
 
+    # 安装包打包：Inno Setup（每次构建都打包，尽早暴露 iss 脚本问题；
+    # 正式 Release 由下方的 release job 仅在 tag 构建时创建）
+    - name: Install Inno Setup
+      run: |
+        choco install innosetup -y --no-progress
+        $dir = Get-ChildItem "C:\Program Files (x86)" -Directory -Filter "Inno Setup*" | Select-Object -First 1
+        if (-not $dir) { Write-Error "Inno Setup 安装目录未找到"; exit 1 }
+        $iscc = Join-Path $dir.FullName "ISCC.exe"
+        if (-not (Test-Path $iscc)) { Write-Error "ISCC.exe 未找到：$($dir.FullName)"; exit 1 }
+        Write-Output "ISCC: $iscc"
+        "ISCC_PATH=$iscc" >> $env:GITHUB_ENV
+
+    - name: Build installer (Inno Setup)
+      run: |
+        & "${{ env.ISCC_PATH }}" "Ink Canvas Ultra-AnyCPU.iss"
+        if ($LASTEXITCODE -ne 0) { Write-Error "ISCC 编译失败"; exit 1 }
+        Get-ChildItem dist | Format-Table Name, Length
+
     - name: Upload to artifact
       uses: actions/upload-artifact@v7
       with:
         name: Ink.Canvas.Ultra.V${{ steps.version.outputs.version }}
         path: Ink Canvas/bin/Release
+
+    - name: Upload installer artifact
+      uses: actions/upload-artifact@v7
+      with:
+        name: Ink.Canvas.Ultra.V${{ steps.version.outputs.version }}.Setup
+        path: dist/*.exe
+        if-no-files-found: error
+
+  # tag 构建（vX.Y.Z）：产出草稿 Release 并附上安装包。
+  # 默认 draft=true，由维护者在 Releases 页检查文件名（必须为
+  # Ink.Canvas.Ultra.V{版本}.Setup.exe）并填写发布说明后再手动发布。
+  release:
+    name: Create draft release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download installer artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: Ink.Canvas.Ultra.V${{ needs.build.outputs.version }}.Setup
+          path: dist
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          name: Ink Canvas Ultra V${{ needs.build.outputs.version }}
+          body: |
+            自动构建的安装包（CI 产物，发布说明请在发布前参照 `docs/release-notes-template.md` 填写）。
+
+            ### 📥 下载
+            - 安装包：`Ink.Canvas.Ultra.V${{ needs.build.outputs.version }}.Setup.exe`
+          files: dist/*.exe
+          fail_on_unmatched_files: true
