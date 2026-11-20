@@ -763,24 +763,9 @@ namespace Ink_Canvas
             InvokeMainWindowHandler(nameof(ToggleSwitchEnableRotFirst_Toggled), sender, e);
         }
 
-        private void ComboBoxPptNavBottomLeftPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void BtnPptNavEditMode_Click(object sender, RoutedEventArgs e)
         {
-            InvokeMainWindowHandler(nameof(ComboBoxPptNavBottomLeftPosition_SelectionChanged), sender, e);
-        }
-
-        private void ComboBoxPptNavBottomRightPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            InvokeMainWindowHandler(nameof(ComboBoxPptNavBottomRightPosition_SelectionChanged), sender, e);
-        }
-
-        private void ComboBoxPptNavSideLeftPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            InvokeMainWindowHandler(nameof(ComboBoxPptNavSideLeftPosition_SelectionChanged), sender, e);
-        }
-
-        private void ComboBoxPptNavSideRightPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            InvokeMainWindowHandler(nameof(ComboBoxPptNavSideRightPosition_SelectionChanged), sender, e);
+            InvokeMainWindowHandler(nameof(BtnPptNavEditMode_Click), sender, e);
         }
 
         private void TouchMultiplierSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)

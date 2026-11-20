@@ -210,10 +210,6 @@ namespace Ink_Canvas
         private dynamic ToggleSwitchSupportPowerPoint => FindXamlPart(SettingsWindow, nameof(ToggleSwitchSupportPowerPoint));
         private dynamic ToggleSwitchSupportWPS => FindXamlPart(SettingsWindow, nameof(ToggleSwitchSupportWPS));
         private dynamic ToggleSwitchEnableRotFirst => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableRotFirst));
-        private dynamic ComboBoxPptNavBottomLeftPosition => FindXamlPart(SettingsWindow, nameof(ComboBoxPptNavBottomLeftPosition));
-        private dynamic ComboBoxPptNavBottomRightPosition => FindXamlPart(SettingsWindow, nameof(ComboBoxPptNavBottomRightPosition));
-        private dynamic ComboBoxPptNavSideLeftPosition => FindXamlPart(SettingsWindow, nameof(ComboBoxPptNavSideLeftPosition));
-        private dynamic ComboBoxPptNavSideRightPosition => FindXamlPart(SettingsWindow, nameof(ComboBoxPptNavSideRightPosition));
         private dynamic ToggleSwitchShowCanvasAtNewSlideShow => FindXamlPart(SettingsWindow, nameof(ToggleSwitchShowCanvasAtNewSlideShow));
         private dynamic ToggleSwitchEnableTwoFingerGestureInPresentationMode => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableTwoFingerGestureInPresentationMode));
         private dynamic ToggleSwitchEnableFingerGestureSlideShowControl => FindXamlPart(SettingsWindow, nameof(ToggleSwitchEnableFingerGestureSlideShowControl));

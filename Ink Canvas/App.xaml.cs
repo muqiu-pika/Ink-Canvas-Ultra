@@ -125,10 +125,38 @@ namespace Ink_Canvas
 
         public App()
         {
+            // 必须在任何窗口/资源创建之前执行：全局关闭 iNKORE 的 MaximizedWindowFixer。
+            // 详见 DisableMaximizedWindowFixer 注释（PInvokeStackImbalance 根治）。
+            DisableMaximizedWindowFixer();
             InitializeWpfStylusSafetySettings();
             this.Startup += new StartupEventHandler(App_Startup);
             this.DispatcherUnhandledException += App_DispatcherUnhandledException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+        }
+
+        /// <summary>
+        /// 根治 iNKORE.UI.WPF.Modern 的 PInvokeStackImbalance（官方 issue #13）：
+        /// 该库 MaximizedWindowFixer 内部的 GetWindowPlacement P/Invoke 签名错误（按值传结构体，
+        /// 而 Win32 需要指针），x86 下触发 MDA 栈不对称。库的 TheWindowStyle 默认把
+        /// WindowHelper.FixMaximizedWindow 设为 True，从而给窗口挂载该 fixer。
+        /// 这里在依赖属性元数据层用 CoerceValueCallback 把该属性的有效值强制固定为 false，
+        /// 优先级高于任何样式 setter，覆盖本程序窗口以及插件动态创建的窗口。
+        /// </summary>
+        private static void DisableMaximizedWindowFixer()
+        {
+            try
+            {
+                var dp = iNKORE.UI.WPF.Modern.Controls.Helpers.WindowHelper.FixMaximizedWindowProperty;
+                // 保留库的 PropertyChangedCallback（OnFixMaximizedWindowChanged）——
+                // 它在收到 false 时会 ClearValue(MaximizedWindowFixer)，主动卸载已挂载的 fixer。
+                dp.OverrideMetadata(
+                    typeof(Window),
+                    new PropertyMetadata(false, null, (d, baseValue) => false));
+            }
+            catch
+            {
+                // 覆盖失败不应阻断启动；各窗口 XAML 的本地值 False 作为兜底。
+            }
         }
 
         private static void InitializeWpfStylusSafetySettings()

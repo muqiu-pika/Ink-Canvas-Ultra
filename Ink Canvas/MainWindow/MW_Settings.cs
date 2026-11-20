@@ -681,36 +681,19 @@ namespace Ink_Canvas
             SaveSettingsToFile();
         }
 
-        private void ComboBoxPptNavBottomLeftPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        /// <summary>
+        /// 「进入编辑模式」按钮：通过路由把拖拽编辑交给「PPT 控件自定义」插件处理；
+        /// 未安装插件时给出提示（模式同 MW_ElementsControls.MediaUnified 的 video-insert 路由）。
+        /// </summary>
+        private void BtnPptNavEditMode_Click(object sender, RoutedEventArgs e)
         {
-            if (!isLoaded || _isLoadingSettings) return;
-            Settings.PowerPointSettings.PptNavBottomLeftPosition = ComboBoxPptNavBottomLeftPosition.SelectedIndex;
-            SaveSettingsToFile();
-            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) ApplyPPTNavigationPositions();
-        }
-
-        private void ComboBoxPptNavBottomRightPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!isLoaded || _isLoadingSettings) return;
-            Settings.PowerPointSettings.PptNavBottomRightPosition = ComboBoxPptNavBottomRightPosition.SelectedIndex;
-            SaveSettingsToFile();
-            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) ApplyPPTNavigationPositions();
-        }
-
-        private void ComboBoxPptNavSideLeftPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!isLoaded || _isLoadingSettings) return;
-            Settings.PowerPointSettings.PptNavSideLeftPosition = ComboBoxPptNavSideLeftPosition.SelectedIndex;
-            SaveSettingsToFile();
-            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) ApplyPPTNavigationPositions();
-        }
-
-        private void ComboBoxPptNavSideRightPosition_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            if (!isLoaded || _isLoadingSettings) return;
-            Settings.PowerPointSettings.PptNavSideRightPosition = ComboBoxPptNavSideRightPosition.SelectedIndex;
-            SaveSettingsToFile();
-            if (BtnPPTSlideShowEnd.Visibility == Visibility.Visible) ApplyPPTNavigationPositions();
+            var host = Plugins.PluginHost.Instance;
+            if (host == null || !host.IsRouteAvailable("ppt-nav-edit-mode"))
+            {
+                ShowNotificationAsync("未安装「PPT 控件自定义」插件，无法编辑翻页控件位置。请在插件工坊安装。");
+                return;
+            }
+            host.TriggerRoute("ppt-nav-edit-mode");
         }
 
         private void ToggleSwitchCompressPicturesUploaded_Toggled(object sender, RoutedEventArgs e)

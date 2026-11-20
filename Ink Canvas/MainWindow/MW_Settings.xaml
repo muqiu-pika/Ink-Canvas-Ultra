@@ -1,5 +1,6 @@
 <Window
     x:Class="Ink_Canvas.MW_Settings"
+    ui:WindowHelper.FixMaximizedWindow="False"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:Controls="http://schemas.microsoft.com/netfx/2009/xaml/presentation"
@@ -2619,109 +2620,15 @@
 
                                         Foreground="{DynamicResource PopupWindowForeground}"
 
-                                        Text="下方翻页控件（左）位置：  " />
+                                        Text="翻页控件位置：  " />
 
-                                    <ComboBox
+                                    <Button
 
-                                        Name="ComboBoxPptNavBottomLeftPosition"
+                                        Padding="15,4"
 
-                                        SelectedIndex="0"
+                                        Click="BtnPptNavEditMode_Click"
 
-                                        SelectionChanged="ComboBoxPptNavBottomLeftPosition_SelectionChanged">
-
-                                        <ComboBoxItem Content="靠左" />
-
-                                        <ComboBoxItem Content="居中" />
-
-                                        <ComboBoxItem Content="靠右" />
-
-                                    </ComboBox>
-
-                                    <TextBlock
-
-                                        Margin="18,0,0,0"
-
-                                        VerticalAlignment="Center"
-
-                                        FontSize="14"
-
-                                        Foreground="{DynamicResource PopupWindowForeground}"
-
-                                        Text="下方翻页控件（右）位置：  " />
-
-                                    <ComboBox
-
-                                        Name="ComboBoxPptNavBottomRightPosition"
-
-                                        SelectedIndex="0"
-
-                                        SelectionChanged="ComboBoxPptNavBottomRightPosition_SelectionChanged">
-
-                                        <ComboBoxItem Content="靠左" />
-
-                                        <ComboBoxItem Content="居中" />
-
-                                        <ComboBoxItem Content="靠右" />
-
-                                    </ComboBox>
-
-                                </ikw:SimpleStackPanel>
-
-                                <ikw:SimpleStackPanel Orientation="Horizontal">
-
-                                    <TextBlock
-
-                                        VerticalAlignment="Center"
-
-                                        FontSize="14"
-
-                                        Foreground="{DynamicResource PopupWindowForeground}"
-
-                                        Text="侧面翻页控件（左）位置：  " />
-
-                                    <ComboBox
-
-                                        Name="ComboBoxPptNavSideLeftPosition"
-
-                                        SelectedIndex="0"
-
-                                        SelectionChanged="ComboBoxPptNavSideLeftPosition_SelectionChanged">
-
-                                        <ComboBoxItem Content="靠上" />
-
-                                        <ComboBoxItem Content="居中" />
-
-                                        <ComboBoxItem Content="靠下" />
-
-                                    </ComboBox>
-
-                                    <TextBlock
-
-                                        Margin="18,0,0,0"
-
-                                        VerticalAlignment="Center"
-
-                                        FontSize="14"
-
-                                        Foreground="{DynamicResource PopupWindowForeground}"
-
-                                        Text="侧面翻页控件（右）位置：  " />
-
-                                    <ComboBox
-
-                                        Name="ComboBoxPptNavSideRightPosition"
-
-                                        SelectedIndex="0"
-
-                                        SelectionChanged="ComboBoxPptNavSideRightPosition_SelectionChanged">
-
-                                        <ComboBoxItem Content="靠上" />
-
-                                        <ComboBoxItem Content="居中" />
-
-                                        <ComboBoxItem Content="靠下" />
-
-                                    </ComboBox>
+                                        Content="进入编辑模式" />
 
                                 </ikw:SimpleStackPanel>
 
@@ -2729,7 +2636,7 @@
 
                                     Foreground="{DynamicResource SettingsPageAnnotationForeground}"
 
-                                    Text="# 调整四个翻页控件在屏幕边缘上的摆放位置，放映下一轮 PPT 或重新进入放映后生效。"
+                                    Text="# 点击后四个翻页控件会显示在屏幕上，直接拖动到想要的位置，点工具条上的「保存并退出」完成。需要安装「PPT 控件自定义」插件。"
 
                                     TextWrapping="Wrap" />
 

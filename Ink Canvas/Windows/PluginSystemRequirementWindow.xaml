@@ -1,6 +1,8 @@
 <Window x:Class="Ink_Canvas.PluginSystemRequirementWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.inkore.net/lib/ui/wpf/modern"
+        ui:WindowHelper.FixMaximizedWindow="False"
         Title="需要 Windows 系统组件"
         Width="520"
         SizeToContent="Height"
