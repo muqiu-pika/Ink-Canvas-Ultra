@@ -14,3 +14,7 @@
 **/bin/
 **/obj/
 *.user
+
+# 内部申请/发布辅助材料（仅保留本地，不入库）
+/docs/signpath-application-draft.md
+/docs/release-notes-template.md

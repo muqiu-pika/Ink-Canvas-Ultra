@@ -42,7 +42,7 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
   - **Resources/**: 图标、样式等资源文件
   - **Properties/**: 项目属性
 - **Images/**: 应用程序图标和截图
-- **docs/**: 发版说明模板、SignPath 申请材料、第三方组件清单
+- **docs/**: 第三方组件清单（THIRD-PARTY-NOTICES.md）
 - **.github/**: GitHub 相关配置文件和工作流
 - **LICENSE**: GPLv3 开源许可证
 - **README.md**: 项目说明文档
@@ -132,7 +132,7 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 - 前往 [Releases 页面](https://github.com/muqiu-pika/Ink-Canvas-Ultra/releases/latest) 下载最新版本：
   - **安装包** `Ink.Canvas.Ultra.V{版本}.Setup.exe`（推荐，双击安装）
   - **便携版** zip 压缩包，解压后运行 "Ink Canvas Ultra.exe" 即可
-- 每个 Release 均附有该版本的功能更新说明（发版说明模板见 [docs/release-notes-template.md](./docs/release-notes-template.md)）
+- 每个 Release 均附有该版本的功能更新说明
 - 如需使用视频展台模式，请安装"视频展台"插件，安装后会在桌面生成快捷方式；也可使用命令行参数 `--video-presenter`
 - 隐私政策：见 [privacy.txt](./privacy.txt) —— 本软件不上传用户数据，联网行为仅限更新检查、安装包与插件的下载
 
