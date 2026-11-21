@@ -3,7 +3,7 @@
 > 发版时复制以下模板内容到 GitHub Release 描述框，按需删改。
 >
 > 1. tag 必须为 `v{版本}`、安装包文件名必须为 `Ink.Canvas.Ultra.V{版本}.Setup.exe`，否则自动更新会 404。
-> 2. "代码签名"一节：**仅在启用 SignPath Foundation 证书签名后保留**；未签名版本发布时删除该节。
+> 2. "代码签名"一节：默认展示"正在请求获取 SignPath 的签名"（申请中状态，如实陈述）；获批签名上线后，替换为官方署名原文版本（见该节内 HTML 注释）。
 > 3. SignPath 申请要求下载页提及签名方，签名上线后请勿删除该节。
 
 ---
@@ -32,9 +32,15 @@
 
 ### 🔏 代码签名
 
+> **正在请求获取 SignPath 的签名**
+>
+> 本项目正在申请 SignPath Foundation 免费代码签名（OSS 计划），获批后安装包与主程序将由其签发的证书进行代码签名。
+
+<!-- 获批签名上线后，将上一节替换为以下内容（署名原文是 SignPath 条款要求的固定文案）：
 > Free code signing provided by SignPath.io, certificate by SignPath Foundation
 
-本版本安装包与主程序由 SignPath Foundation 签发的证书进行代码签名。签名与验证说明见仓库的 Code signing policy（待启用）。
+本版本安装包与主程序由 SignPath Foundation 签发的证书进行代码签名。签名与验证说明见仓库的 Code signing policy。
+-->
 
 ### 💬 反馈
 

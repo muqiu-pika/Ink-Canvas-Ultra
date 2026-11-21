@@ -138,10 +138,12 @@ Ink Canvas Ultra 画板是一款针对希沃白板设备进行了特别优化的
 
 ## 🔏 Code signing policy
 
-> **Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org)**
+> **正在请求获取 SignPath 的签名**
 >
 > 当前状态：正在申请 SignPath Foundation 免费代码签名（OSS 计划）。获批后，安装包与主程序将由
-> SignPath Foundation 签发的证书进行 Authenticode 签名，本节描述即成为生效政策。
+> SignPath Foundation 签发的证书进行 Authenticode 签名，本行将替换为官方署名原文
+> "Free code signing provided by SignPath.io, certificate by SignPath Foundation"，
+> 本节描述即成为生效政策。
 
 - **团队角色**：本项目为个人维护者项目，Authors / Reviewers / Approvers 三种角色均由
   [@muqiu-pika](https://github.com/muqiu-pika) 承担（后续加入协作者时会在此更新并链接 GitHub

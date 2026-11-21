@@ -61,7 +61,7 @@ curl -s "https://api.github.com/repos/muqiu-pika/Ink-Canvas-Ultra/releases?per_p
 
 ## 前置条件（提交申请前必须完成，对应差距清单 A1/B1）
 
-1. **Releases（下载页）提及 SignPath**：下一个 Release 的说明按 `docs/release-notes-template.md` 的"代码签名"一节撰写（模板已含必填署名原文 `Free code signing provided by SignPath.io, certificate by SignPath Foundation`）。【待首个签名 Release】
+1. **Releases（下载页）提及 SignPath**：下一个 Release 的说明按 `docs/release-notes-template.md` 的"代码签名"一节撰写——模板默认展示"正在请求获取 SignPath 的签名"（申请中，如实陈述）；获批后替换为官方署名原文 `Free code signing provided by SignPath.io, certificate by SignPath Foundation`。【待发布含该节的 Release】
 2. **Code signing policy 页面**：✅ 已完成（2026-11-20）—— README 新增 "Code signing policy" 章节，含署名原文、角色定义（单人兼任 Authors/Reviewers/Approvers）、隐私政策链接、第三方组件与服务说明（docs/THIRD-PARTY-NOTICES.md）、上游渊源披露，并标注"申请中，获批后生效"。
 3. **版本一致性（C1）**：✅ 已完成（2026-11-20）—— AssemblyInfo.cs 为唯一版本来源（26.11.2.0），CI 自动派生 iss/manifest/csproj；当前五处均为 26.11.2。
 4. 签名流水线（差距清单 D 项）实际落地后，再提交申请——申请时 Download URL 与政策页描述的状态必须是真实状态。
